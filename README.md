@@ -41,23 +41,21 @@ pnpm install
 
 ### 2. Environment variables
 
-All apps read from the **root** `.env` file (not per-app).
+Env files live at the **monorepo root** (not inside `apps/`).
+
+| File | When it's used |
+| ---- | -------------- |
+| **`.env.local`** | **Local development** (`pnpm dev`) — copy from `.env.example` |
+| **`.env`** | **Production builds** (`next build` on Vercel or locally) |
+| **Vercel dashboard** | Production/preview at deploy time (no file needed on disk) |
 
 ```bash
-cp .env.example .env
+cp .env.example .env.local
 ```
 
-Fill in your Supabase project values at the **monorepo root** (not inside `apps/`):
+Fill in your values in **`.env.local`** for local work. Keep production values in **`.env`** for deploys (or set the same keys in Vercel — recommended).
 
-```bash
-cp .env.example .env
-```
-
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY` (server-only)
-
-Restart the dev server after changing `.env` — Next.js reads root env via `loadEnvConfig` in each app's `next.config.ts`.
+Restart the dev server after changing env files — each app's `next.config.ts` loads env via `@walls/config/load-root-env`.
 
 ### 3. Run an app
 
@@ -159,7 +157,7 @@ Redirects go to `NEXT_PUBLIC_WALLS_AGENCY_URL/login?redirect=<full return URL>`.
 
 ### Production SSO
 
-Configure Supabase auth cookies for your parent domain (e.g. `.walls.agency`) so a session from the portal is visible on `adpilot.walls.agency`. Set in root `.env`:
+Configure Supabase auth cookies for your parent domain (e.g. `.walls.agency`) so a session from the portal is visible on `adpilot.walls.agency`. Set in **`.env.local`** (dev) or Vercel / **`.env`** (production):
 
 - `NEXT_PUBLIC_WALLS_AGENCY_URL` — portal origin
 - `NEXT_PUBLIC_ADPILOT_URL` — AdPilot origin (for safe post-login redirects)

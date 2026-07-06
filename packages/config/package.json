@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     "./load-root-env": "./load-root-env.ts",
+    "./monorepo-env.mjs": "./monorepo-env.mjs",
     "./metadata": "./metadata.ts"
   },
   "scripts": {

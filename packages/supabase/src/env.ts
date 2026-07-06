@@ -4,7 +4,7 @@ export function getSupabaseEnv() {
 
   if (!url || !anonKey) {
     throw new Error(
-      "Missing Supabase env vars. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to the root .env file.",
+      "Missing Supabase env vars. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to the root .env.local file (development) or .env / Vercel env (production).",
     );
   }
 
@@ -16,7 +16,7 @@ export function getSupabaseServiceRoleKey() {
 
   if (!serviceRoleKey) {
     throw new Error(
-      "Missing SUPABASE_SERVICE_ROLE_KEY in the root .env file.",
+      "Missing SUPABASE_SERVICE_ROLE_KEY in the root .env.local file (development) or .env / Vercel env (production).",
     );
   }
 

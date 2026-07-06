@@ -2,18 +2,19 @@
 /**
  * Introspects the Supabase Postgres database and writes packages/supabase/generated.json.
  *
- * Requires SUPABASE_DB_URL in the monorepo root .env (direct/session pooler connection string).
+ * Requires SUPABASE_DB_URL in the monorepo root `.env.local` (dev) or `.env` (production).
  *
  * Usage from repo root:
  *   pnpm db:schema
  */
 
-import { existsSync, writeFileSync } from "node:fs";
+import { writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { config as loadDotenv } from "dotenv";
 import pg from "pg";
+
+import { loadMonorepoEnvFiles } from "@walls/config/monorepo-env.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const packageRoot = path.resolve(__dirname, "..");
@@ -21,18 +22,12 @@ const monorepoRoot = path.resolve(packageRoot, "../..");
 const outputPath = path.join(packageRoot, "generated.json");
 
 function loadEnv() {
-  const envPath = path.join(monorepoRoot, ".env");
-  const envLocalPath = path.join(monorepoRoot, ".env.local");
-
-  if (!existsSync(envPath) && !existsSync(envLocalPath)) {
-    console.error(
-      `No .env found at ${envPath}. Copy .env.example and set SUPABASE_DB_URL.`,
-    );
+  try {
+    loadMonorepoEnvFiles(monorepoRoot);
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : error);
     process.exit(1);
   }
-
-  loadDotenv({ path: envPath });
-  loadDotenv({ path: envLocalPath, override: true });
 }
 
 const SCHEMAS = ["public", "auth", "storage"];
@@ -416,7 +411,7 @@ async function main() {
   const connectionString = process.env.SUPABASE_DB_URL;
   if (!connectionString) {
     console.error(
-      "SUPABASE_DB_URL is not set. Add your Supabase direct/pooler connection string to .env",
+      "SUPABASE_DB_URL is not set. Add your Supabase direct/pooler connection string to .env.local (dev) or .env (production).",
     );
     process.exit(1);
   }

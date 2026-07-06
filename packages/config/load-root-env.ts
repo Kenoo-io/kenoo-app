@@ -17,12 +17,41 @@ export function getMonorepoRoot(appDir: string): string {
   return path.resolve(normalized, "../..");
 }
 
+/** Development loads `.env.local`; production loads `.env` (or Vercel-injected env). */
+export function isMonorepoDevelopmentMode(): boolean {
+  return process.env.NODE_ENV !== "production";
+}
+
+export function getMonorepoEnvFileName(): ".env.local" | ".env" {
+  return isMonorepoDevelopmentMode() ? ".env.local" : ".env";
+}
+
+export function getMonorepoEnvFilePath(monorepoRoot: string): string {
+  return path.join(monorepoRoot, getMonorepoEnvFileName());
+}
+
 export function loadMonorepoEnv(appDir: string): string {
   const monorepoRoot = getMonorepoRoot(appDir);
+  const isDev = isMonorepoDevelopmentMode();
+  const envFile = getMonorepoEnvFilePath(monorepoRoot);
 
-  loadDotenv({ path: path.join(monorepoRoot, ".env") });
-  loadDotenv({ path: path.join(monorepoRoot, ".env.local"), override: true });
-  loadEnvConfig(monorepoRoot);
+  if (existsSync(envFile)) {
+    loadDotenv({ path: envFile });
+  } else if (isDev) {
+    console.warn(
+      `[walls/config] ${envFile} not found. Copy .env.example to .env.local for local development.`,
+    );
+  } else if (!process.env.VERCEL) {
+    // Local production build (`next build`) — optional .env on disk.
+    console.warn(
+      `[walls/config] ${envFile} not found. Set env vars in Vercel or add a root .env for local production builds.`,
+    );
+  }
+
+  // Next's loader always merges `.env` in dev — skip so production `.env` is not loaded locally.
+  if (!isDev) {
+    loadEnvConfig(monorepoRoot, false);
+  }
 
   return monorepoRoot;
 }
