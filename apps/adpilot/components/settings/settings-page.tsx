@@ -145,7 +145,7 @@ export function SettingsPage() {
                     asChild
                     className="rounded-full bg-walls-yellow/90 font-medium text-black hover:bg-walls-yellow"
                   >
-                    <a href="/api/oauth/meta">Reconnect</a>
+                    <a href="/api/oauth/meta/login">Reconnect</a>
                   </Button>
                 </div>
               </div>
@@ -172,7 +172,7 @@ export function SettingsPage() {
                       asChild
                       className="mt-5 rounded-full bg-walls-yellow/90 px-6 font-medium text-black hover:bg-walls-yellow"
                     >
-                      <a href="/api/oauth/meta">Connect Meta account</a>
+                      <a href="/api/oauth/meta/login">Connect Meta account</a>
                     </Button>
                   </div>
                 </div>

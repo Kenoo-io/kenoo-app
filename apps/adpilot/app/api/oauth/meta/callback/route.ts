@@ -12,9 +12,7 @@ import {
   getAdpilotBaseUrl,
 } from "@/lib/meta-oauth";
 
-const STATE_COOKIE = "meta_oauth_state";
-
-export async function GET(request: NextRequest) {
+import { META_OAUTH_STATE_COOKIE } from "@/lib/start-meta-oauth";
   const baseUrl = getAdpilotBaseUrl();
   const settingsUrl = new URL("/settings", baseUrl);
 
@@ -27,8 +25,8 @@ export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get("code");
   const state = request.nextUrl.searchParams.get("state");
   const cookieStore = await cookies();
-  const savedState = cookieStore.get(STATE_COOKIE)?.value;
-  cookieStore.delete(STATE_COOKIE);
+  const savedState = cookieStore.get(META_OAUTH_STATE_COOKIE)?.value;
+  cookieStore.delete(META_OAUTH_STATE_COOKIE);
 
   if (!code || !state || !savedState || state !== savedState) {
     settingsUrl.searchParams.set("error", "invalid_oauth_state");

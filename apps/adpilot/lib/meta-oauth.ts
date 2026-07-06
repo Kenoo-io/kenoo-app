@@ -35,6 +35,11 @@ export function getMetaRedirectUri(): string {
   return `${getAdpilotBaseUrl()}/api/oauth/meta/callback`;
 }
 
+/** OAuth login entry registered in the Meta app (e.g. adpilot.walls.agency). */
+export function getMetaLoginUri(): string {
+  return `${getAdpilotBaseUrl()}/api/oauth/meta/login`;
+}
+
 export function buildMetaAuthorizeUrl(state: string): string {
   const params = new URLSearchParams({
     client_id: getMetaAppId(),

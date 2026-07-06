@@ -168,7 +168,7 @@ export function DashboardPage() {
                     asChild
                     className="mt-4 rounded-full bg-walls-yellow/90 font-medium text-black hover:bg-walls-yellow"
                   >
-                    <a href="/api/oauth/meta">Connect Meta</a>
+                    <a href="/api/oauth/meta/login">Connect Meta</a>
                   </Button>
                 </div>
               ) : (
