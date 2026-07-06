@@ -21,9 +21,6 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# generated db introspection (run pnpm db:schema to refresh)
-packages/supabase/generated.json
-
 # misc
 .DS_Store
 *.pem
