@@ -43,6 +43,7 @@ const CAMPAIGN_COLUMN_IDS = [
   "context",
   "account",
   "status",
+  "dailyBudget",
   "spend",
   "websitePurchases",
   "purchaseValue",
@@ -59,6 +60,7 @@ const DEFAULT_CAMPAIGN_COLUMN_WIDTHS: Record<CampaignColumnId, number> = {
   context: 160,
   account: 140,
   status: 120,
+  dailyBudget: 112,
   spend: 104,
   websitePurchases: 132,
   purchaseValue: 124,
@@ -84,6 +86,7 @@ function columnLabel(id: CampaignColumnId, entityType: CampaignEntityType): stri
     context: entityType === "campaign" ? "Objective" : "Parent",
     account: "Account",
     status: "Status",
+    dailyBudget: "Daily budget",
     spend: "Spend",
     websitePurchases: "Website purchases",
     purchaseValue: "Purchase value",
@@ -495,6 +498,15 @@ export function CampaignsPage() {
                         ) : null}
                         {formatStatus(row.status)}
                       </span>
+                    </td>
+                    <td className="py-4 pr-4 pl-3 text-xs font-light whitespace-nowrap text-neutral-500 tabular-nums">
+                      <AnimatedMetricValue
+                        value={
+                          row.dailyBudgetMicros != null && row.dailyBudgetMicros > 0
+                            ? formatCurrencyFromMicros(row.dailyBudgetMicros)
+                            : "—"
+                        }
+                      />
                     </td>
                     <td className="py-4 pr-4 pl-3 text-xs font-medium whitespace-nowrap text-neutral-800 tabular-nums">
                       <AnimatedMetricValue

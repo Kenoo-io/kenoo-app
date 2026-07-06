@@ -19,6 +19,7 @@ export type EntityPerformanceRow = {
   clicks: number;
   websitePurchases: number | null;
   conversionValueMicros: number;
+  dailyBudgetMicros: number | null;
   ctr: number;
   roas: number | null;
   lastSyncedAt: string | null;
@@ -48,7 +49,35 @@ type EntityRecord = {
   parent_id: string | null;
   user_connection_id: string;
   last_synced_at: string | null;
+  daily_budget_micros: number | null;
 };
+
+function resolveDailyBudgetMicros(
+  entity: EntityRecord,
+  budgetByEntityId: Map<string, number | null>,
+  adGroupToCampaignId: Map<string, string>,
+): number | null {
+  const ownBudget = entity.daily_budget_micros;
+  if (ownBudget != null && ownBudget > 0) return ownBudget;
+
+  if (entity.entity_type === "ad_group" && entity.parent_id) {
+    const campaignBudget = budgetByEntityId.get(entity.parent_id);
+    if (campaignBudget != null && campaignBudget > 0) return campaignBudget;
+  }
+
+  if (entity.entity_type === "ad" && entity.parent_id) {
+    const adGroupBudget = budgetByEntityId.get(entity.parent_id);
+    if (adGroupBudget != null && adGroupBudget > 0) return adGroupBudget;
+
+    const campaignId = adGroupToCampaignId.get(entity.parent_id);
+    if (campaignId) {
+      const campaignBudget = budgetByEntityId.get(campaignId);
+      if (campaignBudget != null && campaignBudget > 0) return campaignBudget;
+    }
+  }
+
+  return null;
+}
 
 type MetricRecord = {
   entity_id: string;
@@ -175,7 +204,7 @@ export async function listCampaignPerformance(input: {
   currentStart.setDate(currentStart.getDate() - 30);
   const currentStartIso = currentStart.toISOString().slice(0, 10);
 
-  const [{ data: accountEntities }, { data: syncStates }, { data: campaigns }] =
+  const [{ data: accountEntities }, { data: syncStates }, { data: budgetEntities }] =
     await Promise.all([
       supabase
         .from("ad_entities")
@@ -189,10 +218,10 @@ export async function listCampaignPerformance(input: {
         .eq("user_id", input.userId),
       supabase
         .from("ad_entities")
-        .select("id, objective")
+        .select("id, objective, entity_type, parent_id, daily_budget_micros")
         .eq("user_id", input.userId)
         .eq("provider", META_PROVIDER)
-        .eq("entity_type", "campaign"),
+        .in("entity_type", ["campaign", "ad_group"]),
     ]);
 
   const accounts: CampaignAccountOption[] = (accountEntities ?? []).map(
@@ -207,12 +236,19 @@ export async function listCampaignPerformance(input: {
     accounts.map((account) => [account.userConnectionId, account.name]),
   );
 
-  const campaignObjectiveById = new Map<string, string | null>(
-    (campaigns ?? []).map((campaign) => [
-      campaign.id as string,
-      (campaign.objective as string | null) ?? null,
-    ]),
-  );
+  const campaignObjectiveById = new Map<string, string | null>();
+  const budgetByEntityId = new Map<string, number | null>();
+
+  for (const entity of budgetEntities ?? []) {
+    const id = entity.id as string;
+    const dailyBudget = entity.daily_budget_micros as number | null;
+
+    budgetByEntityId.set(id, dailyBudget);
+
+    if (entity.entity_type === "campaign") {
+      campaignObjectiveById.set(id, (entity.objective as string | null) ?? null);
+    }
+  }
 
   const selectedAccount = input.accountId
     ? accounts.find((account) => account.id === input.accountId)
@@ -221,7 +257,7 @@ export async function listCampaignPerformance(input: {
   let entityQuery = supabase
     .from("ad_entities")
     .select(
-      "id, entity_type, name, status, objective, parent_id, user_connection_id, last_synced_at",
+      "id, entity_type, name, status, objective, parent_id, user_connection_id, last_synced_at, daily_budget_micros",
     )
     .eq("user_id", input.userId)
     .eq("provider", META_PROVIDER)
@@ -323,6 +359,11 @@ export async function listCampaignPerformance(input: {
       clicks: totals.clicks,
       websitePurchases: tracksWebsitePurchases ? totals.website_purchases : null,
       conversionValueMicros: totals.conversion_value_micros,
+      dailyBudgetMicros: resolveDailyBudgetMicros(
+        entity,
+        budgetByEntityId,
+        adGroupToCampaignId,
+      ),
       ctr: totals.ctr,
       roas: totals.roas,
       lastSyncedAt: entity.last_synced_at,
