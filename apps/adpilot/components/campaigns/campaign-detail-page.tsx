@@ -13,6 +13,7 @@ import {
   DetailBreadcrumbs,
   DetailSection,
   EntityMetricsGrid,
+  LearningBadge,
   formatStatus,
   isActiveStatus,
 } from "@/components/campaigns/entity-detail-shared";
@@ -168,6 +169,7 @@ export function CampaignDetailPage() {
                             {adSet.name}
                           </Link>
                           {adSet.adpilotEnabled ? <AdPilotRowBadge /> : null}
+                          <LearningBadge status={adSet.learningStatus} />
                         </div>
                       </td>
                       <td className="py-4 pr-4 text-xs font-light whitespace-nowrap text-neutral-500">

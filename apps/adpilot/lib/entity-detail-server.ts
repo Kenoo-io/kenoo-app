@@ -41,6 +41,7 @@ export type CampaignAdSetSummary = {
   dailyBudgetMicros: number | null;
   adpilotEnabled: boolean;
   automationStatus: AutomationStatus | null;
+  learningStatus: string | null;
 };
 
 export type EntityDetailResult = {
@@ -266,7 +267,7 @@ export async function getCampaignDetail(input: {
 
   const { data: adSetEntities } = await supabase
     .from("ad_entities")
-    .select("id, name, status, daily_budget_micros")
+    .select("id, name, status, daily_budget_micros, learning_status")
     .eq("user_id", input.userId)
     .eq("parent_id", input.campaignId)
     .eq("entity_type", "ad_group")
@@ -334,6 +335,7 @@ export async function getCampaignDetail(input: {
       dailyBudgetMicros,
       adpilotEnabled: automation?.enabled ?? false,
       automationStatus: automation?.status ?? null,
+      learningStatus: (adSet.learning_status as string | null) ?? null,
     };
   });
 
