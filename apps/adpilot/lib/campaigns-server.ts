@@ -398,7 +398,14 @@ export async function listCampaignPerformance(input: {
 
   if (search) {
     rows = rows.filter((row) => {
-      const haystack = [row.name, row.accountName, row.parentName, row.status, row.objective]
+      const haystack = [
+        row.name,
+        row.accountName,
+        row.parentName,
+        row.status,
+        row.objective,
+        formatObjectiveLabel(row.objective),
+      ]
         .filter(Boolean)
         .join(" ")
         .toLowerCase();
