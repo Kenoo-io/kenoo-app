@@ -262,10 +262,12 @@ export function AdPilotEnableToggle({
   );
 }
 
-export function AdPilotRowBadge() {
+export function AdPilotRowBadge({ title }: { title?: string }) {
   return (
-    <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-walls-yellow/40 bg-walls-yellow/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-neutral-700">
-      <Bot className="h-3 w-3" />
+    <span
+      title={title}
+      className="inline-flex shrink-0 items-center rounded-full border border-[rgba(110,173,192,0.45)] bg-white/40 px-2.5 py-0.5 text-[11px] font-medium text-neutral-600 shadow-[0_0_0_1px_rgba(110,173,192,0.35),0_0_12px_rgba(110,173,192,0.25)]"
+    >
       AdPilot
     </span>
   );

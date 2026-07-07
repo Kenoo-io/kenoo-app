@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import {
-  Bot,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -33,6 +32,7 @@ import {
 import { formatObjectiveLabel } from "@/lib/meta-objectives";
 
 import { AnimatedMetricValue } from "@/components/dashboard/animated-metric-value";
+import { AdPilotRowBadge } from "@/components/campaigns/entity-detail-shared";
 import { SectionLabel } from "@/components/dashboard/dashboard-metrics";
 import { useResizableColumns } from "@/components/campaigns/use-resizable-columns";
 import { SegmentToggle } from "@/components/ui/segment-toggle";
@@ -485,13 +485,9 @@ export function CampaignsPage() {
                           </span>
                         )}
                         {row.adpilotEnabled ? (
-                          <span
-                            className="inline-flex shrink-0 items-center gap-1 rounded-full border border-walls-yellow/40 bg-walls-yellow/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-neutral-700"
+                          <AdPilotRowBadge
                             title={`AdPilot ${row.automationStatus ?? "active"}`}
-                          >
-                            <Bot className="h-3 w-3" />
-                            AdPilot
-                          </span>
+                          />
                         ) : null}
                       </div>
                     </td>
