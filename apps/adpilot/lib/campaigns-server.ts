@@ -199,14 +199,16 @@ export async function listCampaignPerformance(input: {
   accountId?: string;
   page?: number;
   pageSize?: number;
+  rangeDays?: number;
 }): Promise<CampaignsListResult> {
   const supabase = await createClient();
   const page = input.page ?? 0;
   const pageSize = input.pageSize ?? PAGE_SIZE_DEFAULT;
   const search = input.search?.trim().toLowerCase() ?? "";
+  const rangeDays = input.rangeDays ?? 30;
 
   const currentStart = new Date();
-  currentStart.setDate(currentStart.getDate() - 30);
+  currentStart.setDate(currentStart.getDate() - rangeDays);
   const currentStartIso = currentStart.toISOString().slice(0, 10);
 
   const [{ data: accountEntities }, { data: syncStates }, { data: budgetEntities }] =

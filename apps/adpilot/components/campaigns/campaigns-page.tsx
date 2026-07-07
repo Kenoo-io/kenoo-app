@@ -82,6 +82,15 @@ const ENTITY_TABS: Array<{
   { value: "ad", label: "Ads", icon: Shapes },
 ];
 
+const TIME_RANGE_OPTIONS = [
+  { value: "24h", label: "Last 24 hours" },
+  { value: "7d", label: "Last 7 days" },
+  { value: "14d", label: "Last 14 days" },
+  { value: "30d", label: "Last 30 days" },
+] as const;
+
+type CampaignTimeRange = (typeof TIME_RANGE_OPTIONS)[number]["value"];
+
 function columnLabel(id: CampaignColumnId, entityType: CampaignEntityType): string {
   const labels: Record<CampaignColumnId, string> = {
     name: "Name",
@@ -178,6 +187,9 @@ export function CampaignsPage() {
   const [accountFilter, setAccountFilter] = React.useState("");
   const [accountFilterOpen, setAccountFilterOpen] = React.useState(false);
   const accountFilterRef = React.useRef<HTMLDivElement>(null);
+  const [timeRange, setTimeRange] = React.useState<CampaignTimeRange>("30d");
+  const [timeRangeOpen, setTimeRangeOpen] = React.useState(false);
+  const timeRangeRef = React.useRef<HTMLDivElement>(null);
   const { widths, startResize, tableMinWidth } = useResizableColumns(
     DEFAULT_CAMPAIGN_COLUMN_WIDTHS,
     COLUMN_WIDTHS_STORAGE_KEY,
@@ -191,6 +203,7 @@ export function CampaignsPage() {
       const params = new URLSearchParams({
         type: entityType,
         page: String(page),
+        range: timeRange,
       });
       if (search.trim()) params.set("search", search.trim());
       if (accountFilter) params.set("accountId", accountFilter);
@@ -210,7 +223,7 @@ export function CampaignsPage() {
     } finally {
       setLoading(false);
     }
-  }, [accountFilter, entityType, page, search]);
+  }, [accountFilter, entityType, page, search, timeRange]);
 
   React.useEffect(() => {
     void load();
@@ -218,7 +231,7 @@ export function CampaignsPage() {
 
   React.useEffect(() => {
     setPage(0);
-  }, [search, accountFilter, entityType]);
+  }, [search, accountFilter, entityType, timeRange]);
 
   React.useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -228,19 +241,28 @@ export function CampaignsPage() {
       ) {
         setAccountFilterOpen(false);
       }
+      if (
+        timeRangeRef.current &&
+        !timeRangeRef.current.contains(event.target as Node)
+      ) {
+        setTimeRangeOpen(false);
+      }
     }
 
-    if (accountFilterOpen) {
+    if (accountFilterOpen || timeRangeOpen) {
       document.addEventListener("mousedown", handleClickOutside);
     }
 
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [accountFilterOpen]);
+  }, [accountFilterOpen, timeRangeOpen]);
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const selectedAccountLabel = accountFilter
     ? (accounts.find((account) => account.id === accountFilter)?.name ?? "Account")
     : "All accounts";
+  const selectedTimeRangeLabel =
+    TIME_RANGE_OPTIONS.find((option) => option.value === timeRange)?.label ??
+    "Last 30 days";
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-walls-white">
@@ -372,6 +394,65 @@ export function CampaignsPage() {
                 ) : null}
               </div>
             ) : null}
+
+            <div className="relative flex-shrink-0" ref={timeRangeRef}>
+              <button
+                type="button"
+                onClick={() => setTimeRangeOpen((open) => !open)}
+                className={cn(
+                  "inline-flex max-w-[min(100%,18rem)] min-w-0 items-center gap-1.5 rounded-none border-0 bg-transparent p-0 text-sm font-light uppercase tracking-wider text-neutral-700 shadow-none transition-colors hover:text-neutral-900",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400 focus-visible:ring-offset-2",
+                )}
+                aria-expanded={timeRangeOpen}
+                aria-haspopup="listbox"
+              >
+                <span className="truncate">{selectedTimeRangeLabel}</span>
+                <ChevronDown
+                  className={cn(
+                    "h-3.5 w-3.5 flex-shrink-0 text-neutral-500 transition-transform duration-200",
+                    timeRangeOpen && "rotate-180",
+                  )}
+                  strokeWidth={1.8}
+                />
+              </button>
+
+              {timeRangeOpen ? (
+                <div
+                  className="absolute top-full left-0 z-50 mt-1.5 min-w-[180px] overflow-hidden rounded-xl border border-neutral-200 bg-white py-1 shadow-lg"
+                  role="listbox"
+                >
+                  {TIME_RANGE_OPTIONS.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      role="option"
+                      aria-selected={timeRange === option.value}
+                      onClick={() => {
+                        setTimeRange(option.value);
+                        setTimeRangeOpen(false);
+                      }}
+                      className={cn(
+                        "flex w-full items-center gap-2 px-3 py-2 text-left text-xs transition-colors",
+                        timeRange === option.value
+                          ? "bg-neutral-100 text-neutral-900"
+                          : "text-neutral-700 hover:bg-neutral-50",
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "h-2 w-2 flex-shrink-0 rounded-full",
+                          timeRange === option.value
+                            ? "bg-[var(--walls-sky)]"
+                            : "bg-neutral-200",
+                        )}
+                        aria-hidden
+                      />
+                      <span className="truncate">{option.label}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
           </div>
 
           {!loading && totalCount > 0 ? (
@@ -405,7 +486,7 @@ export function CampaignsPage() {
 
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <div className="mb-2 flex shrink-0 flex-wrap items-center justify-between gap-2">
-            <SectionLabel>Performance — Last 30 days</SectionLabel>
+            <SectionLabel>Performance — {selectedTimeRangeLabel}</SectionLabel>
             {entityType !== "campaign" ? (
               <span className="text-[11px] font-light uppercase tracking-wider text-neutral-400">
                 Sorted by active · performance

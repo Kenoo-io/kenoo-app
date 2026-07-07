@@ -8,6 +8,13 @@ import { getCurrentUserId } from "@/lib/connections-server";
 
 const ENTITY_TYPES = new Set<CampaignEntityType>(["campaign", "ad_group", "ad"]);
 
+const RANGE_DAYS: Record<string, number> = {
+  "24h": 1,
+  "7d": 7,
+  "14d": 14,
+  "30d": 30,
+};
+
 export async function GET(request: Request) {
   const userId = await getCurrentUserId();
   if (!userId) {
@@ -22,6 +29,8 @@ export async function GET(request: Request) {
   const search = searchParams.get("search") ?? undefined;
   const accountId = searchParams.get("accountId") ?? undefined;
   const page = Number(searchParams.get("page") ?? "0");
+  const rangeParam = searchParams.get("range") ?? "30d";
+  const rangeDays = RANGE_DAYS[rangeParam] ?? 30;
 
   try {
     const result = await listCampaignPerformance({
@@ -30,6 +39,7 @@ export async function GET(request: Request) {
       search,
       accountId,
       page: Number.isFinite(page) ? page : 0,
+      rangeDays,
     });
 
     return NextResponse.json(result);
