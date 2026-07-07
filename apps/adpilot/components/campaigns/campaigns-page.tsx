@@ -33,7 +33,6 @@ import { formatObjectiveLabel } from "@/lib/meta-objectives";
 
 import { AnimatedMetricValue } from "@/components/dashboard/animated-metric-value";
 import { AdPilotRowBadge } from "@/components/campaigns/entity-detail-shared";
-import { SectionLabel } from "@/components/dashboard/dashboard-metrics";
 import { useResizableColumns } from "@/components/campaigns/use-resizable-columns";
 import { SegmentToggle } from "@/components/ui/segment-toggle";
 
@@ -485,15 +484,6 @@ export function CampaignsPage() {
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <div className="mb-2 flex shrink-0 flex-wrap items-center justify-between gap-2">
-            <SectionLabel>Performance — {selectedTimeRangeLabel}</SectionLabel>
-            {entityType !== "campaign" ? (
-              <span className="text-[11px] font-light uppercase tracking-wider text-neutral-400">
-                Sorted by active · performance
-              </span>
-            ) : null}
-          </div>
-
           <div className="min-h-0 flex-1 overflow-auto scrollbar-hide">
           <table
             className="w-full table-fixed text-sm"
