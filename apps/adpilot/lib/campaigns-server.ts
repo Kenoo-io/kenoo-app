@@ -5,7 +5,13 @@ import {
   buildAdCreativePreview,
   type AdCreativePreview,
 } from "@/lib/meta-creatives";
-import { isSalesObjective, formatObjectiveLabel } from "@/lib/meta-objectives";
+import {
+  DASHBOARD_OBJECTIVE_BUCKETS,
+  resolveObjectiveBucket,
+  isSalesObjective,
+  formatObjectiveLabel,
+  type DashboardObjectiveBucket,
+} from "@/lib/meta-objectives";
 
 import type { AutomationStatus } from "@/lib/spend-automation-settings";
 
@@ -17,6 +23,7 @@ export type EntityPerformanceRow = {
   name: string;
   status: string | null;
   objective: string | null;
+  objectiveBucket: DashboardObjectiveBucket | null;
   accountName: string;
   parentId: string | null;
   parentName: string | null;
@@ -46,10 +53,16 @@ export type CampaignAccountOption = {
   userConnectionId: string;
 };
 
+export type CampaignObjectiveOption = {
+  value: DashboardObjectiveBucket;
+  label: string;
+};
+
 export type CampaignsListResult = {
   rows: EntityPerformanceRow[];
   totalCount: number;
   accounts: CampaignAccountOption[];
+  objectives: CampaignObjectiveOption[];
   syncing: boolean;
 };
 
@@ -130,6 +143,28 @@ function aggregateMetrics(rows: MetricRecord[]) {
   return { ...totals, ctr, roas };
 }
 
+function resolveEntityCampaignObjective(
+  entity: EntityRecord,
+  campaignObjectiveById: Map<string, string | null>,
+  adGroupToCampaignId: Map<string, string>,
+): string | null {
+  if (entity.entity_type === "campaign") {
+    return entity.objective;
+  }
+
+  if (entity.entity_type === "ad_group" && entity.parent_id) {
+    return campaignObjectiveById.get(entity.parent_id) ?? null;
+  }
+
+  if (entity.entity_type === "ad" && entity.parent_id) {
+    const campaignId = adGroupToCampaignId.get(entity.parent_id);
+    if (!campaignId) return null;
+    return campaignObjectiveById.get(campaignId) ?? null;
+  }
+
+  return null;
+}
+
 function resolveTracksWebsitePurchases(
   entity: EntityRecord,
   campaignObjectiveById: Map<string, string | null>,
@@ -208,6 +243,7 @@ export async function listCampaignPerformance(input: {
   entityType: CampaignEntityType;
   search?: string;
   accountId?: string;
+  objective?: DashboardObjectiveBucket;
   page?: number;
   pageSize?: number;
   rangeDays?: number;
@@ -297,6 +333,7 @@ export async function listCampaignPerformance(input: {
       rows: [],
       totalCount: 0,
       accounts,
+      objectives: [],
       syncing: (syncStates ?? []).some((state) => state.sync_status === "running"),
     };
   }
@@ -335,6 +372,24 @@ export async function listCampaignPerformance(input: {
       }
     }
   }
+
+  const objectiveBucketsPresent = new Set<DashboardObjectiveBucket>();
+  for (const entity of entityList) {
+    const campaignObjective = resolveEntityCampaignObjective(
+      entity,
+      campaignObjectiveById,
+      adGroupToCampaignId,
+    );
+    const bucket = resolveObjectiveBucket(campaignObjective);
+    if (bucket) objectiveBucketsPresent.add(bucket);
+  }
+
+  const objectives: CampaignObjectiveOption[] = DASHBOARD_OBJECTIVE_BUCKETS.filter(
+    (bucket) => objectiveBucketsPresent.has(bucket.value),
+  ).map((bucket) => ({
+    value: bucket.value,
+    label: bucket.label,
+  }));
 
   const entityIds = entityList.map((entity) => entity.id);
 
@@ -402,13 +457,21 @@ export async function listCampaignPerformance(input: {
     );
     const automation = automationByEntity.get(entity.id);
     const creative = creativeByAdEntity.get(entity.id);
+    const campaignObjective = resolveEntityCampaignObjective(
+      entity,
+      campaignObjectiveById,
+      adGroupToCampaignId,
+    );
+    const objectiveBucket = resolveObjectiveBucket(campaignObjective);
 
     return {
       id: entity.id,
       entityType: entity.entity_type,
       name: entity.name ?? "Untitled",
       status: entity.status,
-      objective: entity.objective,
+      objective:
+        entity.entity_type === "campaign" ? entity.objective : campaignObjective,
+      objectiveBucket,
       accountName:
         accountNameByConnection.get(entity.user_connection_id) ?? "Ad account",
       parentId: entity.parent_id,
@@ -442,6 +505,10 @@ export async function listCampaignPerformance(input: {
     };
   });
 
+  if (input.objective) {
+    rows = rows.filter((row) => row.objectiveBucket === input.objective);
+  }
+
   if (search) {
     rows = rows.filter((row) => {
       const haystack = [
@@ -468,6 +535,7 @@ export async function listCampaignPerformance(input: {
     rows: pagedRows,
     totalCount,
     accounts,
+    objectives,
     syncing: (syncStates ?? []).some((state) => state.sync_status === "running"),
   };
 }
