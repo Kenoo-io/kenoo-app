@@ -130,6 +130,14 @@ export function DashboardPage() {
       OUTCOME_LEADS: [],
       OUTCOME_APP_PROMOTION: [],
     },
+    bottomByObjective: {
+      OUTCOME_SALES: [],
+      OUTCOME_TRAFFIC: [],
+      OUTCOME_AWARENESS: [],
+      OUTCOME_ENGAGEMENT: [],
+      OUTCOME_LEADS: [],
+      OUTCOME_APP_PROMOTION: [],
+    },
   };
 
   const accounts = React.useMemo(() => {

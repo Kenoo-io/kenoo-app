@@ -74,6 +74,107 @@ function secondaryMetricForObjective(
   return { label: "Spend", value: formatCurrencyFromMicros(ad.spendMicros) };
 }
 
+type AdPerformanceRowProps = {
+  ad: DashboardTopPerformingAd;
+  index: number;
+  objective: DashboardObjectiveBucket;
+  rankTone?: "top" | "bottom";
+  onPreviewCreative: (payload: {
+    adName: string;
+    adId: string;
+    preview: AdCreativePreview;
+  }) => void;
+};
+
+function AdPerformanceRow({
+  ad,
+  index,
+  objective,
+  rankTone = "top",
+  onPreviewCreative,
+}: AdPerformanceRowProps) {
+  const href = adDetailHref(ad);
+  const primary = primaryMetricForObjective(ad, objective);
+  const secondary = secondaryMetricForObjective(ad, objective);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.04 }}
+      className="flex items-center gap-4 py-3"
+    >
+      <span
+        className={
+          rankTone === "bottom"
+            ? "w-5 flex-shrink-0 text-center text-xs font-medium tabular-nums text-rose-400"
+            : "w-5 flex-shrink-0 text-center text-xs font-medium tabular-nums text-neutral-400"
+        }
+      >
+        {ad.overallRank}
+      </span>
+
+      <AdThumbnail
+        url={ad.thumbnailUrl}
+        title={ad.name}
+        creativeType={ad.creativeType}
+        onClick={
+          ad.creativePreview
+            ? () =>
+                onPreviewCreative({
+                  adName: ad.name,
+                  adId: ad.id,
+                  preview: ad.creativePreview!,
+                })
+            : undefined
+        }
+      />
+
+      <div className="min-w-0 flex-1">
+        {href ? (
+          <Link
+            href={href}
+            className="block truncate text-sm font-medium text-neutral-800 transition-colors hover:text-[var(--walls-sky)]"
+          >
+            {ad.name}
+          </Link>
+        ) : (
+          <p className="truncate text-sm font-medium text-neutral-800">{ad.name}</p>
+        )}
+        <p className="mt-0.5 truncate text-[11px] font-light text-neutral-400">
+          {[ad.campaignName, ad.adSetName].filter(Boolean).join(" · ") || "—"}
+        </p>
+      </div>
+
+      <div className="hidden shrink-0 text-right sm:block">
+        <p className="text-[10px] font-medium uppercase tracking-wider text-neutral-400">
+          {primary.label}
+        </p>
+        <p className="text-sm font-semibold tabular-nums text-neutral-800">
+          <AnimatedMetricValue value={primary.value} />
+        </p>
+      </div>
+
+      {secondary ? (
+        <div className="hidden shrink-0 text-right md:block">
+          <p className="text-[10px] font-medium uppercase tracking-wider text-neutral-400">
+            {secondary.label}
+          </p>
+          <p className="text-sm font-light tabular-nums text-neutral-600">
+            <AnimatedMetricValue value={secondary.value} />
+          </p>
+        </div>
+      ) : null}
+
+      <div className="shrink-0 text-right sm:hidden">
+        <p className="text-sm font-semibold tabular-nums text-neutral-800">
+          <AnimatedMetricValue value={primary.value} />
+        </p>
+      </div>
+    </motion.div>
+  );
+}
+
 type TopPerformingAdsProps = {
   periodLabel: string;
   topPerformingAds: DashboardTopAdsByObjective;
@@ -107,9 +208,14 @@ export function TopPerformingAds({
     });
   }, [availableObjectives]);
 
+  const activeObjective = selectedObjective ?? availableObjectives[0]?.value ?? null;
   const activeAds =
-    selectedObjective != null
-      ? (topPerformingAds.byObjective[selectedObjective] ?? [])
+    activeObjective != null
+      ? (topPerformingAds.byObjective[activeObjective] ?? [])
+      : [];
+  const bottomAds =
+    activeObjective != null
+      ? (topPerformingAds.bottomByObjective[activeObjective] ?? [])
       : [];
 
   if (availableObjectives.length === 0) {
@@ -131,7 +237,7 @@ export function TopPerformingAds({
         </p>
         <SegmentToggle
           aria-label="Campaign objective"
-          value={selectedObjective ?? availableObjectives[0].value}
+          value={activeObjective ?? availableObjectives[0].value}
           onChange={setSelectedObjective}
           options={availableObjectives.map((objective) => ({
             value: objective.value,
@@ -140,91 +246,41 @@ export function TopPerformingAds({
         />
       </div>
 
-      <div className="space-y-2">
-        {activeAds.map((ad, index) => {
-          const href = adDetailHref(ad);
-          const primary = primaryMetricForObjective(
-            ad,
-            selectedObjective ?? availableObjectives[0].value,
-          );
-          const secondary =
-            selectedObjective != null
-              ? secondaryMetricForObjective(ad, selectedObjective)
-              : null;
-
-          return (
-            <motion.div
-              key={ad.id}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.04 }}
-              className="flex items-center gap-4 rounded-2xl border border-neutral-200/70 bg-neutral-50/40 px-4 py-3 transition-colors hover:bg-neutral-50"
-            >
-              <span className="w-5 flex-shrink-0 text-center text-xs font-medium tabular-nums text-neutral-400">
-                {index + 1}
-              </span>
-
-              <AdThumbnail
-                url={ad.thumbnailUrl}
-                title={ad.name}
-                creativeType={ad.creativeType}
-                onClick={
-                  ad.creativePreview
-                    ? () =>
-                        setCreativePreview({
-                          adName: ad.name,
-                          adId: ad.id,
-                          preview: ad.creativePreview!,
-                        })
-                    : undefined
-                }
-              />
-
-              <div className="min-w-0 flex-1">
-                {href ? (
-                  <Link
-                    href={href}
-                    className="block truncate text-sm font-medium text-neutral-800 transition-colors hover:text-[var(--walls-sky)]"
-                  >
-                    {ad.name}
-                  </Link>
-                ) : (
-                  <p className="truncate text-sm font-medium text-neutral-800">{ad.name}</p>
-                )}
-                <p className="mt-0.5 truncate text-[11px] font-light text-neutral-400">
-                  {[ad.campaignName, ad.adSetName].filter(Boolean).join(" · ") || "—"}
-                </p>
-              </div>
-
-              <div className="hidden shrink-0 text-right sm:block">
-                <p className="text-[10px] font-medium uppercase tracking-wider text-neutral-400">
-                  {primary.label}
-                </p>
-                <p className="text-sm font-semibold tabular-nums text-neutral-800">
-                  <AnimatedMetricValue value={primary.value} />
-                </p>
-              </div>
-
-              {secondary ? (
-                <div className="hidden shrink-0 text-right md:block">
-                  <p className="text-[10px] font-medium uppercase tracking-wider text-neutral-400">
-                    {secondary.label}
-                  </p>
-                  <p className="text-sm font-light tabular-nums text-neutral-600">
-                    <AnimatedMetricValue value={secondary.value} />
-                  </p>
-                </div>
-              ) : null}
-
-              <div className="shrink-0 text-right sm:hidden">
-                <p className="text-sm font-semibold tabular-nums text-neutral-800">
-                  <AnimatedMetricValue value={primary.value} />
-                </p>
-              </div>
-            </motion.div>
-          );
-        })}
+      <div className="divide-y divide-neutral-100">
+        {activeAds.map((ad, index) => (
+          <AdPerformanceRow
+            key={ad.id}
+            ad={ad}
+            index={index}
+            objective={activeObjective ?? availableObjectives[0].value}
+            onPreviewCreative={setCreativePreview}
+          />
+        ))}
       </div>
+
+      {bottomAds.length > 0 ? (
+        <>
+          <div className="relative my-5">
+            <div className="border-t border-dashed border-rose-400" />
+            <p className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-walls-white px-3 text-[10px] font-medium uppercase tracking-wider text-rose-500">
+              Bottom performers
+            </p>
+          </div>
+
+          <div className="divide-y divide-neutral-100">
+            {bottomAds.map((ad, index) => (
+              <AdPerformanceRow
+                key={ad.id}
+                ad={ad}
+                index={index}
+                objective={activeObjective ?? availableObjectives[0].value}
+                rankTone="bottom"
+                onPreviewCreative={setCreativePreview}
+              />
+            ))}
+          </div>
+        </>
+      ) : null}
 
       <AdCreativeLightbox
         open={creativePreview != null}

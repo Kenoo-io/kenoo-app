@@ -62,6 +62,7 @@ export type DashboardSpendDay = {
 export type DashboardTopPerformingAd = {
   id: string;
   name: string;
+  overallRank: number;
   campaignId: string | null;
   adSetId: string | null;
   campaignName: string | null;
@@ -85,6 +86,7 @@ export type DashboardTopAdsByObjective = {
     adCount: number;
   }>;
   byObjective: Record<DashboardObjectiveBucket, DashboardTopPerformingAd[]>;
+  bottomByObjective: Record<DashboardObjectiveBucket, DashboardTopPerformingAd[]>;
 };
 
 export type DashboardAnalytics = {
@@ -239,6 +241,14 @@ const EMPTY_TOP_PERFORMING_ADS: DashboardTopAdsByObjective = {
     OUTCOME_LEADS: [],
     OUTCOME_APP_PROMOTION: [],
   },
+  bottomByObjective: {
+    OUTCOME_SALES: [],
+    OUTCOME_TRAFFIC: [],
+    OUTCOME_AWARENESS: [],
+    OUTCOME_ENGAGEMENT: [],
+    OUTCOME_LEADS: [],
+    OUTCOME_APP_PROMOTION: [],
+  },
 };
 
 type AdEntityRow = {
@@ -256,7 +266,15 @@ type HierarchyEntityRow = {
 };
 
 function scoreTopAd(
-  ad: DashboardTopPerformingAd,
+  ad: Pick<
+    DashboardTopPerformingAd,
+    | "spendMicros"
+    | "impressions"
+    | "clicks"
+    | "ctr"
+    | "roas"
+    | "websitePurchases"
+  >,
   objectiveBucket: DashboardObjectiveBucket,
 ): number {
   const spend = ad.spendMicros / 1_000_000;
@@ -284,6 +302,29 @@ function scoreTopAd(
     default:
       return spend * 10 + (ad.roas ?? 0) * 50 + ad.clicks;
   }
+}
+
+function selectTopAndBottomAds(
+  ads: Omit<DashboardTopPerformingAd, "overallRank">[],
+  objectiveBucket: DashboardObjectiveBucket,
+): {
+  top: DashboardTopPerformingAd[];
+  bottom: DashboardTopPerformingAd[];
+} {
+  const ranked = [...ads]
+    .sort(
+      (left, right) =>
+        scoreTopAd(right, objectiveBucket) - scoreTopAd(left, objectiveBucket),
+    )
+    .map((ad, index) => ({ ...ad, overallRank: index + 1 }));
+
+  const top = ranked.slice(0, TOP_ADS_LIMIT);
+  const topIds = new Set(top.map((ad) => ad.id));
+  const bottom = ranked
+    .filter((ad) => !topIds.has(ad.id))
+    .slice(-TOP_ADS_LIMIT);
+
+  return { top, bottom };
 }
 
 async function buildTopPerformingAds(
@@ -355,7 +396,10 @@ async function buildTopPerformingAds(
     metricsByAd.set(row.entity_id, bucket);
   }
 
-  const adsByObjective = new Map<DashboardObjectiveBucket, DashboardTopPerformingAd[]>();
+  const adsByObjective = new Map<
+    DashboardObjectiveBucket,
+    Omit<DashboardTopPerformingAd, "overallRank">[]
+  >();
 
   for (const ad of adList) {
     const adSet = ad.parent_id ? adSetById.get(ad.parent_id) : undefined;
@@ -366,7 +410,7 @@ async function buildTopPerformingAds(
     const totals = sumMetrics(metricsByAd.get(ad.id) ?? []);
     const tracksWebsitePurchases = isSalesObjective(campaign?.objective ?? null);
 
-    const row: DashboardTopPerformingAd = {
+    const row: Omit<DashboardTopPerformingAd, "overallRank"> = {
       id: ad.id,
       name: ad.name ?? "Untitled ad",
       campaignId: campaign?.id ?? null,
@@ -393,19 +437,22 @@ async function buildTopPerformingAds(
   }
 
   const byObjective = { ...EMPTY_TOP_PERFORMING_ADS.byObjective };
+  const bottomByObjective = { ...EMPTY_TOP_PERFORMING_ADS.bottomByObjective };
 
   for (const bucket of DASHBOARD_OBJECTIVE_BUCKETS) {
-    const ranked = (adsByObjective.get(bucket.value) ?? [])
-      .sort(
-        (left, right) =>
-          scoreTopAd(right, bucket.value) - scoreTopAd(left, bucket.value),
-      )
-      .slice(0, TOP_ADS_LIMIT);
+    const { top, bottom } = selectTopAndBottomAds(
+      adsByObjective.get(bucket.value) ?? [],
+      bucket.value,
+    );
 
-    byObjective[bucket.value] = ranked;
+    byObjective[bucket.value] = top;
+    bottomByObjective[bucket.value] = bottom;
   }
 
-  const enrichedByObjective = await attachCreativePreviews(supabase, byObjective);
+  const enriched = await attachCreativePreviews(supabase, {
+    top: byObjective,
+    bottom: bottomByObjective,
+  });
 
   const objectives = DASHBOARD_OBJECTIVE_BUCKETS.map((bucket) => ({
     value: bucket.value,
@@ -413,18 +460,32 @@ async function buildTopPerformingAds(
     adCount: adsByObjective.get(bucket.value)?.length ?? 0,
   })).filter((bucket) => bucket.adCount > 0);
 
-  return { objectives, byObjective: enrichedByObjective };
+  return {
+    objectives,
+    byObjective: enriched.top,
+    bottomByObjective: enriched.bottom,
+  };
 }
 
 async function attachCreativePreviews(
   supabase: Awaited<ReturnType<typeof createClient>>,
-  byObjective: Record<DashboardObjectiveBucket, DashboardTopPerformingAd[]>,
-): Promise<Record<DashboardObjectiveBucket, DashboardTopPerformingAd[]>> {
-  const topAdIds = Array.from(
-    new Set(Object.values(byObjective).flat().map((ad) => ad.id)),
+  lists: {
+    top: Record<DashboardObjectiveBucket, DashboardTopPerformingAd[]>;
+    bottom: Record<DashboardObjectiveBucket, DashboardTopPerformingAd[]>;
+  },
+): Promise<{
+  top: Record<DashboardObjectiveBucket, DashboardTopPerformingAd[]>;
+  bottom: Record<DashboardObjectiveBucket, DashboardTopPerformingAd[]>;
+}> {
+  const adIds = Array.from(
+    new Set(
+      [...Object.values(lists.top), ...Object.values(lists.bottom)]
+        .flat()
+        .map((ad) => ad.id),
+    ),
   );
 
-  if (topAdIds.length === 0) return byObjective;
+  if (adIds.length === 0) return lists;
 
   const { data: creatives } = await supabase
     .from("ad_creatives")
@@ -434,7 +495,7 @@ async function attachCreativePreviews(
         id, asset_type, ordinal, image_url, permalink_url, video_source_url, video_thumbnail_url, title, body
       )`,
     )
-    .in("ad_entity_id", topAdIds);
+    .in("ad_entity_id", adIds);
 
   const previewByAdId = new Map<string, AdCreativePreview>();
   for (const creative of creatives ?? []) {
@@ -444,9 +505,8 @@ async function attachCreativePreviews(
     }
   }
 
-  const enriched = { ...byObjective };
-  for (const bucket of DASHBOARD_OBJECTIVE_BUCKETS) {
-    enriched[bucket.value] = (byObjective[bucket.value] ?? []).map((ad) => {
+  const enrichList = (ads: DashboardTopPerformingAd[]) =>
+    ads.map((ad) => {
       const preview = previewByAdId.get(ad.id) ?? null;
       return {
         ...ad,
@@ -455,9 +515,16 @@ async function attachCreativePreviews(
         creativePreview: preview,
       };
     });
+
+  const top = { ...lists.top };
+  const bottom = { ...lists.bottom };
+
+  for (const bucket of DASHBOARD_OBJECTIVE_BUCKETS) {
+    top[bucket.value] = enrichList(lists.top[bucket.value] ?? []);
+    bottom[bucket.value] = enrichList(lists.bottom[bucket.value] ?? []);
   }
 
-  return enriched;
+  return { top, bottom };
 }
 
 export async function getDashboardAnalytics(
