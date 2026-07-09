@@ -8,6 +8,7 @@
     "dev:adpilot": "turbo dev --filter=adpilot",
     "dev:portal": "turbo dev --filter=portal",
     "dev:wallie": "turbo dev --filter=wallie",
+    "dev:wallie-mobile": "turbo dev --filter=wallie-mobile",
     "build": "turbo build",
     "lint": "turbo lint",
     "start": "turbo start",
@@ -16,5 +17,11 @@
   },
   "devDependencies": {
     "turbo": "^2.5.4"
+  },
+  "pnpm": {
+    "overrides": {
+      "wallie-mobile>@types/react": "~18.3.12",
+      "wallie-mobile>@types/react-dom": "~18.3.1"
+    }
   }
 }

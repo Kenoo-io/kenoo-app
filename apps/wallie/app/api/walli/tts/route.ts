@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
 
-import { createClient } from "@walls/supabase/server";
+import { getWallieApiUser } from "@/lib/wallie-api-auth";
 import { textForSpeech } from "@/lib/wallie/voice-text";
 
 const openai = new OpenAI({
@@ -12,11 +12,7 @@ const MAX_TTS_CHARS = 4096;
 
 export async function POST(req: Request) {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    const { user, error: authError } = await getWallieApiUser(req);
 
     if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

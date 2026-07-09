@@ -1,0 +1,19 @@
+{
+  "name": "@walls/wallie-core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./types": "./src/types.ts",
+    "./models": "./src/models.ts",
+    "./stream": "./src/stream-chat.ts",
+    "./email-draft": "./src/email-draft.ts"
+  },
+  "scripts": {
+    "lint": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5"
+  }
+}
