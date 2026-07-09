@@ -540,9 +540,11 @@ function DeepQueryContent() {
       }),
     }));
 
-    // When NEXT_PUBLIC_WALLIE_API_URL is set (e.g. https://wallie-api.yourdomain.com), use Hetzner server; otherwise use Next.js route.
-    const wallieApiUrl = process.env.NEXT_PUBLIC_WALLIE_API_URL?.trim() || '';
-    const useExternalApi = !!wallieApiUrl;
+    // When WALLIE_API_URL is set, the Next.js /api/walli routes proxy to the remote backend.
+    // NEXT_PUBLIC_WALLIE_API_URL is only a client flag for remote save behavior (not the fetch URL).
+    const useRemoteBackend =
+      !!process.env.NEXT_PUBLIC_WALLIE_API_URL?.trim() ||
+      process.env.NEXT_PUBLIC_WALLIE_USE_REMOTE_API === "true";
 
     const isNewThread = !currentThreadIdRef.current;
 
@@ -555,7 +557,7 @@ function DeepQueryContent() {
     sendingThreadIdRef.current = threadIdForSend;
     setLoadingThreadId(threadIdForSend);
 
-    if (!useExternalApi) {
+    if (!useRemoteBackend) {
       await saveMessageToDb(
         userMessage.content,
         structuredMentions,
@@ -601,16 +603,15 @@ function DeepQueryContent() {
         conversationHistory,
         model: selectedModel,
       };
-      if (useExternalApi && user?.id) {
+      if (useRemoteBackend && user?.id) {
         chatPayload.userId = user.id;
         chatPayload.threadId = threadIdForSend;
       }
 
-      const chatUrl = useExternalApi ? wallieApiUrl : '/api/walli/chat/conversational';
+      const chatUrl = '/api/walli/chat/conversational';
 
-      if (useExternalApi) {
-        console.log('[Wallie] Using external API:', {
-          url: chatUrl,
+      if (useRemoteBackend) {
+        console.log('[Wallie] Using proxied remote backend:', {
           messageLength: userMessage.content.length,
           hasUserId: !!user?.id,
           threadId: currentThreadIdRef.current ?? null,
@@ -628,23 +629,22 @@ function DeepQueryContent() {
           body: JSON.stringify(chatPayload),
         });
       } catch (fetchErr) {
-        if (useExternalApi) {
-          console.error('[Wallie] External API fetch failed (request did not reach server or CORS/network error):', {
-            url: chatUrl,
+        if (useRemoteBackend) {
+          console.error('[Wallie] Chat proxy request failed:', {
             error: fetchErr instanceof Error ? fetchErr.message : String(fetchErr),
           });
         }
         throw fetchErr;
       }
 
-      if (useExternalApi) {
-        console.log('[Wallie] External API response:', { url: chatUrl, status: response.status, ok: response.ok });
+      if (useRemoteBackend) {
+        console.log('[Wallie] Chat response:', { status: response.status, ok: response.ok });
       }
 
       if (!response.ok) {
         const bodyText = await response.text().catch(() => '');
-        if (useExternalApi) {
-          console.error('[Wallie] External API returned non-OK:', { url: chatUrl, status: response.status, body: bodyText.slice(0, 500) });
+        if (useRemoteBackend) {
+          console.error('[Wallie] Chat proxy returned non-OK:', { status: response.status, body: bodyText.slice(0, 500) });
         }
         throw new Error(`API responded with status: ${response.status}${bodyText ? `: ${bodyText.slice(0, 200)}` : ''}`);
       }
@@ -724,8 +724,8 @@ function DeepQueryContent() {
 
         const data = lastData;
 
-        if (useExternalApi) {
-          console.log('[Wallie] External API stream complete:', {
+        if (useRemoteBackend) {
+          console.log('[Wallie] Chat stream complete:', {
             hasResponse: !!data.response,
             responseLength: data.response?.length ?? 0,
             apolloPeopleCount: data.apolloPeople?.length ?? 0,
@@ -736,7 +736,7 @@ function DeepQueryContent() {
         }
 
         if (data.error) {
-          if (useExternalApi) console.error('[Wallie] External API sent error in stream:', data.error);
+          if (useRemoteBackend) console.error('[Wallie] Remote backend sent error in stream:', data.error);
           throw new Error(data.error);
         }
 
@@ -759,7 +759,7 @@ function DeepQueryContent() {
         const responseThreadId = sendingThreadIdRef.current;
 
         // When using external API (Hetzner), server already saved messages; only save from client when using Next.js route
-        if (!useExternalApi && responseThreadId) {
+        if (!useRemoteBackend && responseThreadId) {
           await saveMessageToDb(
             aiMessage.content,
             [],
@@ -774,7 +774,7 @@ function DeepQueryContent() {
         }
         if (data.threadId) {
           const threadId = data.threadId;
-          if (useExternalApi) console.log('[Wallie] External API returned threadId, syncing client:', threadId);
+          if (useRemoteBackend) console.log('[Wallie] Remote backend returned threadId, syncing client:', threadId);
           // Only switch view/URL if user is still on the thread we sent from (otherwise they switched away and we shouldn't change their view)
           const stillViewingSendingThread = currentThreadIdRef.current === responseThreadId;
           if (stillViewingSendingThread) {
@@ -831,10 +831,9 @@ function DeepQueryContent() {
       return null;
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-      if (useExternalApi) {
-        console.error('[Wallie] Deep query failed (external API):', {
+      if (useRemoteBackend) {
+        console.error('[Wallie] Deep query failed (remote backend):', {
           error: errorMsg,
-          url: wallieApiUrl,
         });
       } else {
         console.error('Error in deep query:', error);
@@ -853,22 +852,7 @@ function DeepQueryContent() {
         );
       }
       
-      if (error instanceof Error && error.message.includes('404')) {
-        const aiMessage: Message = {
-          id: Date.now().toString(),
-          content: "This is a placeholder response. The backend API endpoint at /api/walli will be implemented soon.",
-          sender: 'ai',
-          timestamp: new Date(),
-          renderedContent: "",
-          isTyping: true,
-        };
-        if (currentThreadIdRef.current === responseThreadId) {
-          setMessages(prev => [...prev, aiMessage]);
-        }
-        return aiMessage.content;
-      } else {
-        wallsToast.error("Error", "Failed to get AI response. Please try again.");
-      }
+      wallsToast.error("Error", "Failed to get AI response. Please try again.");
       return null;
     } finally {
       setLoadingThreadId(null);
