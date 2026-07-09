@@ -132,6 +132,7 @@ export function EntityAutomationSection({
   detail,
   onAutomationUpdated,
 }: EntityAutomationSectionProps) {
+  const [adjustments, setAdjustments] = React.useState(detail.recentAdjustments);
   const [enabled, setEnabled] = React.useState(detail.automation.enabled);
   const [profileId, setProfileId] = React.useState<string | null>(() =>
     resolveInitialProfileId(detail),
@@ -150,6 +151,7 @@ export function EntityAutomationSection({
   const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
+    setAdjustments(detail.recentAdjustments);
     setEnabled(detail.automation.enabled);
     setProfileId(resolveInitialProfileId(detail));
     setMinBudget(microsToDollars(detail.automation.minDailyBudgetMicros));
@@ -497,8 +499,8 @@ export function EntityAutomationSection({
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="flex items-center gap-2 text-xs font-light text-neutral-500">
               <Shield className="h-3.5 w-3.5" />
-              Saves to this {entityLabel}&apos;s enrollment record. Meta budget updates
-              run via your backend worker.
+              Saves to this {entityLabel}&apos;s enrollment record. Budget changes
+              from preview apply directly to Meta.
             </p>
             <Button
               type="button"
@@ -521,13 +523,19 @@ export function EntityAutomationSection({
         </div>
       </DetailSection>
 
-      <AdPilotPreviewCard entityId={entityId} entityLabel={entityLabel} />
+      <AdPilotPreviewCard
+        entityId={entityId}
+        entityLabel={entityLabel}
+        onApplied={(adjustment) =>
+          setAdjustments((current) => [adjustment, ...current].slice(0, 10))
+        }
+      />
 
       <DetailSection
         title="Budget history"
         description="Recent daily budget adjustments for this entity."
       >
-        <AdjustmentsList rows={detail.recentAdjustments} />
+        <AdjustmentsList rows={adjustments} />
       </DetailSection>
     </div>
   );
