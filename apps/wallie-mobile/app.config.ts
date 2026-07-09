@@ -22,13 +22,14 @@ export default {
     newArchEnabled: false,
     platforms: ["ios", "android"],
     splash: {
-      image: "./assets/splash-icon.png",
+      image: "./assets/icon.png",
       resizeMode: "contain",
-      backgroundColor: "#ffffff",
+      backgroundColor: "#e2f85c",
     },
     ios: {
       supportsTablet: true,
       bundleIdentifier: "com.wallsentertainment.wallie",
+      icon: "./assets/icon.png",
       infoPlist: {
         NSAppTransportSecurity: {
           NSAllowsLocalNetworking: true,
@@ -42,8 +43,8 @@ export default {
     },
     android: {
       adaptiveIcon: {
-        foregroundImage: "./assets/adaptive-icon.png",
-        backgroundColor: "#ffffff",
+        foregroundImage: "./assets/icon.png",
+        backgroundColor: "#e2f85c",
       },
       package: "com.wallsentertainment.wallie",
       permissions: ["RECORD_AUDIO"],
