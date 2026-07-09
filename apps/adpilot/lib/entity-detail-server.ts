@@ -10,6 +10,10 @@ import {
 } from "@/lib/automation-server";
 import type { CampaignEntityType } from "@/lib/campaigns-server";
 import {
+  buildAdCreativePreview,
+  type AdCreativePreview,
+} from "@/lib/meta-creatives";
+import {
   formatCompactNumber,
   formatCurrencyFromMicros,
   formatPercent,
@@ -18,6 +22,7 @@ import {
 import {
   isSalesObjective,
   resolveObjectiveBucket,
+  type DashboardObjectiveBucket,
 } from "@/lib/meta-objectives";
 import {
   buildEntityDailyProgress,
@@ -73,11 +78,28 @@ export type CampaignDetailResult = EntityDetailResult & {
   adSets: CampaignAdSetSummary[];
 };
 
+export type AdSetAdSummary = {
+  id: string;
+  name: string;
+  status: string | null;
+  spendMicros: number;
+  impressions: number;
+  clicks: number;
+  ctr: number;
+  roas: number | null;
+  websitePurchases: number | null;
+  thumbnailUrl: string | null;
+  creativeType: string | null;
+  creativePreview: AdCreativePreview | null;
+};
+
 export type AdSetDetailResult = EntityDetailResult & {
   entityType: "ad_group";
   campaignId: string;
   campaignObjective: string | null;
+  objectiveBucket: DashboardObjectiveBucket | null;
   dailyProgress: EntityDailyProgress;
+  ads: AdSetAdSummary[];
 };
 
 type MetricRow = {
@@ -126,6 +148,28 @@ function metricsStartDateIso() {
   const currentStart = new Date();
   currentStart.setDate(currentStart.getDate() - 30);
   return currentStart.toISOString().slice(0, 10);
+}
+
+function adPerformanceScore(ad: AdSetAdSummary): number {
+  const spend = ad.spendMicros / 1_000_000;
+  const hasDelivery = ad.impressions > 0 || spend > 0;
+  if (!hasDelivery) return 0;
+
+  return (
+    spend * 1_000 +
+    (ad.roas ?? 0) * spend * 250 +
+    (ad.websitePurchases ?? 0) * 100 +
+    ad.ctr * 15 +
+    ad.clicks * 2
+  );
+}
+
+function sortAdSummaries(ads: AdSetAdSummary[]): AdSetAdSummary[] {
+  return [...ads].sort((left, right) => {
+    const scoreDiff = adPerformanceScore(right) - adPerformanceScore(left);
+    if (scoreDiff !== 0) return scoreDiff;
+    return right.spendMicros - left.spendMicros;
+  });
 }
 
 async function buildEntityDetail(input: {
@@ -405,12 +449,87 @@ export async function getAdSetDetail(input: {
     objectiveBucket,
   );
 
+  const tracksWebsitePurchases = isSalesObjective(campaignObjective);
+
+  const { data: adEntities } = await supabase
+    .from("ad_entities")
+    .select("id, name, status")
+    .eq("user_id", input.userId)
+    .eq("parent_id", input.adSetId)
+    .eq("entity_type", "ad")
+    .order("name", { ascending: true });
+
+  const adList = adEntities ?? [];
+  const adIds = adList.map((row) => row.id as string);
+
+  const [{ data: adMetrics }, { data: adCreatives }] = await Promise.all([
+    adIds.length > 0
+      ? supabase
+          .from("ad_metrics_daily")
+          .select(
+            "entity_id, spend_micros, impressions, clicks, conversion_value_micros, website_purchases",
+          )
+          .in("entity_id", adIds)
+          .gte("metric_date", metricsStartDateIso())
+      : Promise.resolve({ data: [] }),
+    adIds.length > 0
+      ? supabase
+          .from("ad_creatives")
+          .select(
+            `ad_entity_id, creative_type, title, body, thumbnail_url, image_url, image_permalink_url, video_thumbnail_url, video_source_url,
+            ad_creative_assets (
+              id, asset_type, ordinal, image_url, permalink_url, video_source_url, video_thumbnail_url, title, body
+            )`,
+          )
+          .in("ad_entity_id", adIds)
+      : Promise.resolve({ data: [] }),
+  ]);
+
+  const metricsByAd = new Map<string, MetricRow[]>();
+  for (const row of adMetrics ?? []) {
+    const bucket = metricsByAd.get(row.entity_id as string) ?? [];
+    bucket.push(row as MetricRow);
+    metricsByAd.set(row.entity_id as string, bucket);
+  }
+
+  const creativeByAd = new Map<string, AdCreativePreview>();
+  for (const creative of adCreatives ?? []) {
+    const preview = buildAdCreativePreview(creative);
+    if (preview) {
+      creativeByAd.set(creative.ad_entity_id as string, preview);
+    }
+  }
+
+  const ads = sortAdSummaries(
+    adList.map((ad) => {
+      const totals = aggregateMetricRows(metricsByAd.get(ad.id as string) ?? []);
+      const creative = creativeByAd.get(ad.id as string);
+
+      return {
+        id: ad.id as string,
+        name: (ad.name as string) ?? "Untitled",
+        status: ad.status as string | null,
+        spendMicros: totals.spendMicros,
+        impressions: totals.impressions,
+        clicks: totals.clicks,
+        ctr: totals.ctr,
+        roas: totals.roas,
+        websitePurchases: tracksWebsitePurchases ? totals.websitePurchases : null,
+        thumbnailUrl: creative?.thumbnailUrl ?? null,
+        creativeType: creative?.creativeType ?? null,
+        creativePreview: creative ?? null,
+      };
+    }),
+  );
+
   return {
     ...base,
     entityType: "ad_group",
     campaignId: input.campaignId,
     campaignObjective,
+    objectiveBucket,
     dailyProgress,
+    ads,
   };
 }
 

@@ -317,12 +317,14 @@ export function AdThumbnail({
   creativeType,
   onClick,
   interactive = Boolean(onClick),
+  size = "sm",
 }: {
   url: string | null;
   title: string;
   creativeType?: string | null;
   onClick?: () => void;
   interactive?: boolean;
+  size?: "sm" | "lg";
 }) {
   const [failed, setFailed] = React.useState(false);
   const showImage = Boolean(url) && !failed;
@@ -350,7 +352,10 @@ export function AdThumbnail({
   );
 
   const className = cn(
-    "relative h-9 w-9 flex-shrink-0 overflow-hidden rounded-md border border-neutral-200/70 bg-neutral-100",
+    "relative flex-shrink-0 overflow-hidden border border-neutral-200/70 bg-neutral-100",
+    size === "lg"
+      ? "h-44 w-full rounded-xl"
+      : "h-9 w-9 rounded-md",
     isInteractive &&
       "cursor-pointer transition-opacity hover:opacity-80 focus-visible:outline-none",
   );

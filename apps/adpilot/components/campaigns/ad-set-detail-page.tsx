@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { ArrowLeft, Loader2 } from "lucide-react";
 
 import { EntityAutomationSection } from "@/components/campaigns/automation-panel";
+import { AdSetCreativesSection } from "@/components/campaigns/ad-set-creatives-section";
 import { EntityDailyProgressSection } from "@/components/campaigns/entity-daily-progress-section";
 import {
   AdPilotEnableToggle,
@@ -120,6 +121,11 @@ export function AdSetDetailPage() {
       <div className="mb-8">
         <EntityMetricsGrid metrics={detail.metrics} />
       </div>
+
+      <AdSetCreativesSection
+        ads={detail.ads}
+        objectiveBucket={detail.objectiveBucket}
+      />
 
       <EntityAutomationSection
         entityId={detail.id}
