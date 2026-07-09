@@ -18,7 +18,8 @@ export default {
     icon: "./assets/icon.png",
     scheme: "wallie",
     userInterfaceStyle: "light",
-    newArchEnabled: true,
+    newArchEnabled: false,
+    platforms: ["ios", "android"],
     splash: {
       image: "./assets/splash-icon.png",
       resizeMode: "contain",
@@ -28,6 +29,12 @@ export default {
       supportsTablet: true,
       bundleIdentifier: "com.wallsentertainment.wallie",
       infoPlist: {
+        NSAppTransportSecurity: {
+          NSAllowsLocalNetworking: true,
+        },
+        NSBonjourServices: ["_expo._tcp"],
+        NSLocalNetworkUsageDescription:
+          "Expo Dev Launcher uses the local network to discover and connect to development servers running on your computer.",
         NSMicrophoneUsageDescription:
           "Wallie uses the microphone so you can talk to your AI assistant.",
       },
@@ -40,11 +47,6 @@ export default {
       package: "com.wallsentertainment.wallie",
       permissions: ["RECORD_AUDIO"],
     },
-    web: {
-      bundler: "metro",
-      output: "static",
-      favicon: "./assets/favicon.png",
-    },
     plugins: [
       "expo-router",
       "expo-secure-store",
@@ -54,14 +56,14 @@ export default {
     experiments: {
       typedRoutes: true,
     },
+    updates: {
+      enabled: false,
+    },
     extra: {
       supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
       supabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
       wallieApiUrl: wallieApiUrl.replace(/\/+$/, ""),
       wallieWebUrl: wallieWebUrl.replace(/\/+$/, ""),
-      eas: {
-        projectId: "wallie-mobile-placeholder",
-      },
     },
   },
 };

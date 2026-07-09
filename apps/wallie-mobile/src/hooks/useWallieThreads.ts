@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { WallieThread } from "@walls/wallie-core";
 
-import { supabase } from "@/lib/supabase";
+import { getSupabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 
 export function useWallieThreads() {
@@ -17,7 +17,7 @@ export function useWallieThreads() {
     }
 
     setLoading(true);
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from("wallie_threads")
       .select("id, title, created_at, updated_at, is_pinned")
       .eq("user_id", user.id)
@@ -40,7 +40,7 @@ export function useWallieThreads() {
   const createThread = useCallback(async () => {
     if (!user?.id) return null;
 
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from("wallie_threads")
       .insert({ user_id: user.id, title: null })
       .select("id, title, created_at, updated_at, is_pinned")
@@ -59,7 +59,7 @@ export function useWallieThreads() {
     async (threadId: string, title: string) => {
       if (!user?.id) return;
 
-      const { error } = await supabase
+      const { error } = await getSupabase()
         .from("wallie_threads")
         .update({ title, updated_at: new Date().toISOString() })
         .eq("id", threadId)
@@ -85,7 +85,7 @@ export function useWallieThreads() {
     async (threadId: string) => {
       if (!user?.id) return;
 
-      const { error } = await supabase
+      const { error } = await getSupabase()
         .from("wallie_threads")
         .update({ is_archived: true })
         .eq("id", threadId)

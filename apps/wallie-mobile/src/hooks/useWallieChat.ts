@@ -8,7 +8,7 @@ import {
 
 import { useAuth } from "@/context/AuthContext";
 import { sendWallieChat } from "@/lib/wallie-api";
-import { supabase } from "@/lib/supabase";
+import { getSupabase } from "@/lib/supabase";
 
 interface UseWallieChatOptions {
   threadId: string | null;
@@ -30,7 +30,7 @@ export function useWallieChat({
 
   const loadMessages = useCallback(
     async (targetThreadId: string) => {
-      const { data, error } = await supabase
+      const { data, error } = await getSupabase()
         .from("wallie_chats")
         .select("raw_text, mentions, created_at, tool_results")
         .eq("thread_id", targetThreadId)

@@ -88,6 +88,21 @@ const WITH_ENV_PATCH = `    # with-environment.sh executes $1 unquoted; breaks w
       end
     end`;
 
+const GET_APP_CONFIG_PATCH = `    # get-app-config-ios.sh uses unquoted basename $PROJECT_DIR; breaks when path has spaces.
+    get_app_config = File.join(__dir__, '..', '..', 'node_modules', 'expo-constants', 'scripts', 'get-app-config-ios.sh')
+    if File.exist?(get_app_config)
+      get_app_config_content = File.read(get_app_config)
+      get_app_config_old = 'PROJECT_DIR_BASENAME=$(basename $PROJECT_DIR)'
+      get_app_config_new = 'PROJECT_DIR_BASENAME=$(basename "$PROJECT_DIR")'
+      unless get_app_config_content.include?(get_app_config_new)
+        patched = get_app_config_content.gsub(get_app_config_old, get_app_config_new)
+        if patched != get_app_config_content
+          File.chmod(0755, get_app_config)
+          File.write(get_app_config, patched)
+        end
+      end
+    end`;
+
 const BUNDLE_SCRIPT_OLD =
   '`"$NODE_BINARY" --print "require(\'path\').dirname(require.resolve(\'react-native/package.json\')) + \'/scripts/react-native-xcode.sh\'"`';
 const BUNDLE_SCRIPT_NEW = `REACT_NATIVE_XCODE_SCRIPT="$("$NODE_BINARY" --print "require('path').dirname(require.resolve('react-native/package.json')) + '/scripts/react-native-xcode.sh'")"
@@ -154,6 +169,13 @@ function withIosBuildFixes(config) {
       contents = contents.replace(
         /react_native_post_install\([\s\S]*?\)\s*\n/,
         (match) => `${match}\n${WITH_ENV_PATCH}\n`,
+      );
+    }
+
+    if (!contents.includes("get-app-config-ios.sh uses unquoted basename")) {
+      contents = contents.replace(
+        /react_native_post_install\([\s\S]*?\)\s*\n/,
+        (match) => `${match}\n${GET_APP_CONFIG_PATCH}\n`,
       );
     }
 
