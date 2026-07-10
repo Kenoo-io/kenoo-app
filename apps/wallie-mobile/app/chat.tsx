@@ -19,6 +19,7 @@ import { ConversationDrawer } from "@/components/ConversationDrawer";
 import { GlassSurface } from "@/components/GlassSurface";
 import { LoadingIndicator } from "@/components/LoadingIndicator";
 import { TwoLineMenuIcon } from "@/components/TwoLineMenuIcon";
+import { ThemeToggleButton } from "@/components/ThemeToggleButton";
 import { WallieVoiceOverlay } from "@/components/WallieVoiceOverlay";
 import { spacing } from "@/constants/theme";
 import { useTheme } from "@/context/ThemeContext";
@@ -332,6 +333,8 @@ export default function ChatScreen() {
                   <TwoLineMenuIcon />
                 </GlassSurface>
               </Pressable>
+
+              <ThemeToggleButton />
             </View>
 
             <View
@@ -370,6 +373,10 @@ const styles = StyleSheet.create({
   floatingHeader: {
     position: "absolute",
     left: spacing.md,
+    right: spacing.md,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     zIndex: 10,
   },
   menuGlass: {
