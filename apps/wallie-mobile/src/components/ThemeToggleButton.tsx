@@ -15,28 +15,36 @@ import { useTheme } from "@/context/ThemeContext";
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export function ThemeToggleButton() {
-  const { isDark, colors, setThemePreference } = useTheme();
+  const { isDark, colors, toggleTheme } = useTheme();
   const spin = useSharedValue(0);
   const press = useSharedValue(0);
 
   const iconStyle = useAnimatedStyle(() => ({
     transform: [
       { rotate: `${interpolate(spin.value, [0, 1], [0, 180])}deg` },
-      { scale: interpolate(press.value, [0, 1], [1, 0.9]) },
+      { scale: interpolate(press.value, [0, 1], [1, 0.88]) },
     ],
   }));
 
   const handlePress = () => {
     spin.value = 0;
-    spin.value = withTiming(1, {
-      duration: 420,
-      easing: Easing.out(Easing.cubic),
-    });
+    spin.value = withTiming(
+      1,
+      {
+        duration: 520,
+        easing: Easing.out(Easing.cubic),
+      },
+      (finished) => {
+        if (finished) {
+          spin.value = 0;
+        }
+      },
+    );
     press.value = withSequence(
       withTiming(1, { duration: 90 }),
-      withTiming(0, { duration: 160 }),
+      withTiming(0, { duration: 220 }),
     );
-    void setThemePreference(isDark ? "light" : "dark");
+    toggleTheme();
   };
 
   return (

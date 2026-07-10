@@ -31,6 +31,7 @@ interface ThemeContextValue {
   isDark: boolean;
   blurTint: "light" | "dark";
   setThemePreference: (preference: ThemePreference) => Promise<void>;
+  toggleTheme: () => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
@@ -80,10 +81,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const isDark = colorScheme === "dark";
   const blurTint = isDark ? "dark" : "light";
 
-  const setThemePreference = useCallback(
+  const persistThemePreference = useCallback(
     async (preference: ThemePreference) => {
-      setThemePreferenceState(preference);
-
       if (!user?.id) return;
 
       const { error } = await getSupabase()
@@ -98,6 +97,20 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     [user?.id],
   );
 
+  const setThemePreference = useCallback(
+    async (preference: ThemePreference) => {
+      setThemePreferenceState(preference);
+      await persistThemePreference(preference);
+    },
+    [persistThemePreference],
+  );
+
+  const toggleTheme = useCallback(() => {
+    const nextPreference: ThemePreference = isDark ? "light" : "dark";
+    setThemePreferenceState(nextPreference);
+    void persistThemePreference(nextPreference);
+  }, [isDark, persistThemePreference]);
+
   const value = useMemo(
     () => ({
       colors,
@@ -107,6 +120,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       isDark,
       blurTint,
       setThemePreference,
+      toggleTheme,
     }),
     [
       blurTint,
@@ -115,6 +129,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       isDark,
       setThemePreference,
       themePreference,
+      toggleTheme,
       voiceColors,
     ],
   );
