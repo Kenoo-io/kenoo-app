@@ -85,7 +85,7 @@ export function ThemeToggleButton() {
             <Ionicons
               name={isDark ? "sunny" : "moon"}
               size={20}
-              color={isDark ? colors.wallsYellow : colors.textMuted}
+              color={isDark ? colors.text : colors.textMuted}
             />
           </Animated.View>
         </Animated.View>
