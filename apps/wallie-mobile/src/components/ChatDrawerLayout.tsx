@@ -1,11 +1,9 @@
 import { useEffect, type ReactNode } from "react";
 import { Pressable, StyleSheet, useWindowDimensions, View } from "react-native";
-import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import Animated, {
   Extrapolation,
   interpolate,
-  interpolateColor,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
@@ -25,6 +23,8 @@ interface ChatDrawerLayoutProps {
   onClose: () => void;
   drawer: ReactNode;
   children: ReactNode;
+  /** Freeze chat canvas during theme wipe so commit/teardown can't flash. */
+  surfaceColor?: string;
 }
 
 export function ChatDrawerLayout({
@@ -32,12 +32,14 @@ export function ChatDrawerLayout({
   onClose,
   drawer,
   children,
+  surfaceColor,
 }: ChatDrawerLayoutProps) {
-  const { colors, blurTint } = useTheme();
+  const { colors, isDark } = useTheme();
   const { width } = useWindowDimensions();
   const drawerWidth = width * DRAWER_WIDTH_RATIO;
   const pushDistance = width * MAIN_PUSH_RATIO;
   const progress = useSharedValue(open ? 1 : 0);
+  const panelColor = surfaceColor ?? colors.background;
 
   useEffect(() => {
     progress.value = withTiming(open ? 1 : 0, { duration: ANIMATION_MS });
@@ -69,66 +71,79 @@ export function ChatDrawerLayout({
       borderBottomLeftRadius: radius,
       borderWidth,
       borderColor: colors.glassBorder,
-      backgroundColor: interpolateColor(
-        progress.value,
-        [0, 1],
-        [colors.background, colors.glassPanelOpen],
-      ),
+      backgroundColor: panelColor,
     };
-  }, [colors.background, colors.glassBorder, colors.glassPanelOpen]);
+  }, [colors.glassBorder, panelColor, pushDistance]);
 
-  const glassLayerStyle = useAnimatedStyle(() => ({
+  const chatEdgeStyle = useAnimatedStyle(() => ({
     opacity: interpolate(progress.value, [0, 1], [0, 1], Extrapolation.CLAMP),
   }));
 
-  const drawerShadowStyle = useAnimatedStyle(() => ({
+  const sidebarEdgeStyle = useAnimatedStyle(() => ({
     opacity: interpolate(progress.value, [0, 1], [0, 1], Extrapolation.CLAMP),
   }));
 
   return (
-    <View style={[styles.root, { backgroundColor: colors.drawerBackground }]}>
+    <View
+      style={[
+        styles.root,
+        {
+          backgroundColor: isDark ? "#050506" : colors.drawerBackground,
+        },
+      ]}
+    >
       <View
         style={[
           styles.drawer,
           {
             width: drawerWidth,
-            backgroundColor: colors.drawerBackground,
-            shadowColor: colors.shadowColor,
+            backgroundColor: isDark ? "#101014" : colors.drawerBackground,
           },
         ]}
       >
-        {drawer}
+        <View style={styles.drawerContent}>{drawer}</View>
+
         <Animated.View
           pointerEvents="none"
-          style={[styles.sidebarShadow, drawerShadowStyle]}
+          style={[styles.sidebarEdge, sidebarEdgeStyle]}
         >
-          <LinearGradient
-            colors={[
-              "transparent",
-              colors.sidebarShadowMid,
-              colors.sidebarShadowEnd,
-            ]}
-            locations={[0, 0.5, 1]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={StyleSheet.absoluteFill}
-          />
+          {isDark ? (
+            <LinearGradient
+              colors={[
+                "transparent",
+                "rgba(255, 255, 255, 0.045)",
+                "rgba(255, 255, 255, 0.12)",
+              ]}
+              locations={[0, 0.55, 1]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.reverseShadow}
+            />
+          ) : (
+            <LinearGradient
+              colors={[
+                "transparent",
+                colors.sidebarShadowMid,
+                colors.sidebarShadowEnd,
+              ]}
+              locations={[0, 0.5, 1]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={StyleSheet.absoluteFill}
+            />
+          )}
         </Animated.View>
       </View>
 
       <Animated.View style={[styles.mainPanel, { width }, mainPanelStyle]}>
-        <Animated.View
-          pointerEvents="none"
-          style={[styles.glassLayer, glassLayerStyle]}
+        <View
+          style={[styles.mainContent, { backgroundColor: panelColor }]}
+          pointerEvents={open ? "none" : "auto"}
         >
-          <BlurView
-            intensity={72}
-            tint={blurTint}
-            style={StyleSheet.absoluteFill}
-          />
-          <View
-            style={[styles.glassTint, { backgroundColor: colors.glassTint }]}
-          />
+          {children}
+        </View>
+
+        <Animated.View pointerEvents="none" style={[styles.edge, chatEdgeStyle]}>
           <View
             style={[
               styles.glassHighlight,
@@ -140,13 +155,6 @@ export function ChatDrawerLayout({
         {open ? (
           <Pressable style={styles.dismissOverlay} onPress={onClose} />
         ) : null}
-
-        <View
-          style={styles.mainContent}
-          pointerEvents={open ? "none" : "auto"}
-        >
-          {children}
-        </View>
       </Animated.View>
     </View>
   );
@@ -164,18 +172,22 @@ const styles = StyleSheet.create({
     bottom: 0,
     zIndex: 1,
     overflow: "hidden",
-    shadowOffset: { width: 6, height: 0 },
-    shadowOpacity: 0.16,
-    shadowRadius: 18,
-    elevation: 10,
   },
-  sidebarShadow: {
+  drawerContent: {
+    flex: 1,
+    zIndex: 1,
+    backgroundColor: "transparent",
+  },
+  sidebarEdge: {
     position: "absolute",
     right: 0,
     top: 0,
     bottom: 0,
-    width: 36,
+    width: 44,
     zIndex: 2,
+  },
+  reverseShadow: {
+    ...StyleSheet.absoluteFillObject,
   },
   mainPanel: {
     position: "absolute",
@@ -185,12 +197,13 @@ const styles = StyleSheet.create({
     zIndex: 3,
     overflow: "hidden",
   },
-  glassLayer: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 0,
+  mainContent: {
+    flex: 1,
+    zIndex: 1,
   },
-  glassTint: {
+  edge: {
     ...StyleSheet.absoluteFillObject,
+    zIndex: 2,
   },
   glassHighlight: {
     position: "absolute",
@@ -201,10 +214,6 @@ const styles = StyleSheet.create({
   },
   dismissOverlay: {
     ...StyleSheet.absoluteFillObject,
-    zIndex: 2,
-  },
-  mainContent: {
-    flex: 1,
-    zIndex: 1,
+    zIndex: 3,
   },
 });

@@ -24,7 +24,7 @@ function createStyles(colors: AppColors) {
   return StyleSheet.create({
     safeArea: {
       flex: 1,
-      backgroundColor: colors.drawerBackground,
+      backgroundColor: "transparent",
     },
     header: {
       paddingHorizontal: spacing.md,

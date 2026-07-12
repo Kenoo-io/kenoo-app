@@ -24,7 +24,7 @@ function createStyles(colors: AppColors) {
       justifyContent: "flex-end",
       alignItems: "flex-start",
       gap: spacing.sm,
-      paddingHorizontal: spacing.md,
+      paddingHorizontal: spacing.lg,
       marginBottom: spacing.xl,
       maxWidth: "100%",
     },
@@ -41,7 +41,8 @@ function createStyles(colors: AppColors) {
       color: colors.text,
     },
     aiRow: {
-      paddingHorizontal: spacing.md,
+      paddingLeft: spacing.lg,
+      paddingRight: spacing.lg,
       marginBottom: spacing.xl,
       gap: spacing.md,
       width: "100%",
@@ -58,7 +59,9 @@ export function ChatMessage({ message }: ChatMessageProps) {
     return (
       <View style={styles.userRow}>
         <View style={styles.userBubble}>
-          <Text style={styles.userText}>{message.content}</Text>
+          <Text style={styles.userText} selectable selectionColor={colors.wallsSky}>
+            {message.content}
+          </Text>
         </View>
       </View>
     );

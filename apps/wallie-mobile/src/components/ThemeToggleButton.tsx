@@ -4,7 +4,6 @@ import { Ionicons } from "@expo/vector-icons";
 import Animated, {
   Easing,
   interpolate,
-  runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withSequence,
@@ -12,60 +11,125 @@ import Animated, {
 } from "react-native-reanimated";
 
 import { GlassSurface } from "@/components/GlassSurface";
+import { darkColors, lightColors } from "@/constants/theme";
 import { useTheme } from "@/context/ThemeContext";
+import { useThemeWipe } from "@/context/ThemeWipeContext";
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
-const SPIN_MS = 520;
+const SPIN_MS = 720;
 
-export function ThemeToggleButton() {
+export type ThemeWipeRequest = {
+  nextIsDark: boolean;
+  background: string;
+};
+
+interface ThemeToggleButtonProps {
+  /** Landing-screen cinematic wipe. Parent owns the overlay + theme commit. */
+  onCinematicToggle?: (request: ThemeWipeRequest) => void;
+  disabled?: boolean;
+}
+
+export function ThemeToggleButton({
+  onCinematicToggle,
+  disabled = false,
+}: ThemeToggleButtonProps) {
   const { isDark, colors, toggleTheme } = useTheme();
+  const wipe = useThemeWipe();
   const spin = useSharedValue(0);
   const press = useSharedValue(0);
-  const isSpinningRef = useRef(false);
+  const isBusyRef = useRef(false);
 
-  const finishSpin = useCallback(() => {
-    isSpinningRef.current = false;
+  const finishBusy = useCallback(() => {
+    isBusyRef.current = false;
   }, []);
 
   const pressStyle = useAnimatedStyle(() => ({
     transform: [{ scale: interpolate(press.value, [0, 1], [1, 0.88]) }],
   }));
 
-  const iconStyle = useAnimatedStyle(() => ({
+  const iconWrapStyle = useAnimatedStyle(() => ({
     transform: [
       { rotate: `${interpolate(spin.value, [0, 1], [0, 360])}deg` },
     ],
   }));
 
-  const handlePress = () => {
-    if (isSpinningRef.current) return;
+  // Old icon fades out on top; destination stays as the stable base underneath
+  // so teardown never swaps layers (that was the post-wipe moon flash).
+  const fromOverlayStyle = useAnimatedStyle(() => {
+    if (!wipe?.active) {
+      return { opacity: 0 };
+    }
 
-    isSpinningRef.current = true;
+    return {
+      opacity: interpolate(
+        wipe.progress.value,
+        [0, 0.45, 0.55, 1],
+        [1, 1, 0, 0],
+      ),
+    };
+  }, [wipe]);
+
+  const handlePress = () => {
+    if (disabled || isBusyRef.current) return;
+
+    isBusyRef.current = true;
     spin.value = 0;
-    spin.value = withTiming(
-      1,
-      {
-        duration: SPIN_MS,
-        easing: Easing.out(Easing.cubic),
-      },
-      (finished) => {
-        if (finished) {
-          runOnJS(toggleTheme)();
-          spin.value = 0;
-          runOnJS(finishSpin)();
-        }
-      },
-    );
+    spin.value = withTiming(1, {
+      duration: SPIN_MS,
+      easing: Easing.out(Easing.cubic),
+    });
     press.value = withSequence(
       withTiming(1, { duration: 90 }),
       withTiming(0, { duration: 220 }),
     );
+
+    if (onCinematicToggle) {
+      const nextIsDark = !isDark;
+      onCinematicToggle({
+        nextIsDark,
+        background: nextIsDark
+          ? darkColors.background
+          : lightColors.background,
+      });
+      setTimeout(finishBusy, SPIN_MS + 80);
+      return;
+    }
+
+    toggleTheme();
+    setTimeout(finishBusy, SPIN_MS);
   };
+
+  const settledName = isDark ? "sunny" : "moon";
+  const settledColor = isDark ? colors.text : colors.textMuted;
+
+  const baseName = wipe?.active
+    ? wipe.toDark
+      ? "sunny"
+      : "moon"
+    : settledName;
+  const baseColor = wipe?.active
+    ? wipe.toDark
+      ? wipe.toColors.text
+      : wipe.toColors.textMuted
+    : settledColor;
+
+  const fromName = wipe?.active
+    ? wipe.fromDark
+      ? "sunny"
+      : "moon"
+    : settledName;
+  const fromColor = wipe?.active
+    ? wipe.fromDark
+      ? wipe.fromColors.text
+      : wipe.fromColors.textMuted
+    : settledColor;
 
   return (
     <AnimatedPressable
       onPress={handlePress}
+      disabled={disabled}
       onPressIn={() => {
+        if (disabled) return;
         press.value = withTiming(1, { duration: 90 });
       }}
       onPressOut={() => {
@@ -75,18 +139,19 @@ export function ThemeToggleButton() {
       accessibilityLabel={isDark ? "Switch to light mode" : "Switch to dark mode"}
     >
       <GlassSurface
-        borderRadius={22}
+        borderRadius={24}
         intensity={60}
         contentStyle={styles.glassContent}
         style={styles.glass}
       >
         <Animated.View style={pressStyle}>
-          <Animated.View style={iconStyle}>
-            <Ionicons
-              name={isDark ? "sunny" : "moon"}
-              size={20}
-              color={isDark ? colors.text : colors.textMuted}
-            />
+          <Animated.View style={[styles.iconStack, iconWrapStyle]}>
+            <Ionicons name={baseName} size={22} color={baseColor} />
+            {wipe?.active ? (
+              <Animated.View style={[styles.iconLayer, fromOverlayStyle]}>
+                <Ionicons name={fromName} size={22} color={fromColor} />
+              </Animated.View>
+            ) : null}
           </Animated.View>
         </Animated.View>
       </GlassSurface>
@@ -96,12 +161,23 @@ export function ThemeToggleButton() {
 
 const styles = StyleSheet.create({
   glass: {
-    width: 44,
-    height: 44,
+    width: 48,
+    height: 48,
   },
   glassContent: {
-    width: 44,
-    height: 44,
+    width: 48,
+    height: 48,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  iconStack: {
+    width: 22,
+    height: 22,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  iconLayer: {
+    ...StyleSheet.absoluteFillObject,
     alignItems: "center",
     justifyContent: "center",
   },

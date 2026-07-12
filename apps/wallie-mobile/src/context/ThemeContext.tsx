@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -30,6 +31,9 @@ interface ThemeContextValue {
   themePreference: ThemePreference;
   isDark: boolean;
   blurTint: "light" | "dark";
+  /** Status bar style — freeze during theme wipe to avoid system chrome flash. */
+  statusBarStyle: "light" | "dark";
+  freezeStatusBar: (style: "light" | "dark" | null) => void;
   setThemePreference: (preference: ThemePreference) => Promise<void>;
   toggleTheme: () => void;
 }
@@ -41,14 +45,21 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const systemScheme = useColorScheme();
   const [themePreference, setThemePreferenceState] =
     useState<ThemePreference>("system");
+  const [statusBarFreeze, setStatusBarFreeze] = useState<"light" | "dark" | null>(
+    null,
+  );
+  // Ignore a late DB hydrate after the user has already changed theme locally.
+  const localThemeEditRef = useRef(false);
 
   useEffect(() => {
     if (!user?.id) {
+      localThemeEditRef.current = false;
       setThemePreferenceState("system");
       return;
     }
 
     let cancelled = false;
+    localThemeEditRef.current = false;
 
     void getSupabase()
       .from("users")
@@ -56,7 +67,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       .eq("id", user.id)
       .single()
       .then(({ data, error }) => {
-        if (cancelled || error) return;
+        if (cancelled || error || localThemeEditRef.current) return;
         if (isThemePreference(data?.theme)) {
           setThemePreferenceState(data.theme);
         }
@@ -80,6 +91,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const voiceColors = getVoiceColorsForScheme(colorScheme);
   const isDark = colorScheme === "dark";
   const blurTint = isDark ? "dark" : "light";
+  const statusBarStyle =
+    statusBarFreeze ?? (isDark ? "light" : "dark");
+
+  const freezeStatusBar = useCallback((style: "light" | "dark" | null) => {
+    setStatusBarFreeze(style);
+  }, []);
 
   const persistThemePreference = useCallback(
     async (preference: ThemePreference) => {
@@ -99,6 +116,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   const setThemePreference = useCallback(
     async (preference: ThemePreference) => {
+      localThemeEditRef.current = true;
       setThemePreferenceState(preference);
       await persistThemePreference(preference);
     },
@@ -107,6 +125,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   const toggleTheme = useCallback(() => {
     const nextPreference: ThemePreference = isDark ? "light" : "dark";
+    localThemeEditRef.current = true;
     setThemePreferenceState(nextPreference);
     void persistThemePreference(nextPreference);
   }, [isDark, persistThemePreference]);
@@ -119,6 +138,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       themePreference,
       isDark,
       blurTint,
+      statusBarStyle,
+      freezeStatusBar,
       setThemePreference,
       toggleTheme,
     }),
@@ -126,8 +147,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       blurTint,
       colorScheme,
       colors,
+      freezeStatusBar,
       isDark,
       setThemePreference,
+      statusBarStyle,
       themePreference,
       toggleTheme,
       voiceColors,
