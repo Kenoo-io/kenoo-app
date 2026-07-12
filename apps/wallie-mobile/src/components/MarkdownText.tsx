@@ -1,198 +1,221 @@
-import { useMemo } from "react";
-import { Linking, StyleSheet, Text, View } from "react-native";
-import type { ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Linking, StyleSheet, View } from "react-native";
+import { WebView, type WebViewMessageEvent } from "react-native-webview";
 
-import { spacing, type AppColors } from "@/constants/theme";
 import { useTheme } from "@/context/ThemeContext";
+import type { AppColors } from "@/constants/theme";
 
 interface MarkdownTextProps {
   content: string;
 }
 
-function parseInline(
-  text: string,
-  keyPrefix: string,
-  colors: AppColors,
-): ReactNode[] {
-  const parts: ReactNode[] = [];
-  const pattern = /(\*\*[^*]+\*\*|\[[^\]]+\]\([^)]+\))/g;
-  let lastIndex = 0;
-  let match: RegExpExecArray | null;
-  let partIndex = 0;
-
-  while ((match = pattern.exec(text)) !== null) {
-    if (match.index > lastIndex) {
-      parts.push(text.slice(lastIndex, match.index));
-    }
-
-    const token = match[0];
-    if (token.startsWith("**")) {
-      parts.push(
-        <Text
-          key={`${keyPrefix}-b-${partIndex}`}
-          style={{ fontWeight: "700" }}
-        >
-          {token.slice(2, -2)}
-        </Text>,
-      );
-    } else {
-      const linkMatch = /\[([^\]]+)\]\(([^)]+)\)/.exec(token);
-      if (linkMatch) {
-        const [, label, url] = linkMatch;
-        parts.push(
-          <Text
-            key={`${keyPrefix}-l-${partIndex}`}
-            style={{ color: colors.wallsSky, textDecorationLine: "underline" }}
-            onPress={() => void Linking.openURL(url)}
-          >
-            {label}
-          </Text>,
-        );
-      }
-    }
-
-    lastIndex = match.index + token.length;
-    partIndex += 1;
-  }
-
-  if (lastIndex < text.length) {
-    parts.push(text.slice(lastIndex));
-  }
-
-  return parts.length ? parts : [text];
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
-function createStyles(colors: AppColors) {
-  return StyleSheet.create({
-    container: {
-      gap: spacing.sm,
-      width: "100%",
-    },
-    h1: {
-      fontSize: 22,
-      fontWeight: "700",
-      color: colors.text,
-      lineHeight: 30,
-    },
-    h2: {
-      fontSize: 19,
-      fontWeight: "700",
-      color: colors.text,
-      lineHeight: 27,
-    },
-    h3: {
-      fontSize: 17,
-      fontWeight: "600",
-      color: colors.text,
-      lineHeight: 25,
-    },
-    paragraph: {
-      fontSize: 16,
-      lineHeight: 26,
-      color: colors.text,
-    },
-    list: {
-      gap: spacing.xs,
-      width: "100%",
-    },
-    listItem: {
-      flexDirection: "row",
-      alignItems: "flex-start",
-      gap: spacing.sm,
-      width: "100%",
-      paddingRight: spacing.xs,
-    },
-    bullet: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
-      backgroundColor: colors.textMuted,
-      marginTop: 9,
-    },
-    listItemText: {
-      flex: 1,
-      flexShrink: 1,
-      fontSize: 16,
-      lineHeight: 26,
-      color: colors.text,
-    },
-  });
+function inlineToHtml(text: string): string {
+  const escaped = escapeHtml(text);
+  return escaped
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
 }
 
-export function MarkdownText({ content }: MarkdownTextProps) {
-  const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
-
-  if (!content.trim()) return null;
-
+/** Convert our lightweight markdown dialect to selectable HTML. */
+export function markdownToHtml(content: string): string {
   const lines = content.split("\n");
-  const blocks: ReactNode[] = [];
+  const parts: string[] = [];
   let listItems: string[] = [];
-  let blockIndex = 0;
 
   const flushList = () => {
     if (!listItems.length) return;
-    blocks.push(
-      <View key={`list-${blockIndex}`} style={styles.list}>
-        {listItems.map((item, index) => (
-          <View key={`li-${index}`} style={styles.listItem}>
-            <View style={styles.bullet} />
-            <Text style={styles.listItemText}>
-              {parseInline(item, `li-${index}`, colors)}
-            </Text>
-          </View>
-        ))}
-      </View>,
+    parts.push(
+      `<ul>${listItems.map((item) => `<li>${inlineToHtml(item)}</li>`).join("")}</ul>`,
     );
     listItems = [];
-    blockIndex += 1;
   };
 
   for (const line of lines) {
     const trimmed = line.trim();
-
     if (!trimmed) {
       flushList();
       continue;
     }
-
     if (/^[-*]\s+/.test(trimmed)) {
       listItems.push(trimmed.replace(/^[-*]\s+/, ""));
       continue;
     }
-
     flushList();
-
     if (trimmed.startsWith("### ")) {
-      blocks.push(
-        <Text key={`h3-${blockIndex}`} style={styles.h3}>
-          {parseInline(trimmed.slice(4), `h3-${blockIndex}`, colors)}
-        </Text>,
-      );
+      parts.push(`<h3>${inlineToHtml(trimmed.slice(4))}</h3>`);
     } else if (trimmed.startsWith("## ")) {
-      blocks.push(
-        <Text key={`h2-${blockIndex}`} style={styles.h2}>
-          {parseInline(trimmed.slice(3), `h2-${blockIndex}`, colors)}
-        </Text>,
-      );
+      parts.push(`<h2>${inlineToHtml(trimmed.slice(3))}</h2>`);
     } else if (trimmed.startsWith("# ")) {
-      blocks.push(
-        <Text key={`h1-${blockIndex}`} style={styles.h1}>
-          {parseInline(trimmed.slice(2), `h1-${blockIndex}`, colors)}
-        </Text>,
-      );
+      parts.push(`<h1>${inlineToHtml(trimmed.slice(2))}</h1>`);
     } else {
-      blocks.push(
-        <Text key={`p-${blockIndex}`} style={styles.paragraph}>
-          {parseInline(trimmed, `p-${blockIndex}`, colors)}
-        </Text>,
-      );
+      parts.push(`<p>${inlineToHtml(trimmed)}</p>`);
     }
-
-    blockIndex += 1;
   }
-
   flushList();
-
-  return <View style={styles.container}>{blocks}</View>;
+  return parts.join("");
 }
+
+export function markdownToPlainText(content: string): string {
+  return content
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1 ($2)")
+    .replace(/^#{1,3}\s+/gm, "")
+    .replace(/^[-*]\s+/gm, "• ")
+    .trim();
+}
+
+function buildDocument(colors: AppColors): string {
+  return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    color: ${colors.text};
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 16px;
+    line-height: 26px;
+    -webkit-text-size-adjust: 100%;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+  #content, #content * {
+    -webkit-user-select: text !important;
+    user-select: text !important;
+    -webkit-touch-callout: default !important;
+  }
+  #content { padding: 0; margin: 0; min-height: 1px; }
+  p { margin: 0 0 8px 0; }
+  p:last-child { margin-bottom: 0; }
+  h1 { font-size: 22px; line-height: 30px; font-weight: 700; margin: 0 0 8px 0; }
+  h2 { font-size: 19px; line-height: 27px; font-weight: 700; margin: 0 0 8px 0; }
+  h3 { font-size: 17px; line-height: 25px; font-weight: 600; margin: 0 0 8px 0; }
+  strong { font-weight: 700; }
+  a { color: ${colors.wallsSky}; text-decoration: underline; }
+  ul {
+    margin: 0 0 8px 0;
+    padding-left: 1.15em;
+    list-style-type: disc;
+  }
+  ul:last-child { margin-bottom: 0; }
+  li { margin: 0 0 4px 0; padding-left: 0.15em; }
+  li::marker { color: ${colors.textMuted}; font-size: 1.05em; }
+</style>
+</head>
+<body>
+  <div id="content"></div>
+  <script>
+    function postHeight() {
+      var el = document.getElementById('content');
+      var h = Math.ceil(el.getBoundingClientRect().height);
+      window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'height', height: Math.max(h, 1) }));
+    }
+    window.setMarkdownHtml = function(html) {
+      document.getElementById('content').innerHTML = html;
+      requestAnimationFrame(postHeight);
+    };
+    window.addEventListener('load', postHeight);
+  </script>
+</body>
+</html>`;
+}
+
+/**
+ * Renders markdown in a transparent WebView so users get ChatGPT-like
+ * native selection (highlight + copy) while keeping bold/links/lists.
+ * Content updates (including typing) are pushed via injectJavaScript.
+ */
+export function MarkdownText({ content }: MarkdownTextProps) {
+  const { colors } = useTheme();
+  const webRef = useRef<WebView>(null);
+  const readyRef = useRef(false);
+  const [height, setHeight] = useState(1);
+
+  const bodyHtml = useMemo(() => markdownToHtml(content), [content]);
+  const documentHtml = useMemo(
+    () => buildDocument(colors),
+    [colors.text, colors.textMuted, colors.wallsSky],
+  );
+
+  useEffect(() => {
+    if (!readyRef.current) return;
+    webRef.current?.injectJavaScript(
+      `window.setMarkdownHtml(${JSON.stringify(bodyHtml)}); true;`,
+    );
+  }, [bodyHtml]);
+
+  const onMessage = (event: WebViewMessageEvent) => {
+    try {
+      const data = JSON.parse(event.nativeEvent.data) as {
+        type?: string;
+        height?: number;
+      };
+      if (data.type === "height" && typeof data.height === "number") {
+        const next = Math.max(1, data.height);
+        setHeight((prev) => (Math.abs(prev - next) > 1 ? next : prev));
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  if (!content.trim()) return null;
+
+  return (
+    <View style={styles.wrap}>
+      <WebView
+        ref={webRef}
+        originWhitelist={["*"]}
+        source={{ html: documentHtml }}
+        style={[styles.web, { height }]}
+        scrollEnabled={false}
+        showsVerticalScrollIndicator={false}
+        showsHorizontalScrollIndicator={false}
+        setSupportMultipleWindows={false}
+        hideKeyboardAccessoryView
+        onMessage={onMessage}
+        onLoadEnd={() => {
+          readyRef.current = true;
+          webRef.current?.injectJavaScript(
+            `window.setMarkdownHtml(${JSON.stringify(bodyHtml)}); true;`,
+          );
+        }}
+        onShouldStartLoadWithRequest={(request) => {
+          const { url } = request;
+          if (
+            url.startsWith("http://") ||
+            url.startsWith("https://") ||
+            url.startsWith("mailto:")
+          ) {
+            void Linking.openURL(url);
+            return false;
+          }
+          return true;
+        }}
+      />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  wrap: {
+    width: "100%",
+  },
+  web: {
+    width: "100%",
+    backgroundColor: "transparent",
+    opacity: 0.99,
+  },
+});

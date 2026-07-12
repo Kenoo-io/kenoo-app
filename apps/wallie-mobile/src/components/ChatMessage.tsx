@@ -59,7 +59,9 @@ export function ChatMessage({ message }: ChatMessageProps) {
     return (
       <View style={styles.userRow}>
         <View style={styles.userBubble}>
-          <Text style={styles.userText}>{message.content}</Text>
+          <Text style={styles.userText} selectable selectionColor={colors.wallsSky}>
+            {message.content}
+          </Text>
         </View>
       </View>
     );

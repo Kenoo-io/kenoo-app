@@ -436,9 +436,29 @@ export default function ChatScreen() {
   const composerBottomInset = isKeyboardVisible
     ? keyboardHeight + 8
     : insets.bottom;
-  const scrollBottomInset = FLOATING_COMPOSER_HEIGHT + composerBottomInset;
+  const isBotTyping = messages.some((message) => message.isTyping);
+  // Extra room while streaming so the caret sits above the composer, not under it.
+  const typingFollowPad =
+    isBotTyping || isLoading ? spacing.xl + spacing.lg : spacing.sm;
+  const scrollBottomInset =
+    FLOATING_COMPOSER_HEIGHT + composerBottomInset + typingFollowPad;
   const floatingHeaderTop = insets.top + spacing.sm;
   const scrollTopInset = floatingHeaderTop + 48 + spacing.md;
+
+  const typingFingerprint = messages
+    .filter((message) => message.isTyping)
+    .map(
+      (message) =>
+        `${message.id}:${message.renderedContent?.length ?? 0}`,
+    )
+    .join("|");
+
+  useEffect(() => {
+    if (!typingFingerprint && !isLoading) return;
+    requestAnimationFrame(() => {
+      listRef.current?.scrollToEnd({ animated: false });
+    });
+  }, [isLoading, typingFingerprint]);
 
   const chatInputProps = useMemo(
     () => ({
@@ -535,6 +555,7 @@ export default function ChatScreen() {
                   style={styles.flex}
                   data={messages}
                   keyExtractor={(item) => item.id}
+                  removeClippedSubviews={false}
                   contentContainerStyle={[
                     styles.messages,
                     {
@@ -544,7 +565,10 @@ export default function ChatScreen() {
                   ]}
                   contentInsetAdjustmentBehavior="never"
                   automaticallyAdjustContentInsets={false}
-                  scrollIndicatorInsets={{ top: scrollTopInset }}
+                  scrollIndicatorInsets={{
+                    top: scrollTopInset,
+                    bottom: scrollBottomInset,
+                  }}
                   renderItem={({ item }) => (
                     <ChatMessage message={item} />
                   )}
@@ -556,7 +580,9 @@ export default function ChatScreen() {
                     ) : null
                   }
                   onContentSizeChange={() =>
-                    listRef.current?.scrollToEnd({ animated: true })
+                    listRef.current?.scrollToEnd({
+                      animated: !isBotTyping,
+                    })
                   }
                 />
               )}
