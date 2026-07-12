@@ -31,7 +31,7 @@ export function ChatDrawerLayout({
   drawer,
   children,
 }: ChatDrawerLayoutProps) {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const { width } = useWindowDimensions();
   const drawerWidth = width * DRAWER_WIDTH_RATIO;
   const pushDistance = width * MAIN_PUSH_RATIO;
@@ -41,6 +41,7 @@ export function ChatDrawerLayout({
     progress.value = withTiming(open ? 1 : 0, { duration: ANIMATION_MS });
   }, [open, progress]);
 
+  // Border / radius always live on the chat panel (both themes).
   const mainPanelStyle = useAnimatedStyle(() => {
     const translateX = interpolate(
       progress.value,
@@ -69,44 +70,66 @@ export function ChatDrawerLayout({
       borderColor: colors.glassBorder,
       backgroundColor: colors.background,
     };
-  }, [colors.background, colors.glassBorder]);
+  }, [colors.background, colors.glassBorder, pushDistance]);
 
-  const edgeStyle = useAnimatedStyle(() => ({
+  const chatEdgeStyle = useAnimatedStyle(() => ({
     opacity: interpolate(progress.value, [0, 1], [0, 1], Extrapolation.CLAMP),
   }));
 
-  const drawerShadowStyle = useAnimatedStyle(() => ({
+  // Dark: reverse (light) shadow into the sidebar. Light: soft dark falloff.
+  const sidebarEdgeStyle = useAnimatedStyle(() => ({
     opacity: interpolate(progress.value, [0, 1], [0, 1], Extrapolation.CLAMP),
   }));
 
   return (
-    <View style={[styles.root, { backgroundColor: colors.drawerBackground }]}>
+    <View
+      style={[
+        styles.root,
+        {
+          backgroundColor: isDark ? "#050506" : colors.drawerBackground,
+        },
+      ]}
+    >
       <View
         style={[
           styles.drawer,
           {
             width: drawerWidth,
-            backgroundColor: colors.drawerBackground,
-            shadowColor: colors.shadowColor,
+            backgroundColor: isDark ? "#101014" : colors.drawerBackground,
           },
         ]}
       >
-        {drawer}
+        <View style={styles.drawerContent}>{drawer}</View>
+
         <Animated.View
           pointerEvents="none"
-          style={[styles.sidebarShadow, drawerShadowStyle]}
+          style={[styles.sidebarEdge, sidebarEdgeStyle]}
         >
-          <LinearGradient
-            colors={[
-              "transparent",
-              colors.sidebarShadowMid,
-              colors.sidebarShadowEnd,
-            ]}
-            locations={[0, 0.5, 1]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={StyleSheet.absoluteFill}
-          />
+          {isDark ? (
+            <LinearGradient
+              colors={[
+                "transparent",
+                "rgba(255, 255, 255, 0.045)",
+                "rgba(255, 255, 255, 0.12)",
+              ]}
+              locations={[0, 0.55, 1]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.reverseShadow}
+            />
+          ) : (
+            <LinearGradient
+              colors={[
+                "transparent",
+                colors.sidebarShadowMid,
+                colors.sidebarShadowEnd,
+              ]}
+              locations={[0, 0.5, 1]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={StyleSheet.absoluteFill}
+            />
+          )}
         </Animated.View>
       </View>
 
@@ -118,7 +141,7 @@ export function ChatDrawerLayout({
           {children}
         </View>
 
-        <Animated.View pointerEvents="none" style={[styles.edge, edgeStyle]}>
+        <Animated.View pointerEvents="none" style={[styles.edge, chatEdgeStyle]}>
           <View
             style={[
               styles.glassHighlight,
@@ -147,18 +170,22 @@ const styles = StyleSheet.create({
     bottom: 0,
     zIndex: 1,
     overflow: "hidden",
-    shadowOffset: { width: 6, height: 0 },
-    shadowOpacity: 0.16,
-    shadowRadius: 18,
-    elevation: 10,
   },
-  sidebarShadow: {
+  drawerContent: {
+    flex: 1,
+    zIndex: 1,
+    backgroundColor: "transparent",
+  },
+  sidebarEdge: {
     position: "absolute",
     right: 0,
     top: 0,
     bottom: 0,
-    width: 36,
+    width: 44,
     zIndex: 2,
+  },
+  reverseShadow: {
+    ...StyleSheet.absoluteFillObject,
   },
   mainPanel: {
     position: "absolute",

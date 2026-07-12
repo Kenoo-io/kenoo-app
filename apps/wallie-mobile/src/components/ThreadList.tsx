@@ -38,7 +38,7 @@ function createStyles(colors: AppColors) {
   return StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: colors.drawerBackground,
+      backgroundColor: "transparent",
     },
     newChatButton: {
       marginHorizontal: spacing.md,
