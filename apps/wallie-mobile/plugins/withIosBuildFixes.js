@@ -41,8 +41,8 @@ const PATHS_WITH_SPACES_PATCH = `    # Support repo paths with spaces in CocoaPo
       end
     end
     [
-      ['ReactCodegen.podspec.json', '/bin/sh -c \\"\\$WITH_ENVIRONMENT \\$SCRIPT_PHASES_SCRIPT\\"', '\\"\\$WITH_ENVIRONMENT\\" \\"\\$SCRIPT_PHASES_SCRIPT\\"'],
-      ['EXConstants.podspec.json', 'bash -l -c \\"\\$PODS_TARGET_SRCROOT/../scripts/get-app-config-ios.sh\\"', 'bash -l \\"\\$PODS_TARGET_SRCROOT/../scripts/get-app-config-ios.sh\\"'],
+      ['ReactCodegen.podspec.json', '/bin/sh -c "\$WITH_ENVIRONMENT \$SCRIPT_PHASES_SCRIPT"', '"\$WITH_ENVIRONMENT" "\$SCRIPT_PHASES_SCRIPT"'],
+      ['EXConstants.podspec.json', 'bash -l -c "\$PODS_TARGET_SRCROOT/../scripts/get-app-config-ios.sh"', 'bash -l "\$PODS_TARGET_SRCROOT/../scripts/get-app-config-ios.sh"'],
     ].each do |podspec_name, podspec_old, podspec_new|
       podspec_path = File.join(installer.sandbox.root, 'Local Podspecs', podspec_name)
       next unless File.exist?(podspec_path)
@@ -57,7 +57,7 @@ const BUNDLE_RN_PATCH = `    # Bundle React Native build phase uses backticks; b
     user_project_path = File.join(__dir__, 'Wallie.xcodeproj')
     if File.exist?(user_project_path)
       user_project = Xcodeproj::Project.open(user_project_path)
-      bundle_script_old = '\`"\$NODE_BINARY" --print "require('\\''path'\\'').dirname(require.resolve('\\''react-native/package.json'\\'')) + '\\''/scripts/react-native-xcode.sh'\\''"\`'
+      bundle_script_old = %q{\`"\$NODE_BINARY" --print "require('path').dirname(require.resolve('react-native/package.json')) + '/scripts/react-native-xcode.sh'"\`}
       bundle_script_new = <<~'SCRIPT'.rstrip
         REACT_NATIVE_XCODE_SCRIPT="$("\$NODE_BINARY" --print "require('path').dirname(require.resolve('react-native/package.json')) + '/scripts/react-native-xcode.sh'")"
         bash "\$REACT_NATIVE_XCODE_SCRIPT"
@@ -116,34 +116,43 @@ function patchBundleReactNativeScript(contents) {
   return contents.replace(BUNDLE_SCRIPT_OLD, BUNDLE_SCRIPT_NEW);
 }
 
+// The path-with-spaces workarounds are only needed when the repo lives at a
+// path containing spaces (e.g. local "WALLS Entertainment"). On EAS Build the
+// checkout path has no spaces, so injecting them is unnecessary and risks
+// producing a Podfile that differs from the standard template.
+const repoPathHasSpaces = __dirname.includes(" ");
+
 /** Persist iOS native build fixes across \`expo prebuild\`. */
 function withIosBuildFixes(config) {
-  config = withDangerousMod(config, [
-    "ios",
-    async (config) => {
-      const projectRoot = config.modRequest.platformProjectRoot;
-      const projectName = config.modRequest.projectName;
-      const pbxprojPath = path.join(
-        projectRoot,
-        `${projectName}.xcodeproj`,
-        "project.pbxproj",
-      );
+  if (repoPathHasSpaces) {
+    config = withDangerousMod(config, [
+      "ios",
+      async (config) => {
+        const projectRoot = config.modRequest.platformProjectRoot;
+        const projectName = config.modRequest.projectName;
+        const pbxprojPath = path.join(
+          projectRoot,
+          `${projectName}.xcodeproj`,
+          "project.pbxproj",
+        );
 
-      if (fs.existsSync(pbxprojPath)) {
-        const contents = fs.readFileSync(pbxprojPath, "utf8");
-        const patched = patchBundleReactNativeScript(contents);
-        if (patched !== contents) {
-          fs.writeFileSync(pbxprojPath, patched);
+        if (fs.existsSync(pbxprojPath)) {
+          const contents = fs.readFileSync(pbxprojPath, "utf8");
+          const patched = patchBundleReactNativeScript(contents);
+          if (patched !== contents) {
+            fs.writeFileSync(pbxprojPath, patched);
+          }
         }
-      }
 
-      return config;
-    },
-  ]);
+        return config;
+      },
+    ]);
+  }
 
   return withPodfile(config, (podfile) => {
     let contents = podfile.modResults.contents;
 
+    // Applies regardless of path: depends on the Xcode/Clang toolchain.
     if (!contents.includes("Xcode 26 workaround")) {
       contents = contents.replace(
         /react_native_post_install\([\s\S]*?\)\s*\n/,
@@ -151,32 +160,34 @@ function withIosBuildFixes(config) {
       );
     }
 
-    if (!contents.includes("path_space_script_replacements")) {
-      contents = contents.replace(
-        /react_native_post_install\([\s\S]*?\)\s*\n/,
-        (match) => `${match}\n${PATHS_WITH_SPACES_PATCH}\n`,
-      );
-    }
+    if (repoPathHasSpaces) {
+      if (!contents.includes("path_space_script_replacements")) {
+        contents = contents.replace(
+          /react_native_post_install\([\s\S]*?\)\s*\n/,
+          (match) => `${match}\n${PATHS_WITH_SPACES_PATCH}\n`,
+        );
+      }
 
-    if (!contents.includes("Bundle React Native build phase uses backticks")) {
-      contents = contents.replace(
-        /react_native_post_install\([\s\S]*?\)\s*\n/,
-        (match) => `${match}\n${BUNDLE_RN_PATCH}\n`,
-      );
-    }
+      if (!contents.includes("Bundle React Native build phase uses backticks")) {
+        contents = contents.replace(
+          /react_native_post_install\([\s\S]*?\)\s*\n/,
+          (match) => `${match}\n${BUNDLE_RN_PATCH}\n`,
+        );
+      }
 
-    if (!contents.includes("with-environment.sh executes")) {
-      contents = contents.replace(
-        /react_native_post_install\([\s\S]*?\)\s*\n/,
-        (match) => `${match}\n${WITH_ENV_PATCH}\n`,
-      );
-    }
+      if (!contents.includes("with-environment.sh executes")) {
+        contents = contents.replace(
+          /react_native_post_install\([\s\S]*?\)\s*\n/,
+          (match) => `${match}\n${WITH_ENV_PATCH}\n`,
+        );
+      }
 
-    if (!contents.includes("get-app-config-ios.sh uses unquoted basename")) {
-      contents = contents.replace(
-        /react_native_post_install\([\s\S]*?\)\s*\n/,
-        (match) => `${match}\n${GET_APP_CONFIG_PATCH}\n`,
-      );
+      if (!contents.includes("get-app-config-ios.sh uses unquoted basename")) {
+        contents = contents.replace(
+          /react_native_post_install\([\s\S]*?\)\s*\n/,
+          (match) => `${match}\n${GET_APP_CONFIG_PATCH}\n`,
+        );
+      }
     }
 
     podfile.modResults.contents = contents;

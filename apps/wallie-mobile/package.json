@@ -15,7 +15,11 @@
     "ios:device": "bash scripts/run-ios-device.sh",
     "android": "expo run:android",
     "android:device": "expo run:android --device",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "eas:env:sync": "node scripts/sync-eas-env.js",
+    "eas:env:push:preview": "eas env:push preview --path .env.eas --force",
+    "eas:env:push:production": "eas env:push production --path .env.eas --force",
+    "eas:env:list": "eas env:list preview --include-sensitive"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "1.23.1",
