@@ -215,7 +215,7 @@ export function ChatInput({
 
   const fromMicStyle = useAnimatedStyle(() => {
     if (!wipe?.active) {
-      return { opacity: 1 };
+      return { opacity: 0 };
     }
 
     return {
@@ -223,20 +223,11 @@ export function ChatInput({
     };
   }, [wipe]);
 
-  const toMicStyle = useAnimatedStyle(() => {
-    if (!wipe?.active) {
-      return { opacity: 0 };
-    }
-
-    return {
-      opacity: interpolate(wipe.progress.value, [0, 1], [0, 1]),
-    };
-  }, [wipe]);
-
+  // Destination mic is the stable base; old color only overlays during wipe.
+  const baseMuted = wipe?.active ? wipe.toColors.textMuted : colors.textMuted;
   const fromMuted = wipe?.active
     ? wipe.fromColors.textMuted
     : colors.textMuted;
-  const toMuted = wipe?.active ? wipe.toColors.textMuted : colors.textMuted;
   const sendIconColor = wipe?.active
     ? wipe.toColors.sendIcon
     : colors.sendIcon;
@@ -286,12 +277,10 @@ export function ChatInput({
             >
               <Animated.View style={[styles.trailingButton, trailingIdleStyle]}>
                 <View style={styles.iconStack}>
-                  <Animated.View style={[styles.iconLayer, fromMicStyle]}>
-                    <Ionicons name="mic" size={20} color={fromMuted} />
-                  </Animated.View>
+                  <Ionicons name="mic" size={20} color={baseMuted} />
                   {wipe?.active ? (
-                    <Animated.View style={[styles.iconLayer, toMicStyle]}>
-                      <Ionicons name="mic" size={20} color={toMuted} />
+                    <Animated.View style={[styles.iconLayer, fromMicStyle]}>
+                      <Ionicons name="mic" size={20} color={fromMuted} />
                     </Animated.View>
                   ) : null}
                 </View>

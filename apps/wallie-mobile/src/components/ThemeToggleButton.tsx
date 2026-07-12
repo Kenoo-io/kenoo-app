@@ -53,25 +53,19 @@ export function ThemeToggleButton({
     ],
   }));
 
-  const iconColorStyle = useAnimatedStyle(() => {
-    if (!wipe?.active) {
-      return {
-        opacity: 1,
-      };
-    }
-
-    return {
-      opacity: interpolate(wipe.progress.value, [0, 0.45, 0.55, 1], [1, 1, 0, 0]),
-    };
-  }, [wipe]);
-
-  const nextIconColorStyle = useAnimatedStyle(() => {
+  // Old icon fades out on top; destination stays as the stable base underneath
+  // so teardown never swaps layers (that was the post-wipe moon flash).
+  const fromOverlayStyle = useAnimatedStyle(() => {
     if (!wipe?.active) {
       return { opacity: 0 };
     }
 
     return {
-      opacity: interpolate(wipe.progress.value, [0, 0.45, 0.55, 1], [0, 0, 1, 1]),
+      opacity: interpolate(
+        wipe.progress.value,
+        [0, 0.45, 0.55, 1],
+        [1, 1, 0, 0],
+      ),
     };
   }, [wipe]);
 
@@ -105,11 +99,30 @@ export function ThemeToggleButton({
     setTimeout(finishBusy, SPIN_MS);
   };
 
-  const currentIconColor = isDark ? colors.text : colors.textMuted;
-  const nextIconColor = wipe?.toDark
-    ? wipe.toColors.text
-    : wipe?.toColors.textMuted ?? currentIconColor;
-  const nextIconName = wipe?.toDark ? "sunny" : "moon";
+  const settledName = isDark ? "sunny" : "moon";
+  const settledColor = isDark ? colors.text : colors.textMuted;
+
+  const baseName = wipe?.active
+    ? wipe.toDark
+      ? "sunny"
+      : "moon"
+    : settledName;
+  const baseColor = wipe?.active
+    ? wipe.toDark
+      ? wipe.toColors.text
+      : wipe.toColors.textMuted
+    : settledColor;
+
+  const fromName = wipe?.active
+    ? wipe.fromDark
+      ? "sunny"
+      : "moon"
+    : settledName;
+  const fromColor = wipe?.active
+    ? wipe.fromDark
+      ? wipe.fromColors.text
+      : wipe.fromColors.textMuted
+    : settledColor;
 
   return (
     <AnimatedPressable
@@ -133,20 +146,10 @@ export function ThemeToggleButton({
       >
         <Animated.View style={pressStyle}>
           <Animated.View style={[styles.iconStack, iconWrapStyle]}>
-            <Animated.View style={[styles.iconLayer, iconColorStyle]}>
-              <Ionicons
-                name={isDark ? "sunny" : "moon"}
-                size={22}
-                color={currentIconColor}
-              />
-            </Animated.View>
+            <Ionicons name={baseName} size={22} color={baseColor} />
             {wipe?.active ? (
-              <Animated.View style={[styles.iconLayer, nextIconColorStyle]}>
-                <Ionicons
-                  name={nextIconName}
-                  size={22}
-                  color={nextIconColor}
-                />
+              <Animated.View style={[styles.iconLayer, fromOverlayStyle]}>
+                <Ionicons name={fromName} size={22} color={fromColor} />
               </Animated.View>
             ) : null}
           </Animated.View>
