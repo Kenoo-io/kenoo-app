@@ -16,6 +16,7 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withDelay,
+  withSequence,
   withSpring,
   withTiming,
 } from "react-native-reanimated";
@@ -43,21 +44,25 @@ import { useWallieVoice } from "@/hooks/useWallieVoice";
 import { getSupabase } from "@/lib/supabase";
 
 const FLOATING_COMPOSER_HEIGHT = 84;
-const CHROME_SPRING = {
-  damping: 16,
-  stiffness: 200,
-  mass: 0.7,
+
+const CHROME_ENTER_SPRING = {
+  damping: 14,
+  stiffness: 180,
+  mass: 0.85,
 };
+
+const EXIT_EASE = Easing.bezier(0.16, 1, 0.3, 1);
+const ANTICIPATION_EASE = Easing.bezier(0.33, 0, 0.67, 1);
 
 function HeaderChromeSlot({
   visible,
   delayMs = 0,
-  driftX = 0,
+  variant = "center",
   children,
 }: {
   visible: boolean;
   delayMs?: number;
-  driftX?: number;
+  variant?: "center" | "trailing";
   children: React.ReactNode;
 }) {
   const progress = useSharedValue(visible ? 1 : 0);
@@ -66,36 +71,82 @@ function HeaderChromeSlot({
     if (visible) {
       progress.value = withDelay(
         delayMs,
-        withSpring(1, CHROME_SPRING),
+        withSpring(1, CHROME_ENTER_SPRING),
       );
       return;
     }
 
+    // Anticipation bump, then a fast dissolve-out.
     progress.value = withDelay(
       delayMs,
-      withTiming(0, {
-        duration: 340,
-        easing: Easing.bezier(0.22, 1, 0.36, 1),
-      }),
+      withSequence(
+        withTiming(1.08, {
+          duration: 90,
+          easing: ANTICIPATION_EASE,
+        }),
+        withTiming(0, {
+          duration: 420,
+          easing: EXIT_EASE,
+        }),
+      ),
     );
   }, [delayMs, progress, visible]);
 
   const style = useAnimatedStyle(() => {
     const p = progress.value;
+    const isTrailing = variant === "trailing";
+
+    // Overshoot above 1 during anticipation — clamp visual math carefully.
+    const exit = Math.min(p, 1);
+
     return {
-      opacity: interpolate(p, [0, 0.2, 1], [0, 0.35, 1], Extrapolation.CLAMP),
+      opacity: interpolate(
+        exit,
+        [0, 0.15, 0.55, 1],
+        [0, 0.15, 0.85, 1],
+        Extrapolation.CLAMP,
+      ),
       transform: [
+        { perspective: 900 },
         {
-          translateY: interpolate(p, [0, 1], [-18, 0], Extrapolation.CLAMP),
+          translateY: interpolate(
+            exit,
+            [0, 1],
+            [isTrailing ? -28 : -36, 0],
+            Extrapolation.CLAMP,
+          ),
         },
         {
-          translateX: interpolate(p, [0, 1], [driftX, 0], Extrapolation.CLAMP),
+          translateX: interpolate(
+            exit,
+            [0, 1],
+            [isTrailing ? 42 : 0, 0],
+            Extrapolation.CLAMP,
+          ),
         },
         {
-          scale: interpolate(p, [0, 1], [0.72, 1], Extrapolation.CLAMP),
+          scale: interpolate(
+            p,
+            [0, 0.55, 1, 1.08],
+            [0.42, 0.86, 1, 1.06],
+            Extrapolation.CLAMP,
+          ),
         },
         {
-          rotate: `${interpolate(p, [0, 1], [driftX > 0 ? 12 : driftX < 0 ? -8 : -4, 0], Extrapolation.CLAMP)}deg`,
+          rotateZ: `${interpolate(
+            exit,
+            [0, 1],
+            [isTrailing ? 28 : -10, 0],
+            Extrapolation.CLAMP,
+          )}deg`,
+        },
+        {
+          rotateX: `${interpolate(
+            exit,
+            [0, 1],
+            [isTrailing ? 42 : 55, 0],
+            Extrapolation.CLAMP,
+          )}deg`,
         },
       ],
     };
@@ -410,14 +461,14 @@ export default function ChatScreen() {
             >
               <MenuButton onPress={openThreads} drawerOpen={threadsOpen} />
 
-              <HeaderChromeSlot visible={showHeaderChrome} driftX={0}>
+              <HeaderChromeSlot visible={showHeaderChrome} variant="center">
                 <ModeToggle value={appMode} onChange={setAppMode} />
               </HeaderChromeSlot>
 
               <HeaderChromeSlot
                 visible={showHeaderChrome}
-                delayMs={40}
-                driftX={28}
+                delayMs={55}
+                variant="trailing"
               >
                 <ThemeToggleButton />
               </HeaderChromeSlot>
