@@ -1,13 +1,12 @@
 import { useEffect, useRef } from "react";
 import { StyleSheet, useWindowDimensions } from "react-native";
 import Animated, {
-  cancelAnimation,
   Extrapolation,
   interpolate,
   runOnJS,
   useAnimatedStyle,
-  withTiming,
   type SharedValue,
+  withTiming,
 } from "react-native-reanimated";
 
 import { THEME_WIPE_EASE, THEME_WIPE_MS } from "@/context/ThemeWipeContext";
@@ -29,6 +28,7 @@ export function ThemeWipeOverlay({
   const { height } = useWindowDimensions();
   const onCompleteRef = useRef(onComplete);
   const hasCompletedRef = useRef(false);
+  const wipeIdRef = useRef(0);
 
   useEffect(() => {
     onCompleteRef.current = onComplete;
@@ -36,16 +36,20 @@ export function ThemeWipeOverlay({
 
   useEffect(() => {
     if (!active) {
+      // Leave progress at 1 — resetting here flashes chrome back to "from".
       hasCompletedRef.current = false;
       return;
     }
 
+    const wipeId = ++wipeIdRef.current;
     hasCompletedRef.current = false;
-    progress.value = 0;
 
     const finish = () => {
       if (hasCompletedRef.current) return;
+      if (wipeId !== wipeIdRef.current) return;
       hasCompletedRef.current = true;
+      // Lock exactly at destination before parent settling begins.
+      progress.value = 1;
       onCompleteRef.current();
     };
 
@@ -58,10 +62,6 @@ export function ThemeWipeOverlay({
         }
       },
     );
-
-    return () => {
-      cancelAnimation(progress);
-    };
   }, [active, progress]);
 
   const sheetStyle = useAnimatedStyle(() => ({

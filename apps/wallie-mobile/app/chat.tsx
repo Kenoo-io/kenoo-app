@@ -40,6 +40,7 @@ import { useTheme } from "@/context/ThemeContext";
 import {
   ThemeWipeProvider,
   useThemeWipe,
+  THEME_WIPE_SETTLE_MS,
   type ThemeWipeState,
 } from "@/context/ThemeWipeContext";
 import { useAuth } from "@/context/AuthContext";
@@ -300,8 +301,15 @@ export default function ChatScreen() {
     setThreadsOpen(false);
   }, []);
 
+  const wipeCompletingRef = useRef(false);
+  const themeWipeRef = useRef(themeWipe);
+  themeWipeRef.current = themeWipe;
+
   const handleThemeWipeRequest = useCallback(
     (request: ThemeWipeRequest) => {
+      wipeCompletingRef.current = false;
+      // Reset before paint so the sheet never flashes full-cover from a prior wipe.
+      wipeProgress.value = 0;
       setThemeWipe({
         ...request,
         fromDark: isDark,
@@ -309,18 +317,23 @@ export default function ChatScreen() {
         toColors: request.nextIsDark ? darkColors : lightColors,
       });
     },
-    [isDark],
+    [isDark, wipeProgress],
   );
 
   const handleThemeWipeComplete = useCallback(() => {
-    if (!themeWipe) return;
+    const current = themeWipeRef.current;
+    if (!current || wipeCompletingRef.current) return;
+    wipeCompletingRef.current = true;
 
-    // Set the absolute target theme (not toggle) so a double-complete
-    // can't bounce back to the previous scheme.
-    const nextPreference = themeWipe.nextIsDark ? "dark" : "light";
-    void setThemePreference(nextPreference);
-    setThemeWipe(null);
-  }, [setThemePreference, themeWipe]);
+    // Sheet is fully covering (progress locked at 1). Commit theme under it,
+    // then hold wipe-driven chrome on toColors until paint is stable.
+    void setThemePreference(current.nextIsDark ? "dark" : "light");
+
+    setTimeout(() => {
+      setThemeWipe(null);
+      wipeCompletingRef.current = false;
+    }, THEME_WIPE_SETTLE_MS);
+  }, [setThemePreference]);
 
   const wipeContextValue = useMemo<ThemeWipeState | null>(() => {
     if (!themeWipe) return null;

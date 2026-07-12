@@ -1,4 +1,3 @@
-import { BlurView } from "expo-blur";
 import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import Animated, {
   interpolateColor,
@@ -13,6 +12,7 @@ interface GlassSurfaceProps {
   style?: StyleProp<ViewStyle>;
   contentStyle?: StyleProp<ViewStyle>;
   borderRadius?: number;
+  /** Kept for call-site compatibility; blur removed to avoid iOS theme flashes. */
   intensity?: number;
   elevated?: boolean;
 }
@@ -22,54 +22,48 @@ export function GlassSurface({
   style,
   contentStyle,
   borderRadius = 20,
-  intensity = 55,
   elevated = false,
 }: GlassSurfaceProps) {
-  const { colors, blurTint } = useTheme();
+  const { colors } = useTheme();
   const wipe = useThemeWipe();
 
+  // Opaque shell + tint only. BlurView was flashing intermittently on theme
+  // changes when the backdrop swapped under it.
   const shellStyle = useAnimatedStyle(() => {
-    if (!wipe?.active) {
-      return { backgroundColor: colors.surface };
+    if (wipe?.active) {
+      return {
+        backgroundColor: interpolateColor(
+          wipe.progress.value,
+          [0, 1],
+          [wipe.fromColors.surface, wipe.toColors.surface],
+        ),
+      };
     }
 
-    return {
-      backgroundColor: interpolateColor(
-        wipe.progress.value,
-        [0, 1],
-        [wipe.fromColors.surface, wipe.toColors.surface],
-      ),
-    };
+    return { backgroundColor: colors.surface };
   }, [colors.surface, wipe]);
 
   const tintStyle = useAnimatedStyle(() => {
-    if (!wipe?.active) {
+    if (wipe?.active) {
       return {
-        backgroundColor: colors.glassTint,
-        borderColor: colors.glassBorder,
+        backgroundColor: interpolateColor(
+          wipe.progress.value,
+          [0, 1],
+          [wipe.fromColors.glassTint, wipe.toColors.glassTint],
+        ),
+        borderColor: interpolateColor(
+          wipe.progress.value,
+          [0, 1],
+          [wipe.fromColors.glassBorder, wipe.toColors.glassBorder],
+        ),
       };
     }
 
     return {
-      backgroundColor: interpolateColor(
-        wipe.progress.value,
-        [0, 1],
-        [wipe.fromColors.glassTint, wipe.toColors.glassTint],
-      ),
-      borderColor: interpolateColor(
-        wipe.progress.value,
-        [0, 1],
-        [wipe.fromColors.glassBorder, wipe.toColors.glassBorder],
-      ),
+      backgroundColor: colors.glassTint,
+      borderColor: colors.glassBorder,
     };
   }, [colors.glassBorder, colors.glassTint, wipe]);
-
-  // Destination blur for the wipe so the composite matches the final theme.
-  const liveBlurTint = wipe?.active
-    ? wipe.toDark
-      ? "dark"
-      : "light"
-    : blurTint;
 
   return (
     <Animated.View
@@ -77,29 +71,20 @@ export function GlassSurface({
         elevated ? styles.shadowElevated : styles.shadow,
         {
           borderRadius,
-          shadowColor: colors.shadowColor,
+          shadowColor: wipe?.active
+            ? wipe.toColors.shadowColor
+            : colors.shadowColor,
         },
         shellStyle,
         style,
       ]}
     >
       <View style={[styles.clip, { borderRadius }]}>
-        <BlurView
-          intensity={intensity}
-          tint={liveBlurTint}
-          style={[styles.blur, { borderRadius }]}
+        <Animated.View
+          style={[styles.tint, { borderRadius }, tintStyle, contentStyle]}
         >
-          <Animated.View
-            style={[
-              styles.tint,
-              { borderRadius },
-              tintStyle,
-              contentStyle,
-            ]}
-          >
-            {children}
-          </Animated.View>
-        </BlurView>
+          {children}
+        </Animated.View>
       </View>
     </Animated.View>
   );
@@ -119,9 +104,6 @@ const styles = StyleSheet.create({
     elevation: 14,
   },
   clip: {
-    overflow: "hidden",
-  },
-  blur: {
     overflow: "hidden",
   },
   tint: {
