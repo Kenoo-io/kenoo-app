@@ -1,5 +1,6 @@
 import { createAdminClient } from "@walls/supabase/admin";
 
+import { estimateCaloriesBurned } from "@/lib/calorie-estimator";
 import { getStravaConnectionWithTokens } from "@/lib/connections-server";
 import { refreshStravaToken } from "@/lib/strava-oauth";
 
@@ -39,6 +40,16 @@ type StravaSummaryActivity = {
   max_heartrate?: number | null;
   average_speed?: number | null;
   kilojoules?: number | null;
+  // Only present on detailed activity responses, but honored when Strava
+  // happens to include it so we always prefer a provider-reported figure.
+  calories?: number | null;
+};
+
+/** Athlete context used to estimate calories when Strava doesn't report them. */
+type AthleteMetrics = {
+  weightKg: number | null;
+  sex: "male" | "female" | "other" | null;
+  ageYears: number | null;
 };
 
 export type StravaSyncResult = {
@@ -104,6 +115,88 @@ function toSmallInt(value: number | null | undefined): number | null {
   return Math.round(value);
 }
 
+function ageFromBirthDate(birthDate: string | null | undefined): number | null {
+  if (!birthDate) return null;
+  const dob = new Date(birthDate);
+  if (Number.isNaN(dob.getTime())) return null;
+  const now = new Date();
+  let age = now.getFullYear() - dob.getFullYear();
+  const monthDiff = now.getMonth() - dob.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < dob.getDate())) {
+    age -= 1;
+  }
+  return age > 0 && age < 130 ? age : null;
+}
+
+/**
+ * Pulls the athlete's weight, sex and age so the calorie estimator can produce
+ * personalized figures. All fields are optional; missing data just narrows how
+ * accurate (or possible) an estimate can be.
+ */
+async function getAthleteMetrics(userId: string): Promise<AthleteMetrics> {
+  const admin = createAdminClient();
+
+  const [{ data: profile }, { data: user }] = await Promise.all([
+    admin
+      .from("health_profiles")
+      .select("current_weight_kg, sex")
+      .eq("user_id", userId)
+      .maybeSingle(),
+    admin
+      .from("users")
+      .select("date_of_birth")
+      .eq("id", userId)
+      .maybeSingle(),
+  ]);
+
+  const rawSex = (profile?.sex as string | null) ?? null;
+  const sex =
+    rawSex === "male" || rawSex === "female" || rawSex === "other"
+      ? rawSex
+      : null;
+
+  return {
+    weightKg:
+      profile?.current_weight_kg != null
+        ? Number(profile.current_weight_kg)
+        : null,
+    sex,
+    ageYears: ageFromBirthDate(user?.date_of_birth as string | null),
+  };
+}
+
+/**
+ * Calories burned for an activity. Prefers a provider-reported figure (Strava's
+ * detailed `calories`, or `kilojoules` which ~= kcal for rides) and falls back
+ * to our own MET/heart-rate estimate so every activity gets a value.
+ */
+function resolveCaloriesBurned(
+  activity: StravaSummaryActivity,
+  activityType: HealthActivityType,
+  metrics: AthleteMetrics,
+): number | null {
+  if (activity.calories != null && activity.calories > 0) {
+    return Math.round(activity.calories);
+  }
+  if (activity.kilojoules != null && activity.kilojoules > 0) {
+    return Math.round(activity.kilojoules);
+  }
+
+  const { calories } = estimateCaloriesBurned({
+    activityType,
+    durationSeconds: activity.moving_time ?? activity.elapsed_time ?? null,
+    distanceMeters: activity.distance ?? null,
+    elevationGainMeters: activity.total_elevation_gain ?? null,
+    avgSpeedMps: activity.average_speed ?? null,
+    avgHeartRate: activity.average_heartrate ?? null,
+    weightKg: metrics.weightKg,
+    sex: metrics.sex,
+    ageYears: metrics.ageYears,
+  });
+
+  return calories;
+}
+
 /**
  * Returns a valid Strava access token, refreshing (and persisting the rotated
  * tokens) when the stored one is missing or about to expire.
@@ -166,23 +259,24 @@ function toActivityRow(
   activity: StravaSummaryActivity,
   userId: string,
   connectionId: string,
+  metrics: AthleteMetrics,
 ) {
+  const activityType = mapActivityType(activity);
   return {
     user_id: userId,
     user_connection_id: connectionId,
     provider: "strava" as const,
     provider_activity_id: String(activity.id),
-    activity_type: mapActivityType(activity),
+    activity_type: activityType,
     name: activity.name ?? null,
     started_at: activity.start_date ?? null,
     duration_seconds: activity.moving_time ?? activity.elapsed_time ?? null,
     distance_meters: activity.distance ?? null,
     elevation_gain_meters: activity.total_elevation_gain ?? null,
-    // Strava summary activities only expose mechanical work (kilojoules) for
-    // rides; roughly 1 kJ ≈ 1 kcal for cycling. Detailed calories come later
-    // via the per-activity endpoint / webhooks.
-    calories_burned:
-      activity.kilojoules != null ? Math.round(activity.kilojoules) : null,
+    // Prefer Strava's own calorie figure; otherwise estimate from activity
+    // type, athlete weight and (when available) heart rate. See
+    // `resolveCaloriesBurned` / `calorie-estimator.ts`.
+    calories_burned: resolveCaloriesBurned(activity, activityType, metrics),
     avg_heart_rate: toSmallInt(activity.average_heartrate),
     max_heart_rate: toSmallInt(activity.max_heartrate),
     avg_speed_mps: activity.average_speed ?? null,
@@ -205,6 +299,7 @@ export async function syncStravaActivities(
 
   const accessToken = await getValidAccessToken(connection);
   const admin = createAdminClient();
+  const athleteMetrics = await getAthleteMetrics(userId);
 
   // Existing provider ids for this connection, so we can split insert vs update
   // (avoids relying on the partial unique index for ON CONFLICT inference).
@@ -237,7 +332,7 @@ export async function syncStravaActivities(
       fetched += 1;
 
       const providerId = String(activity.id);
-      const row = toActivityRow(activity, userId, connection.id);
+      const row = toActivityRow(activity, userId, connection.id, athleteMetrics);
       const existingId = existingByProviderId.get(providerId);
 
       if (existingId) {
