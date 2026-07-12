@@ -15,56 +15,6 @@ interface WallieEmailDraftCardProps {
   className?: string;
 }
 
-const AVATAR_COLORS = [
-  { bg: "bg-blue-100", text: "text-blue-700" },
-  { bg: "bg-violet-100", text: "text-violet-700" },
-  { bg: "bg-emerald-100", text: "text-emerald-700" },
-  { bg: "bg-amber-100", text: "text-amber-700" },
-  { bg: "bg-rose-100", text: "text-rose-700" },
-  { bg: "bg-cyan-100", text: "text-cyan-700" },
-];
-
-function getAvatarColor(str: string) {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) hash += str.charCodeAt(i);
-  return AVATAR_COLORS[hash % AVATAR_COLORS.length];
-}
-
-function getInitials(email: string): string {
-  const atIdx = email.indexOf("@");
-  const base = atIdx > 0 ? email.slice(0, atIdx) : email;
-  const parts = base.split(/[._-]/).filter(Boolean);
-  if (parts.length >= 2) {
-    return (parts[0][0] + parts[1][0]).toUpperCase();
-  }
-  return base.slice(0, 2).toUpperCase();
-}
-
-function ReadOnlyRecipientChip({ email }: { email: string }) {
-  const color = getAvatarColor(email);
-  const initials = getInitials(email);
-
-  return (
-    <div
-      className="inline-flex h-[26px] max-w-[240px] flex-shrink-0 items-center gap-1.5 rounded-full border border-zinc-200 bg-zinc-100 pl-[3px] pr-2"
-      title={email}
-    >
-      <div
-        className={cn(
-          "flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full",
-          color.bg,
-          color.text
-        )}
-      >
-        <span className="select-none text-[9px] font-bold leading-none">{initials}</span>
-      </div>
-      <span className="truncate text-[12px] font-medium leading-none text-zinc-700">
-        {email}
-      </span>
-    </div>
-  );
-}
-
 function ReadOnlyRecipientRow({
   label,
   emails,
@@ -75,15 +25,13 @@ function ReadOnlyRecipientRow({
   if (emails.length === 0) return null;
 
   return (
-    <div className="flex min-h-[42px] items-start">
-      <span className="w-8 flex-shrink-0 select-none pl-4 pt-[13px] text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+    <div className="flex items-center px-4 py-2.5">
+      <span className="w-8 flex-shrink-0 select-none text-[11px] font-semibold uppercase tracking-wider text-gray-400">
         {label}
       </span>
-      <div className="flex min-h-[42px] flex-1 flex-wrap items-center gap-1.5 py-2 pl-1 pr-4">
-        {emails.map((email) => (
-          <ReadOnlyRecipientChip key={`${label}-${email}`} email={email} />
-        ))}
-      </div>
+      <span className="flex-1 break-words text-[13px] leading-relaxed text-gray-700">
+        {emails.join(", ")}
+      </span>
     </div>
   );
 }
@@ -93,7 +41,7 @@ export function WallieEmailDraftCard({
   onEditSend,
   className,
 }: WallieEmailDraftCardProps) {
-  const { to, cc, bcc } = splitRecipientEmails(draft.recipients);
+  const { to, cc, bcc } = splitRecipientEmails(draft);
   const preview = emailDraftBodyPreview(draft, 1200);
   const isReply = draft.displayVariant === "reply";
   const subject = draft.subject?.trim() || "";
