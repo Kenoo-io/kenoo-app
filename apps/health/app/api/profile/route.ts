@@ -1,0 +1,57 @@
+import { NextResponse } from "next/server";
+
+import { getHealthDataScope } from "@/lib/health-scope";
+import {
+  ensureHealthProfile,
+  estimateBmr,
+  estimateTdee,
+  getUserBirthDate,
+  updateHealthProfile,
+  type HealthProfileInput,
+} from "@/lib/profile-server";
+
+export async function GET() {
+  const scope = await getHealthDataScope();
+  if (!scope) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const profile = await ensureHealthProfile(scope);
+  return NextResponse.json({ profile });
+}
+
+export async function PUT(request: Request) {
+  const scope = await getHealthDataScope();
+  if (!scope) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const body = (await request.json()) as HealthProfileInput;
+  const existing = await ensureHealthProfile(scope);
+  const merged = { ...existing, ...body };
+  const birthDate = await getUserBirthDate(scope);
+
+  const bmr =
+    body.bmr_calories ??
+    estimateBmr(merged, birthDate) ??
+    existing.bmr_calories;
+  const tdee =
+    body.tdee_calories ??
+    (bmr != null ? estimateTdee(bmr, merged.activity_level) : null) ??
+    existing.tdee_calories;
+
+  const calorieTarget =
+    body.calorie_target_daily ??
+    (tdee != null
+      ? Math.max(1200, tdee - (merged.calorie_deficit_daily ?? 0))
+      : null);
+
+  const profile = await updateHealthProfile(scope, {
+    ...body,
+    bmr_calories: bmr,
+    tdee_calories: tdee,
+    calorie_target_daily: calorieTarget,
+  });
+
+  return NextResponse.json({ profile });
+}
