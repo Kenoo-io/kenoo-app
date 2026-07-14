@@ -21,7 +21,7 @@ import {
   resolveInstructionStatus,
   type AgentInstruction,
   type AgentInstructionStatus,
-} from "@/lib/agent-instructions-server";
+} from "@/lib/agent-instructions";
 import type { EntityDetailResult } from "@/lib/entity-detail-server";
 import { formatCurrencyFromMicros } from "@/lib/format-analytics";
 import {

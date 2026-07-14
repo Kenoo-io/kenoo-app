@@ -1,29 +1,16 @@
 import { createClient } from "@walls/supabase/server";
 
 import { type AdDataScope, adScopeFields, withAdScope } from "@/lib/ad-scope";
+import {
+  resolveInstructionStatus,
+  type AgentInstruction,
+  type AgentInstructionStatus,
+} from "@/lib/agent-instructions";
 
-/**
- * `active`    — currently in effect (within window + manually enabled).
- * `scheduled` — enabled but its start time is in the future.
- * `expired`   — its end time has passed.
- * `disabled`  — manually switched off, regardless of window.
- */
-export type AgentInstructionStatus =
-  | "active"
-  | "scheduled"
-  | "expired"
-  | "disabled";
-
-export type AgentInstruction = {
-  id: string;
-  entityId: string;
-  instructions: string;
-  startsAt: string | null;
-  endsAt: string | null;
-  isActive: boolean;
-  status: AgentInstructionStatus;
-  createdAt: string;
-  updatedAt: string | null;
+export {
+  resolveInstructionStatus,
+  type AgentInstruction,
+  type AgentInstructionStatus,
 };
 
 const INSTRUCTION_COLUMNS =
@@ -41,23 +28,6 @@ function normalizeTimestamp(value: unknown): string | null {
   const parsed = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(parsed.getTime())) return null;
   return parsed.toISOString();
-}
-
-export function resolveInstructionStatus(input: {
-  startsAt: string | null;
-  endsAt: string | null;
-  isActive: boolean;
-  now?: Date;
-}): AgentInstructionStatus {
-  if (!input.isActive) return "disabled";
-  const now = (input.now ?? new Date()).getTime();
-  if (input.startsAt && now < new Date(input.startsAt).getTime()) {
-    return "scheduled";
-  }
-  if (input.endsAt && now >= new Date(input.endsAt).getTime()) {
-    return "expired";
-  }
-  return "active";
 }
 
 function mapInstruction(row: Record<string, unknown>): AgentInstruction {
