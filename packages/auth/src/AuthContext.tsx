@@ -17,7 +17,14 @@ export interface UserProfileApp {
   app_id: string;
   name: string;
   icon: string;
+  /**
+   * Navigation target. In the monorepo this is usually an absolute subdomain
+   * origin (e.g. https://ledger.walls.agency). Legacy relative paths may still
+   * appear when `apps.subdomain` is empty.
+   */
   path: string;
+  /** Host label from `apps.subdomain` when available. */
+  subdomain?: string | null;
 }
 
 export interface UserProfile {

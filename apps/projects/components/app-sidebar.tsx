@@ -18,7 +18,7 @@ import { usePathname } from "next/navigation";
 import { useAppSidebar } from "./app-sidebar-context";
 
 const navItems = [
-  { href: "/agents/projects", label: "Overview", icon: LayoutDashboard },
+  { href: "/", label: "Overview", icon: LayoutDashboard },
   { href: "/tasks", label: "Tasks", icon: FolderKanban },
   { href: "/timeline", label: "Timeline", icon: GanttChartSquare },
   { href: "/projects", label: "Projects", icon: LayoutList },
@@ -105,8 +105,8 @@ export function AppSidebar({ headerVisible = true }: { headerVisible?: boolean }
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive =
-              item.href === "/agents/projects"
-                ? pathname === "/agents/projects"
+              item.href === "/"
+                ? pathname === "/"
                 : pathname === item.href || pathname.startsWith(`${item.href}/`);
 
             return (

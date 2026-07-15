@@ -1,18 +1,15 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Building2,
-  Check,
   ChevronDown,
   Loader2,
   Plus,
-  RotateCcw,
   Star,
   Trash2,
 } from "lucide-react";
-import { AnimatePresence, motion } from "framer-motion";
 
 import {
   DropdownMenu,
@@ -323,11 +320,24 @@ export default function OrganizationSettingsPage() {
   const [creating, setCreating] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [iconPreviewUrl, setIconPreviewUrl] = useState<string | null>(null);
-  const [isHoveringSave, setIsHoveringSave] = useState(false);
-  const [isHoveringCancel, setIsHoveringCancel] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [settingDefaultId, setSettingDefaultId] = useState<string | null>(null);
+  const saveRequestIdRef = useRef(0);
+  const formRef = useRef({
+    name: "",
+    iconUrl: "",
+    website: "",
+    description: "",
+    email: "",
+    phone: "",
+    addressLine1: "",
+    addressLine2: "",
+    city: "",
+    stateProvince: "",
+    postalCode: "",
+    countryCode: "",
+  });
 
   const { mutate: uploadOrganizationIcon, isUploading: isUploadingIcon } =
     useUploadOrganizationIcon(selectedId);
@@ -346,6 +356,7 @@ export default function OrganizationSettingsPage() {
     postalCode: "",
     countryCode: "",
   });
+  formRef.current = form;
 
   const [createForm, setCreateForm] = useState({
     name: "",
@@ -453,78 +464,90 @@ export default function OrganizationSettingsPage() {
       postalCode: selectedOrganization.postalCode ?? "",
       countryCode: selectedOrganization.countryCode ?? "",
     });
-  }, [selectedOrganization]);
+    // Only rehydrate when switching organizations — autosave updates must not clobber in-progress edits.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: selectedOrganization?.id
+  }, [selectedOrganization?.id]);
 
-  async function handleSave() {
-    if (!selectedId || !canEdit) return;
+  const isFormChanged = selectedOrganization
+    ? form.name !== selectedOrganization.name ||
+      form.website !== (selectedOrganization.website ?? "") ||
+      form.description !== (selectedOrganization.description ?? "") ||
+      form.email !== (selectedOrganization.email ?? "") ||
+      form.phone !== (selectedOrganization.phone ?? "") ||
+      form.addressLine1 !== (selectedOrganization.addressLine1 ?? "") ||
+      form.addressLine2 !== (selectedOrganization.addressLine2 ?? "") ||
+      form.city !== (selectedOrganization.city ?? "") ||
+      form.stateProvince !== (selectedOrganization.stateProvince ?? "") ||
+      form.postalCode !== (selectedOrganization.postalCode ?? "") ||
+      form.countryCode !== (selectedOrganization.countryCode ?? "")
+    : false;
 
-    setSaving(true);
-    try {
-      const response = await fetch(`/api/organizations/${selectedId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: form.name.trim(),
-          iconUrl: form.iconUrl.trim() || null,
-          website: form.website.trim() || null,
-          description: form.description.trim() || null,
-          email: form.email.trim() || null,
-          phone: form.phone.trim() || null,
-          addressLine1: form.addressLine1.trim() || null,
-          addressLine2: form.addressLine2.trim() || null,
-          city: form.city.trim() || null,
-          stateProvince: form.stateProvince.trim() || null,
-          postalCode: form.postalCode.trim() || null,
-          countryCode: form.countryCode.trim() || null,
-        }),
-      });
+  useEffect(() => {
+    if (!selectedId || !canEdit || !isFormChanged) return;
 
-      if (!response.ok) {
-        const payload = (await response.json()) as { error?: string };
-        wallsToast.error("Error", payload.error || "Failed to save organization settings");
+    const timeoutId = window.setTimeout(async () => {
+      const snapshot = formRef.current;
+      if (!snapshot.name.trim()) {
+        wallsToast.error("Missing name", "Organization name is required");
         return;
       }
 
-      const payload = (await response.json()) as {
-        organization?: OrganizationRecord;
-      };
+      const requestId = ++saveRequestIdRef.current;
+      setSaving(true);
 
-      if (payload.organization) {
-        setOrganizations((current) =>
-          current.map((organization) =>
-            organization.id === payload.organization!.id
-              ? payload.organization!
-              : organization,
-          ),
-        );
+      try {
+        const response = await fetch(`/api/organizations/${selectedId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: snapshot.name.trim(),
+            iconUrl: snapshot.iconUrl.trim() || null,
+            website: snapshot.website.trim() || null,
+            description: snapshot.description.trim() || null,
+            email: snapshot.email.trim() || null,
+            phone: snapshot.phone.trim() || null,
+            addressLine1: snapshot.addressLine1.trim() || null,
+            addressLine2: snapshot.addressLine2.trim() || null,
+            city: snapshot.city.trim() || null,
+            stateProvince: snapshot.stateProvince.trim() || null,
+            postalCode: snapshot.postalCode.trim() || null,
+            countryCode: snapshot.countryCode.trim() || null,
+          }),
+        });
+
+        if (requestId !== saveRequestIdRef.current) return;
+
+        if (!response.ok) {
+          const payload = (await response.json()) as { error?: string };
+          wallsToast.error(
+            "Error",
+            payload.error || "Failed to save organization settings",
+          );
+          return;
+        }
+
+        const payload = (await response.json()) as {
+          organization?: OrganizationRecord;
+        };
+
+        if (payload.organization) {
+          setOrganizations((current) =>
+            current.map((organization) =>
+              organization.id === payload.organization!.id
+                ? payload.organization!
+                : organization,
+            ),
+          );
+        }
+      } finally {
+        if (requestId === saveRequestIdRef.current) {
+          setSaving(false);
+        }
       }
+    }, 700);
 
-      wallsToast.success("Saved", "Organization settings updated");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  function handleRevert() {
-    if (!selectedOrganization) return;
-
-    setForm({
-      name: selectedOrganization.name,
-      iconUrl: selectedOrganization.iconUrl ?? "",
-      website: selectedOrganization.website ?? "",
-      description: selectedOrganization.description ?? "",
-      email: selectedOrganization.email ?? "",
-      phone: selectedOrganization.phone ?? "",
-      addressLine1: selectedOrganization.addressLine1 ?? "",
-      addressLine2: selectedOrganization.addressLine2 ?? "",
-      city: selectedOrganization.city ?? "",
-      stateProvince: selectedOrganization.stateProvince ?? "",
-      postalCode: selectedOrganization.postalCode ?? "",
-      countryCode: selectedOrganization.countryCode ?? "",
-    });
-    setIconPreviewUrl(null);
-    wallsToast.success("Changes reverted", "All changes have been discarded");
-  }
+    return () => window.clearTimeout(timeoutId);
+  }, [selectedId, canEdit, isFormChanged, form]);
 
   async function handleDelete() {
     if (!selectedId || !canDelete) return;
@@ -598,20 +621,6 @@ export default function OrganizationSettingsPage() {
       setSettingDefaultId(null);
     }
   }
-
-  const isFormChanged = selectedOrganization
-    ? form.name !== selectedOrganization.name ||
-      form.website !== (selectedOrganization.website ?? "") ||
-      form.description !== (selectedOrganization.description ?? "") ||
-      form.email !== (selectedOrganization.email ?? "") ||
-      form.phone !== (selectedOrganization.phone ?? "") ||
-      form.addressLine1 !== (selectedOrganization.addressLine1 ?? "") ||
-      form.addressLine2 !== (selectedOrganization.addressLine2 ?? "") ||
-      form.city !== (selectedOrganization.city ?? "") ||
-      form.stateProvince !== (selectedOrganization.stateProvince ?? "") ||
-      form.postalCode !== (selectedOrganization.postalCode ?? "") ||
-      form.countryCode !== (selectedOrganization.countryCode ?? "")
-    : false;
 
   async function handleCreate() {
     if (!createForm.name.trim()) {
@@ -1010,78 +1019,18 @@ export default function OrganizationSettingsPage() {
               canEdit={canEdit}
             />
 
-            {canEdit ? (
-              <div className="flex justify-start gap-3 pb-8 pt-4">
-                <Button
-                  type="button"
-                  disabled={!isFormChanged || saving}
-                  variant="ghost"
-                  onMouseEnter={() => setIsHoveringSave(true)}
-                  onMouseLeave={() => setIsHoveringSave(false)}
-                  className="relative overflow-hidden rounded-none border border-neutral-200/50 bg-background px-8 py-6 font-normal text-foreground transition-all hover:bg-background hover:shadow-[inset_0_1px_2px_rgba(0,0,0,0.1)] disabled:cursor-not-allowed disabled:opacity-50"
-                  onClick={() => void handleSave()}
-                >
-                  <AnimatePresence>
-                    {isHoveringSave && isFormChanged && !saving ? (
-                      <motion.div
-                        initial={{ opacity: 0, x: -10, scale: 0.8 }}
-                        animate={{ opacity: 1, x: 0, scale: 1 }}
-                        exit={{ opacity: 0, x: -10, scale: 0.8 }}
-                        className="absolute left-4 flex items-center pointer-events-none"
-                      >
-                        <Check className="h-4 w-4 text-walls-yellow" />
-                      </motion.div>
-                    ) : null}
-                  </AnimatePresence>
-                  <motion.span
-                    className="inline-block"
-                    animate={{ x: isHoveringSave && isFormChanged ? 8 : 0 }}
-                  >
-                    {saving ? (
-                      <span className="flex items-center">
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Saving...
-                      </span>
-                    ) : (
-                      "Save changes"
-                    )}
-                  </motion.span>
-                </Button>
-
-                <Button
-                  type="button"
-                  disabled={!isFormChanged || saving}
-                  variant="ghost"
-                  onMouseEnter={() => setIsHoveringCancel(true)}
-                  onMouseLeave={() => setIsHoveringCancel(false)}
-                  className="relative overflow-hidden rounded-none border border-neutral-200/50 bg-background px-8 py-6 font-normal text-foreground transition-all hover:bg-background hover:shadow-[inset_0_1px_2px_rgba(0,0,0,0.1)] disabled:cursor-not-allowed disabled:opacity-50"
-                  onClick={handleRevert}
-                >
-                  <AnimatePresence>
-                    {isHoveringCancel && isFormChanged ? (
-                      <motion.div
-                        initial={{ opacity: 0, x: -10, scale: 0.8 }}
-                        animate={{ opacity: 1, x: 0, scale: 1 }}
-                        exit={{ opacity: 0, x: -10, scale: 0.8 }}
-                        className="absolute left-4 flex items-center pointer-events-none"
-                      >
-                        <RotateCcw className="h-4 w-4 text-neutral-500" />
-                      </motion.div>
-                    ) : null}
-                  </AnimatePresence>
-                  <motion.span
-                    className="inline-block"
-                    animate={{ x: isHoveringCancel && isFormChanged ? 8 : 0 }}
-                  >
-                    Cancel
-                  </motion.span>
-                </Button>
-              </div>
-            ) : (
+            {!canEdit ? (
               <p className="pb-8 pt-4 text-sm font-light text-neutral-500">
                 You have member access to this organization. Contact an owner or
                 admin to update settings.
               </p>
+            ) : saving ? (
+              <p className="flex items-center gap-2 pb-4 pt-2 text-xs font-light text-neutral-400">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Saving…
+              </p>
+            ) : (
+              <div className="pb-4" />
             )}
 
             {canDelete && selectedOrganization ? (

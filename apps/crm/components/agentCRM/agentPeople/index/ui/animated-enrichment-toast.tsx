@@ -1,0 +1,96 @@
+"use client";
+
+import React from 'react';
+import { motion } from "framer-motion";
+import { Sparkles } from "lucide-react";
+
+interface AnimatedEnrichmentToastProps {
+  personName?: string;
+  isSuccess: boolean;
+}
+
+export const AnimatedEnrichmentToast = ({ personName, isSuccess }: AnimatedEnrichmentToastProps) => {
+  return (
+    <div className="flex items-center gap-3">
+      {/* Animated Icon Container */}
+      <motion.div
+        initial={{ scale: 0, rotate: -45 }}
+        animate={{ 
+          scale: [0, 1.2, 1],
+          rotate: [-45, 10, 0]
+        }}
+        transition={{ 
+          duration: 0.6,
+          times: [0, 0.6, 1],
+          ease: "easeOut"
+        }}
+        className="relative flex items-center justify-center"
+      >
+        {/* Ripple effect */}
+        <motion.div
+          initial={{ scale: 0, opacity: 0.5 }}
+          animate={{ 
+            scale: [1, 2.5],
+            opacity: [0.5, 0]
+          }}
+          transition={{ 
+            duration: 0.8,
+            ease: "easeOut"
+          }}
+          className={`absolute inset-0 rounded-full ${isSuccess ? "bg-walls-yellow" : "bg-red-500"}`}
+        />
+        
+        {/* Main icon with glow */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.2, duration: 0.3 }}
+          className={`relative z-10 rounded-full p-2 ${isSuccess ? "bg-walls-yellow" : "bg-red-500"}`}
+        >
+          <Sparkles className={`h-4 w-4 ${isSuccess ? "text-neutral-800" : "text-white"}`} />
+        </motion.div>
+      </motion.div>
+
+      {/* Text content with slide-in animation */}
+      <div className="flex flex-col">
+        <motion.span
+          initial={{ opacity: 0, x: -10 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.3, duration: 0.4 }}
+          className="font-semibold text-sm text-neutral-900"
+        >
+          {isSuccess ? 'Person enriched' : 'Enrichment failed'}
+        </motion.span>
+        {personName && (
+          <motion.span
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.4, duration: 0.4 }}
+            className="text-xs text-neutral-600"
+          >
+            {personName}
+          </motion.span>
+        )}
+      </div>
+
+      {/* Trailing sparkle effect */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0 }}
+        animate={{ 
+          opacity: [0, 1, 0],
+          scale: [0, 1, 0],
+          rotate: [0, 180]
+        }}
+        transition={{ 
+          delay: 0.5,
+          duration: 0.6,
+          ease: "easeOut"
+        }}
+        className="absolute right-2"
+      >
+        <div className={`text-lg ${isSuccess ? "text-walls-yellow" : "text-red-500"}`}>✨</div>
+      </motion.div>
+    </div>
+  );
+};
+

@@ -10,6 +10,7 @@ export { AuthProvider, type AuthProviderProps } from "./AuthProvider";
 export { getSupabaseClient } from "./supabase-client";
 export { logoutToPortal } from "./logout";
 export {
+  buildPortalCreatePasswordUrl,
   buildPortalLoginUrl,
   normalizePortalOrigin,
   resolvePortalLoginOrigin,
@@ -33,3 +34,9 @@ export {
   resolvePostLoginRedirect,
   sanitizePostLoginRedirect,
 } from "./post-login-redirect";
+export {
+  buildSubdomainOrigin,
+  originForAppSlug,
+  resolveAppHref,
+  type ResolveAppHrefOptions,
+} from "./app-url";

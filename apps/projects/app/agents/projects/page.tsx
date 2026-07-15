@@ -1,9 +1,5 @@
-import AgentsProjects from "@/components/agents-projects/agents-projects";
+import { redirect } from "next/navigation";
 
 export default function ProjectsOverviewPage() {
-  return (
-    <div className="h-full min-h-0 overflow-hidden overscroll-none bg-walls-white">
-      <AgentsProjects analyticsData={null} />
-    </div>
-  );
+  redirect("/");
 }

@@ -1,4 +1,4 @@
-import { getSupabaseClient } from "@walls/auth";
+import { getSupabaseClient, resolveAppHref } from "@walls/auth";
 
 export type PortalLauncherApp = {
   app_id: string;
@@ -6,88 +6,8 @@ export type PortalLauncherApp = {
   slug: string;
   icon: string;
   href: string;
+  subdomain?: string | null;
 };
-
-function stripTrailingSlash(value: string): string {
-  return value.replace(/\/$/, "");
-}
-
-function envOrigin(value: string | undefined, fallback: string): string {
-  const trimmed = value?.trim();
-  if (!trimmed) return fallback;
-  return stripTrailingSlash(trimmed);
-}
-
-/** Known app origins by slug for when `apps.url_redirect` is relative. */
-function originForSlug(slug: string): string | null {
-  const map: Record<string, string> = {
-    adpilot: envOrigin(
-      process.env.NEXT_PUBLIC_ADPILOT_URL,
-      process.env.NODE_ENV === "development"
-        ? "http://localhost:3001"
-        : "https://adpilot.walls.agency",
-    ),
-    wallie: envOrigin(
-      process.env.NEXT_PUBLIC_WALLIE_URL,
-      process.env.NODE_ENV === "development"
-        ? "http://localhost:3003"
-        : "https://wallie.walls.agency",
-    ),
-    settings: envOrigin(
-      process.env.NEXT_PUBLIC_SETTINGS_URL,
-      process.env.NODE_ENV === "development"
-        ? "http://localhost:3004"
-        : "https://settings.walls.agency",
-    ),
-    health: envOrigin(
-      process.env.NEXT_PUBLIC_HEALTH_URL,
-      process.env.NODE_ENV === "development"
-        ? "http://localhost:3005"
-        : "https://health.walls.agency",
-    ),
-    calendar: envOrigin(
-      process.env.NEXT_PUBLIC_CALENDAR_URL,
-      process.env.NODE_ENV === "development"
-        ? "http://localhost:3006"
-        : "https://calendar.walls.agency",
-    ),
-    projects: envOrigin(
-      process.env.NEXT_PUBLIC_PROJECTS_URL,
-      process.env.NODE_ENV === "development"
-        ? "http://localhost:3007"
-        : "https://projects.walls.agency",
-    ),
-    admin: envOrigin(
-      process.env.NEXT_PUBLIC_ADMIN_URL,
-      process.env.NODE_ENV === "development"
-        ? "http://localhost:3008"
-        : "https://admin.walls.agency",
-    ),
-  };
-
-  return map[slug] ?? null;
-}
-
-export function resolveAppHref(slug: string, urlRedirect: string | null): string {
-  const redirect = urlRedirect?.trim();
-  if (redirect && /^https?:\/\//i.test(redirect)) {
-    return stripTrailingSlash(redirect);
-  }
-
-  const fromEnv = originForSlug(slug);
-  if (fromEnv) return fromEnv;
-
-  if (redirect?.startsWith("/") && !redirect.startsWith("//")) {
-    return redirect;
-  }
-
-  if (redirect) {
-    const cleaned = redirect.replace(/^\/*/, "");
-    return `/${cleaned}`;
-  }
-
-  return `/${slug}`;
-}
 
 function pushApp(
   appList: PortalLauncherApp[],
@@ -116,6 +36,8 @@ function pushApp(
     "url_redirect" in a && a.url_redirect != null
       ? String(a.url_redirect)
       : null;
+  const subdomain =
+    "subdomain" in a && a.subdomain != null ? String(a.subdomain) : null;
   const iconUrl =
     "icon_url" in a && a.icon_url
       ? String(a.icon_url)
@@ -127,7 +49,14 @@ function pushApp(
     name,
     slug,
     icon: iconUrl,
-    href: resolveAppHref(slug, urlRedirect),
+    subdomain,
+    href: resolveAppHref({
+      slug,
+      subdomain,
+      urlRedirect,
+      // Portal launcher should not fall back to /agents/* paths.
+      platformBase: "",
+    }),
   });
 }
 
@@ -140,7 +69,9 @@ export async function fetchUserLauncherApps(
   const [accessResult, membershipResult] = await Promise.all([
     supabase
       .from("user_app_access")
-      .select("app_id, order_index, apps(id, slug, name, icon_url, url_redirect)")
+      .select(
+        "app_id, order_index, apps(id, slug, name, icon_url, url_redirect, subdomain)",
+      )
       .eq("user_id", userId)
       .order("order_index", { ascending: true }),
     supabase.from("account_users").select("account_id").eq("user_id", userId),
@@ -156,7 +87,9 @@ export async function fetchUserLauncherApps(
   if (accountIds.length > 0) {
     const { data } = await supabase
       .from("account_app_access")
-      .select("app_id, apps(id, slug, name, icon_url, url_redirect)")
+      .select(
+        "app_id, apps(id, slug, name, icon_url, url_redirect, subdomain)",
+      )
       .in("account_id", accountIds);
     accountAccessRows = data ?? [];
   }

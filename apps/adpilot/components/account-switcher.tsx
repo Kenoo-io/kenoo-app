@@ -12,6 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@walls/ui/dropdown-menu";
+import { Skeleton } from "@walls/ui/skeleton";
 
 type AdpilotAccount = {
   id: string;
@@ -24,6 +25,24 @@ type AdpilotAccount = {
 
 const SETTINGS_URL =
   process.env.NEXT_PUBLIC_SETTINGS_URL?.replace(/\/$/, "") ?? "";
+
+/** Matches the loaded switcher layout so the header does not jump. */
+function AccountSwitcherSkeleton() {
+  return (
+    <div
+      className="mt-2 flex min-w-0 max-w-[min(100vw-8rem,280px)] items-center gap-3 rounded-xl bg-walls-white px-3 py-2.5"
+      aria-busy="true"
+      aria-label="Loading accounts"
+    >
+      <Skeleton className="h-10 w-10 shrink-0 rounded-lg bg-neutral-100" />
+      <div className="min-w-0 flex-1 space-y-1.5">
+        <Skeleton className="h-4 w-28 rounded bg-neutral-100" />
+        <Skeleton className="h-3 w-16 rounded bg-neutral-100" />
+      </div>
+      <Skeleton className="h-4 w-4 shrink-0 rounded bg-neutral-100" />
+    </div>
+  );
+}
 
 /**
  * Header account switcher — store-style picker for the active WALLS account.
@@ -87,9 +106,7 @@ export function AccountSwitcher() {
   };
 
   if (loading) {
-    return (
-      <div className="h-[52px] w-[220px] animate-pulse rounded-xl bg-neutral-50" />
-    );
+    return <AccountSwitcherSkeleton />;
   }
 
   if (!activeAccount) return null;

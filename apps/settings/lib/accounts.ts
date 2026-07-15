@@ -1,3 +1,4 @@
+import { buildPortalCreatePasswordUrl } from "@walls/auth/portal-url";
 import { createAdminClient } from "@walls/supabase/admin";
 import { createClient } from "@walls/supabase/server";
 
@@ -142,10 +143,11 @@ export async function findUserByEmail(
   email: string,
 ): Promise<{ id: string; email: string } | null> {
   const admin = createAdminClient();
+  const normalized = email.trim().toLowerCase();
   const { data, error } = await admin
     .from("users")
     .select("id, email")
-    .ilike("email", email.trim())
+    .ilike("email", normalized)
     .maybeSingle();
 
   if (error || !data) {
@@ -153,6 +155,189 @@ export async function findUserByEmail(
   }
 
   return data;
+}
+
+function emailLocalPart(email: string): string {
+  const local = email.split("@")[0]?.trim() ?? "";
+  if (!local) return "User";
+  return local.charAt(0).toUpperCase() + local.slice(1);
+}
+
+async function upsertInvitedUserProfile(input: {
+  userId: string;
+  email: string;
+  firstName?: string | null;
+  lastName?: string | null;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const admin = createAdminClient();
+  const email = input.email.trim().toLowerCase();
+  const firstName =
+    input.firstName?.trim() || emailLocalPart(email);
+  const lastName = input.lastName?.trim() || null;
+
+  const { error } = await admin.from("users").upsert(
+    {
+      id: input.userId,
+      email,
+      first_name: firstName,
+      last_name: lastName,
+      status: "active",
+      is_admin: false,
+    },
+    { onConflict: "id" },
+  );
+
+  if (error) {
+    console.error("[settings] upsert invited user profile:", error);
+    return { ok: false, error: "Failed to create user profile" };
+  }
+
+  return { ok: true };
+}
+
+async function inviteAuthUserByEmail(input: {
+  email: string;
+  firstName?: string | null;
+  lastName?: string | null;
+}): Promise<
+  | { ok: true; userId: string; invited: boolean }
+  | { ok: false; error: string }
+> {
+  const admin = createAdminClient();
+  const email = input.email.trim().toLowerCase();
+  const redirectTo = buildPortalCreatePasswordUrl();
+  const metadata = {
+    first_name: input.firstName?.trim() || emailLocalPart(email),
+    last_name: input.lastName?.trim() || null,
+  };
+
+  const { data, error } = await admin.auth.admin.inviteUserByEmail(email, {
+    redirectTo,
+    data: metadata,
+  });
+
+  if (!error && data.user) {
+    return { ok: true, userId: data.user.id, invited: true };
+  }
+
+  const message = error?.message?.toLowerCase() ?? "";
+  const alreadyRegistered =
+    message.includes("already") ||
+    message.includes("registered") ||
+    message.includes("exists");
+
+  if (!alreadyRegistered) {
+    console.error("[settings] inviteUserByEmail:", error);
+    return {
+      ok: false,
+      error: error?.message ?? "Failed to invite user",
+    };
+  }
+
+  const { data: linkData, error: linkError } =
+    await admin.auth.admin.generateLink({
+      type: "invite",
+      email,
+      options: { redirectTo, data: metadata },
+    });
+
+  if (linkError || !linkData.user) {
+    console.error("[settings] generateLink after invite conflict:", linkError);
+    return {
+      ok: false,
+      error: linkError?.message ?? "User already exists but could not be resolved",
+    };
+  }
+
+  const existingUser = linkData.user;
+  const isUnconfirmed = !existingUser.email_confirmed_at;
+
+  if (isUnconfirmed) {
+    await admin.auth.admin.deleteUser(existingUser.id);
+    const retry = await admin.auth.admin.inviteUserByEmail(email, {
+      redirectTo,
+      data: metadata,
+    });
+
+    if (retry.error || !retry.data.user) {
+      console.error("[settings] re-invite after delete:", retry.error);
+      return {
+        ok: false,
+        error: retry.error?.message ?? "Failed to re-invite user",
+      };
+    }
+
+    return { ok: true, userId: retry.data.user.id, invited: true };
+  }
+
+  return { ok: true, userId: existingUser.id, invited: false };
+}
+
+/**
+ * Adds an existing WALLS user to an organization, or creates + invites them
+ * via Supabase Auth email (create-password portal link) when they do not exist.
+ */
+export async function inviteOrAddAccountMember(input: {
+  accountId: string;
+  email: string;
+  role?: AccountRole;
+  firstName?: string | null;
+  lastName?: string | null;
+}): Promise<
+  | { ok: true; invited: boolean; created: boolean }
+  | { ok: false; error: string }
+> {
+  const email = input.email.trim().toLowerCase();
+  if (!email || !email.includes("@")) {
+    return { ok: false, error: "A valid email is required" };
+  }
+
+  const existing = await findUserByEmail(email);
+  if (existing) {
+    const added = await addAccountMember({
+      accountId: input.accountId,
+      userId: existing.id,
+      role: input.role,
+    });
+    if (!added.ok) return added;
+    return { ok: true, invited: false, created: false };
+  }
+
+  const invited = await inviteAuthUserByEmail({
+    email,
+    firstName: input.firstName,
+    lastName: input.lastName,
+  });
+  if (!invited.ok) return invited;
+
+  const profile = await upsertInvitedUserProfile({
+    userId: invited.userId,
+    email,
+    firstName: input.firstName,
+    lastName: input.lastName,
+  });
+  if (!profile.ok) {
+    if (invited.invited) {
+      const admin = createAdminClient();
+      await admin.auth.admin.deleteUser(invited.userId);
+    }
+    return profile;
+  }
+
+  const added = await addAccountMember({
+    accountId: input.accountId,
+    userId: invited.userId,
+    role: input.role,
+  });
+  if (!added.ok) {
+    return added;
+  }
+
+  return {
+    ok: true,
+    invited: invited.invited,
+    created: true,
+  };
 }
 
 export async function addAccountMember(input: {

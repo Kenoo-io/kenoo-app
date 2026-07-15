@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { createMiddlewareSupabaseClient } from "@walls/auth/middleware";
 
-const PUBLIC_PATHS = ["/login", "/reset-password"];
+const PUBLIC_PATHS = ["/login", "/reset-password", "/create-password"];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;

@@ -3,8 +3,8 @@ import { NextResponse } from "next/server";
 import {
   addAccountMember,
   canManageAccountMembers,
-  findUserByEmail,
   getAccountMembershipForUser,
+  inviteOrAddAccountMember,
   listAccountMembers,
 } from "@/lib/accounts";
 import { canEditOrganization, getOrganizationForUser } from "@/lib/organizations";
@@ -53,30 +53,9 @@ export async function POST(request: Request, context: RouteContext) {
     email?: string;
     userId?: string;
     role?: "owner" | "admin" | "member";
+    firstName?: string;
+    lastName?: string;
   };
-
-  if (!body.email?.trim() && !body.userId) {
-    return NextResponse.json(
-      { error: "Email or user ID is required" },
-      { status: 400 },
-    );
-  }
-
-  let targetUserId = body.userId;
-  if (!targetUserId && body.email) {
-    const user = await findUserByEmail(body.email);
-    if (!user) {
-      return NextResponse.json(
-        { error: "No user found with that email" },
-        { status: 404 },
-      );
-    }
-    targetUserId = user.id;
-  }
-
-  if (!targetUserId) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
-  }
 
   const role = body.role ?? "member";
   if (role === "owner" && actorMembership.role !== "owner") {
@@ -86,10 +65,35 @@ export async function POST(request: Request, context: RouteContext) {
     );
   }
 
-  const result = await addAccountMember({
+  if (body.userId) {
+    const result = await addAccountMember({
+      accountId,
+      userId: body.userId,
+      role,
+    });
+
+    if (!result.ok) {
+      const status = result.error.includes("already") ? 409 : 400;
+      return NextResponse.json({ error: result.error }, { status });
+    }
+
+    const members = await listAccountMembers(accountId);
+    return NextResponse.json({ members, invited: false, created: false });
+  }
+
+  if (!body.email?.trim()) {
+    return NextResponse.json(
+      { error: "Email is required" },
+      { status: 400 },
+    );
+  }
+
+  const result = await inviteOrAddAccountMember({
     accountId,
-    userId: targetUserId,
+    email: body.email,
     role,
+    firstName: body.firstName,
+    lastName: body.lastName,
   });
 
   if (!result.ok) {
@@ -98,5 +102,9 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   const members = await listAccountMembers(accountId);
-  return NextResponse.json({ members });
+  return NextResponse.json({
+    members,
+    invited: result.invited,
+    created: result.created,
+  });
 }

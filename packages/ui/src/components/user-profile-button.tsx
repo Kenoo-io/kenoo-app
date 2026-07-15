@@ -613,7 +613,7 @@ export default function UserProfileButton({
                             e.preventDefault();
                             return;
                           }
-                          router.push(app.path);
+                          navigateToPath(app.path, router);
                         }}
                         className="group flex h-[100px] cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl p-2.5 transition-all hover:bg-neutral-50 focus:bg-neutral-50"
                       >

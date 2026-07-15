@@ -18,6 +18,7 @@ type App = {
   created_at: string;
   updated_at: string | null;
   url_redirect: string | null;
+  subdomain: string | null;
 };
 
 export function AdminApps() {
@@ -50,7 +51,9 @@ export function AdminApps() {
       try {
         const { data: appsData, error: appsError } = await supabase
           .from("apps")
-          .select("id, slug, name, description, icon_url, is_active, created_at, updated_at, url_redirect")
+          .select(
+            "id, slug, name, description, icon_url, is_active, created_at, updated_at, url_redirect, subdomain",
+          )
           .order("name", { ascending: true });
 
         if (!isMounted) return;

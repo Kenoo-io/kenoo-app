@@ -17,7 +17,7 @@ export default async function AdminAppDetailPage({
   const { data, error } = await supabase
     .from("apps")
     .select(
-      "id, slug, name, description, icon_url, is_active, created_at, updated_at, url_redirect",
+      "id, slug, name, description, icon_url, is_active, created_at, updated_at, url_redirect, subdomain",
     )
     .eq("id", id)
     .maybeSingle();
@@ -36,6 +36,7 @@ export default async function AdminAppDetailPage({
     created_at: data.created_at,
     updated_at: data.updated_at,
     url_redirect: data.url_redirect,
+    subdomain: data.subdomain,
   };
 
   return <AdminAppDetail app={app} />;

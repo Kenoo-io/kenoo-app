@@ -1,0 +1,199 @@
+.invoice-preview-root {
+  font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+}
+
+.invoice-preview-root.invoice-preview-paper {
+  background-color: #fdfcfa;
+  background-image:
+    linear-gradient(90deg, rgba(0, 0, 0, 0.007) 1px, transparent 1px),
+    linear-gradient(rgba(0, 0, 0, 0.007) 1px, transparent 1px),
+    radial-gradient(ellipse 120% 80% at 12% -8%, rgba(255, 255, 255, 0.92), transparent 55%),
+    radial-gradient(ellipse 90% 60% at 88% 108%, rgba(0, 0, 0, 0.04), transparent 50%);
+  background-size: 28px 28px, 28px 28px, 100% 100%, 100% 100%;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.045),
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 4px 8px rgba(0, 0, 0, 0.05),
+    0 12px 24px rgba(0, 0, 0, 0.07),
+    0 28px 56px rgba(0, 0, 0, 0.09),
+    0 48px 96px -20px rgba(0, 0, 0, 0.14);
+}
+
+.invoice-preview-root.invoice-preview-paper .ip-container {
+  padding: 40px 36px 48px;
+}
+
+@media (min-width: 768px) {
+  .invoice-preview-root.invoice-preview-paper .ip-container {
+    padding: 52px 48px 60px;
+  }
+}
+
+.invoice-preview-root .ip-container {
+  max-width: 720px;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0 auto;
+  padding: 32px 20px 40px;
+  font-size: 13px;
+}
+
+.invoice-preview-root .ip-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 52px;
+}
+
+.invoice-preview-root .ip-brand {
+  max-width: 50%;
+  min-width: 0;
+}
+
+.invoice-preview-root .ip-brand img {
+  width: 76px;
+  height: auto;
+  margin-bottom: 12px;
+}
+
+.invoice-preview-root .ip-brand small {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #777;
+  margin-bottom: 5px;
+}
+
+.invoice-preview-root .ip-brand p {
+  margin: 1px 0;
+  font-size: 12px;
+  color: #555;
+}
+
+.invoice-preview-root .ip-meta {
+  text-align: right;
+  padding-top: 14px;
+  min-width: 0;
+}
+
+.invoice-preview-root .ip-meta h2 {
+  margin: 0 0 8px 0;
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: 2px;
+}
+
+.invoice-preview-root .ip-meta p {
+  margin: 3px 0;
+  font-size: 12px;
+  color: #555;
+}
+
+.invoice-preview-root .ip-billing {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 38px;
+}
+
+.invoice-preview-root .ip-block h3 {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #777;
+  margin-bottom: 5px;
+}
+
+.invoice-preview-root .ip-block p {
+  margin: 1px 0;
+  font-size: 12px;
+}
+
+.invoice-preview-root .ip-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 32px;
+}
+
+.invoice-preview-root .ip-table thead th {
+  text-align: left;
+  font-size: 10px;
+  color: #777;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #ddd;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.invoice-preview-root .ip-table thead th.ip-right {
+  text-align: right;
+}
+
+.invoice-preview-root .ip-table tbody td {
+  padding: 11px 0;
+  border-bottom: 1px solid #eee;
+  font-size: 12px;
+}
+
+.invoice-preview-root .ip-table tbody td.ip-right {
+  text-align: right;
+}
+
+.invoice-preview-root .ip-totals {
+  max-width: 260px;
+  width: 100%;
+  margin-left: auto;
+}
+
+.invoice-preview-root .ip-totals-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+
+.invoice-preview-root .ip-totals-row.ip-total {
+  font-size: 17px;
+  font-weight: 600;
+  margin-top: 12px;
+  border-top: 2px solid #111;
+  padding-top: 10px;
+}
+
+.invoice-preview-root .ip-payment {
+  margin-top: 44px;
+  padding-top: 16px;
+  border-top: 1px solid #ddd;
+}
+
+.invoice-preview-root .ip-payment h3 {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #777;
+  margin-bottom: 10px;
+}
+
+.invoice-preview-root .ip-payment p {
+  margin: 3px 0;
+  font-size: 12px;
+}
+
+.invoice-preview-root .ip-footer {
+  margin-top: 56px;
+  font-size: 10px;
+  color: #888;
+  text-align: center;
+}
+
+@media print {
+  .invoice-preview-root .ip-toolbar {
+    display: none !important;
+  }
+
+  .invoice-preview-root {
+    box-shadow: none;
+    border: none;
+  }
+}

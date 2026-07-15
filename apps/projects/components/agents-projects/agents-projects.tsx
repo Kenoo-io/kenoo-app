@@ -36,7 +36,6 @@ import {
   Project,
   ProjectWithStats,
   ProjectTask,
-  PRIORITY_CONFIG,
   TASK_STATUS_CONFIG,
 } from "./types";
 
@@ -47,8 +46,6 @@ type GlassTheme = {
   border: string;
   shadow: string;
   bar: string;
-  chip: string;
-  chipText: string;
 };
 
 function hashTheme<T>(id: string, themes: T[]): T {
@@ -86,12 +83,10 @@ function shadeColor(r: number, g: number, b: number, amount: number) {
 
 function glassThemeFromRgb(r: number, g: number, b: number): GlassTheme {
   return {
-    background: `linear-gradient(155deg, ${rgba(r, g, b, 0.3)} 0%, ${rgba(r, g, b, 0.12)} 52%, rgba(255,255,255,0.58) 100%)`,
-    border: rgba(r, g, b, 0.22),
-    shadow: `0 8px 20px ${rgba(r, g, b, 0.08)}, inset 0 1px 0 rgba(255,255,255,0.85)`,
-    bar: `rgb(${r}, ${g}, ${b})`,
-    chip: "rgba(255,255,255,0.55)",
-    chipText: shadeColor(r, g, b, 0.35),
+    background: `linear-gradient(155deg, ${rgba(r, g, b, 0.18)} 0%, ${rgba(r, g, b, 0.07)} 52%, rgba(255,255,255,0.72) 100%)`,
+    border: rgba(r, g, b, 0.14),
+    shadow: `0 8px 20px ${rgba(r, g, b, 0.05)}, inset 0 1px 0 rgba(255,255,255,0.85)`,
+    bar: `linear-gradient(90deg, ${rgba(r, g, b, 0.45)} 0%, rgb(${r}, ${g}, ${b}) 55%, ${shadeColor(r, g, b, 0.18)} 100%)`,
   };
 }
 
@@ -194,11 +189,6 @@ function memberInitials(m: MemberUser) {
   const b = m.last_name?.[0] ?? "";
   if (a || b) return `${a}${b}`.toUpperCase();
   return (m.email?.[0] ?? "U").toUpperCase();
-}
-
-function priorityLabel(priority: number | null | undefined) {
-  if (!priority) return "Normal";
-  return PRIORITY_CONFIG[priority]?.label ?? "Normal";
 }
 
 const PANEL_GLASS_CLASS =
@@ -837,16 +827,7 @@ function AgentsProjectsContent({ analyticsData: _analyticsData }: AgentsProjects
                                   boxShadow: theme.shadow,
                                 }}
                               >
-                                <span
-                                  className="inline-flex w-fit rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide backdrop-blur-md"
-                                  style={{
-                                    backgroundColor: theme.chip,
-                                    color: theme.chipText,
-                                  }}
-                                >
-                                  {priorityLabel(task.priority)} Priority
-                                </span>
-                                <h3 className="mt-4 line-clamp-3 text-base font-semibold leading-snug text-neutral-900">
+                                <h3 className="line-clamp-3 text-base font-semibold leading-snug text-neutral-900">
                                   {task.title}
                                 </h3>
                                 <p className="mt-1 truncate text-xs font-light text-neutral-600/80">
@@ -874,7 +855,7 @@ function AgentsProjectsContent({ analyticsData: _analyticsData }: AgentsProjects
                                         className="h-full rounded-full"
                                         style={{
                                           width: `${pct}%`,
-                                          backgroundColor: theme.bar,
+                                          background: theme.bar,
                                         }}
                                       />
                                     </div>

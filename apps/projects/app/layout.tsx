@@ -45,7 +45,7 @@ export default function RootLayout({
           <Providers>
             <AppHeaderVisibilityProvider autoHideOnScroll>
               <AppTopChrome
-                dashboardPath="/agents/projects"
+                dashboardPath="/"
                 leftContent={<AccountSwitcher />}
               />
               <AppSidebarLayout>{children}</AppSidebarLayout>

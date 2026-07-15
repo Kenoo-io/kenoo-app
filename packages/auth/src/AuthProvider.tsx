@@ -8,9 +8,10 @@ import {
   type UserProfile,
   type UserProfileApp,
 } from "./AuthContext";
+import { resolveAppHref } from "./app-url";
 import { getSupabaseClient } from "./supabase-client";
 
-const PROFILE_STORAGE_KEY = "walls_profile";
+const PROFILE_STORAGE_KEY = "walls_profile_v2";
 
 function getProfileStorageKey(userId: string) {
   return `${PROFILE_STORAGE_KEY}_${userId}`;
@@ -82,7 +83,9 @@ async function fetchUserProfile(
       .single(),
     supabase
       .from("user_app_access")
-      .select("app_id, order_index, apps(id, slug, name, icon_url, url_redirect)")
+      .select(
+        "app_id, order_index, apps(id, slug, name, icon_url, url_redirect, subdomain)",
+      )
       .eq("user_id", userId)
       .order("order_index", { ascending: true }),
     supabase.from("account_users").select("account_id").eq("user_id", userId),
@@ -103,7 +106,9 @@ async function fetchUserProfile(
   if (accountIds.length > 0) {
     const { data } = await supabase
       .from("account_app_access")
-      .select("app_id, apps(id, slug, name, icon_url, url_redirect)")
+      .select(
+        "app_id, apps(id, slug, name, icon_url, url_redirect, subdomain)",
+      )
       .in("account_id", accountIds);
     accountAccessRows = data ?? [];
   }
@@ -163,21 +168,30 @@ async function fetchUserProfile(
       const slug = String(a.slug);
       const name = String(a.name);
       const urlRedirect =
-        "url_redirect" in a && a.url_redirect
+        "url_redirect" in a && a.url_redirect != null
           ? String(a.url_redirect)
-          : `/${slug}`;
+          : null;
+      const subdomain =
+        "subdomain" in a && a.subdomain != null
+          ? String(a.subdomain)
+          : null;
       const iconUrl =
         "icon_url" in a && a.icon_url
           ? String(a.icon_url)
           : `https://assets.wallsentertainment.com/walls-app-icons/${slug}.svg`;
-      const pathPart = urlRedirect.replace(/^\/*/, "");
-      const path = `${platformBase}/${pathPart}`;
+      const path = resolveAppHref({
+        slug,
+        subdomain,
+        urlRedirect,
+        platformBase,
+      });
       seen.add(appId);
       appList.push({
         app_id: appId,
         name,
         icon: iconUrl,
         path,
+        subdomain,
       });
     }
   };

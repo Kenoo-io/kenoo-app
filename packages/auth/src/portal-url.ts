@@ -71,3 +71,13 @@ export function buildPortalLoginUrl(
 
   return loginUrl.toString();
 }
+
+/** Portal URL where invited users set their password after clicking the invite email. */
+export function buildPortalCreatePasswordUrl(
+  currentAppOrigin?: string,
+): string {
+  return new URL(
+    "/create-password",
+    resolvePortalLoginOrigin(currentAppOrigin),
+  ).toString();
+}

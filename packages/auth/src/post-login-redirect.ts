@@ -4,7 +4,7 @@
 
 import { normalizePortalOrigin } from "./portal-url";
 
-const AUTH_ENTRY_PATHS = ["/login", "/reset-password"] as const;
+const AUTH_ENTRY_PATHS = ["/login", "/reset-password", "/create-password"] as const;
 
 function isAuthEntryPath(pathname: string): boolean {
   const path = pathname.split("?")[0] ?? pathname;
@@ -32,6 +32,9 @@ function configuredOrigins(): string[] {
     process.env.NEXT_PUBLIC_CALENDAR_URL,
     process.env.NEXT_PUBLIC_PROJECTS_URL,
     process.env.NEXT_PUBLIC_ADMIN_URL,
+    process.env.NEXT_PUBLIC_CRM_URL,
+    process.env.NEXT_PUBLIC_LEDGER_URL,
+    process.env.NEXT_PUBLIC_WALLIE_URL,
     process.env.NEXT_PUBLIC_WALLS_PUBLIC_SITE_URL,
     process.env.APP_BASE_URL,
   ];

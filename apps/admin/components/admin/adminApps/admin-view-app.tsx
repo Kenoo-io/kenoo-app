@@ -26,6 +26,7 @@ export type AppDetail = {
   created_at: string;
   updated_at: string | null;
   url_redirect: string | null;
+  subdomain: string | null;
 };
 
 interface AdminAppDetailProps {
@@ -181,7 +182,20 @@ export function AdminAppDetail({ app: initialApp }: AdminAppDetailProps) {
                 </h3>
                 <DetailRow label="Slug" value={app.slug} />
                 <DetailRow label="Description" value={app.description} />
-                <DetailRow label="Redirect URL" value={app.url_redirect} valueClassName="text-walls-sky underline decoration-dotted underline-offset-2" />
+                <DetailRow
+                  label="Subdomain"
+                  value={
+                    app.subdomain
+                      ? `${app.subdomain}.walls.agency`
+                      : null
+                  }
+                  valueClassName="text-walls-sky underline decoration-dotted underline-offset-2"
+                />
+                <DetailRow
+                  label="Redirect path (legacy)"
+                  value={app.url_redirect}
+                  valueClassName="text-walls-sky underline decoration-dotted underline-offset-2"
+                />
               </div>
               <div className="p-4 sm:p-6">
                 <h3 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-zinc-500">
