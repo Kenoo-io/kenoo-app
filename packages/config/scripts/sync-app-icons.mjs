@@ -1,15 +1,18 @@
 #!/usr/bin/env node
 /**
- * Copies the shared WALLS favicon into each app under `app/icon.svg`.
+ * Copies the shared WALLS favicon into each app under `app/icon.png`.
  *
- * Skips any app that already defines its own icon in `app/`:
- *   favicon.ico | icon.ico | icon.png | icon.jpg | icon.jpeg | icon.svg | icon.tsx | icon.jsx
+ * Skips any app that already defines its own non-png icon in `app/`:
+ *   favicon.ico | icon.ico | icon.jpg | icon.jpeg | icon.tsx | icon.jsx
  *   apple-icon.png | apple-icon.jpg | apple-icon.ico
+ *
+ * Always overwrites `app/icon.png` and removes a leftover `app/icon.svg`
+ * from the previous SVG sync.
  *
  * Usage: pnpm sync:icons
  */
 
-import { copyFileSync, existsSync, readdirSync } from "node:fs";
+import { copyFileSync, existsSync, readdirSync, unlinkSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -17,11 +20,11 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const packageRoot = path.resolve(__dirname, "..");
 const monorepoRoot = path.resolve(packageRoot, "../..");
 const appsDir = path.join(monorepoRoot, "apps");
-const sourceIcon = path.join(packageRoot, "assets", "icon.svg");
+const sourceIcon = path.join(packageRoot, "assets", "icon.png");
 
 const OVERRIDE_PATTERNS = [
   /^favicon\.ico$/i,
-  /^icon\.(ico|png|jpe?g|svg|tsx|jsx)$/i,
+  /^icon\.(ico|jpe?g|tsx|jsx)$/i,
   /^apple-icon\.(ico|png|jpe?g)$/i,
 ];
 
@@ -36,9 +39,11 @@ function hasAppIconOverride(appDir) {
 
 function syncAppIcon(appName) {
   const appDir = path.join(appsDir, appName);
-  const target = path.join(appDir, "app", "icon.svg");
+  const appRouterDir = path.join(appDir, "app");
+  const target = path.join(appRouterDir, "icon.png");
+  const legacySvg = path.join(appRouterDir, "icon.svg");
 
-  if (!existsSync(path.join(appDir, "app"))) {
+  if (!existsSync(appRouterDir)) {
     console.log(`skip ${appName}: no app/ directory`);
     return;
   }
@@ -49,7 +54,13 @@ function syncAppIcon(appName) {
   }
 
   copyFileSync(sourceIcon, target);
-  console.log(`synced ${appName}/app/icon.svg`);
+  if (existsSync(legacySvg)) {
+    unlinkSync(legacySvg);
+    console.log(`synced ${appName}/app/icon.png (removed icon.svg)`);
+    return;
+  }
+
+  console.log(`synced ${appName}/app/icon.png`);
 }
 
 function main() {

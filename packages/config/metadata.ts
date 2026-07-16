@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 
-/** Default WALLS favicon served from each app's `app/icon.svg` (synced via `pnpm sync:icons`). */
+/** Default WALLS favicon served from each app's `app/icon.png` (synced via `pnpm sync:icons`). */
 export const WALLS_DEFAULT_ICONS: NonNullable<Metadata["icons"]> = {
-  icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
-  shortcut: [{ url: "/icon.svg", type: "image/svg+xml" }],
+  icon: [{ url: "/icon.png", type: "image/png" }],
+  shortcut: [{ url: "/icon.png", type: "image/png" }],
 };
 
 /**

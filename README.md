@@ -308,10 +308,10 @@ Add new Shadcn-style components under `packages/ui/src/components/` as you migra
 
 ## Shared favicon
 
-Default WALLS favicon lives in `packages/config/assets/icon.svg`.
+Default WALLS favicon lives in `packages/config/assets/icon.png`.
 
-- Run `pnpm sync:icons` to copy it into each app as `app/icon.svg`
-- Apps with their own `app/favicon.ico`, `app/icon.png`, `app/icon.svg`, etc. are skipped automatically
+- Run `pnpm sync:icons` to copy it into each app as `app/icon.png`
+- Apps with their own `app/favicon.ico`, `app/icon.ico`, `apple-icon.*`, etc. are skipped automatically
 - Layouts use `createWallsMetadata()` from `@walls/config/metadata` for consistent icon metadata; pass `icons` to override per app:
 
 ```ts

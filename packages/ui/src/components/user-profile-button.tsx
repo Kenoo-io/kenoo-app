@@ -461,7 +461,7 @@ export default function UserProfileButton({
                         <Bell className="h-[18px] w-[18px] stroke-[1.5] text-neutral-500" />
                         {hasUnreadNotifications && (
                           <span
-                            className="pointer-events-none absolute -right-0.5 -top-0.5 z-20 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white"
+                            className="pointer-events-none absolute -right-0.5 -top-0.5 z-20 h-2 w-2 rounded-full bg-[#FF1744] ring-2 ring-white"
                             aria-hidden
                           />
                         )}
