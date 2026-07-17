@@ -28,6 +28,15 @@ export default function ContactPage() {
               Questions about sales, partnerships, or a product walkthrough?
               Send a note, or open a workspace when you’re ready.
             </p>
+            <p className="mt-6 text-sm text-kenoo-muted">
+              Or email us at{" "}
+              <a
+                href="mailto:hello@kenoo.io"
+                className="font-medium text-kenoo-ink underline decoration-kenoo-border underline-offset-4 transition-colors hover:decoration-kenoo-ink"
+              >
+                hello@kenoo.io
+              </a>
+            </p>
             <a
               href={KENOO_PORTAL_URL}
               className="mt-8 inline-flex h-11 items-center justify-center rounded-xl bg-kenoo-ink px-5 text-sm font-medium text-white transition-colors hover:bg-kenoo-ink/90"

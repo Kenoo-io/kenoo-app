@@ -93,7 +93,7 @@ export default function PricingPage() {
                 ))}
               </ul>
               <a
-                href={tier.name === "Scale" ? "/contact" : KENOO_PORTAL_URL}
+                href={tier.name === "Scale" ? "/enterprise" : KENOO_PORTAL_URL}
                 className={
                   tier.featured
                     ? "mt-8 inline-flex h-11 items-center justify-center rounded-xl bg-kenoo-accent text-sm font-medium text-white transition-colors hover:bg-kenoo-accent-hover"

@@ -7,13 +7,15 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { ChromeFrame } from "@/components/kenoo/chrome-frame";
 import { KENOO_PORTAL_URL } from "@/lib/urls";
 import { cn } from "@/lib/utils";
 
 const navItems = [
-  { href: "/product", label: "Product" },
+  { href: "/solutions", label: "Solutions" },
+  { href: "/resources", label: "Resources" },
+  { href: "/enterprise", label: "Enterprise" },
   { href: "/pricing", label: "Pricing" },
-  { href: "/about", label: "About" },
 ];
 
 const headerEase = [0.22, 1, 0.36, 1] as const;
@@ -69,18 +71,18 @@ export function SiteHeader() {
           : "border-b border-transparent bg-transparent",
       )}
     >
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5 md:h-[4.25rem] md:px-8">
+      <div className="relative flex h-16 w-full items-center justify-between px-5 md:h-[4.25rem] md:px-6 lg:px-8">
         <Link href="/" className="flex items-center" aria-label="Kenoo home">
           <KenooWordmark priority className="h-6 md:h-7" />
         </Link>
 
-        <nav className="hidden items-center gap-8 md:flex">
+        <nav className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-9 md:flex lg:gap-11">
           {navItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
               className={cn(
-                "text-sm transition-colors",
+                "whitespace-nowrap text-base transition-colors",
                 pathname === item.href
                   ? "text-kenoo-ink"
                   : "text-kenoo-muted hover:text-kenoo-ink",
@@ -94,16 +96,18 @@ export function SiteHeader() {
         <div className="hidden items-center gap-3 md:flex">
           <a
             href={KENOO_PORTAL_URL}
-            className="rounded-xl px-3.5 py-2 text-sm text-kenoo-muted transition-colors hover:text-kenoo-ink"
+            className="rounded-xl px-3.5 py-2 text-base text-kenoo-muted transition-colors hover:text-kenoo-ink"
           >
             Sign in
           </a>
-          <a
-            href={KENOO_PORTAL_URL}
-            className="rounded-xl border border-kenoo-border bg-kenoo-white px-4 py-2 text-sm font-medium text-kenoo-ink transition-colors hover:bg-kenoo-subtle"
-          >
-            Get started
-          </a>
+          <ChromeFrame>
+            <a
+              href={KENOO_PORTAL_URL}
+              className="inline-flex items-center justify-center rounded-[10.5px] bg-kenoo-white px-4 py-2 text-base font-medium text-kenoo-ink transition-colors hover:bg-kenoo-subtle"
+            >
+              Get started
+            </a>
+          </ChromeFrame>
         </div>
 
         <button
@@ -128,12 +132,6 @@ export function SiteHeader() {
                 {item.label}
               </Link>
             ))}
-            <Link
-              href="/contact"
-              className="rounded-xl px-3 py-3 text-base text-kenoo-ink"
-            >
-              Contact
-            </Link>
           </nav>
           <div className="mt-4 flex flex-col gap-2">
             <a
@@ -142,12 +140,14 @@ export function SiteHeader() {
             >
               Sign in
             </a>
-            <a
-              href={KENOO_PORTAL_URL}
-              className="rounded-xl border border-kenoo-border bg-kenoo-white px-4 py-3 text-center text-sm font-medium text-kenoo-ink"
-            >
-              Get started
-            </a>
+            <ChromeFrame className="w-full">
+              <a
+                href={KENOO_PORTAL_URL}
+                className="inline-flex w-full items-center justify-center rounded-[10.5px] bg-kenoo-white px-4 py-3 text-center text-sm font-medium text-kenoo-ink transition-colors hover:bg-kenoo-subtle"
+              >
+                Get started
+              </a>
+            </ChromeFrame>
           </div>
         </div>
       ) : null}

@@ -3,10 +3,10 @@ import Link from "next/link";
 import { KENOO_PORTAL_URL } from "@/lib/urls";
 
 const footerLinks = [
-  { href: "/product", label: "Product" },
+  { href: "/solutions", label: "Solutions" },
+  { href: "/resources", label: "Resources" },
+  { href: "/enterprise", label: "Enterprise" },
   { href: "/pricing", label: "Pricing" },
-  { href: "/about", label: "About" },
-  { href: "/contact", label: "Contact" },
 ];
 
 export function SiteFooter() {
@@ -21,6 +21,12 @@ export function SiteFooter() {
             A modern business OS for CRM, projects, calendar, finance, workflows,
             and AI.
           </p>
+          <a
+            href="mailto:hello@kenoo.io"
+            className="mt-4 inline-block text-sm text-kenoo-muted transition-colors hover:text-kenoo-ink"
+          >
+            hello@kenoo.io
+          </a>
         </div>
 
         <div className="flex flex-wrap gap-x-8 gap-y-3 text-sm">
