@@ -356,7 +356,34 @@ for PROJECT in kenoo kenoo-calendar kenoo-health; do   # ← edit this list
 done
 ```
 
-**4. Check status:**
+**4. Deploy all Kenoo Vercel projects** — copy/paste as-is (every project from the table above):
+
+```bash
+TEAM_ID="team_6bdoPMv1Fh7Y4U8IdhbSEuS2"
+TOKEN="$(jq -r '.token' "$HOME/Library/Application Support/com.vercel.cli/auth.json")"
+REF="main"
+
+for PROJECT in kenoo kenoo-adpilot kenoo-portal kenoo-wallie kenoo-calendar kenoo-health kenoo-settings kenoo-projects; do
+  echo "Deploying $PROJECT from GitHub@$REF ..."
+  curl -sS -X POST "https://api.vercel.com/v13/deployments?teamId=${TEAM_ID}&forceNew=1" \
+    -H "Authorization: Bearer ${TOKEN}" \
+    -H "Content-Type: application/json" \
+    -d "$(jq -n --arg p "$PROJECT" --arg ref "$REF" '{
+      name: $p,
+      project: $p,
+      gitSource: {
+        type: "github",
+        org: "Kenoo-io",
+        repo: "kenoo-app",
+        ref: $ref
+      },
+      target: "production"
+    }')" | jq '{project: .name, id, url, status: .readyState}'
+  echo
+done
+```
+
+**5. Check status:**
 
 ```bash
 vercel ls kenoo-calendar --scope walls-entertainment   # ← use your project name
