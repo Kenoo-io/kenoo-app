@@ -31,6 +31,7 @@ export type AccountDetail = {
   description: string | null;
   email: string | null;
   phone: string | null;
+  personal_owner_id: string | null;
   member_count: number;
   app_access?: { id: string; slug: string; name: string; icon_url: string | null }[];
 };
@@ -48,10 +49,14 @@ type AppForAccess = {
 
 function AppAccessPopoutContent({
   accountId,
+  accountType,
+  personalOwnerId,
   initialAppIds,
   onUpdated,
 }: {
   accountId: string;
+  accountType: "personal" | "organization";
+  personalOwnerId: string | null;
   initialAppIds: string[];
   onUpdated?: () => void;
 }) {
@@ -94,11 +99,60 @@ function AppAccessPopoutContent({
           .eq("account_id", accountId)
           .eq("app_id", appId);
         if (deleteErr) throw deleteErr;
+
+        if (accountType === "personal" && personalOwnerId) {
+          await supabase
+            .from("user_app_access")
+            .delete()
+            .eq("user_id", personalOwnerId)
+            .eq("app_id", appId);
+          await supabase
+            .from("account_app_user_access")
+            .delete()
+            .eq("account_id", accountId)
+            .eq("user_id", personalOwnerId)
+            .eq("app_id", appId);
+        }
       } else {
         const { error: insertErr } = await supabase
           .from("account_app_access")
           .insert({ account_id: accountId, app_id: appId });
         if (insertErr) throw insertErr;
+
+        if (accountType === "personal" && personalOwnerId) {
+          const { data: existing } = await supabase
+            .from("user_app_access")
+            .select("id")
+            .eq("user_id", personalOwnerId)
+            .eq("app_id", appId)
+            .maybeSingle();
+          if (!existing) {
+            const { count } = await supabase
+              .from("user_app_access")
+              .select("id", { count: "exact", head: true })
+              .eq("user_id", personalOwnerId);
+            await supabase.from("user_app_access").insert({
+              user_id: personalOwnerId,
+              app_id: appId,
+              order_index: count ?? 0,
+            });
+          }
+
+          const { data: existingMemberGrant } = await supabase
+            .from("account_app_user_access")
+            .select("id")
+            .eq("account_id", accountId)
+            .eq("user_id", personalOwnerId)
+            .eq("app_id", appId)
+            .maybeSingle();
+          if (!existingMemberGrant) {
+            await supabase.from("account_app_user_access").insert({
+              account_id: accountId,
+              user_id: personalOwnerId,
+              app_id: appId,
+            });
+          }
+        }
       }
       onUpdated?.();
     } catch (e) {
@@ -433,6 +487,8 @@ export function AdminAccountDetail({ account }: AdminAccountDetailProps) {
       >
         <AppAccessPopoutContent
           accountId={account.id}
+          accountType={account.account_type}
+          personalOwnerId={account.personal_owner_id}
           initialAppIds={(account.app_access ?? []).map((a) => a.id)}
           onUpdated={() => router.refresh()}
         />

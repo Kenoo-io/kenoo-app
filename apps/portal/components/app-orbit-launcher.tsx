@@ -6,6 +6,12 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import Image from "next/image";
 
 import type { PortalLauncherApp } from "@/lib/user-apps";
+import {
+  PortalAccountSwitcher,
+  type PortalAccountOption,
+} from "@/components/portal-account-switcher";
+
+export type { PortalAccountOption };
 
 export type AppOrbitLauncherProps = {
   firstName: string | null;
@@ -15,6 +21,10 @@ export type AppOrbitLauncherProps = {
   appsLoading: boolean;
   /** When true, only show the greeting splash (deep-link redirect). */
   redirectMode?: boolean;
+  accounts?: PortalAccountOption[];
+  activeAccountId?: string | null;
+  onAccountChange?: (accountId: string) => void | Promise<void>;
+  accountsLoading?: boolean;
 };
 
 const easeOut = [0.22, 1, 0.36, 1] as const;
@@ -202,6 +212,10 @@ export function AppOrbitLauncher({
   apps,
   appsLoading,
   redirectMode = false,
+  accounts = [],
+  activeAccountId = null,
+  onAccountChange,
+  accountsLoading = false,
 }: AppOrbitLauncherProps) {
   const [phase, setPhase] = React.useState<"greeting" | "launcher">("greeting");
 
@@ -273,6 +287,17 @@ export function AppOrbitLauncher({
                   <p className="mt-0.5 text-[12px] font-normal tracking-[-0.01em] text-kenoo-muted">
                     Choose an app to continue
                   </p>
+                </div>
+              ) : null}
+              {accounts.length > 0 && onAccountChange ? (
+                <div className="mt-1">
+                  <PortalAccountSwitcher
+                    accounts={accounts}
+                    activeAccountId={activeAccountId}
+                    onAccountChange={onAccountChange}
+                    loading={accountsLoading}
+                    userAvatarUrl={avatarUrl}
+                  />
                 </div>
               ) : null}
             </div>

@@ -1012,7 +1012,7 @@ export default function OrganizationSettingsPage() {
               </div>
             </div>
 
-            <SectionDivider title="Members" />
+            <SectionDivider title="Members & apps" />
             <OrganizationMembers
               organizationId={selectedOrganization.id}
               actorRole={selectedOrganization.role}

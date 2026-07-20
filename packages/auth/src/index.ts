@@ -10,6 +10,16 @@ export { AuthProvider, type AuthProviderProps } from "./AuthProvider";
 export { getSupabaseClient } from "./supabase-client";
 export { logoutToPortal } from "./logout";
 export {
+  ACTIVE_ACCOUNT_COOKIE,
+  accountUserHasAppAccess,
+  getActiveAccountCookieOptions,
+  readActiveAccountIdFromDocumentCookie,
+  resolveActiveAccountId,
+  userHasAccountAppGrants,
+  userHasAppAccessForActiveAccount,
+  userHasLegacyAppAccess,
+} from "./active-account";
+export {
   buildPortalCreatePasswordUrl,
   buildPortalLoginUrl,
   normalizePortalOrigin,

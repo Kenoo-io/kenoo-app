@@ -8,6 +8,7 @@ import {
   type UserProfile,
   type UserProfileApp,
 } from "./AuthContext";
+import { readActiveAccountIdFromDocumentCookie } from "./active-account";
 import { resolveAppHref } from "./app-url";
 import { getSupabaseClient } from "./supabase-client";
 
@@ -73,7 +74,7 @@ async function fetchUserProfile(
 ): Promise<UserProfile> {
   const supabase = getSupabaseClient();
 
-  const [userResult, accessResult, membershipResult] = await Promise.all([
+  const [userResult, membershipResult, legacyAccessResult] = await Promise.all([
     supabase
       .from("users")
       .select(
@@ -82,36 +83,71 @@ async function fetchUserProfile(
       .eq("id", userId)
       .single(),
     supabase
+      .from("account_users")
+      .select("account_id, is_default")
+      .eq("user_id", userId)
+      .order("is_default", { ascending: false }),
+    supabase
       .from("user_app_access")
       .select(
         "app_id, order_index, apps(id, slug, name, icon_url, url_redirect, subdomain)",
       )
       .eq("user_id", userId)
       .order("order_index", { ascending: true }),
-    supabase.from("account_users").select("account_id").eq("user_id", userId),
   ]);
 
   const supabaseUserData = userResult.data;
   const userError = userResult.error;
-  const accessRows = accessResult.data ?? [];
-  const accountIds = (membershipResult.data ?? [])
+  const memberships = membershipResult.data ?? [];
+  const accountIds = memberships
     .map((row) => row.account_id)
     .filter((id): id is string => !!id);
+  const legacyAccessRows = legacyAccessResult.data ?? [];
+
+  const preferredAccountId = readActiveAccountIdFromDocumentCookie();
+  const defaultMembership = memberships.find((row) => row.is_default === true);
+  const activeAccountId =
+    (preferredAccountId &&
+    accountIds.includes(preferredAccountId)
+      ? preferredAccountId
+      : null) ??
+    (defaultMembership?.account_id as string | undefined) ??
+    accountIds[0] ??
+    null;
 
   let accountAccessRows: {
     app_id: string;
     apps: unknown;
   }[] = [];
 
-  if (accountIds.length > 0) {
+  if (activeAccountId) {
     const { data } = await supabase
-      .from("account_app_access")
+      .from("account_app_user_access")
       .select(
         "app_id, apps(id, slug, name, icon_url, url_redirect, subdomain)",
       )
-      .in("account_id", accountIds);
+      .eq("account_id", activeAccountId)
+      .eq("user_id", userId);
     accountAccessRows = data ?? [];
   }
+
+  const [{ count: accountUserGrantCount }, { count: accountGrantCount }] =
+    accountIds.length > 0
+      ? await Promise.all([
+          supabase
+            .from("account_app_user_access")
+            .select("id", { count: "exact", head: true })
+            .eq("user_id", userId)
+            .in("account_id", accountIds),
+          supabase
+            .from("account_app_access")
+            .select("id", { count: "exact", head: true })
+            .in("account_id", accountIds),
+        ])
+      : [{ count: 0 }, { count: 0 }];
+
+  const onSaaS =
+    (accountUserGrantCount ?? 0) > 0 || (accountGrantCount ?? 0) > 0;
 
   let userFullName = "";
   let avatarUrl: string | null = null;
@@ -199,13 +235,17 @@ async function fetchUserProfile(
   const appList: UserProfileApp[] = [];
   const seenAppIds = new Set<string>();
 
-  // Personal grants keep launcher order; account grants fill in afterward.
-  accessRows.forEach((row: { app_id: string; apps: unknown }) => {
-    pushApp(appList, seenAppIds, row.app_id, row.apps);
-  });
-  accountAccessRows.forEach((row) => {
-    pushApp(appList, seenAppIds, row.app_id, row.apps);
-  });
+  if (onSaaS) {
+    // Kenoo SaaS: apps for the active account only.
+    accountAccessRows.forEach((row) => {
+      pushApp(appList, seenAppIds, row.app_id, row.apps);
+    });
+  } else {
+    // Legacy walls-app path: personal user_app_access grants.
+    legacyAccessRows.forEach((row: { app_id: string; apps: unknown }) => {
+      pushApp(appList, seenAppIds, row.app_id, row.apps);
+    });
+  }
 
   const initials = computeInitials(userFullName, email);
 

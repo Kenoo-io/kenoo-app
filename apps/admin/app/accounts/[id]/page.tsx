@@ -17,7 +17,7 @@ export default async function AdminAccountDetailPage({
   const { data: accountRow, error } = await supabase
     .from("accounts")
     .select(
-      "id, created_at, updated_at, account_type, name, slug, icon_url, website, description, email, phone",
+      "id, created_at, updated_at, account_type, name, slug, icon_url, website, description, email, phone, personal_owner_id",
     )
     .eq("id", id)
     .maybeSingle();
@@ -64,6 +64,7 @@ export default async function AdminAccountDetailPage({
     description: accountRow.description,
     email: accountRow.email,
     phone: accountRow.phone,
+    personal_owner_id: accountRow.personal_owner_id,
     member_count: memberCount ?? 0,
     app_access: appAccess as AccountDetail["app_access"],
   };

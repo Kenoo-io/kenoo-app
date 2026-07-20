@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 
+import { ACTIVE_ACCOUNT_COOKIE } from "@walls/auth/active-account";
 import { createClient } from "@walls/supabase/server";
 
 /**
@@ -109,20 +110,21 @@ export async function getAccountMembership(
 }
 
 /**
- * Resolve the account whose projects should display. Prefers the cookie
- * (when the user is still a member), otherwise falls back to the user's default
- * account, otherwise the first account they belong to.
+ * Resolve the account whose CRM data should display. Prefers the shared
+ * Kenoo active-account cookie, then the CRM cookie, then is_default.
  */
 export async function resolveActiveAccountId(
   userId: string,
 ): Promise<string | null> {
   const cookieStore = await cookies();
-  const cookieAccountId =
-    cookieStore.get(CRM_ACCOUNT_COOKIE)?.value ?? null;
+  const preferredAccountId =
+    cookieStore.get(ACTIVE_ACCOUNT_COOKIE)?.value ??
+    cookieStore.get(CRM_ACCOUNT_COOKIE)?.value ??
+    null;
 
-  if (cookieAccountId) {
-    const membership = await getAccountMembership(userId, cookieAccountId);
-    if (membership) return cookieAccountId;
+  if (preferredAccountId) {
+    const membership = await getAccountMembership(userId, preferredAccountId);
+    if (membership) return preferredAccountId;
   }
 
   const accounts = await listAccountsForUser(userId);
@@ -139,11 +141,13 @@ export async function getActiveAccount(
   if (accounts.length === 0) return null;
 
   const cookieStore = await cookies();
-  const cookieAccountId =
-    cookieStore.get(CRM_ACCOUNT_COOKIE)?.value ?? null;
+  const preferredAccountId =
+    cookieStore.get(ACTIVE_ACCOUNT_COOKIE)?.value ??
+    cookieStore.get(CRM_ACCOUNT_COOKIE)?.value ??
+    null;
 
-  const fromCookie = cookieAccountId
-    ? accounts.find((account) => account.id === cookieAccountId)
+  const fromCookie = preferredAccountId
+    ? accounts.find((account) => account.id === preferredAccountId)
     : undefined;
   if (fromCookie) return fromCookie;
 

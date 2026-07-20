@@ -11,7 +11,8 @@
     "./mfa": "./src/mfa-assurance.ts",
     "./middleware": "./src/protected-app-middleware.ts",
     "./portal-url": "./src/portal-url.ts",
-    "./post-login-redirect": "./src/post-login-redirect.ts"
+    "./post-login-redirect": "./src/post-login-redirect.ts",
+    "./active-account": "./src/active-account.ts"
   },
   "scripts": {
     "lint": "tsc --noEmit"

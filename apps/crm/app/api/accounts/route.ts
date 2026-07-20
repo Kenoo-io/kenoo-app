@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 
+import {
+  ACTIVE_ACCOUNT_COOKIE,
+  getActiveAccountCookieOptions,
+} from "@walls/auth/active-account";
 import {
   CRM_ACCOUNT_COOKIE,
   getAccountMembership,
@@ -46,7 +50,11 @@ export async function POST(request: Request) {
     );
   }
 
+  const headerStore = await headers();
+  const hostname = headerStore.get("host")?.split(":")[0];
+  const sharedOptions = getActiveAccountCookieOptions(hostname);
   const cookieStore = await cookies();
+
   cookieStore.set(CRM_ACCOUNT_COOKIE, accountId, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
@@ -54,6 +62,7 @@ export async function POST(request: Request) {
     path: "/",
     maxAge: 60 * 60 * 24 * 365,
   });
+  cookieStore.set(ACTIVE_ACCOUNT_COOKIE, accountId, sharedOptions);
 
   return NextResponse.json({ ok: true, activeAccountId: accountId });
 }

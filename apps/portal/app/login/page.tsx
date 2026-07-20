@@ -16,6 +16,7 @@ import { Button } from "@walls/ui/button";
 import { Input } from "@walls/ui/input";
 
 import { AppOrbitLauncher } from "@/components/app-orbit-launcher";
+import type { PortalAccountOption } from "@/components/portal-account-switcher";
 import {
   authGhostLinkClassName,
   authInputClassName,
@@ -111,6 +112,13 @@ function LoginPageContent() {
     [],
   );
   const [appsLoading, setAppsLoading] = React.useState(false);
+  const [portalAccounts, setPortalAccounts] = React.useState<
+    PortalAccountOption[]
+  >([]);
+  const [activeAccountId, setActiveAccountId] = React.useState<string | null>(
+    null,
+  );
+  const [accountsLoading, setAccountsLoading] = React.useState(false);
   const [needsMfaVerification, setNeedsMfaVerification] = React.useState(false);
   const [mfaCode, setMfaCode] = React.useState("");
   const [mfaError, setMfaError] = React.useState<string | null>(null);
@@ -292,8 +300,32 @@ function LoginPageContent() {
         }
 
         if (!hasRedirectParam) {
-          const apps = await fetchUserLauncherApps(authUser.id);
+          const [apps, accountsResponse] = await Promise.all([
+            fetchUserLauncherApps(authUser.id),
+            fetch("/api/accounts", { cache: "no-store" }),
+          ]);
           setLauncherApps(apps);
+
+          if (accountsResponse.ok) {
+            const payload = (await accountsResponse.json()) as {
+              accounts?: Array<{
+                id: string;
+                name: string;
+                accountType: "personal" | "organization";
+                iconUrl?: string | null;
+              }>;
+              activeAccountId?: string | null;
+            };
+            setPortalAccounts(
+              (payload.accounts ?? []).map((account) => ({
+                id: account.id,
+                name: account.name,
+                accountType: account.accountType,
+                iconUrl: account.iconUrl ?? null,
+              })),
+            );
+            setActiveAccountId(payload.activeAccountId ?? null);
+          }
         }
       } catch (err) {
         console.error("Error fetching user data:", err);
@@ -617,6 +649,34 @@ function LoginPageContent() {
           apps={launcherApps}
           appsLoading={appsLoading}
           redirectMode={hasRedirectParam}
+          accounts={portalAccounts}
+          activeAccountId={activeAccountId}
+          accountsLoading={accountsLoading}
+          onAccountChange={(accountId) => {
+            void (async () => {
+              setAccountsLoading(true);
+              try {
+                const response = await fetch("/api/accounts", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ accountId }),
+                });
+                if (!response.ok) return;
+                setActiveAccountId(accountId);
+                const supabase = getSupabaseClient();
+                const {
+                  data: { user },
+                } = await supabase.auth.getUser();
+                if (!user) return;
+                setAppsLoading(true);
+                const apps = await fetchUserLauncherApps(user.id);
+                setLauncherApps(apps);
+              } finally {
+                setAppsLoading(false);
+                setAccountsLoading(false);
+              }
+            })();
+          }}
         />
       ) : (
         <div className="w-full space-y-4">

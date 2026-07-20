@@ -1,4 +1,8 @@
-import { getSupabaseClient, resolveAppHref } from "@walls/auth";
+import {
+  getSupabaseClient,
+  readActiveAccountIdFromDocumentCookie,
+  resolveAppHref,
+} from "@walls/auth";
 
 export type PortalLauncherApp = {
   app_id: string;
@@ -60,13 +64,22 @@ function pushApp(
   });
 }
 
-/** Load personal + account app grants for the portal launcher. */
+/**
+ * Load launcher apps for the active Kenoo account via account_app_user_access.
+ * Falls back to legacy user_app_access when the user has no account grants yet
+ * so walls-app users keep working during cutover.
+ */
 export async function fetchUserLauncherApps(
   userId: string,
 ): Promise<PortalLauncherApp[]> {
   const supabase = getSupabaseClient();
 
-  const [accessResult, membershipResult] = await Promise.all([
+  const [membershipResult, legacyAccessResult] = await Promise.all([
+    supabase
+      .from("account_users")
+      .select("account_id, is_default")
+      .eq("user_id", userId)
+      .order("is_default", { ascending: false }),
     supabase
       .from("user_app_access")
       .select(
@@ -74,35 +87,62 @@ export async function fetchUserLauncherApps(
       )
       .eq("user_id", userId)
       .order("order_index", { ascending: true }),
-    supabase.from("account_users").select("account_id").eq("user_id", userId),
   ]);
 
-  const accessRows = accessResult.data ?? [];
-  const accountIds = (membershipResult.data ?? [])
+  const memberships = membershipResult.data ?? [];
+  const accountIds = memberships
     .map((row) => row.account_id)
     .filter((id): id is string => !!id);
+  const legacyAccessRows = legacyAccessResult.data ?? [];
 
-  let accountAccessRows: { app_id: string; apps: unknown }[] = [];
+  const preferredAccountId = readActiveAccountIdFromDocumentCookie();
+  const defaultMembership = memberships.find((row) => row.is_default === true);
+  const activeAccountId =
+    (preferredAccountId && accountIds.includes(preferredAccountId)
+      ? preferredAccountId
+      : null) ??
+    (defaultMembership?.account_id as string | undefined) ??
+    accountIds[0] ??
+    null;
 
-  if (accountIds.length > 0) {
-    const { data } = await supabase
-      .from("account_app_access")
-      .select(
-        "app_id, apps(id, slug, name, icon_url, url_redirect, subdomain)",
-      )
-      .in("account_id", accountIds);
-    accountAccessRows = data ?? [];
-  }
+  const [{ count: accountUserGrantCount }, { count: accountGrantCount }] =
+    accountIds.length > 0
+      ? await Promise.all([
+          supabase
+            .from("account_app_user_access")
+            .select("id", { count: "exact", head: true })
+            .eq("user_id", userId)
+            .in("account_id", accountIds),
+          supabase
+            .from("account_app_access")
+            .select("id", { count: "exact", head: true })
+            .in("account_id", accountIds),
+        ])
+      : [{ count: 0 }, { count: 0 }];
 
+  const onSaaS =
+    (accountUserGrantCount ?? 0) > 0 || (accountGrantCount ?? 0) > 0;
   const appList: PortalLauncherApp[] = [];
   const seenAppIds = new Set<string>();
 
-  accessRows.forEach((row: { app_id: string; apps: unknown }) => {
-    pushApp(appList, seenAppIds, row.app_id, row.apps);
-  });
-  accountAccessRows.forEach((row) => {
-    pushApp(appList, seenAppIds, row.app_id, row.apps);
-  });
+  if (onSaaS) {
+    if (!activeAccountId) return [];
+    const { data } = await supabase
+      .from("account_app_user_access")
+      .select(
+        "app_id, apps(id, slug, name, icon_url, url_redirect, subdomain)",
+      )
+      .eq("account_id", activeAccountId)
+      .eq("user_id", userId);
 
+    for (const row of data ?? []) {
+      pushApp(appList, seenAppIds, row.app_id, row.apps);
+    }
+    return appList;
+  }
+
+  for (const row of legacyAccessRows) {
+    pushApp(appList, seenAppIds, row.app_id, row.apps);
+  }
   return appList;
 }

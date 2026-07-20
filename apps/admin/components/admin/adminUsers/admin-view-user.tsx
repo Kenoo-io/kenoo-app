@@ -110,6 +110,34 @@ function AppAccessPopoutContent({
             )
           );
         }
+
+        // Mirror onto personal account for Kenoo SaaS (skip Admin app).
+        const { data: appRow } = await supabase
+          .from("apps")
+          .select("slug")
+          .eq("id", appId)
+          .maybeSingle();
+        if (appRow?.slug !== "admin") {
+          const { data: personalAccount } = await supabase
+            .from("accounts")
+            .select("id")
+            .eq("account_type", "personal")
+            .eq("personal_owner_id", userId)
+            .maybeSingle();
+          if (personalAccount?.id) {
+            await supabase
+              .from("account_app_access")
+              .delete()
+              .eq("account_id", personalAccount.id)
+              .eq("app_id", appId);
+            await supabase
+              .from("account_app_user_access")
+              .delete()
+              .eq("account_id", personalAccount.id)
+              .eq("user_id", userId)
+              .eq("app_id", appId);
+          }
+        }
       } else {
         const { count } = await supabase
           .from("user_app_access")
@@ -120,6 +148,49 @@ function AppAccessPopoutContent({
           .from("user_app_access")
           .insert({ user_id: userId, app_id: appId, order_index });
         if (insertErr) throw insertErr;
+
+        const { data: appRow } = await supabase
+          .from("apps")
+          .select("slug")
+          .eq("id", appId)
+          .maybeSingle();
+        if (appRow?.slug !== "admin") {
+          const { data: personalAccount } = await supabase
+            .from("accounts")
+            .select("id")
+            .eq("account_type", "personal")
+            .eq("personal_owner_id", userId)
+            .maybeSingle();
+          if (personalAccount?.id) {
+            const { data: existingAccountGrant } = await supabase
+              .from("account_app_access")
+              .select("id")
+              .eq("account_id", personalAccount.id)
+              .eq("app_id", appId)
+              .maybeSingle();
+            if (!existingAccountGrant) {
+              await supabase.from("account_app_access").insert({
+                account_id: personalAccount.id,
+                app_id: appId,
+              });
+            }
+
+            const { data: existingMemberGrant } = await supabase
+              .from("account_app_user_access")
+              .select("id")
+              .eq("account_id", personalAccount.id)
+              .eq("user_id", userId)
+              .eq("app_id", appId)
+              .maybeSingle();
+            if (!existingMemberGrant) {
+              await supabase.from("account_app_user_access").insert({
+                account_id: personalAccount.id,
+                user_id: userId,
+                app_id: appId,
+              });
+            }
+          }
+        }
       }
       onUpdated?.();
     } catch (e) {

@@ -1,6 +1,10 @@
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
 
+import {
+  ACTIVE_ACCOUNT_COOKIE,
+  userHasAppAccessForActiveAccount,
+} from "./active-account";
 import { isMfaSecondFactorPending } from "./mfa-assurance";
 import { refreshMiddlewareSession } from "./middleware-supabase";
 import { buildPortalLoginUrl, normalizePortalOrigin, resolvePortalLoginOrigin } from "./portal-url";
@@ -18,8 +22,9 @@ export interface ProtectedAppMiddlewareOptions {
   /** Portal origin override (optional). Defaults from env via resolvePortalLoginOrigin. */
   portalLoginUrl?: string;
   /**
-   * When set, user must have access to this apps.slug via user_app_access
-   * OR membership in an account with account_app_access.
+   * When set, user must have access to this apps.slug via the active account's
+   * account_app_access (Kenoo SaaS), or legacy user_app_access when the user
+   * has no account-level grants yet (walls-app cutover).
    * Omit to only require a valid portal session.
    */
   appSlug?: string;
@@ -110,71 +115,6 @@ async function isUserAuthenticated(
   return !isMfaSecondFactorPending(user, session?.access_token);
 }
 
-async function userHasAppAccess(
-  supabase: SupabaseClient,
-  userId: string,
-  appSlug: string,
-): Promise<boolean> {
-  const { data: appRow, error: appError } = await supabase
-    .from("apps")
-    .select("id")
-    .eq("is_active", true)
-    .eq("slug", appSlug)
-    .maybeSingle();
-
-  if (appError || !appRow?.id) {
-    return true;
-  }
-
-  const { data: accessRow, error: accessError } = await supabase
-    .from("user_app_access")
-    .select("id")
-    .eq("user_id", userId)
-    .eq("app_id", appRow.id)
-    .maybeSingle();
-
-  if (accessError) {
-    console.error("[auth] Error checking user_app_access:", accessError);
-    return false;
-  }
-
-  if (accessRow) {
-    return true;
-  }
-
-  const { data: memberships, error: membershipError } = await supabase
-    .from("account_users")
-    .select("account_id")
-    .eq("user_id", userId);
-
-  if (membershipError) {
-    console.error("[auth] Error checking account_users:", membershipError);
-    return false;
-  }
-
-  const accountIds = (memberships ?? [])
-    .map((row) => row.account_id)
-    .filter((id): id is string => !!id);
-
-  if (accountIds.length === 0) {
-    return false;
-  }
-
-  const { data: accountAccessRows, error: accountAccessError } = await supabase
-    .from("account_app_access")
-    .select("id")
-    .eq("app_id", appRow.id)
-    .in("account_id", accountIds)
-    .limit(1);
-
-  if (accountAccessError) {
-    console.error("[auth] Error checking account_app_access:", accountAccessError);
-    return false;
-  }
-
-  return (accountAccessRows?.length ?? 0) > 0;
-}
-
 /**
  * Middleware handler for internal apps (AdPilot, etc.).
  * Unauthenticated users are sent to the portal login with a return URL.
@@ -228,7 +168,14 @@ export async function handleProtectedAppRequest(
     }
 
     if (options.appSlug) {
-      const hasAccess = await userHasAppAccess(supabase, user!.id, options.appSlug);
+      const preferredAccountId =
+        request.cookies.get(ACTIVE_ACCOUNT_COOKIE)?.value ?? null;
+      const hasAccess = await userHasAppAccessForActiveAccount(
+        supabase,
+        user!.id,
+        options.appSlug,
+        preferredAccountId,
+      );
       if (!hasAccess) {
         console.warn(
           `[auth] User ${user!.id} lacks access to app slug "${options.appSlug}"`,
