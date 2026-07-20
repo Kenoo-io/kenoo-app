@@ -287,7 +287,7 @@ export function PitchesFilter({
                 <SelectTrigger className="border border-transparent rounded-full focus:ring-0 focus-visible:ring-0 px-4 [&>svg]:hidden hover:bg-gray-50 hover:border-neutral-200 hover:scale-95 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] transition-all duration-300">
                   <div className="flex items-center gap-2">
                     <span className="text-neutral-700">Pitched By:</span>
-                    <SelectValue placeholder={loading.agents ? "Loading agents..." : "Select agent"}>
+                    <SelectValue placeholder={loading.agents ? "Loading…" : "Select person"}>
                       {filters.pitchedBy && (
                         <div className="flex items-center gap-2">
                           <div className="relative w-6 h-6 rounded-full overflow-hidden">

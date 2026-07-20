@@ -849,7 +849,7 @@ function AgentsProjectsTimelineContent({
       const { data: taskRows, error: taskErr } = await supabase
         .from("project_tasks")
         .select(
-          "id, project_id, title, description, status, due_date, start_date, priority, position, parent_task_id, created_at, updated_at, completed_at, assignee_id, assigned_by, is_private, estimated_minutes, actual_minutes, metadata"
+          "id, project_id, title, description, status, due_date, start_date, priority, position, parent_task_id, created_at, updated_at, completed_at, assignee_id, assigned_by, is_private, estimated_minutes, actual_minutes, metadata, task_assignees:project_task_assignees(user_id)"
         )
         .in("project_id", projectIds)
         .order("due_date", { ascending: true, nullsFirst: false });
@@ -862,10 +862,29 @@ function AgentsProjectsTimelineContent({
         ])
       );
 
-      const loadedTasks = filterTasksVisibleToUser(
-        (taskRows ?? []) as Omit<ProjectTask, "project">[],
-        user.id
-      );
+      const mappedTasks = (taskRows ?? []).map((row) => {
+        const links = (
+          row as {
+            task_assignees?: { user_id: string }[] | null;
+          }
+        ).task_assignees;
+        const fromJoin = (links ?? []).map((l) => l.user_id).filter(Boolean);
+        const assignee_ids =
+          fromJoin.length > 0
+            ? fromJoin
+            : row.assignee_id
+              ? [row.assignee_id as string]
+              : [];
+        const { task_assignees: _ta, ...rest } = row as Record<string, unknown> & {
+          task_assignees?: unknown;
+        };
+        return {
+          ...(rest as Omit<ProjectTask, "project">),
+          assignee_ids,
+        };
+      });
+
+      const loadedTasks = filterTasksVisibleToUser(mappedTasks, user.id);
       setTasks(
         loadedTasks.map((t) => ({
           ...t,
