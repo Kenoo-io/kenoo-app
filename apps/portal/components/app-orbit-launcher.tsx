@@ -257,14 +257,14 @@ export function AppOrbitLauncher({
     return () => window.clearTimeout(timer);
   }, [redirectMode, isLoadingUserData]);
 
-  const showGreeting =
+  const greetingReady =
     !isLoadingUserData && Boolean(firstName) && phase === "greeting";
   const showLauncher = !redirectMode && phase === "launcher" && !appsLoading;
 
   return (
     <div className="relative mx-auto flex w-full max-w-4xl flex-col items-center px-2 py-4 sm:px-4">
       <AnimatePresence mode="wait">
-        {showGreeting ? (
+        {!showLauncher ? (
           <motion.div
             key="greeting"
             className="relative z-10 flex flex-col items-center gap-7 py-10"
@@ -278,26 +278,35 @@ export function AppOrbitLauncher({
               isLoadingUserData={isLoadingUserData}
               size="lg"
             />
-            <h2 className="font-display text-[2rem] font-semibold tracking-[-0.04em] text-kenoo-ink sm:text-[2.35rem]">
+            <h2
+              className="min-h-[2.5rem] text-center font-display text-[2rem] font-semibold leading-tight tracking-[-0.04em] text-kenoo-ink sm:min-h-[2.9rem] sm:text-[2.35rem]"
+              aria-hidden={!greetingReady}
+            >
               <motion.span
                 className="inline-block text-kenoo-muted"
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.25, ease: easeOut }}
+                initial={false}
+                animate={{
+                  opacity: greetingReady ? 1 : 0,
+                  y: greetingReady ? 0 : 8,
+                }}
+                transition={{ duration: 0.4, delay: greetingReady ? 0.25 : 0, ease: easeOut }}
               >
                 Hello,
               </motion.span>{" "}
               <motion.span
                 className="inline-block"
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.85, ease: easeOut }}
+                initial={false}
+                animate={{
+                  opacity: greetingReady ? 1 : 0,
+                  y: greetingReady ? 0 : 8,
+                }}
+                transition={{ duration: 0.4, delay: greetingReady ? 0.85 : 0, ease: easeOut }}
               >
-                {firstName}
+                {firstName ?? "\u00a0"}
               </motion.span>
             </h2>
           </motion.div>
-        ) : showLauncher ? (
+        ) : (
           <motion.div
             key="launcher"
             className="relative z-10 flex w-full flex-col items-center gap-8 sm:gap-10"
@@ -339,19 +348,6 @@ export function AppOrbitLauncher({
             ) : (
               <AppSlider apps={apps} />
             )}
-          </motion.div>
-        ) : (
-          <motion.div
-            key="loading"
-            className="relative z-10 flex flex-col items-center gap-6 py-10"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-          >
-            <Avatar
-              avatarUrl={avatarUrl}
-              isLoadingUserData={isLoadingUserData}
-              size="lg"
-            />
           </motion.div>
         )}
       </AnimatePresence>
