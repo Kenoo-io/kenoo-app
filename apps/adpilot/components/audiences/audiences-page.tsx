@@ -39,6 +39,7 @@ const COLUMN_WIDTHS_STORAGE_KEY = "adpilot-audiences-column-widths";
 
 const AUDIENCE_COLUMN_IDS = [
   "name",
+  "platform",
   "type",
   "origin",
   "spend",
@@ -53,6 +54,7 @@ type AudienceColumnId = (typeof AUDIENCE_COLUMN_IDS)[number];
 
 const DEFAULT_AUDIENCE_COLUMN_WIDTHS: Record<AudienceColumnId, number> = {
   name: 280,
+  platform: 88,
   type: 150,
   origin: 130,
   spend: 120,
@@ -74,6 +76,7 @@ type AudienceTimeRange = (typeof TIME_RANGE_OPTIONS)[number]["value"];
 
 const COLUMN_LABELS: Record<AudienceColumnId, string> = {
   name: "Audience name",
+  platform: "Platform",
   type: "Type",
   origin: "Origin",
   spend: "Amount spent",
@@ -88,7 +91,7 @@ function PlatformCell({ provider }: { provider: string }) {
   if (provider === META_PROVIDER) {
     return (
       <span className="inline-flex items-center" title="Meta">
-        <MetaIcon className="h-3.5 w-3.5 shrink-0" />
+        <MetaIcon className="h-4 w-4 shrink-0" />
         <span className="sr-only">Meta</span>
       </span>
     );
@@ -132,15 +135,7 @@ function ResizableHeader({
       )}
       style={{ width }}
     >
-      <span className="flex items-center gap-1.5 truncate pr-3">
-        {(columnId === "spend" ||
-          columnId === "roas" ||
-          columnId === "costPerAddToCart" ||
-          columnId === "costPerPurchase") && (
-          <MetaIcon className="h-3 w-3 shrink-0 opacity-70" />
-        )}
-        {label}
-      </span>
+      <span className="block truncate pr-3">{label}</span>
       <button
         type="button"
         aria-label={`Resize ${label} column`}
@@ -516,25 +511,25 @@ export function AudiencesPage() {
                       className="border-b border-neutral-100 transition-colors hover:bg-neutral-50/80"
                     >
                       <td className="overflow-hidden py-3 pr-4 pl-3 align-middle">
-                        <div className="flex min-w-0 items-start gap-2">
-                          <PlatformCell provider={row.provider} />
-                          <div className="min-w-0">
-                            <Link
-                              href={`/audiences/${row.id}`}
-                              className="block truncate text-sm font-medium text-neutral-800 transition-colors hover:text-[var(--kenoo-sky)]"
-                            >
-                              {row.name}
-                            </Link>
-                            {row.status ? (
-                              <span className="mt-0.5 block truncate text-xs font-light text-neutral-400">
-                                {row.isReady ? (
-                                  <span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-[var(--kenoo-sky)] align-middle" />
-                                ) : null}
-                                {row.status}
-                              </span>
-                            ) : null}
-                          </div>
+                        <div className="min-w-0">
+                          <Link
+                            href={`/audiences/${row.id}`}
+                            className="block truncate text-sm font-medium text-neutral-800 transition-colors hover:text-[var(--kenoo-sky)]"
+                          >
+                            {row.name}
+                          </Link>
+                          {row.status ? (
+                            <span className="mt-0.5 block truncate text-xs font-light text-neutral-400">
+                              {row.isReady ? (
+                                <span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-[var(--kenoo-sky)] align-middle" />
+                              ) : null}
+                              {row.status}
+                            </span>
+                          ) : null}
                         </div>
+                      </td>
+                      <td className="py-3 pr-4 pl-3 align-middle">
+                        <PlatformCell provider={row.provider} />
                       </td>
                       <td className="overflow-hidden py-3 pr-4 align-middle">
                         <span className="truncate text-sm font-light text-neutral-600">
