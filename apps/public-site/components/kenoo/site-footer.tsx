@@ -55,8 +55,18 @@ export function SiteFooter() {
             Kenoo. All rights reserved.
           </p>
           <div className="flex gap-5">
-            <span className="cursor-default">Privacy</span>
-            <span className="cursor-default">Terms</span>
+            <Link
+              href="/privacy-policy"
+              className="transition-colors hover:text-kenoo-ink"
+            >
+              Privacy
+            </Link>
+            <Link
+              href="/terms-and-conditions"
+              className="transition-colors hover:text-kenoo-ink"
+            >
+              Terms
+            </Link>
           </div>
         </div>
       </div>

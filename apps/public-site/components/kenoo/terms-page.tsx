@@ -52,8 +52,8 @@ const sections: LegalSection[] = [
   {
     title: "6. Integrations and connected accounts",
     paragraphs: [
-      "The Services may integrate with third-party products such as Google (Gmail, Calendar, Contacts, Meet), Meta advertising, Strava, Wise, enrichment providers, cloud hosting, and AI model providers. Your use of those products is governed by their own terms and privacy policies.",
-      "By connecting an integration, you authorize Kenoo to access and process data from that service as needed to provide the connected features. You are responsible for maintaining valid authorizations, complying with the third party's terms (including Google API and Meta platform policies), and disconnecting integrations you no longer wish to use.",
+      "The Services may integrate with third-party products such as Google (Gmail, Calendar, Contacts, Meet, and Google Ads), Meta advertising, Strava, Wise, enrichment providers, cloud hosting, and AI model providers. Your use of those products is governed by their own terms and privacy policies.",
+      "By connecting an integration, you authorize Kenoo to access and process data from that service as needed to provide the connected features. You are responsible for maintaining valid authorizations, complying with the third party's terms (including the Google API Services User Data Policy, Google Ads API terms, and Meta platform policies), and disconnecting integrations you no longer wish to use.",
       "Kenoo is not responsible for third-party service outages, policy changes, data accuracy, or actions taken on third-party platforms at your direction (for example sending email, changing ad budgets, or creating payout recipients).",
     ],
   },
@@ -82,7 +82,8 @@ const sections: LegalSection[] = [
   {
     title: "10. Advertising (AdPilot)",
     paragraphs: [
-      "AdPilot may sync Meta ad accounts and apply or preview automation against campaigns and budgets you authorize. You remain solely responsible for advertising content, targeting, spend, disclosures, and compliance with Meta policies and applicable advertising laws.",
+      "AdPilot may sync Meta and Google Ads accounts and apply or preview automation against campaigns and budgets you authorize. You remain solely responsible for advertising content, targeting, spend, disclosures, and compliance with Meta policies, Google Ads policies, and applicable advertising laws.",
+      "When you connect an external advertiser account, you represent that you have authority to grant Kenoo access to that account (for example as the advertiser or an authorized agency operator).",
       "Automated budget or campaign changes can affect spend immediately. Review automation settings carefully and monitor connected ad accounts.",
     ],
   },
@@ -121,7 +122,7 @@ const sections: LegalSection[] = [
   {
     title: "16. Privacy",
     paragraphs: [
-      "Our collection and use of personal information is described in our Privacy Policy. By using the Services, you acknowledge that policy. If you use Google integrations, you also acknowledge the Google-specific disclosures in the Privacy Policy.",
+      "Our collection and use of personal information is described in our Privacy Policy at https://kenoo.io/privacy-policy. By using the Services, you acknowledge that policy. If you use Google integrations (including Gmail, Calendar, Contacts, or Google Ads), you also acknowledge the Google-specific disclosures in the Privacy Policy.",
     ],
   },
   {
@@ -175,7 +176,7 @@ export default function TermsPage() {
     <LegalDocument
       eyebrow="Legal"
       title="Terms of Service"
-      effectiveDate="July 16, 2026"
+      effectiveDate="July 22, 2026"
       intro="These Terms of Service set out the rules for using the full Kenoo product suite. Please read them carefully before creating an account or using the product."
       sections={sections}
     />

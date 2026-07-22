@@ -29,12 +29,12 @@ const sections: LegalSection[] = [
       "Workspace and Customer Content: CRM companies, people, leads, deals, pitches, sequences, notes, deliverables, commissions, contracts, documents, invoices, projects, tasks, calendar events, attendees, messages, Wallie chat threads, writing profiles, and similar business records you create or import.",
       "Communications content: email bodies, headers, recipients, attachments, drafts, and thread metadata when you connect Gmail or use Kenoo email features; support and sales messages you send us.",
       "Financial and payout information: ledger transactions, invoice details, recipient legal name and type, bank account details, addresses, and KYC-related status fields processed through Wise or similar payout providers. We do not store full payment card numbers on our servers when cards are handled by payment processors.",
-      "Advertising data: Meta ad account identifiers, campaign and creative metadata, budgets, spend, performance metrics, and automation settings when you connect AdPilot.",
+      "Advertising data: Meta and Google Ads account identifiers, campaign and creative metadata, budgets, spend, performance metrics, and automation settings when you connect AdPilot.",
       "Health and fitness data (optional Health module): sex, height, weight, date of birth used for derived metrics, activity level, nutrition logs, goals, workout activities, heart-rate or similar metrics from connected providers, and raw activity payloads where stored to power the feature.",
       "Voice and media: audio you submit for transcription or speech features in Wallie, plus generated audio responses where applicable.",
       "Technical and usage data: IP address, device and browser information, app version, pages and features used, session and analytics events, approximate location derived from IP, and security logs including login history.",
       "Enrichment and research data: business contact and company information obtained from enrichment providers (such as Apollo) or public web research tools you or your workspace enable.",
-      "Integration credentials: OAuth access and refresh tokens, API keys, and connection metadata for services you authorize (for example Google, Meta, Strava, or Wise).",
+      "Integration credentials: OAuth access and refresh tokens, API keys, and connection metadata for services you authorize (for example Google Workspace APIs, Google Ads, Meta, Strava, or Wise).",
     ],
   },
   {
@@ -62,11 +62,11 @@ const sections: LegalSection[] = [
     ],
   },
   {
-    title: "6. Google user data (Gmail, Calendar, and Contacts)",
+    title: "6. Google user data (Gmail, Calendar, Contacts, and Google Ads)",
     paragraphs: [
-      "If you connect Google services, Kenoo may access Gmail, Google Calendar, and Google Contacts data according to the scopes you approve. This can include reading, sending, modifying, and organizing email; reading and writing calendar events (including Google Meet details); and accessing contacts needed for messaging and scheduling features.",
-      "We use Google user data only to provide and improve user-facing features that are apparent in the Kenoo interface, such as inbox sync, sending or scheduling email, CRM email sequences, invoice delivery, calendar sync, and related automation you enable. We do not sell Google user data. We do not use Google user data for serving advertisements. We do not allow humans to read Google user data unless you give us permission for support, it is necessary for security or legal compliance, or the data is aggregated and anonymized for internal operations.",
-      "Our use and transfer of information received from Google APIs complies with the Google API Services User Data Policy, including the Limited Use requirements. You may disconnect Google integrations in Settings, after which we will stop new syncing and delete or de-identify stored Google tokens and related synced data in accordance with our retention practices, except where retention is required for security, legal, or accounting purposes.",
+      "If you connect Google services, Kenoo may access Google user data according to the OAuth scopes you approve. Depending on the integration, this may include Gmail (reading, sending, modifying, and organizing email), Google Calendar (reading and writing events, including Google Meet details), Google Contacts needed for messaging and scheduling, and Google Ads account data needed for AdPilot (accessible customer accounts, campaign structure, budgets, and performance metrics).",
+      "We use Google user data only to provide and improve user-facing features that are apparent in the Kenoo interface, such as inbox sync, sending or scheduling email, CRM email sequences, invoice delivery, calendar sync, AdPilot reporting and spend automation you enable, and related product features. We do not sell Google user data. We do not use Google user data for serving advertisements unrelated to the advertising accounts you connect. We do not allow humans to read Google user data unless you give us permission for support, it is necessary for security or legal compliance, or the data is aggregated and anonymized for internal operations.",
+      "Our use and transfer of information received from Google APIs complies with the Google API Services User Data Policy, including the Limited Use requirements. You may disconnect Google integrations in Settings (or AdPilot settings for Google Ads), after which we will stop new syncing and delete or de-identify stored Google tokens and related synced data in accordance with our retention practices, except where retention is required for security, legal, or accounting purposes.",
     ],
   },
   {
@@ -93,7 +93,8 @@ const sections: LegalSection[] = [
   {
     title: "10. Advertising (AdPilot)",
     paragraphs: [
-      "If you connect Meta advertising accounts to AdPilot, we process ad account data, campaign settings, creatives, budgets, spend, performance metrics, and automation instructions. We may send necessary data to Meta and to our automation backends to sync accounts and execute or preview budget and campaign actions you authorize.",
+      "If you connect Meta or Google Ads accounts to AdPilot, we process ad account identifiers, campaign and creative metadata, budgets, spend, performance metrics, and automation settings you configure. We may call Meta Marketing APIs and the Google Ads API (using OAuth credentials you grant plus Kenoo's developer credentials where required) to list accessible accounts, sync insights, and execute or preview budget and campaign actions you authorize.",
+      "AdPilot is designed for operators and authorized client workspaces. Connected advertiser data is stored as Customer Content within the Kenoo workspace that completed the connection, subject to that workspace's access controls.",
     ],
   },
   {
@@ -109,7 +110,7 @@ const sections: LegalSection[] = [
       "We do not sell your personal information. We may share information in the following circumstances:",
     ],
     bullets: [
-      "With service providers and subprocessors that help us host, authenticate, store, process, analyze, communicate, pay out, enrich, or secure the Services (including providers such as Supabase, Vercel, Cloudflare, Google, Meta, Strava, Wise, OpenAI, Anthropic, Perplexity, Apollo, search/enrichment providers, and infrastructure used to run Wallie), under confidentiality and data-protection obligations.",
+      "With service providers and subprocessors that help us host, authenticate, store, process, analyze, communicate, pay out, enrich, or secure the Services (including providers such as Supabase, Vercel, Cloudflare, Google (including Google Ads API), Meta, Strava, Wise, OpenAI, Anthropic, Perplexity, Apollo, search/enrichment providers, and infrastructure used to run Wallie), under confidentiality and data-protection obligations.",
       "With other members of your Kenoo workspace according to permissions set by your organization, including administrators with elevated access.",
       "With third-party integrations you choose to enable.",
       "With invoice or document recipients when you create share links or send communications.",
@@ -168,7 +169,7 @@ export default function PrivacyPolicyPage() {
     <LegalDocument
       eyebrow="Legal"
       title="Privacy Policy"
-      effectiveDate="July 16, 2026"
+      effectiveDate="July 22, 2026"
       intro="Please read this Privacy Policy carefully. It explains what information we collect across the Kenoo product suite, how we use it, and the choices available to you."
       sections={sections}
     />
