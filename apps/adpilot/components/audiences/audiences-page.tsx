@@ -7,6 +7,8 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  ChevronsUpDown,
+  ChevronUp,
   Search,
   Users,
 } from "lucide-react";
@@ -15,6 +17,8 @@ import { cn } from "@walls/utils";
 
 import type {
   AudiencePerformanceRow,
+  AudienceSortColumn,
+  AudienceSortDirection,
   AudienceTypeOption,
 } from "@/lib/audiences-server";
 import {
@@ -48,7 +52,7 @@ const AUDIENCE_COLUMN_IDS = [
   "costPerPurchase",
   "audienceSize",
   "adSets",
-] as const;
+] as const satisfies readonly AudienceSortColumn[];
 
 type AudienceColumnId = (typeof AUDIENCE_COLUMN_IDS)[number];
 
@@ -87,6 +91,13 @@ const COLUMN_LABELS: Record<AudienceColumnId, string> = {
   adSets: "Ad sets",
 };
 
+const TEXT_SORT_COLUMNS = new Set<AudienceColumnId>([
+  "name",
+  "platform",
+  "type",
+  "origin",
+]);
+
 function PlatformCell({ provider }: { provider: string }) {
   if (provider === META_PROVIDER) {
     return (
@@ -119,14 +130,27 @@ function ResizableHeader({
   label,
   width,
   indented,
+  sortColumn,
+  sortDirection,
+  onSort,
   onResizeStart,
 }: {
   columnId: AudienceColumnId;
   label: string;
   width: number;
   indented?: boolean;
+  sortColumn: AudienceColumnId;
+  sortDirection: AudienceSortDirection;
+  onSort: (columnId: AudienceColumnId) => void;
   onResizeStart: (columnId: AudienceColumnId, startX: number) => void;
 }) {
+  const active = sortColumn === columnId;
+  const SortIcon = !active
+    ? ChevronsUpDown
+    : sortDirection === "asc"
+      ? ChevronUp
+      : ChevronDown;
+
   return (
     <th
       className={cn(
@@ -134,14 +158,39 @@ function ResizableHeader({
         indented && "pl-3",
       )}
       style={{ width }}
+      aria-sort={
+        active
+          ? sortDirection === "asc"
+            ? "ascending"
+            : "descending"
+          : "none"
+      }
     >
-      <span className="block truncate pr-3">{label}</span>
+      <button
+        type="button"
+        onClick={() => onSort(columnId)}
+        className={cn(
+          "inline-flex max-w-full items-center gap-1 border-0 bg-transparent p-0 pr-3 font-medium tracking-wide uppercase transition-colors hover:text-neutral-700",
+          active ? "text-neutral-700" : "text-neutral-400",
+        )}
+      >
+        <span className="truncate">{label}</span>
+        <SortIcon
+          className={cn(
+            "h-3 w-3 shrink-0",
+            active ? "opacity-100" : "opacity-40",
+          )}
+          strokeWidth={1.75}
+          aria-hidden
+        />
+      </button>
       <button
         type="button"
         aria-label={`Resize ${label} column`}
         className="absolute top-1/2 right-0 z-20 h-4 w-3 -translate-y-1/2 cursor-col-resize touch-none border-none bg-transparent p-0 after:absolute after:top-1/2 after:right-1 after:h-3.5 after:w-px after:-translate-y-1/2 after:bg-neutral-200 hover:after:bg-neutral-400"
         onMouseDown={(event) => {
           event.preventDefault();
+          event.stopPropagation();
           onResizeStart(columnId, event.clientX);
         }}
       />
@@ -162,6 +211,10 @@ export function AudiencesPage() {
   const [timeRange, setTimeRange] = React.useState<AudienceTimeRange>("7d");
   const [timeRangeOpen, setTimeRangeOpen] = React.useState(false);
   const timeRangeRef = React.useRef<HTMLDivElement>(null);
+  const [sortColumn, setSortColumn] =
+    React.useState<AudienceColumnId>("spend");
+  const [sortDirection, setSortDirection] =
+    React.useState<AudienceSortDirection>("desc");
   const { widths, startResize, tableMinWidth } = useResizableColumns(
     DEFAULT_AUDIENCE_COLUMN_WIDTHS,
     COLUMN_WIDTHS_STORAGE_KEY,
@@ -169,12 +222,23 @@ export function AudiencesPage() {
 
   const colCount = AUDIENCE_COLUMN_IDS.length;
 
+  const handleSort = (columnId: AudienceColumnId) => {
+    if (sortColumn === columnId) {
+      setSortDirection((current) => (current === "asc" ? "desc" : "asc"));
+      return;
+    }
+    setSortColumn(columnId);
+    setSortDirection(TEXT_SORT_COLUMNS.has(columnId) ? "asc" : "desc");
+  };
+
   const load = React.useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams({
         page: String(page),
         range: timeRange,
+        sort: sortColumn,
+        dir: sortDirection,
       });
       if (search.trim()) params.set("search", search.trim());
       if (typeFilter) params.set("type", typeFilter);
@@ -194,7 +258,7 @@ export function AudiencesPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, search, timeRange, typeFilter]);
+  }, [page, search, sortColumn, sortDirection, timeRange, typeFilter]);
 
   React.useEffect(() => {
     void load();
@@ -202,7 +266,7 @@ export function AudiencesPage() {
 
   React.useEffect(() => {
     setPage(0);
-  }, [search, typeFilter, timeRange]);
+  }, [search, typeFilter, timeRange, sortColumn, sortDirection]);
 
   React.useEffect(() => {
     if (typeFilter && !types.some((type) => type.value === typeFilter)) {
@@ -472,6 +536,9 @@ export function AudiencesPage() {
                       label={COLUMN_LABELS[columnId]}
                       width={widths[columnId]}
                       indented={columnId === "name"}
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={handleSort}
                       onResizeStart={startResize}
                     />
                   ))}

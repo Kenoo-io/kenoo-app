@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 
 import { getAdDataScope } from "@/lib/ad-scope";
 import {
+  AUDIENCE_SORT_COLUMNS,
   listAudiencePerformance,
+  type AudienceSortColumn,
+  type AudienceSortDirection,
 } from "@/lib/audiences-server";
 import type { AdAudienceType } from "@/lib/audience-types";
 
@@ -49,6 +52,14 @@ export async function GET(request: Request) {
   const page = Number(searchParams.get("page") ?? "0");
   const rangeParam = searchParams.get("range") ?? "7d";
   const rangeDays = RANGE_DAYS[rangeParam] ?? 7;
+  const sortParam = searchParams.get("sort") ?? undefined;
+  const sortBy =
+    sortParam && AUDIENCE_SORT_COLUMNS.has(sortParam as AudienceSortColumn)
+      ? (sortParam as AudienceSortColumn)
+      : undefined;
+  const dirParam = searchParams.get("dir") ?? undefined;
+  const sortDirection: AudienceSortDirection | undefined =
+    dirParam === "asc" || dirParam === "desc" ? dirParam : undefined;
 
   try {
     const result = await listAudiencePerformance({
@@ -57,6 +68,8 @@ export async function GET(request: Request) {
       audienceType,
       page: Number.isFinite(page) ? page : 0,
       rangeDays,
+      sortBy,
+      sortDirection,
     });
 
     return NextResponse.json(result);

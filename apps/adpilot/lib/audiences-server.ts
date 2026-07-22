@@ -104,6 +104,33 @@ export type AudienceDetailResult = {
   excludeCount: number;
 };
 
+export type AudienceSortColumn =
+  | "name"
+  | "platform"
+  | "type"
+  | "origin"
+  | "spend"
+  | "roas"
+  | "costPerAddToCart"
+  | "costPerPurchase"
+  | "audienceSize"
+  | "adSets";
+
+export type AudienceSortDirection = "asc" | "desc";
+
+export const AUDIENCE_SORT_COLUMNS = new Set<AudienceSortColumn>([
+  "name",
+  "platform",
+  "type",
+  "origin",
+  "spend",
+  "roas",
+  "costPerAddToCart",
+  "costPerPurchase",
+  "audienceSize",
+  "adSets",
+]);
+
 const PAGE_SIZE_DEFAULT = 25;
 
 const PRIMARY_TYPES: AdAudienceType[] = ["lookalike", "interest", "custom"];
@@ -200,6 +227,65 @@ function performanceScore(row: AudiencePerformanceRow): number {
   );
 }
 
+function audienceSortValue(
+  row: AudiencePerformanceRow,
+  column: AudienceSortColumn,
+): string | number | null {
+  switch (column) {
+    case "name":
+      return row.name.toLowerCase();
+    case "platform":
+      return row.provider.toLowerCase();
+    case "type":
+      return AUDIENCE_TYPE_LABELS[row.audienceType]?.toLowerCase() ??
+        row.audienceType;
+    case "origin":
+      return row.originType?.toLowerCase() ?? null;
+    case "spend":
+      return row.spendMicros;
+    case "roas":
+      return row.roas;
+    case "costPerAddToCart":
+      return row.costPerAddToCartMicros;
+    case "costPerPurchase":
+      return row.costPerPurchaseMicros;
+    case "audienceSize":
+      return row.approximateSizeUpper ?? row.approximateSizeLower;
+    case "adSets":
+      return row.adSetCount;
+    default:
+      return null;
+  }
+}
+
+function compareAudienceRows(
+  left: AudiencePerformanceRow,
+  right: AudiencePerformanceRow,
+  column: AudienceSortColumn,
+  direction: AudienceSortDirection,
+): number {
+  const leftValue = audienceSortValue(left, column);
+  const rightValue = audienceSortValue(right, column);
+
+  // Always keep empty / missing values at the bottom.
+  if (leftValue === null && rightValue === null) return 0;
+  if (leftValue === null) return 1;
+  if (rightValue === null) return -1;
+
+  let result = 0;
+  if (typeof leftValue === "string" && typeof rightValue === "string") {
+    result = leftValue.localeCompare(rightValue);
+  } else {
+    result = Number(leftValue) - Number(rightValue);
+  }
+
+  if (result !== 0) {
+    return direction === "asc" ? result : -result;
+  }
+
+  return left.name.localeCompare(right.name);
+}
+
 function asStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value
@@ -236,6 +322,8 @@ export async function listAudiencePerformance(input: {
   page?: number;
   pageSize?: number;
   rangeDays?: number;
+  sortBy?: AudienceSortColumn;
+  sortDirection?: AudienceSortDirection;
 }): Promise<AudiencesListResult> {
   const supabase = await createClient();
   const page = Math.max(0, input.page ?? 0);
@@ -379,14 +467,21 @@ export async function listAudiencePerformance(input: {
     };
   });
 
-  // Prefer audiences with delivery; then by performance score.
-  rows.sort((left, right) => {
-    const leftScore = performanceScore(left);
-    const rightScore = performanceScore(right);
-    if (rightScore !== leftScore) return rightScore - leftScore;
-    if (right.adSetCount !== left.adSetCount) return right.adSetCount - left.adSetCount;
-    return left.name.localeCompare(right.name);
-  });
+  // Prefer explicit column sort; otherwise audiences with delivery by performance.
+  if (input.sortBy) {
+    const direction = input.sortDirection ?? "desc";
+    rows.sort((left, right) =>
+      compareAudienceRows(left, right, input.sortBy!, direction),
+    );
+  } else {
+    rows.sort((left, right) => {
+      const leftScore = performanceScore(left);
+      const rightScore = performanceScore(right);
+      if (rightScore !== leftScore) return rightScore - leftScore;
+      if (right.adSetCount !== left.adSetCount) return right.adSetCount - left.adSetCount;
+      return left.name.localeCompare(right.name);
+    });
+  }
 
   const totalCount = rows.length;
   const start = page * pageSize;
