@@ -266,9 +266,9 @@ export default function ChatScreen() {
 
   const voice = useWallieVoice(
     useCallback(
-      async (text: string) => {
+      async (text: string, onDelta?: (deltaText: string) => void) => {
         try {
-          const reply = await sendMessage(text);
+          const reply = await sendMessage(text, onDelta);
           requestAnimationFrame(() => {
             listRef.current?.scrollToEnd({ animated: true });
           });
@@ -515,6 +515,7 @@ export default function ChatScreen() {
               loading={threadsLoading}
               onSelect={handleSelectThread}
               onNewChat={handleNewChat}
+              onClose={closeThreads}
               onRenameThread={updateThreadTitle}
               onPinThread={(threadId) => void togglePinThread(threadId)}
               onArchiveThread={handleArchiveThread}

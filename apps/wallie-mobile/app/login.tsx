@@ -3,8 +3,6 @@ import {
   ActivityIndicator,
   Dimensions,
   Image,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -20,7 +18,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { assets, colors, spacing } from "@/constants/theme";
 import { useAuth } from "@/context/AuthContext";
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
+// Capture once at module load so the keyboard / password autofill bar
+// cannot shrink the slide and reflow the whole page.
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 export default function LoginScreen() {
   const { user, loading, signIn } = useAuth();
@@ -90,81 +90,82 @@ export default function LoginScreen() {
             </Pressable>
           </View>
 
-          <KeyboardAvoidingView
+          <ScrollView
             style={styles.flex}
-            behavior={Platform.OS === "ios" ? "padding" : undefined}
+            contentContainerStyle={styles.loginScrollContent}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="interactive"
+            automaticallyAdjustKeyboardInsets
+            bounces={false}
           >
-            <ScrollView
-              contentContainerStyle={styles.loginScrollContent}
-              keyboardShouldPersistTaps="handled"
-              bounces={false}
-            >
-              <View style={styles.header}>
-                <Image
-                  source={{ uri: assets.wallsLogoIndented }}
-                  style={styles.logo}
-                  resizeMode="contain"
-                  accessibilityLabel="WALLS logo"
-                />
-                <Text style={styles.title}>Login.</Text>
-              </View>
+            <View style={styles.header}>
+              <Image
+                source={{ uri: assets.wallsLogoIndented }}
+                style={styles.logo}
+                resizeMode="contain"
+                accessibilityLabel="WALLS logo"
+              />
+              <Text style={styles.title}>Login.</Text>
+            </View>
 
-              <View style={styles.form}>
-                {error ? (
-                  <View style={styles.errorBox}>
-                    <Text style={styles.errorText}>{error}</Text>
+            <View style={styles.form}>
+              {error ? (
+                <View style={styles.errorBox}>
+                  <Text style={styles.errorText}>{error}</Text>
+                </View>
+              ) : null}
+
+              <TextInput
+                style={styles.input}
+                value={email}
+                onChangeText={setEmail}
+                placeholder="Email"
+                placeholderTextColor={colors.textMuted}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                autoComplete="email"
+                textContentType="username"
+                autoCorrect={false}
+                editable={!submitting}
+                returnKeyType="next"
+              />
+              <TextInput
+                style={styles.input}
+                value={password}
+                onChangeText={setPassword}
+                placeholder="Password"
+                placeholderTextColor={colors.textMuted}
+                secureTextEntry
+                autoComplete="password"
+                textContentType="password"
+                editable={!submitting}
+                returnKeyType="go"
+                onSubmitEditing={() => {
+                  if (canSubmit && !submitting) {
+                    void handleSignIn();
+                  }
+                }}
+              />
+
+              <Pressable
+                style={[
+                  styles.button,
+                  (!canSubmit || submitting) && styles.buttonDisabled,
+                ]}
+                onPress={handleSignIn}
+                disabled={!canSubmit || submitting}
+              >
+                {submitting ? (
+                  <View style={styles.buttonContent}>
+                    <ActivityIndicator color={colors.text} size="small" />
+                    <Text style={styles.buttonText}>Signing in...</Text>
                   </View>
-                ) : null}
-
-                <TextInput
-                  style={styles.input}
-                  value={email}
-                  onChangeText={setEmail}
-                  placeholder="Email"
-                  placeholderTextColor={colors.textMuted}
-                  autoCapitalize="none"
-                  keyboardType="email-address"
-                  autoComplete="email"
-                  editable={!submitting}
-                  returnKeyType="next"
-                />
-                <TextInput
-                  style={styles.input}
-                  value={password}
-                  onChangeText={setPassword}
-                  placeholder="Password"
-                  placeholderTextColor={colors.textMuted}
-                  secureTextEntry
-                  autoComplete="password"
-                  editable={!submitting}
-                  returnKeyType="go"
-                  onSubmitEditing={() => {
-                    if (canSubmit && !submitting) {
-                      void handleSignIn();
-                    }
-                  }}
-                />
-
-                <Pressable
-                  style={[
-                    styles.button,
-                    (!canSubmit || submitting) && styles.buttonDisabled,
-                  ]}
-                  onPress={handleSignIn}
-                  disabled={!canSubmit || submitting}
-                >
-                  {submitting ? (
-                    <View style={styles.buttonContent}>
-                      <ActivityIndicator color={colors.text} size="small" />
-                      <Text style={styles.buttonText}>Signing in...</Text>
-                    </View>
-                  ) : (
-                    <Text style={styles.buttonText}>Sign in</Text>
-                  )}
-                </Pressable>
-              </View>
-            </ScrollView>
-          </KeyboardAvoidingView>
+                ) : (
+                  <Text style={styles.buttonText}>Sign in</Text>
+                )}
+              </Pressable>
+            </View>
+          </ScrollView>
         </SafeAreaView>
       </ScrollView>
     </View>
@@ -218,7 +219,7 @@ const styles = StyleSheet.create({
   },
   slide: {
     width: SCREEN_WIDTH,
-    flex: 1,
+    height: SCREEN_HEIGHT,
   },
   loginSlide: {
     backgroundColor: colors.background,
@@ -279,8 +280,9 @@ const styles = StyleSheet.create({
   },
   loginScrollContent: {
     flexGrow: 1,
-    justifyContent: "center",
+    justifyContent: "flex-start",
     paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xl * 2,
     paddingBottom: spacing.xl,
   },
   backButton: {

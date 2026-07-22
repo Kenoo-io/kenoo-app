@@ -15,7 +15,6 @@ import { useAppleHealth } from "@/hooks/useAppleHealth";
 function createStyles(colors: AppColors) {
   return StyleSheet.create({
     card: {
-      marginHorizontal: spacing.md,
       marginBottom: spacing.md,
       padding: spacing.md,
       borderRadius: 16,

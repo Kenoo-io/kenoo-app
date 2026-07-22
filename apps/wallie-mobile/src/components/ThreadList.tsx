@@ -9,7 +9,6 @@ import {
   View,
   type View as RNView,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import type { WallieThread } from "@walls/wallie-core";
 
 import {
@@ -27,7 +26,6 @@ interface ThreadListProps {
   currentThreadId: string | null;
   loading?: boolean;
   onSelect: (threadId: string) => void;
-  onNewChat: () => void;
   onRenameThread: (threadId: string, title: string) => void;
   onPinThread: (threadId: string) => void;
   onArchiveThread: (threadId: string) => void;
@@ -39,24 +37,6 @@ function createStyles(colors: AppColors) {
     container: {
       flex: 1,
       backgroundColor: "transparent",
-    },
-    newChatButton: {
-      marginHorizontal: spacing.md,
-      marginTop: spacing.sm,
-      marginBottom: spacing.sm,
-      height: 40,
-      paddingHorizontal: spacing.md,
-      borderRadius: 14,
-      borderWidth: 1,
-      borderColor: "transparent",
-      flexDirection: "row",
-      alignItems: "center",
-      gap: spacing.sm,
-    },
-    newChatText: {
-      fontSize: 16,
-      fontWeight: "500",
-      color: colors.iconMuted,
     },
     loader: {
       marginTop: spacing.lg,
@@ -116,7 +96,6 @@ export function ThreadList({
   currentThreadId,
   loading = false,
   onSelect,
-  onNewChat,
   onRenameThread,
   onPinThread,
   onArchiveThread,
@@ -155,14 +134,6 @@ export function ThreadList({
 
   return (
     <View style={styles.container}>
-      <Pressable
-        style={[styles.newChatButton, { marginRight: sidebarRightInset }]}
-        onPress={onNewChat}
-      >
-        <Ionicons name="add" size={18} color={colors.iconMuted} />
-        <Text style={styles.newChatText}>New chat</Text>
-      </Pressable>
-
       {loading ? (
         <ActivityIndicator style={styles.loader} color={colors.wallsBlue} />
       ) : (

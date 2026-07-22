@@ -49,6 +49,7 @@ function statusLabel(
 ): string {
   if (state === "listening") return "Listening…";
   if (state === "speaking") return "Speaking…";
+  if (state === "preparing_speech") return "Almost ready…";
   if (state === "processing") {
     if (loadingStatus === "searching") return "Searching the web…";
     if (loadingStatus === "people_search") return "Finding contacts…";

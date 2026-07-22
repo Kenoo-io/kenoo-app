@@ -2,6 +2,7 @@ import * as FileSystem from "expo-file-system";
 
 import { getWallieWebUrl } from "./env";
 import { getAccessToken } from "./supabase";
+import { textForSpeech } from "./voice-text";
 
 function logVoice(event: string, details?: Record<string, unknown>) {
   if (__DEV__) {
@@ -26,27 +27,55 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
   return btoa(chunks.join(""));
 }
 
+function combineAbortSignals(
+  timeoutMs: number,
+  external?: AbortSignal,
+): { signal: AbortSignal; cleanup: () => void } {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  const onExternalAbort = () => controller.abort();
+  if (external) {
+    if (external.aborted) {
+      controller.abort();
+    } else {
+      external.addEventListener("abort", onExternalAbort, { once: true });
+    }
+  }
+
+  return {
+    signal: controller.signal,
+    cleanup: () => {
+      clearTimeout(timeout);
+      external?.removeEventListener("abort", onExternalAbort);
+    },
+  };
+}
+
 async function voiceFetch(
   path: string,
   init: RequestInit,
   timeoutMs = 90_000,
+  externalSignal?: AbortSignal,
 ): Promise<Response> {
   const baseUrl = getWallieWebUrl();
   const url = `${baseUrl}${path}`;
 
   logVoice("→", { url, method: init.method ?? "GET" });
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  const { signal, cleanup } = combineAbortSignals(timeoutMs, externalSignal);
 
   try {
     const response = await fetch(url, {
       ...init,
-      signal: controller.signal,
+      signal,
     });
     logVoice("←", { url, status: response.status, ok: response.ok });
     return response;
   } catch (error) {
+    if (externalSignal?.aborted) {
+      throw new DOMException("Aborted", "AbortError");
+    }
     const message =
       error instanceof Error ? error.message : "Network request failed";
     console.error("[wallie-mobile] voice network error:", { url, message });
@@ -57,7 +86,7 @@ async function voiceFetch(
       `Voice network error (${baseUrl}). On a physical device, localhost will not work — use production Wallie or set NEXT_PUBLIC_WALLIE_MOBILE_WEB_URL. ${message}`,
     );
   } finally {
-    clearTimeout(timeout);
+    cleanup();
   }
 }
 
@@ -97,38 +126,31 @@ export async function transcribeAudio(uri: string): Promise<string> {
   return data.text?.trim() ?? "";
 }
 
-function stripTextForSpeech(raw: string): string {
-  return raw
-    .replace(/\{peopleContactTable\}/gi, "")
-    .replace(/```[\s\S]*?```/g, " ")
-    .replace(/`([^`]+)`/g, "$1")
-    .replace(/!\[([^\]]*)\]\([^)]+\)/g, "$1")
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
-    .replace(/^#{1,6}\s+/gm, "")
-    .replace(/(\*\*|__)(.*?)\1/g, "$2")
-    .replace(/(\*|_)(.*?)\1/g, "$2")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 4096);
-}
-
-export async function fetchSpeechFileUri(text: string): Promise<string> {
+export async function fetchSpeechFileUri(
+  text: string,
+  signal?: AbortSignal,
+): Promise<string> {
   const token = await getAccessToken();
   if (!token) throw new Error("Not authenticated");
 
-  const speechText = stripTextForSpeech(text);
+  const speechText = textForSpeech(text);
   if (!speechText) {
     throw new Error("No speakable text in Wallie's reply");
   }
 
-  const response = await voiceFetch("/api/walli/tts", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
+  const response = await voiceFetch(
+    "/api/walli/tts",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ text: speechText }),
     },
-    body: JSON.stringify({ text: speechText }),
-  });
+    90_000,
+    signal,
+  );
 
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
@@ -151,7 +173,7 @@ export async function fetchSpeechFileUri(text: string): Promise<string> {
   }
 
   const base64 = arrayBufferToBase64(arrayBuffer);
-  const fileUri = `${FileSystem.cacheDirectory}wallie-tts-${Date.now()}.mp3`;
+  const fileUri = `${FileSystem.cacheDirectory}wallie-tts-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.mp3`;
   await FileSystem.writeAsStringAsync(fileUri, base64, {
     encoding: FileSystem.EncodingType.Base64,
   });

@@ -21,6 +21,7 @@ function RootNavigation() {
           <Stack.Screen name="index" />
           <Stack.Screen name="login" />
           <Stack.Screen name="chat" />
+          <Stack.Screen name="settings" />
         </Stack>
     </>
   );
