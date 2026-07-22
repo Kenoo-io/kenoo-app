@@ -2,13 +2,25 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Audio } from "expo-av";
 
 import {
-  setPlaybackAudioMode,
   setRecordingAudioMode,
 } from "@/lib/audio-session";
 import { createRecordingSilenceDetector } from "@/lib/recording-silence-detector";
-import { fetchSpeechFileUri, transcribeAudio } from "@/lib/voice-api";
+import { createSpeechQueue } from "@/lib/speech-queue";
+import { transcribeAudio } from "@/lib/voice-api";
+import {
+  CHUNK_MAX_CHARS,
+  CHUNK_MIN_CHARS,
+  FIRST_CHUNK_MIN_CHARS,
+  takeReadyChunk,
+} from "@/lib/voice-chunks";
+import { textForSpeech } from "@/lib/voice-text";
 
-export type WallieVoiceState = "idle" | "listening" | "processing" | "speaking";
+export type WallieVoiceState =
+  | "idle"
+  | "listening"
+  | "processing"
+  | "preparing_speech"
+  | "speaking";
 
 const MIN_RECORDING_MS = 450;
 
@@ -21,10 +33,14 @@ const RECORDING_OPTIONS: Audio.RecordingOptions = {
 const METERING_POLL_MS = 32;
 
 export function useWallieVoice(
-  onTranscript: (text: string) => Promise<string | null | undefined>,
+  onSend: (
+    text: string,
+    onDelta?: (deltaText: string) => void,
+  ) => Promise<string | null | undefined>,
 ) {
   const recordingRef = useRef<Audio.Recording | null>(null);
   const soundRef = useRef<Audio.Sound | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
   const sessionRef = useRef(false);
   const isStartingRef = useRef(false);
   const isFinishingRef = useRef(false);
@@ -129,6 +145,8 @@ export function useWallieVoice(
     isFinishingRef.current = false;
     isStartingRef.current = false;
     discardRecordingRef.current = false;
+    abortRef.current?.abort();
+    abortRef.current = null;
     stopSilenceDetector();
     await stopSound();
     await stopRecordingTracks();
@@ -162,65 +180,87 @@ export function useWallieVoice(
           return;
         }
 
-        const reply = await onTranscript(text);
+        abortRef.current?.abort();
+        abortRef.current = new AbortController();
+        const controller = abortRef.current;
+
+        let sentenceBuffer = "";
+        let firstChunkQueued = false;
+        let hasQueuedAny = false;
+
+        const speechQueue = createSpeechQueue(controller.signal, soundRef, () => {
+          if (sessionRef.current && !controller.signal.aborted) {
+            setState("speaking");
+            animateLevelForState("speaking");
+          }
+        });
+
+        const queueReadyChunks = (isFinal: boolean) => {
+          while (true) {
+            const minChars = firstChunkQueued
+              ? CHUNK_MIN_CHARS
+              : FIRST_CHUNK_MIN_CHARS;
+            const ready = takeReadyChunk(
+              sentenceBuffer,
+              minChars,
+              CHUNK_MAX_CHARS,
+            );
+            if (!ready) break;
+            sentenceBuffer = ready.rest;
+            if (textForSpeech(ready.chunk).trim()) {
+              speechQueue.push(ready.chunk);
+              hasQueuedAny = true;
+              if (
+                !firstChunkQueued &&
+                sessionRef.current &&
+                !controller.signal.aborted
+              ) {
+                setState("preparing_speech");
+              }
+              firstChunkQueued = true;
+            }
+          }
+          if (isFinal) {
+            const remainder = sentenceBuffer.trim();
+            sentenceBuffer = "";
+            if (remainder && textForSpeech(remainder).trim()) {
+              speechQueue.push(remainder);
+              hasQueuedAny = true;
+            }
+          }
+        };
+
+        const reply = await onSend(text, (deltaText) => {
+          if (!sessionRef.current || discardRecordingRef.current) return;
+          sentenceBuffer += deltaText;
+          queueReadyChunks(false);
+        });
         if (!sessionRef.current) return;
 
-        if (reply?.trim()) {
-          setState("speaking");
-          animateLevelForState("speaking");
-          const fileUri = await fetchSpeechFileUri(reply);
-          if (!sessionRef.current) return;
+        queueReadyChunks(true);
 
-          await stopSound();
-          await setPlaybackAudioMode();
+        // Some responses only arrive as a final payload (no deltas). Speak that once.
+        if (!hasQueuedAny && reply?.trim() && textForSpeech(reply).trim()) {
+          speechQueue.push(reply);
+          hasQueuedAny = true;
+        }
 
-          const sound = new Audio.Sound();
-          soundRef.current = sound;
-
-          sound.setOnPlaybackStatusUpdate((status) => {
-            if (!status.isLoaded) {
-              if (__DEV__ && "error" in status && status.error) {
-                console.error("[wallie-mobile] TTS playback error:", status.error);
-              }
-              return;
-            }
-
-            if (status.didJustFinish) {
-              void sound.unloadAsync();
-              if (soundRef.current === sound) {
-                soundRef.current = null;
-              }
-              if (sessionRef.current) {
-                void startListeningRef.current();
-              } else {
-                resetToIdle();
-              }
-            }
-          });
-
-          await sound.loadAsync(
-            { uri: fileUri },
-            { shouldPlay: true, volume: 1.0, isMuted: false },
-          );
-
-          const playbackStatus = await sound.getStatusAsync();
-          if (__DEV__) {
-            console.log("[wallie-mobile] TTS playback status:", playbackStatus);
-          }
-
-          if (
-            playbackStatus.isLoaded &&
-            !playbackStatus.isPlaying &&
-            !playbackStatus.didJustFinish
-          ) {
-            await sound.playAsync();
-          }
-
+        if (!hasQueuedAny) {
+          await startListeningRef.current();
           return;
         }
 
+        await speechQueue.finish();
+
+        if (!sessionRef.current) return;
+
+        stopLevelAnimation();
         await startListeningRef.current();
       } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          if (!sessionRef.current) resetToIdle();
+          return;
+        }
         console.error("[wallie-mobile] voice:", error);
         if (sessionRef.current) {
           await startListeningRef.current();
@@ -229,7 +269,7 @@ export function useWallieVoice(
         }
       }
     },
-    [animateLevelForState, onTranscript, resetToIdle, stopLevelAnimation, stopSound],
+    [animateLevelForState, onSend, resetToIdle, stopLevelAnimation],
   );
 
   const finishListening = useCallback(async () => {
@@ -250,6 +290,8 @@ export function useWallieVoice(
       }
 
       const uri = await stopRecordingTracks();
+      // Release before STT/chat/TTS so post-speech startListening isn't blocked.
+      isFinishingRef.current = false;
       await processRecording(uri);
     } finally {
       isFinishingRef.current = false;
@@ -352,6 +394,7 @@ export function useWallieVoice(
 
     return () => {
       sessionRef.current = false;
+      abortRef.current?.abort();
       stopSilenceDetector();
       void stopSound();
       void stopRecordingTracks();
@@ -364,6 +407,9 @@ export function useWallieVoice(
     audioLevel,
     enterSession,
     exitSession,
-    isBusy: state === "processing" || state === "speaking",
+    isBusy:
+      state === "processing" ||
+      state === "preparing_speech" ||
+      state === "speaking",
   };
 }

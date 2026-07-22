@@ -71,7 +71,10 @@ export function useWallieChat({
   );
 
   const sendMessage = useCallback(
-    async (text: string) => {
+    async (
+      text: string,
+      onDelta?: (deltaText: string) => void,
+    ): Promise<string | null | undefined> => {
       const trimmed = text.trim();
       if (!trimmed || isLoading || !user?.id) return;
 
@@ -104,6 +107,7 @@ export function useWallieChat({
           },
           {
             onStatus: setLoadingStatus,
+            onDelta,
           },
         );
 

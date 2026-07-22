@@ -51,6 +51,35 @@ function parseWallieStreamLines(
   return lastData;
 }
 
+/** Incremental NDJSON parser for streaming transports (fetch body, XHR progress, etc.). */
+export function createWallieNdjsonParser(
+  options: ParseWallieStreamOptions = {},
+) {
+  let buffer = "";
+  let lastData: WallieStreamLine = {};
+
+  return {
+    push(chunk: string) {
+      if (!chunk) return;
+      buffer += chunk;
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+      lastData = parseWallieStreamLines(lines, options, lastData);
+    },
+    finish(): WallieStreamLine {
+      if (buffer.trim()) {
+        try {
+          lastData = handleLine(buffer, lastData, options);
+        } catch (error) {
+          if (!(error instanceof SyntaxError)) throw error;
+        }
+      }
+      if (lastData.error) throw new Error(lastData.error);
+      return lastData;
+    },
+  };
+}
+
 /** Parse newline-delimited JSON already loaded as text (React Native fetch fallback). */
 export function parseWallieStreamText(
   text: string,
@@ -70,28 +99,13 @@ export async function parseWallieStreamResponse(
 
   const reader = body.getReader();
   const decoder = new TextDecoder();
-  let buffer = "";
-  let lastData: WallieStreamLine = {};
+  const parser = createWallieNdjsonParser(options);
 
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
-
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split("\n");
-    buffer = lines.pop() ?? "";
-
-    lastData = parseWallieStreamLines(lines, options, lastData);
+    parser.push(decoder.decode(value, { stream: true }));
   }
 
-  if (buffer.trim()) {
-    try {
-      lastData = handleLine(buffer, lastData, options);
-    } catch (error) {
-      if (!(error instanceof SyntaxError)) throw error;
-    }
-  }
-
-  if (lastData.error) throw new Error(lastData.error);
-  return lastData;
+  return parser.finish();
 }

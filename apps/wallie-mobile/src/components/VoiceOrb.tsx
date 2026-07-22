@@ -53,6 +53,14 @@ const DARK_PALETTES: Record<WallieVoiceState, OrbPalette> = {
     core: "#1c1410",
     halo: "rgba(251, 146, 60, 0.26)",
   },
+  preparing_speech: {
+    blobA: "rgba(167, 139, 250, 0.9)",
+    blobB: "rgba(139, 92, 246, 0.8)",
+    blobC: "rgba(216, 180, 254, 0.75)",
+    blobD: "rgba(237, 233, 254, 0.55)",
+    core: "#1a1225",
+    halo: "rgba(167, 139, 250, 0.26)",
+  },
   speaking: {
     blobA: "rgba(56, 189, 248, 0.9)",
     blobB: "rgba(37, 99, 235, 0.85)",
@@ -88,6 +96,14 @@ const LIGHT_PALETTES: Record<WallieVoiceState, OrbPalette> = {
     core: "#FFFCF8",
     halo: "rgba(251, 146, 60, 0.2)",
   },
+  preparing_speech: {
+    blobA: "rgba(167, 139, 250, 0.78)",
+    blobB: "rgba(139, 92, 246, 0.68)",
+    blobC: "rgba(216, 180, 254, 0.62)",
+    blobD: "rgba(255, 255, 255, 0.85)",
+    core: "#FAF8FF",
+    halo: "rgba(167, 139, 250, 0.2)",
+  },
   speaking: {
     blobA: "rgba(56, 189, 248, 0.78)",
     blobB: "rgba(37, 99, 235, 0.72)",
@@ -98,7 +114,7 @@ const LIGHT_PALETTES: Record<WallieVoiceState, OrbPalette> = {
   },
 };
 
-const STATE_STOPS = [0, 1, 2, 3] as const;
+const STATE_STOPS = [0, 1, 2, 3, 4] as const;
 const COLOR_TRANSITION_MS = 1100;
 
 function stateToStop(state: WallieVoiceState): number {
@@ -107,8 +123,10 @@ function stateToStop(state: WallieVoiceState): number {
       return 1;
     case "processing":
       return 2;
-    case "speaking":
+    case "preparing_speech":
       return 3;
+    case "speaking":
+      return 4;
     default:
       return 0;
   }
@@ -117,7 +135,7 @@ function stateToStop(state: WallieVoiceState): number {
 function useOrbPalette(state: WallieVoiceState, isDark: boolean) {
   const paletteProgress = useSharedValue(stateToStop(state));
   const palettes = isDark ? DARK_PALETTES : LIGHT_PALETTES;
-  const { idle, listening, processing, speaking } = palettes;
+  const { idle, listening, processing, preparing_speech, speaking } = palettes;
 
   useEffect(() => {
     paletteProgress.value = withTiming(stateToStop(state), {
@@ -130,7 +148,13 @@ function useOrbPalette(state: WallieVoiceState, isDark: boolean) {
     backgroundColor: interpolateColor(
       paletteProgress.value,
       [...STATE_STOPS],
-      [idle.halo, listening.halo, processing.halo, speaking.halo],
+      [
+        idle.halo,
+        listening.halo,
+        processing.halo,
+        preparing_speech.halo,
+        speaking.halo,
+      ],
     ),
   }));
 
@@ -138,7 +162,13 @@ function useOrbPalette(state: WallieVoiceState, isDark: boolean) {
     backgroundColor: interpolateColor(
       paletteProgress.value,
       [...STATE_STOPS],
-      [idle.core, listening.core, processing.core, speaking.core],
+      [
+        idle.core,
+        listening.core,
+        processing.core,
+        preparing_speech.core,
+        speaking.core,
+      ],
     ),
   }));
 
@@ -146,7 +176,13 @@ function useOrbPalette(state: WallieVoiceState, isDark: boolean) {
     backgroundColor: interpolateColor(
       paletteProgress.value,
       [...STATE_STOPS],
-      [idle.blobA, listening.blobA, processing.blobA, speaking.blobA],
+      [
+        idle.blobA,
+        listening.blobA,
+        processing.blobA,
+        preparing_speech.blobA,
+        speaking.blobA,
+      ],
     ),
   }));
 
@@ -154,7 +190,13 @@ function useOrbPalette(state: WallieVoiceState, isDark: boolean) {
     backgroundColor: interpolateColor(
       paletteProgress.value,
       [...STATE_STOPS],
-      [idle.blobB, listening.blobB, processing.blobB, speaking.blobB],
+      [
+        idle.blobB,
+        listening.blobB,
+        processing.blobB,
+        preparing_speech.blobB,
+        speaking.blobB,
+      ],
     ),
   }));
 
@@ -162,7 +204,13 @@ function useOrbPalette(state: WallieVoiceState, isDark: boolean) {
     backgroundColor: interpolateColor(
       paletteProgress.value,
       [...STATE_STOPS],
-      [idle.blobC, listening.blobC, processing.blobC, speaking.blobC],
+      [
+        idle.blobC,
+        listening.blobC,
+        processing.blobC,
+        preparing_speech.blobC,
+        speaking.blobC,
+      ],
     ),
   }));
 
@@ -170,7 +218,13 @@ function useOrbPalette(state: WallieVoiceState, isDark: boolean) {
     backgroundColor: interpolateColor(
       paletteProgress.value,
       [...STATE_STOPS],
-      [idle.blobD, listening.blobD, processing.blobD, speaking.blobD],
+      [
+        idle.blobD,
+        listening.blobD,
+        processing.blobD,
+        preparing_speech.blobD,
+        speaking.blobD,
+      ],
     ),
   }));
 
