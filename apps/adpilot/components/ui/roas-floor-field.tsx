@@ -2,10 +2,9 @@
 
 import * as React from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Percent, TrendingUp } from "lucide-react";
+import { TrendingUp } from "lucide-react";
 
 import { FloatingLabelInput } from "@/components/ui/floating-label-input";
-import { Input } from "@walls/ui/input";
 import { Slider } from "@walls/ui/slider";
 import { cn } from "@walls/utils";
 
@@ -184,30 +183,22 @@ export function RoasFloorField({
               </div>
             </div>
 
-            <div>
-              <div className="mb-3 flex items-baseline justify-between gap-3">
-                <p className="text-[11px] font-normal uppercase tracking-[0.14em] text-neutral-500">
-                  Contribution margin
-                </p>
-                <div className="flex items-center gap-1.5">
-                  <Input
-                    type="number"
-                    min={1}
-                    max={100}
-                    step={0.1}
-                    value={settings.contributionMarginPct ?? ""}
-                    onChange={(e) =>
-                      applyPatch({
-                        contributionMarginPct: e.target.value
-                          ? Number(e.target.value)
-                          : null,
-                      })
-                    }
-                    className="h-8 w-20 rounded-full border-neutral-200 bg-kenoo-white px-3 text-right text-sm font-medium tabular-nums"
-                  />
-                  <Percent className="h-3.5 w-3.5 text-neutral-400" aria-hidden />
-                </div>
-              </div>
+            <div className="space-y-4">
+              <FloatingLabelInput
+                type="number"
+                min={1}
+                max={100}
+                step={0.1}
+                label="Contribution margin (%)"
+                value={settings.contributionMarginPct ?? ""}
+                onChange={(e) =>
+                  applyPatch({
+                    contributionMarginPct: e.target.value
+                      ? Number(e.target.value)
+                      : null,
+                  })
+                }
+              />
               <Slider
                 value={[marginPct]}
                 onValueChange={(next) =>
@@ -218,7 +209,7 @@ export function RoasFloorField({
                 step={1}
                 aria-label="Contribution margin"
               />
-              <div className="mt-2 flex justify-between text-[10px] font-light uppercase tracking-wider text-neutral-400">
+              <div className="flex justify-between text-[10px] font-light uppercase tracking-wider text-neutral-400">
                 <span>1%</span>
                 <span>100%</span>
               </div>

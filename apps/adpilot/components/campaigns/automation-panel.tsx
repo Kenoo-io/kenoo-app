@@ -21,7 +21,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@walls/ui/dropdown-menu";
-import { Input } from "@walls/ui/input";
 import { LabeledSwitch } from "@walls/ui/switch";
 import { Textarea } from "@walls/ui/textarea";
 import { cn } from "@walls/utils";
@@ -31,6 +30,8 @@ import {
   DetailSection,
   DetailSubLabel,
 } from "@/components/campaigns/entity-detail-shared";
+import { FloatingLabelDatePicker } from "@/components/ui/floating-label-date-picker";
+import { FloatingLabelInput } from "@/components/ui/floating-label-input";
 import type {
   AutomationProfile,
   BudgetAdjustmentRow,
@@ -84,20 +85,45 @@ function formatAdjustmentDate(iso: string): string {
   }).format(new Date(iso));
 }
 
-function isoToDatetimeLocalValue(iso: string | null): string {
-  if (!iso) return "";
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return "";
-  const pad = (value: number) => String(value).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+function formatInstructionDate(iso: string): string {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(new Date(iso));
 }
 
-function datetimeLocalValueToIso(value: string): string | null {
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-  const parsed = new Date(trimmed);
-  if (Number.isNaN(parsed.getTime())) return null;
-  return parsed.toISOString();
+function isoToLocalDate(iso: string | null): Date | null {
+  if (!iso) return null;
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return null;
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function localDateToIsoStart(date: Date | null): string | null {
+  if (!date) return null;
+  return new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate(),
+    0,
+    0,
+    0,
+    0,
+  ).toISOString();
+}
+
+function localDateToIsoEnd(date: Date | null): string | null {
+  if (!date) return null;
+  return new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate(),
+    23,
+    59,
+    59,
+    999,
+  ).toISOString();
 }
 
 function AdjustmentsList({ rows }: { rows: BudgetAdjustmentRow[] }) {
@@ -529,40 +555,28 @@ export function EntityAutomationSection({
               Hard min/max daily budget (USD) the algorithm may not exceed.
             </p>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              <label className="block space-y-2">
-                <span className="text-sm font-medium text-foreground">
-                  Minimum daily budget
-                </span>
-                <Input
-                  type="number"
-                  min={0}
-                  step={1}
-                  placeholder="No minimum"
-                  value={minBudget}
-                  onChange={(e) => {
-                    markDirty();
-                    setMinBudget(e.target.value);
-                  }}
-                  className="rounded-full border-neutral-200 bg-kenoo-white font-light"
-                />
-              </label>
-              <label className="block space-y-2">
-                <span className="text-sm font-medium text-foreground">
-                  Maximum daily budget
-                </span>
-                <Input
-                  type="number"
-                  min={0}
-                  step={1}
-                  placeholder="No maximum"
-                  value={maxBudget}
-                  onChange={(e) => {
-                    markDirty();
-                    setMaxBudget(e.target.value);
-                  }}
-                  className="rounded-full border-neutral-200 bg-kenoo-white font-light"
-                />
-              </label>
+              <FloatingLabelInput
+                type="number"
+                min={0}
+                step={1}
+                label="Minimum daily budget"
+                value={minBudget}
+                onChange={(e) => {
+                  markDirty();
+                  setMinBudget(e.target.value);
+                }}
+              />
+              <FloatingLabelInput
+                type="number"
+                min={0}
+                step={1}
+                label="Maximum daily budget"
+                value={maxBudget}
+                onChange={(e) => {
+                  markDirty();
+                  setMaxBudget(e.target.value);
+                }}
+              />
             </div>
             {optimizationGoal === "roas" || optimizationGoal === "conversions" ? (
               <div className="mt-5 border-t border-neutral-100 pt-5">
@@ -661,45 +675,35 @@ export function EntityAutomationSection({
             </div>
 
             {optimizationGoal === "ctr" ? (
-              <label className="block space-y-2">
-                <span className="text-sm font-medium text-foreground">
-                  CTR floor (%)
-                </span>
-                <Input
-                  type="number"
-                  min={0}
-                  step={0.1}
-                  value={settings.ctrFloorPct ?? ""}
-                  onChange={(e) =>
-                    updateSetting(
-                      "ctrFloorPct",
-                      e.target.value ? Number(e.target.value) : null,
-                    )
-                  }
-                  className="rounded-full border-neutral-200 bg-kenoo-white font-light"
-                />
-              </label>
+              <FloatingLabelInput
+                type="number"
+                min={0}
+                step={0.1}
+                label="CTR floor (%)"
+                value={settings.ctrFloorPct ?? ""}
+                onChange={(e) =>
+                  updateSetting(
+                    "ctrFloorPct",
+                    e.target.value ? Number(e.target.value) : null,
+                  )
+                }
+              />
             ) : null}
 
             {optimizationGoal === "cpa" || optimizationGoal === "conversions" ? (
-              <label className="block space-y-2">
-                <span className="text-sm font-medium text-foreground">
-                  CPA ceiling (USD)
-                </span>
-                <Input
-                  type="number"
-                  min={0}
-                  step={1}
-                  value={settings.cpaCeiling ?? ""}
-                  onChange={(e) =>
-                    updateSetting(
-                      "cpaCeiling",
-                      e.target.value ? Number(e.target.value) : null,
-                    )
-                  }
-                  className="rounded-full border-neutral-200 bg-kenoo-white font-light"
-                />
-              </label>
+              <FloatingLabelInput
+                type="number"
+                min={0}
+                step={1}
+                label="CPA ceiling (USD)"
+                value={settings.cpaCeiling ?? ""}
+                onChange={(e) =>
+                  updateSetting(
+                    "cpaCeiling",
+                    e.target.value ? Number(e.target.value) : null,
+                  )
+                }
+              />
             ) : null}
 
             <div className="space-y-5 border-t border-neutral-200/70 pt-6">
@@ -759,14 +763,14 @@ export function EntityAutomationSection({
 
 type InstructionFormState = {
   instructions: string;
-  startsAt: string;
-  endsAt: string;
+  startsAt: Date | null;
+  endsAt: Date | null;
 };
 
 const EMPTY_INSTRUCTION_FORM: InstructionFormState = {
   instructions: "",
-  startsAt: "",
-  endsAt: "",
+  startsAt: null,
+  endsAt: null,
 };
 
 function instructionStatusMeta(status: AgentInstructionStatus): {
@@ -806,10 +810,10 @@ function instructionStatusMeta(status: AgentInstructionStatus): {
 function instructionWindowLabel(instruction: AgentInstruction): string {
   const { startsAt, endsAt } = instruction;
   if (startsAt && endsAt) {
-    return `${formatAdjustmentDate(startsAt)} → ${formatAdjustmentDate(endsAt)}`;
+    return `${formatInstructionDate(startsAt)} → ${formatInstructionDate(endsAt)}`;
   }
-  if (startsAt) return `From ${formatAdjustmentDate(startsAt)}`;
-  if (endsAt) return `Until ${formatAdjustmentDate(endsAt)}`;
+  if (startsAt) return `From ${formatInstructionDate(startsAt)}`;
+  if (endsAt) return `Until ${formatInstructionDate(endsAt)}`;
   return "Always on (no schedule)";
 }
 
@@ -891,8 +895,8 @@ function AgentInstructionsManager({
   const startEdit = (instruction: AgentInstruction) => {
     setForm({
       instructions: instruction.instructions,
-      startsAt: isoToDatetimeLocalValue(instruction.startsAt),
-      endsAt: isoToDatetimeLocalValue(instruction.endsAt),
+      startsAt: isoToLocalDate(instruction.startsAt),
+      endsAt: isoToLocalDate(instruction.endsAt),
     });
     setEditingId(instruction.id);
     setError(null);
@@ -909,8 +913,8 @@ function AgentInstructionsManager({
 
     const body = {
       instructions: form.instructions.trim(),
-      startsAt: datetimeLocalValueToIso(form.startsAt),
-      endsAt: datetimeLocalValueToIso(form.endsAt),
+      startsAt: localDateToIsoStart(form.startsAt),
+      endsAt: localDateToIsoEnd(form.endsAt),
     };
     const url = editingId
       ? `/api/campaigns/${entityId}/instructions/${editingId}`
@@ -1124,36 +1128,34 @@ function AgentInstructionsManager({
           />
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <label className="block space-y-2">
-              <span className="text-sm font-medium text-foreground">
-                Start
-              </span>
-              <p className="text-xs font-light text-neutral-500">
-                Leave blank to start now. Set a future time to schedule ahead.
-              </p>
-              <Input
-                type="datetime-local"
+            <div className="space-y-2">
+              <FloatingLabelDatePicker
+                label="Start"
                 value={form.startsAt}
-                onChange={(e) =>
-                  setForm((prev) => ({ ...prev, startsAt: e.target.value }))
+                onChange={(date) =>
+                  setForm((prev) => ({ ...prev, startsAt: date }))
                 }
-                className="rounded-full border-neutral-200 bg-kenoo-white font-light"
+                showClearButton
+                clearLabel="Start now"
               />
-            </label>
-            <label className="block space-y-2">
-              <span className="text-sm font-medium text-foreground">End</span>
+              <p className="text-xs font-light text-neutral-500">
+                Leave blank to start now. Pick a future date to schedule ahead.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <FloatingLabelDatePicker
+                label="End"
+                value={form.endsAt}
+                onChange={(date) =>
+                  setForm((prev) => ({ ...prev, endsAt: date }))
+                }
+                showClearButton
+                clearLabel="No expiry"
+              />
               <p className="text-xs font-light text-neutral-500">
                 Leave blank for no expiry.
               </p>
-              <Input
-                type="datetime-local"
-                value={form.endsAt}
-                onChange={(e) =>
-                  setForm((prev) => ({ ...prev, endsAt: e.target.value }))
-                }
-                className="rounded-full border-neutral-200 bg-kenoo-white font-light"
-              />
-            </label>
+            </div>
           </div>
 
           <div className="flex items-center justify-end gap-2">

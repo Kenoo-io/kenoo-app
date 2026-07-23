@@ -8,7 +8,12 @@ import { cn } from "@walls/utils";
 
 export type FloatingLabelInputProps = Omit<
   React.InputHTMLAttributes<HTMLInputElement>,
-  "placeholder" | "id"
+  | "placeholder"
+  | "id"
+  | "onAnimationStart"
+  | "onDragStart"
+  | "onDrag"
+  | "onDragEnd"
 > & {
   label: string;
   id?: string;
