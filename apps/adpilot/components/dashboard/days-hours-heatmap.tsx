@@ -243,9 +243,7 @@ function HeatCell({
   totals,
   metric,
   maxValue,
-  kind,
   isPeak,
-  isBestHour,
   isHovered,
   onHover,
   onLeave,
@@ -253,9 +251,7 @@ function HeatCell({
   totals: MetricTotals | null;
   metric: DaysHoursMetric;
   maxValue: number;
-  kind: "every" | "day";
   isPeak: boolean;
-  isBestHour: boolean;
   isHovered: boolean;
   onHover: (intensity: number, value: number | null) => void;
   onLeave: () => void;
@@ -278,25 +274,20 @@ function HeatCell({
       onFocus={() => onHover(intensity, value)}
       onBlur={onLeave}
       className={cn(
-        "relative aspect-square w-full rounded-[5px] transition-[transform,box-shadow,filter] duration-200 ease-out",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400/50 focus-visible:ring-offset-1",
-        hasData ? "cursor-pointer" : "cursor-default",
-        isHovered && hasData && "z-10 scale-[1.18]",
-        isBestHour && !isPeak && kind === "every" && "ring-1 ring-orange-300/90",
+        "relative h-4 w-full rounded-full transition-[transform,filter,opacity] duration-150 ease-out",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400/45 focus-visible:ring-offset-1",
+        hasData ? "cursor-pointer" : "cursor-default opacity-70",
+        isHovered && hasData && "z-10 scale-y-[1.45]",
       )}
       style={{
         background: heatBackground(intensity),
-        boxShadow:
-          isHovered && hasData
-            ? "0 6px 16px -6px rgba(220, 60, 20, 0.4)"
-            : undefined,
-        filter: isHovered && hasData ? "saturate(1.2)" : undefined,
+        filter: isHovered && hasData ? "saturate(1.15) brightness(1.05)" : undefined,
       }}
     >
       {isPeak ? (
         <Crown
-          className="pointer-events-none absolute inset-0 m-auto h-[55%] w-[55%] text-white/55 drop-shadow-[0_1px_2px_rgba(0,0,0,0.25)]"
-          strokeWidth={2.25}
+          className="pointer-events-none absolute inset-0 m-auto h-2.5 w-2.5 text-white/55 drop-shadow-[0_1px_1px_rgba(0,0,0,0.2)]"
+          strokeWidth={2.5}
           aria-hidden
         />
       ) : null}
@@ -429,7 +420,7 @@ export function DaysHoursHeatmap({ data, className }: DaysHoursHeatmapProps) {
               className="min-w-[720px]"
             >
               <div
-                className="mb-2 grid items-end gap-1"
+                className="mb-2.5 grid items-end gap-1.5"
                 style={{
                   gridTemplateColumns: `3.75rem repeat(24, minmax(0, 1fr)) 3.5rem`,
                 }}
@@ -448,7 +439,7 @@ export function DaysHoursHeatmap({ data, className }: DaysHoursHeatmapProps) {
                 </div>
               </div>
 
-              <div className="space-y-1.5">
+              <div className="space-y-2.5">
                 {rows.map((row, rowIndex) => {
                   const avgValue = metricValueFromTotals(row.avg, metric);
 
@@ -459,8 +450,8 @@ export function DaysHoursHeatmap({ data, className }: DaysHoursHeatmapProps) {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: rowIndex * 0.03, duration: 0.28 }}
                       className={cn(
-                        "grid items-center gap-1",
-                        row.kind === "every" && "mb-2 pb-2",
+                        "grid items-center gap-1.5",
+                        row.kind === "every" && "mb-1.5 pb-3",
                       )}
                       style={{
                         gridTemplateColumns: `3.75rem repeat(24, minmax(0, 1fr)) 3.5rem`,
@@ -477,8 +468,6 @@ export function DaysHoursHeatmap({ data, className }: DaysHoursHeatmapProps) {
                       {row.cells.map((cell, hour) => {
                         const isPeak =
                           peakCell?.rowKey === row.key && peakCell.hour === hour;
-                        const isBestHour =
-                          bestHour?.hour === hour && row.kind === "every";
                         const isHovered =
                           hovered?.rowKey === row.key && hovered.hour === hour;
 
@@ -488,9 +477,7 @@ export function DaysHoursHeatmap({ data, className }: DaysHoursHeatmapProps) {
                             totals={cell}
                             metric={metric}
                             maxValue={maxValue}
-                            kind={row.kind}
                             isPeak={isPeak}
-                            isBestHour={Boolean(isBestHour)}
                             isHovered={isHovered}
                             onHover={(intensity, value) =>
                               setHovered({
