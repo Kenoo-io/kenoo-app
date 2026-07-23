@@ -51,6 +51,7 @@ type AdSetSortColumn = (typeof AD_SET_COLUMNS)[number]["id"];
 type SortDirection = "asc" | "desc";
 type CampaignDetailTab =
   | "stats"
+  | "adsets"
   | "rules"
   | "instructions"
   | "preview"
@@ -184,6 +185,7 @@ export function CampaignDetailPage() {
 
   const tabs = [
     { id: "stats" as const, label: "Stats" },
+    { id: "adsets" as const, label: "Ad sets" },
     ...(detail.canAutomate
       ? [
           {
@@ -258,128 +260,129 @@ export function CampaignDetailPage() {
       />
 
       {activeTab === "stats" ? (
-        <div className="space-y-12">
-          <EntityMetricsGrid
-            metrics={detail.metrics}
-            reachSaturation={detail.reachSaturation}
-          />
+        <EntityMetricsGrid
+          metrics={detail.metrics}
+          reachSaturation={detail.reachSaturation}
+        />
+      ) : null}
 
-          <DetailSection
-            title="Ad sets"
-            description="Performance for the last 30 days. Open an ad set to configure AdPilot for that specific budget."
-            collapsible={false}
-          >
-            {detail.adSets.length === 0 ? (
-              <p className="py-8 text-center text-sm font-light text-neutral-400">
-                No ad sets synced for this campaign yet.
-              </p>
-            ) : (
-              <div className="overflow-x-auto scrollbar-hide">
-                <table className="w-full min-w-[720px] text-sm">
-                  <thead>
-                    <tr className="border-b border-neutral-200/70 text-left text-xs font-medium tracking-wide text-neutral-400 uppercase">
-                      {AD_SET_COLUMNS.map((column) => {
-                        const active = sortColumn === column.id;
-                        const SortIcon = !active
-                          ? ChevronsUpDown
-                          : sortDirection === "asc"
-                            ? ChevronUp
-                            : ChevronDown;
+      {activeTab === "adsets" ? (
+        <DetailSection
+          title="Ad sets"
+          description="Performance for the last 30 days. Open an ad set to configure AdPilot for that specific budget."
+          hideHeader
+          collapsible={false}
+        >
+          {detail.adSets.length === 0 ? (
+            <p className="py-8 text-center text-sm font-light text-neutral-400">
+              No ad sets synced for this campaign yet.
+            </p>
+          ) : (
+            <div className="overflow-x-auto scrollbar-hide">
+              <table className="w-full min-w-[720px] text-sm">
+                <thead>
+                  <tr className="border-b border-neutral-200/70 text-left text-xs font-medium tracking-wide text-neutral-400 uppercase">
+                    {AD_SET_COLUMNS.map((column) => {
+                      const active = sortColumn === column.id;
+                      const SortIcon = !active
+                        ? ChevronsUpDown
+                        : sortDirection === "asc"
+                          ? ChevronUp
+                          : ChevronDown;
 
-                        return (
-                          <th
-                            key={column.id}
-                            scope="col"
-                            className="py-3 pr-4"
-                            aria-sort={
-                              active
-                                ? sortDirection === "asc"
-                                  ? "ascending"
-                                  : "descending"
-                                : "none"
-                            }
+                      return (
+                        <th
+                          key={column.id}
+                          scope="col"
+                          className="py-3 pr-4"
+                          aria-sort={
+                            active
+                              ? sortDirection === "asc"
+                                ? "ascending"
+                                : "descending"
+                              : "none"
+                          }
+                        >
+                          <button
+                            type="button"
+                            onClick={() => handleSort(column.id)}
+                            className={cn(
+                              "inline-flex items-center gap-1 border-0 bg-transparent p-0 font-medium tracking-wide uppercase transition-colors hover:text-neutral-700",
+                              active ? "text-neutral-700" : "text-neutral-400",
+                            )}
                           >
-                            <button
-                              type="button"
-                              onClick={() => handleSort(column.id)}
+                            <span>{column.label}</span>
+                            <SortIcon
                               className={cn(
-                                "inline-flex items-center gap-1 border-0 bg-transparent p-0 font-medium tracking-wide uppercase transition-colors hover:text-neutral-700",
-                                active ? "text-neutral-700" : "text-neutral-400",
+                                "h-3 w-3 shrink-0",
+                                active ? "opacity-100" : "opacity-40",
                               )}
-                            >
-                              <span>{column.label}</span>
-                              <SortIcon
-                                className={cn(
-                                  "h-3 w-3 shrink-0",
-                                  active ? "opacity-100" : "opacity-40",
-                                )}
-                                strokeWidth={1.75}
-                                aria-hidden
-                              />
-                            </button>
-                          </th>
-                        );
-                      })}
+                              strokeWidth={1.75}
+                              aria-hidden
+                            />
+                          </button>
+                        </th>
+                      );
+                    })}
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedAdSets.map((adSet) => (
+                    <tr
+                      key={adSet.id}
+                      className="border-b border-neutral-100 transition-colors hover:bg-kenoo-white"
+                    >
+                      <td className="py-4 pr-4">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <Link
+                            href={`/campaigns/${campaignId}/ad-sets/${adSet.id}`}
+                            className="truncate text-sm font-medium text-neutral-800 transition-colors hover:text-[var(--kenoo-sky)]"
+                          >
+                            {adSet.name}
+                          </Link>
+                          {adSet.adpilotEnabled ? <AdPilotRowBadge /> : null}
+                          <LearningBadge status={adSet.learningStatus} />
+                        </div>
+                      </td>
+                      <td className="py-4 pr-4 text-xs font-light whitespace-nowrap text-neutral-500">
+                        <span className="inline-flex items-center gap-1.5">
+                          {isActiveStatus(adSet.status) ? (
+                            <span
+                              className="h-2 w-2 flex-shrink-0 rounded-full bg-[var(--kenoo-sky)]"
+                              aria-hidden
+                            />
+                          ) : null}
+                          {formatStatus(adSet.status)}
+                        </span>
+                      </td>
+                      <td className="py-4 pr-4 text-xs font-light whitespace-nowrap text-neutral-500 tabular-nums">
+                        <AnimatedMetricValue
+                          value={
+                            adSet.dailyBudgetMicros != null &&
+                            adSet.dailyBudgetMicros > 0
+                              ? formatCurrencyFromMicros(adSet.dailyBudgetMicros)
+                              : "-"
+                          }
+                        />
+                      </td>
+                      <td className="py-4 pr-4 text-xs font-medium whitespace-nowrap text-neutral-800 tabular-nums">
+                        <AnimatedMetricValue
+                          value={formatCurrencyFromMicros(adSet.spendMicros)}
+                        />
+                      </td>
+                      <td className="py-4 pr-4 text-xs font-light whitespace-nowrap text-neutral-500 tabular-nums">
+                        <AnimatedMetricValue value={formatPercent(adSet.ctr)} />
+                      </td>
+                      <td className="py-4 pr-4 text-xs font-light whitespace-nowrap text-neutral-500 tabular-nums">
+                        {formatRoas(adSet.roas)}
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {sortedAdSets.map((adSet) => (
-                      <tr
-                        key={adSet.id}
-                        className="border-b border-neutral-100 transition-colors hover:bg-kenoo-white"
-                      >
-                        <td className="py-4 pr-4">
-                          <div className="flex min-w-0 items-center gap-2">
-                            <Link
-                              href={`/campaigns/${campaignId}/ad-sets/${adSet.id}`}
-                              className="truncate text-sm font-medium text-neutral-800 transition-colors hover:text-[var(--kenoo-sky)]"
-                            >
-                              {adSet.name}
-                            </Link>
-                            {adSet.adpilotEnabled ? <AdPilotRowBadge /> : null}
-                            <LearningBadge status={adSet.learningStatus} />
-                          </div>
-                        </td>
-                        <td className="py-4 pr-4 text-xs font-light whitespace-nowrap text-neutral-500">
-                          <span className="inline-flex items-center gap-1.5">
-                            {isActiveStatus(adSet.status) ? (
-                              <span
-                                className="h-2 w-2 flex-shrink-0 rounded-full bg-[var(--kenoo-sky)]"
-                                aria-hidden
-                              />
-                            ) : null}
-                            {formatStatus(adSet.status)}
-                          </span>
-                        </td>
-                        <td className="py-4 pr-4 text-xs font-light whitespace-nowrap text-neutral-500 tabular-nums">
-                          <AnimatedMetricValue
-                            value={
-                              adSet.dailyBudgetMicros != null &&
-                              adSet.dailyBudgetMicros > 0
-                                ? formatCurrencyFromMicros(adSet.dailyBudgetMicros)
-                                : "-"
-                            }
-                          />
-                        </td>
-                        <td className="py-4 pr-4 text-xs font-medium whitespace-nowrap text-neutral-800 tabular-nums">
-                          <AnimatedMetricValue
-                            value={formatCurrencyFromMicros(adSet.spendMicros)}
-                          />
-                        </td>
-                        <td className="py-4 pr-4 text-xs font-light whitespace-nowrap text-neutral-500 tabular-nums">
-                          <AnimatedMetricValue value={formatPercent(adSet.ctr)} />
-                        </td>
-                        <td className="py-4 pr-4 text-xs font-light whitespace-nowrap text-neutral-500 tabular-nums">
-                          {formatRoas(adSet.roas)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </DetailSection>
-        </div>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </DetailSection>
       ) : null}
 
       {detail.canAutomate && isAutomationPanel(activeTab) ? (
