@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Clock3, CalendarDays, Crown } from "lucide-react";
+import { Crown } from "lucide-react";
 
 import { cn } from "@walls/utils";
 
@@ -221,32 +221,20 @@ function formatHourTick(hour: number): string {
 }
 
 function InsightPill({
-  icon: Icon,
   label,
   value,
-  accent,
 }: {
-  icon: typeof CalendarDays;
   label: string;
   value: string;
-  accent: string;
 }) {
   return (
-    <div className="flex min-w-0 items-center gap-3">
-      <span
-        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
-        style={{ background: `color-mix(in srgb, ${accent} 16%, transparent)` }}
-      >
-        <Icon className="h-3.5 w-3.5" style={{ color: accent }} strokeWidth={1.75} />
-      </span>
-      <div className="min-w-0">
-        <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-neutral-500">
-          {label}
-        </p>
-        <p className="mt-0.5 truncate text-sm font-medium tracking-tight text-neutral-900">
-          {value}
-        </p>
-      </div>
+    <div className="min-w-0">
+      <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-neutral-500">
+        {label}
+      </p>
+      <p className="mt-0.5 truncate text-sm font-medium tracking-tight text-neutral-900">
+        {value}
+      </p>
     </div>
   );
 }
@@ -371,25 +359,21 @@ export function DaysHoursHeatmap({ data, className }: DaysHoursHeatmapProps) {
         <>
           <div className="flex flex-col gap-4 border-y border-neutral-200/70 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-8">
             <InsightPill
-              icon={CalendarDays}
               label="Strongest day"
               value={
                 bestDay
                   ? `${bestDay.label} · ${formatDaysHoursMetricValue(bestDay.value, metric)}`
                   : "—"
               }
-              accent="#e85d2a"
             />
             <div className="hidden h-8 w-px bg-neutral-200/80 sm:block" />
             <InsightPill
-              icon={Clock3}
               label="Strongest hour"
               value={
                 bestHour
                   ? `${bestHour.label} · ${formatDaysHoursMetricValue(bestHour.value, metric)}`
                   : "—"
               }
-              accent="#dc2626"
             />
             <div className="ml-auto hidden items-center gap-2 lg:flex">
               <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-neutral-400">
