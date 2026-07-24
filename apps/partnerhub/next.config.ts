@@ -176,6 +176,8 @@ const nextConfig: NextConfig = {
   ],
   // Webpack (used by `next dev --webpack`) sometimes fails to resolve
   // package.json "exports" subpaths for workspace packages. Alias them.
+  // Do not mirror these into turbopack.resolveAlias with absolute paths —
+  // Turbopack treats `/vercel/path0/...` as a broken server-relative import.
   webpack: (config) => {
     config.resolve.alias = {
       ...config.resolve.alias,
@@ -199,14 +201,6 @@ const nextConfig: NextConfig = {
   },
   turbopack: {
     root: monorepoRoot,
-    resolveAlias: {
-      "@walls/auth/active-account": path.join(authSrc, "active-account.ts"),
-      "@walls/auth/middleware": path.join(
-        authSrc,
-        "protected-app-middleware.ts",
-      ),
-      "@walls/auth": path.join(authSrc, "index.ts"),
-    },
   },
 };
 
