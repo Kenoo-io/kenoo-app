@@ -118,7 +118,7 @@ export default function PartnerHubSidebar() {
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex w-52 shrink-0 flex-col border-r border-neutral-200 bg-gray-50">
+      <aside className="hidden md:flex w-52 shrink-0 flex-col border-r border-neutral-200 bg-kenoo-white">
         <nav className="flex flex-col px-8 pt-4">
           {navItems.map((item) => (
             <NavLink
@@ -132,7 +132,7 @@ export default function PartnerHubSidebar() {
       </aside>
 
       {/* Mobile nav */}
-      <nav className="md:hidden flex items-center gap-6 border-b border-neutral-200 bg-gray-50 px-6 py-4">
+      <nav className="md:hidden flex items-center gap-6 border-b border-neutral-200 bg-kenoo-white px-6 py-4">
         {navItems.map((item) => (
           <MobileNavLink key={item.id} item={item} pathname={pathname} />
         ))}

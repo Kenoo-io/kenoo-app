@@ -14,14 +14,12 @@ export default async function CompaniesDetailPage({ params }: PageProps) {
   const { categorySlug, subcategorySlug, companyId } = await params;
 
   return (
-    <div className="h-full min-h-0 overflow-hidden overscroll-none bg-kenoo-white">
-      <div className="app-sidebar-pad h-full min-h-0">
-        <PartnerHubCompaniesDetail
-          categorySlug={categorySlug}
-          subcategorySlug={subcategorySlug}
-          companyId={companyId}
-        />
-      </div>
+    <div className="app-sidebar-pad min-h-full bg-kenoo-white">
+      <PartnerHubCompaniesDetail
+        categorySlug={categorySlug}
+        subcategorySlug={subcategorySlug}
+        companyId={companyId}
+      />
     </div>
   );
 }

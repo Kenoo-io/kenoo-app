@@ -26,7 +26,7 @@ export function CompanyProfileCard({
     <div className={cn(cardSurfaceClass, "p-6 sm:p-8")}>
       <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex min-w-0 items-start gap-4">
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white shadow-md ring-1 ring-neutral-200/60 sm:h-20 sm:w-20">
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-kenoo-white shadow-md ring-1 ring-neutral-200/60 sm:h-20 sm:w-20">
             <CompanyLogo
               name={company.name}
               logoUrl={company.logoUrl}

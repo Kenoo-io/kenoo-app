@@ -31,7 +31,7 @@ function PanelBlock({
   className?: string;
 }) {
   return (
-    <div className={cn("bg-white/50 p-6 sm:p-8 lg:p-10", className)}>{children}</div>
+    <div className={cn("bg-kenoo-white/50 p-6 sm:p-8 lg:p-10", className)}>{children}</div>
   );
 }
 

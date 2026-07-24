@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 
+import { getDirectoryPublicEnv } from "@walls/config/directory-public-env";
 import {
   getAppDirFromConfigMeta,
   loadMonorepoEnv,
@@ -8,27 +9,22 @@ import {
 const appDir = getAppDirFromConfigMeta(import.meta.url);
 const monorepoRoot = loadMonorepoEnv(appDir);
 
+const directoryEnv = getDirectoryPublicEnv();
+
 const publicEnv = {
   NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
   NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-  NEXT_PUBLIC_WALLS_AGENCY_URL: process.env.NEXT_PUBLIC_WALLS_AGENCY_URL,
-  NEXT_PUBLIC_ADPILOT_URL: process.env.NEXT_PUBLIC_ADPILOT_URL,
-  NEXT_PUBLIC_WALLIE_URL: process.env.NEXT_PUBLIC_WALLIE_URL,
-  NEXT_PUBLIC_SETTINGS_URL: process.env.NEXT_PUBLIC_SETTINGS_URL,
-  NEXT_PUBLIC_HEALTH_URL: process.env.NEXT_PUBLIC_HEALTH_URL,
-  NEXT_PUBLIC_CALENDAR_URL: process.env.NEXT_PUBLIC_CALENDAR_URL,
-  NEXT_PUBLIC_PROJECTS_URL: process.env.NEXT_PUBLIC_PROJECTS_URL,
-  NEXT_PUBLIC_ADMIN_URL: process.env.NEXT_PUBLIC_ADMIN_URL,
+  ...directoryEnv,
   NEXT_PUBLIC_BASE_URL:
-    process.env.NEXT_PUBLIC_BASE_URL ??
+    directoryEnv.NEXT_PUBLIC_BASE_URL ??
     process.env.NEXT_PUBLIC_WALLS_PUBLIC_SITE_URL ??
     process.env.APP_BASE_URL ??
-    "https://wallsentertainment.com",
+    "https://kenoo.io",
   NEXT_PUBLIC_WALLS_PUBLIC_SITE_URL:
     process.env.NEXT_PUBLIC_WALLS_PUBLIC_SITE_URL ??
-    process.env.NEXT_PUBLIC_BASE_URL ??
+    directoryEnv.NEXT_PUBLIC_BASE_URL ??
     process.env.APP_BASE_URL ??
-    "https://wallsentertainment.com",
+    "https://kenoo.io",
 };
 
 const supabaseHostname = (() => {

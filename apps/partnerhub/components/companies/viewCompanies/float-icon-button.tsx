@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import type { LucideIcon } from "lucide-react";
 
 const floatButtonClass =
-  "rounded-full border border-neutral-300/30 bg-gray-50/80 backdrop-blur-sm backdrop-saturate-150 shadow-[0_1px_2px_rgba(0,0,0,0.06),0_8px_22px_-8px_rgba(0,0,0,0.1)] transition-all duration-300 ease-in-out hover:border-neutral-300/55 hover:bg-gray-50/80 hover:text-foreground hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.12)] hover:scale-[0.99]";
+  "rounded-full border border-neutral-300/30 bg-kenoo-white backdrop-blur-sm backdrop-saturate-150 shadow-[0_1px_2px_rgba(0,0,0,0.06),0_8px_22px_-8px_rgba(0,0,0,0.1)] transition-all duration-300 ease-in-out hover:border-neutral-300/55 hover:bg-kenoo-white hover:text-foreground hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.12)] hover:scale-[0.99]";
 
 const floatIconButtonClass = cn(
   floatButtonClass,

@@ -70,7 +70,7 @@ export function AudienceRegionHeatmapPanel({
   const topMarket = mapEntries[0];
 
   return (
-    <div className="border-t border-neutral-200/70 bg-white/50 p-6 sm:p-8 lg:p-10">
+    <div className="border-t border-neutral-200/70 bg-kenoo-white/50 p-6 sm:p-8 lg:p-10">
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <p className="text-[15px] font-light text-neutral-800">{title}</p>
         {topMarket && (
@@ -93,10 +93,12 @@ export function AudienceRegionHeatmapPanel({
               backgroundColor="transparent"
               valueSuffix=" partners"
               size="responsive"
-              data={mapEntries.map((entry) => ({
-                country: entry.country,
-                value: entry.value,
-              }))}
+              data={
+                mapEntries.map((entry) => ({
+                  country: entry.country,
+                  value: entry.value,
+                })) as never
+              }
               tooltipBgColor="#fafafa"
               tooltipTextColor="#171717"
               frame={false}

@@ -26,7 +26,7 @@ function TalentAvatar({
   if (photoUrl && !failed) {
     return (
       <div
-        className="relative flex-shrink-0 overflow-hidden rounded-full bg-white"
+        className="relative flex-shrink-0 overflow-hidden rounded-full bg-kenoo-white"
         style={{ width: size, height: size }}
       >
         <Image
@@ -63,7 +63,7 @@ export function PartnershipCardItem({ partnership }: { partnership: CompanyPartn
   return (
     <div className={cn(cardSurfaceClass, "group relative flex flex-col overflow-hidden")}>
       <div className="flex flex-col items-center px-5 pb-5 pt-7">
-        <div className="mb-4 flex h-[5.5rem] w-[5.5rem] items-center justify-center rounded-full bg-white shadow-lg">
+        <div className="mb-4 flex h-[5.5rem] w-[5.5rem] items-center justify-center rounded-full bg-kenoo-white shadow-lg">
           <TalentAvatar name={partnership.talentName} photoUrl={partnership.talentAvatar} size={80} />
         </div>
         <p className="w-full truncate text-center text-base font-semibold text-foreground">
@@ -77,7 +77,7 @@ export function PartnershipCardItem({ partnership }: { partnership: CompanyPartn
       </div>
 
       {hasStats && (
-        <div className="flex border-t border-neutral-200/60 bg-white/40">
+        <div className="flex border-t border-neutral-200/60 bg-kenoo-white/40">
           {partnership.platform && (
             <div
               className={cn(

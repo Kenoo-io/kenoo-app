@@ -142,7 +142,7 @@ export function CompanyAudienceSection({ companyId }: { companyId: string }) {
           )}
 
           {analysis.insights.length > 0 && (
-            <div className="border-t border-neutral-200/70 bg-white/40 px-6 py-5 sm:px-8">
+            <div className="border-t border-neutral-200/70 bg-kenoo-white/40 px-6 py-5 sm:px-8">
               <p className="max-w-4xl text-[11px] font-light italic leading-relaxed text-neutral-500">
                 {analysis.insights[0]}
               </p>

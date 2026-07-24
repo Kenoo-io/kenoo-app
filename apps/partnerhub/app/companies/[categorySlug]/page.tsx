@@ -10,10 +10,8 @@ export default async function CompaniesCategoryPage({ params }: PageProps) {
   const { categorySlug } = await params;
 
   return (
-    <div className="h-full min-h-0 overflow-hidden overscroll-none bg-kenoo-white">
-      <div className="app-sidebar-pad h-full min-h-0">
-        <PartnerHubCompaniesCategory categorySlug={categorySlug} />
-      </div>
+    <div className="app-sidebar-pad min-h-full bg-kenoo-white">
+      <PartnerHubCompaniesCategory categorySlug={categorySlug} />
     </div>
   );
 }

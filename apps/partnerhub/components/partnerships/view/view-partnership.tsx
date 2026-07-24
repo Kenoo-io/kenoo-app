@@ -33,7 +33,7 @@ const partnershipSheetHeaderIconButtonClass =
   "w-10 h-10 p-0 text-slate-600 hover:bg-transparent active:bg-transparent focus-visible:bg-transparent flex items-center justify-center shadow-none relative group flex-shrink-0 disabled:opacity-50";
 const partnershipSheetHeaderIconInnerClass = cn(
   "relative z-10 p-3 rounded-full transition-all duration-300 ease-in-out",
-  "group-hover:bg-gray-100 group-hover:border group-hover:border-neutral-200 group-hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] group-hover:scale-95",
+  "group-hover:bg-neutral-100 group-hover:border group-hover:border-neutral-200 group-hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] group-hover:scale-95",
 );
 
 export default function ViewPartnership({
@@ -166,7 +166,7 @@ export default function ViewPartnership({
       <SheetContent
         side="right"
         className={cn(
-          "overflow-y-auto overflow-x-hidden overscroll-contain p-0 [&>button]:hidden shadow-2xl rounded-none bg-gray-50 border border-neutral-200/80",
+          "overflow-y-auto overflow-x-hidden overscroll-contain p-0 [&>button]:hidden shadow-2xl rounded-none bg-kenoo-white border border-neutral-200/80",
           isMaximized ? "w-full" : "w-3/4"
         )}
         style={{ transition: "width 0.3s cubic-bezier(0.4, 0, 0.2, 1)" }}

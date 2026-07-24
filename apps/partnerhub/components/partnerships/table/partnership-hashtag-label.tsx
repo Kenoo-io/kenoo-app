@@ -163,7 +163,7 @@ export function PartnershipHashtagLabel({
           side="bottom"
           align="start"
           sideOffset={6}
-          className="w-auto min-w-[12.5rem] rounded-md border border-neutral-200 bg-white p-2 shadow-md"
+          className="w-auto min-w-[12.5rem] rounded-md border border-neutral-200 bg-kenoo-white p-2 shadow-md"
           onMouseEnter={clearCloseTimeout}
           onMouseLeave={scheduleClose}
           onOpenAutoFocus={(e) => e.preventDefault()}

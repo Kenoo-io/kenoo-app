@@ -27,10 +27,10 @@ interface PartnerHubFilterProps {
 }
 
 const triggerClassName =
-  "border border-transparent rounded-full focus:ring-0 focus-visible:ring-0 px-4 [&>svg]:hidden hover:bg-gray-50 hover:border-neutral-200 hover:scale-95 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] transition-all duration-300";
+  "border border-transparent rounded-full focus:ring-0 focus-visible:ring-0 px-4 [&>svg]:hidden hover:bg-kenoo-white hover:border-neutral-200 hover:scale-95 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] transition-all duration-300";
 
 const mobileTriggerClassName =
-  "border border-transparent rounded-full focus:ring-0 focus-visible:ring-0 px-4 h-16 [&>svg]:hidden hover:bg-gray-50 hover:border-neutral-200 hover:scale-95 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] transition-all duration-300";
+  "border border-transparent rounded-full focus:ring-0 focus-visible:ring-0 px-4 h-16 [&>svg]:hidden hover:bg-kenoo-white hover:border-neutral-200 hover:scale-95 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] transition-all duration-300";
 
 export function PartnerHubFilter({
   isOpen,
@@ -125,13 +125,13 @@ export function PartnerHubFilter({
       {/* Desktop Filter - Sidebar */}
       <div
         className={cn(
-          "fixed inset-y-0 left-0 w-80 bg-white/80 backdrop-blur-xl border-r border-white/30 transform transition-transform duration-200 ease-in-out rounded-none shadow-2xl",
+          "fixed inset-y-0 left-0 w-80 bg-kenoo-white/80 backdrop-blur-xl border-r border-white/30 transform transition-transform duration-200 ease-in-out rounded-none shadow-2xl",
           isOpen ? "translate-x-0" : "-translate-x-full",
           "z-50 hidden md:block"
         )}
       >
         <div className="h-full flex flex-col">
-          <div className="p-6 border-b border-black/10 flex justify-between items-center bg-white/80 backdrop-blur-xl">
+          <div className="p-6 border-b border-black/10 flex justify-between items-center bg-kenoo-white/80 backdrop-blur-xl">
             <div className="flex items-center gap-3">
               <Filter className="h-5 w-5 text-black" strokeWidth={1.5} />
               <h2 className="text-lg font-semibold text-black">Filters</h2>
@@ -151,7 +151,7 @@ export function PartnerHubFilter({
           <div className="p-6 border-t border-black/10">
             <button
               onClick={handleResetFilters}
-              className="w-full h-[50px] rounded-full border border-transparent hover:bg-gray-50 hover:border-neutral-200 hover:scale-95 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] transition-all duration-300 cursor-pointer flex items-center justify-center gap-2 text-black font-medium"
+              className="w-full h-[50px] rounded-full border border-transparent hover:bg-kenoo-white hover:border-neutral-200 hover:scale-95 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] transition-all duration-300 cursor-pointer flex items-center justify-center gap-2 text-black font-medium"
             >
               <RotateCcw className="h-4 w-4" strokeWidth={1.5} />
               Reset Filters
@@ -169,8 +169,8 @@ export function PartnerHubFilter({
               onClick={onClose}
             />
 
-            <div className="relative h-full w-full bg-white/80 backdrop-blur-xl flex flex-col">
-              <div className="p-6 border-b border-black/10 flex justify-between items-center bg-white/80 backdrop-blur-xl">
+            <div className="relative h-full w-full bg-kenoo-white/80 backdrop-blur-xl flex flex-col">
+              <div className="p-6 border-b border-black/10 flex justify-between items-center bg-kenoo-white/80 backdrop-blur-xl">
                 <div className="flex items-center gap-3">
                   <Filter className="h-5 w-5 text-black" strokeWidth={1.5} />
                   <h2 className="text-lg font-semibold text-black">Filters</h2>
@@ -190,7 +190,7 @@ export function PartnerHubFilter({
               <div className="p-6 border-t border-black/10">
                 <button
                   onClick={handleResetFilters}
-                  className="w-full h-16 rounded-full border border-transparent hover:bg-gray-50 hover:border-neutral-200 hover:scale-95 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] transition-all duration-300 cursor-pointer flex items-center justify-center gap-2 text-black font-medium text-lg"
+                  className="w-full h-16 rounded-full border border-transparent hover:bg-kenoo-white hover:border-neutral-200 hover:scale-95 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] transition-all duration-300 cursor-pointer flex items-center justify-center gap-2 text-black font-medium text-lg"
                 >
                   <RotateCcw className="h-5 w-5" strokeWidth={1.5} />
                   Reset Filters

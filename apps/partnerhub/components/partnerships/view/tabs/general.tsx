@@ -39,7 +39,7 @@ export default function GeneralTab({ formData, handleInputChange }: GeneralTabPr
   return (
     <div className="space-y-6">
       {/* Talent & Company */}
-      <div className="bg-white/50 backdrop-blur-sm shadow-sm rounded-[30px] p-6">
+      <div className="bg-kenoo-white/50 backdrop-blur-sm shadow-sm rounded-[30px] p-6">
         <div className="flex items-center mb-6">
           <h2 className="text-black font-black text-4xl">PARTNERSHIP DETAILS</h2>
           <div className="flex-1 border-t border-black h-[1px] mx-4" />

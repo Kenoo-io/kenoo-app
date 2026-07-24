@@ -4,11 +4,13 @@ import {
   getAppDirFromConfigMeta,
   loadMonorepoEnv,
 } from "@walls/config/load-root-env";
+import { getDirectoryPublicEnv } from "@walls/config/directory-public-env";
 
 const appDir = getAppDirFromConfigMeta(import.meta.url);
 const monorepoRoot = loadMonorepoEnv(appDir);
 
 const publicEnv = {
+  ...getDirectoryPublicEnv(),
   NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
   NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   NEXT_PUBLIC_WALLS_AGENCY_URL: process.env.NEXT_PUBLIC_WALLS_AGENCY_URL,

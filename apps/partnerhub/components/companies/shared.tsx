@@ -8,7 +8,7 @@ import { Search, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const cardSurfaceClass =
-  "rounded-3xl bg-gray-50/90 backdrop-blur-sm border border-neutral-200/60 shadow-[0_1px_2px_rgba(0,0,0,0.06),0_8px_22px_-8px_rgba(0,0,0,0.1)]";
+  "rounded-3xl bg-kenoo-white backdrop-blur-sm border border-neutral-200/60 shadow-[0_1px_2px_rgba(0,0,0,0.06),0_8px_22px_-8px_rgba(0,0,0,0.1)]";
 
 export const cardSurfaceInteractiveClass = cn(
   cardSurfaceClass,
@@ -16,7 +16,7 @@ export const cardSurfaceInteractiveClass = cn(
 );
 
 export const categoryTileSurfaceClass =
-  "rounded-3xl bg-gray-50/90 backdrop-blur-sm border border-neutral-200/60 shadow-[0_1px_2px_rgba(0,0,0,0.06),0_8px_22px_-8px_rgba(0,0,0,0.1)] transition-all duration-300 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.12)] hover:border-neutral-300/70";
+  "rounded-3xl bg-kenoo-white backdrop-blur-sm border border-neutral-200/60 shadow-[0_1px_2px_rgba(0,0,0,0.06),0_8px_22px_-8px_rgba(0,0,0,0.1)] transition-all duration-300 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.12)] hover:border-neutral-300/70";
 
 export interface LogoPreview {
   id: string;
@@ -153,7 +153,7 @@ function MosaicLogoCell({ preview }: { preview: LogoPreview | null }) {
   }
 
   return (
-    <div className="relative h-full w-full overflow-hidden bg-white isolate">
+    <div className="relative h-full w-full overflow-hidden bg-kenoo-white isolate">
       <div className="absolute inset-0 origin-center scale-[1.04] transition-transform duration-500 ease-out group-hover:scale-[1.08] will-change-transform">
         <Image
           src={logoSrc}
@@ -276,7 +276,7 @@ export function CompanyLogo({
     const isFallbackOnly = !logoUrl || primaryFailed;
     return (
       <div
-        className="relative flex-shrink-0 overflow-hidden rounded-full bg-white"
+        className="relative flex-shrink-0 overflow-hidden rounded-full bg-kenoo-white"
         style={{ width: size, height: size }}
       >
         <Image
@@ -401,7 +401,7 @@ export function CompanyCardItem({
   const cardContent = (
     <>
       <div className="flex flex-col items-center px-5 pb-5 pt-7">
-        <div className="mb-4 flex h-[5.5rem] w-[5.5rem] items-center justify-center rounded-full bg-white shadow-lg">
+        <div className="mb-4 flex h-[5.5rem] w-[5.5rem] items-center justify-center rounded-full bg-kenoo-white shadow-lg">
           {logoLayoutId ? (
             <motion.div layoutId={logoLayoutId} className="rounded-full">
               <CompanyLogo name={company.name} logoUrl={company.logoUrl} size={80} />
@@ -426,7 +426,7 @@ export function CompanyCardItem({
       </div>
 
       {hasStats && (
-        <div className="flex border-t border-neutral-200/60 bg-white/40">
+        <div className="flex border-t border-neutral-200/60 bg-kenoo-white/40">
           {company.employeeCount != null && (
             <div
               className={cn(

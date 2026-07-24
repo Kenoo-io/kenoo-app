@@ -55,8 +55,8 @@ function PartnershipDuo({ partnership }: { partnership: RecentPartnership }) {
       href={href}
       target={isExternal ? "_blank" : undefined}
       rel={isExternal ? "noopener noreferrer" : undefined}
-      title={`${partnership.talentName} × ${partnership.companyName}`}
-      className="group shrink-0 rounded-full border border-neutral-200 bg-neutral-50/80 p-2 transition-all duration-200 hover:border-neutral-300 hover:bg-white hover:shadow-sm"
+      title={`${partnership.talentName} Ã- ${partnership.companyName}`}
+      className="group shrink-0 rounded-full border border-neutral-200 bg-neutral-50/80 p-2 transition-all duration-200 hover:border-neutral-300 hover:bg-kenoo-white hover:shadow-sm"
     >
       <div className="relative flex items-center">
         <PartnershipAvatar
@@ -165,7 +165,7 @@ export function RecentPartnershipsSection() {
             href="/deal-board"
             className="text-xs font-light text-neutral-400 hover:text-neutral-900 transition-colors uppercase tracking-wider"
           >
-            View all →
+            View all â†'
           </Link>
         )}
       </div>

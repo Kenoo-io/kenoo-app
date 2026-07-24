@@ -1,6 +1,7 @@
 import type { CookieOptions } from "@supabase/ssr";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { appSlugCandidates } from "./app-url";
 import { getSupabaseAuthCookieOptions } from "@walls/supabase/cookies";
 
 /** Shared across portal + apps so launcher and middleware agree on context. */
@@ -171,7 +172,8 @@ export async function getAccountIdsWithAppAccess(
     .from("apps")
     .select("id")
     .eq("is_active", true)
-    .eq("slug", appSlug)
+    .in("slug", appSlugCandidates(appSlug))
+    .limit(1)
     .maybeSingle();
 
   if (appError || !appRow?.id) {
@@ -272,7 +274,8 @@ export async function userHasAppAccessForActiveAccount(
     .from("apps")
     .select("id")
     .eq("is_active", true)
-    .eq("slug", appSlug)
+    .in("slug", appSlugCandidates(appSlug))
+    .limit(1)
     .maybeSingle();
 
   if (appError || !appRow?.id) {

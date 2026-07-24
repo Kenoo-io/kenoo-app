@@ -1035,7 +1035,7 @@ function PartnerHubPartnershipsContent({ analyticsData }: PartnerHubPartnerships
             />
 
             {/* Content Area - Loading or Data */}
-            <div className="flex-1 bg-gray-50 flex flex-col">
+            <div className="flex-1 bg-kenoo-white flex flex-col">
             {loading ? (
               <PartnerHubSkeleton count={12} />
             ) : (

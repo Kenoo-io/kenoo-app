@@ -6,7 +6,7 @@ import UserProfileButton from '@/components/user-profile-button';
 
 export default function PartnerHubHeader() {
   return (
-    <header className="flex-shrink-0 border-b border-neutral-200 bg-gray-50">
+    <header className="flex-shrink-0 border-b border-neutral-200 bg-kenoo-white">
       <div className="flex h-[4.5rem] items-center justify-between gap-6 px-6 md:px-8">
         <Link
           href="/"

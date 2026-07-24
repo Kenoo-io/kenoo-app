@@ -22,6 +22,7 @@
     "paths": {
       "@/*": ["./*"],
       "@/lib/utils": ["../../packages/utils/src/index.ts"],
+      "@walls/auth": ["../../packages/auth/src/index.ts"],
       "@walls/ui/*": ["../../packages/ui/src/*"],
       "@walls/utils": ["../../packages/utils/src/index.ts"]
     }

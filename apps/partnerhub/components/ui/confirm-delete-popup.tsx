@@ -30,7 +30,7 @@ export function ConfirmDeletePopup({
         <h2 className="text-4xl font-black text-gray-500 pl-16 mb-8">{title}</h2>
         <div className="grid grid-cols-2 gap-8">
           <Card 
-            className="cursor-pointer hover:bg-walls-gray transition-all duration-300 rounded-2xl border-2 border-transparent group bg-gray-50"
+            className="cursor-pointer hover:bg-walls-gray transition-all duration-300 rounded-2xl border-2 border-transparent group bg-kenoo-white"
             onClick={onClose}
           >
             <CardContent className="p-8 flex flex-col items-center justify-center gap-4">
@@ -44,7 +44,7 @@ export function ConfirmDeletePopup({
           </Card>
           
           <Card 
-            className="cursor-pointer hover:bg-walls-gray transition-all duration-300 rounded-2xl border-2 border-transparent group bg-gray-50"
+            className="cursor-pointer hover:bg-walls-gray transition-all duration-300 rounded-2xl border-2 border-transparent group bg-kenoo-white"
             onClick={onConfirm}
           >
             <CardContent className="p-8 flex flex-col items-center justify-center gap-4">

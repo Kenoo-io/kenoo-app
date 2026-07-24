@@ -24,7 +24,7 @@ Avatar.displayName = AvatarPrimitive.Root.displayName
 type AvatarImageProps = React.ComponentPropsWithoutRef<
   typeof AvatarPrimitive.Image
 > & {
-  /** Target display width in CSS px; image is requested at 2× for retina. */
+  /** Target display width in CSS px; image is requested at 2x for retina. */
   optimizeWidth?: number
 }
 

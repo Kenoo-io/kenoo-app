@@ -5,6 +5,21 @@
 
 const DEFAULT_ROOT_DOMAIN = "kenoo.io";
 
+/**
+ * DB / legacy slug aliases → canonical monorepo app slug
+ * (matches `NEXT_PUBLIC_*_URL` keys and local ports).
+ */
+const APP_SLUG_ALIASES: Record<string, string> = {
+  "partner-hub": "partnerhub",
+  partnerHub: "partnerhub",
+  PartnerHub: "partnerhub",
+};
+
+function canonicalAppSlug(slug: string): string {
+  const trimmed = slug.trim();
+  return APP_SLUG_ALIASES[trimmed] ?? trimmed;
+}
+
 /** Canonical local `next dev` ports — used when env points at the portal by mistake. */
 const LOCAL_DEV_PORTS: Record<string, number> = {
   adpilot: 3001,
@@ -18,6 +33,7 @@ const LOCAL_DEV_PORTS: Record<string, number> = {
   crm: 3009,
   ledger: 3010,
   mail: 3012,
+  partnerhub: 3013,
 };
 
 const KNOWN_PORTAL_ORIGINS = [
@@ -60,6 +76,7 @@ function localDevOriginForSlug(slug: string): string | null {
 
 /** Known app origin env vars by slug (local ports / Vercel overrides). */
 export function originForAppSlug(slug: string): string | null {
+  const canonical = canonicalAppSlug(slug);
   const map: Record<string, string | undefined> = {
     adpilot: process.env.NEXT_PUBLIC_ADPILOT_URL,
     wallie: process.env.NEXT_PUBLIC_WALLIE_URL,
@@ -72,20 +89,21 @@ export function originForAppSlug(slug: string): string | null {
     crm: process.env.NEXT_PUBLIC_CRM_URL,
     ledger: process.env.NEXT_PUBLIC_LEDGER_URL,
     mail: process.env.NEXT_PUBLIC_MAIL_URL,
+    partnerhub: process.env.NEXT_PUBLIC_PARTNERHUB_URL,
   };
 
-  const fromEnv = envOrigin(map[slug]);
+  const fromEnv = envOrigin(map[canonical]);
   if (fromEnv) {
     // Swapped env trap: never send an app tile to the portal origin.
     if (!portalOriginSet().has(fromEnv)) {
       return fromEnv;
     }
 
-    const localFallback = localDevOriginForSlug(slug);
+    const localFallback = localDevOriginForSlug(canonical);
     if (localFallback && localFallback !== fromEnv) {
       if (process.env.NODE_ENV === "development") {
         console.warn(
-          `[auth] ${slug} URL (${fromEnv}) collides with the portal origin; using ${localFallback}`,
+          `[auth] ${canonical} URL (${fromEnv}) collides with the portal origin; using ${localFallback}`,
         );
       }
       return localFallback;
@@ -93,7 +111,7 @@ export function originForAppSlug(slug: string): string | null {
   }
 
   if (process.env.NODE_ENV === "development") {
-    return localDevOriginForSlug(slug);
+    return localDevOriginForSlug(canonical);
   }
 
   return null;
@@ -144,6 +162,8 @@ export function resolveAppHref(options: ResolveAppHrefOptions): string {
     return stripTrailingSlash(redirect);
   }
 
+  const canonical = canonicalAppSlug(slug);
+
   // No platform base → keep legacy relative paths as-is (portal launcher).
   if (!platformBase?.trim()) {
     if (redirect?.startsWith("/") && !redirect.startsWith("//")) {
@@ -152,7 +172,7 @@ export function resolveAppHref(options: ResolveAppHrefOptions): string {
     if (redirect) {
       return `/${redirect.replace(/^\/*/, "")}`;
     }
-    return `/${slug}`;
+    return `/${canonical}`;
   }
 
   if (redirect?.startsWith("/") && !redirect.startsWith("//")) {
@@ -165,5 +185,14 @@ export function resolveAppHref(options: ResolveAppHrefOptions): string {
     return `${stripTrailingSlash(platformBase)}/${pathPart}`;
   }
 
-  return `${stripTrailingSlash(platformBase)}/${slug}`;
+  return `${stripTrailingSlash(platformBase)}/${canonical}`;
+}
+
+/** Slugs that should match the same apps row (DB legacy + monorepo canonical). */
+export function appSlugCandidates(slug: string): string[] {
+  const canonical = canonicalAppSlug(slug);
+  const aliases = Object.entries(APP_SLUG_ALIASES)
+    .filter(([, value]) => value === canonical)
+    .map(([key]) => key);
+  return Array.from(new Set([slug.trim(), canonical, ...aliases]));
 }

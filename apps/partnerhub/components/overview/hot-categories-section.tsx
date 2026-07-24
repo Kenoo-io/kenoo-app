@@ -121,7 +121,7 @@ export function HotCategoriesSection() {
             href="/companies"
             className="text-xs font-light uppercase tracking-wider text-neutral-400 transition-colors hover:text-neutral-900"
           >
-            View all →
+            View all â†'
           </Link>
         )}
       </div>

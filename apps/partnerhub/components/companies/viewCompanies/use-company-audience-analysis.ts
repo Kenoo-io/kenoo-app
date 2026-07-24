@@ -12,7 +12,7 @@ import type {
 import { buildKnownHashtags } from "./known-hashtags";
 import { unwrapRelation } from "./utils";
 
-// Module-level in-memory cache — persists across tab navigation, cleared on page refresh
+// Module-level in-memory cache - persists across tab navigation, cleared on page refresh
 const inMemoryCompanyAudienceCache = new Map<string, CompanyAudienceAnalysis | null>();
 
 type PartnershipContentRow = {
@@ -220,12 +220,19 @@ export function useCompanyAudienceAnalysis(companyId: string | null | undefined)
       });
       const hashtags = Array.from(hashtagsByPostId.values()).flat();
 
-      const result = {
-        ...analyzePartnershipAudience({
-          partnerships,
-          socialAccounts,
-          hashtags,
-        }),
+      const analyzed = analyzePartnershipAudience({
+        partnerships,
+        socialAccounts,
+        hashtags,
+      });
+      if (!analyzed) {
+        setAnalysis(null);
+        inMemoryCompanyAudienceCache.set(companyId, null);
+        return;
+      }
+
+      const result: CompanyAudienceAnalysis = {
+        ...analyzed,
         knownHashtags,
       };
       setAnalysis(result);
@@ -238,7 +245,7 @@ export function useCompanyAudienceAnalysis(companyId: string | null | undefined)
     }
   }, [user, companyId]);
 
-  // Initial load only — skip if cached data was hydrated synchronously on mount,
+  // Initial load only - skip if cached data was hydrated synchronously on mount,
   // and don't refetch when navigating back to a previously viewed company
   useEffect(() => {
     if (!companyId) {

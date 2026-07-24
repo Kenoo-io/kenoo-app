@@ -21,7 +21,7 @@ type ColumnWidths = {
 };
 
 interface PartnershipsTableHeaderProps {
-  headerScrollRef: React.RefObject<HTMLDivElement>;
+  headerScrollRef: React.RefObject<HTMLDivElement | null>;
   columnWidths: ColumnWidths;
   setColumnWidths: React.Dispatch<React.SetStateAction<ColumnWidths>>;
   sortBy: PartnershipSortField;
@@ -131,19 +131,19 @@ export const PartnershipsTableHeader = ({
   };
 
   return (
-    <Card className="w-full rounded-none rounded-tl-lg bg-gray-50 border-b border-r border-l-0 border-t-0 border-neutral-300 sticky top-0 z-40 overflow-hidden">
+    <Card className="w-full rounded-none rounded-tl-lg bg-kenoo-white border-b border-r border-l-0 border-t-0 border-neutral-300 sticky top-0 z-40 overflow-hidden">
       <div
         className="absolute top-0 bottom-0 w-px z-10 bg-neutral-300 pointer-events-none"
         style={{ left: `${columnWidths.name}px` }}
       ></div>
-      <CardContent className="py-2 relative bg-gray-50">
+      <CardContent className="py-2 relative bg-kenoo-white">
         <div className="flex items-stretch">
           {/* Sticky Left Section - Talent Name Header */}
           <div
-            className="flex items-center gap-4 flex-shrink-0 sticky left-0 z-10 pr-0 self-stretch overflow-visible bg-gray-50"
+            className="flex items-center gap-4 flex-shrink-0 sticky left-0 z-10 pr-0 self-stretch overflow-visible bg-kenoo-white"
             style={{ width: `${columnWidths.name}px` }}
           >
-            <div className="flex items-center gap-4 flex-1 -my-2 py-2 pl-6 bg-gray-50 relative max-w-full">
+            <div className="flex items-center gap-4 flex-1 -my-2 py-2 pl-6 bg-kenoo-white relative max-w-full">
               <div className="w-[40px]"></div>
               <div className="min-w-0">
                 <button

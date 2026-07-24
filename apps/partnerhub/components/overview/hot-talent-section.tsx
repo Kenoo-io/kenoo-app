@@ -43,7 +43,7 @@ function TalentCard({ talent }: { talent: HotTalent }) {
         "group flex w-40 shrink-0 flex-col items-center px-4 py-6 text-center transition-all duration-300 hover:scale-[0.99]"
       )}
     >
-      <div className="mb-4 flex h-24 w-24 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-neutral-200/60">
+      <div className="mb-4 flex h-24 w-24 items-center justify-center rounded-full bg-kenoo-white shadow-sm ring-1 ring-neutral-200/60">
         <TalentAvatar src={talent.avatarUrl} alt={talent.name} />
       </div>
       <p className="w-full truncate text-base font-semibold text-neutral-900">{talent.name}</p>
@@ -165,7 +165,7 @@ export function HotTalentSection() {
             href="/deal-board"
             className="text-xs font-light uppercase tracking-wider text-neutral-400 transition-colors hover:text-neutral-900"
           >
-            View all →
+            View all â†'
           </Link>
         )}
       </div>

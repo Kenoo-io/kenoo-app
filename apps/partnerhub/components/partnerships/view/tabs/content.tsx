@@ -53,7 +53,7 @@ interface ContentTabProps {
 export default function ContentTab({ contentItems }: ContentTabProps) {
   return (
     <div className="space-y-6">
-      <div className="bg-white/50 backdrop-blur-sm shadow-sm rounded-[30px] p-6">
+      <div className="bg-kenoo-white/50 backdrop-blur-sm shadow-sm rounded-[30px] p-6">
         <div className="flex items-center mb-6">
           <h2 className="text-black font-black text-4xl">POSTS</h2>
           <div className="flex-1 border-t border-black h-[1px] mx-4" />
@@ -89,7 +89,7 @@ export default function ContentTab({ contentItems }: ContentTabProps) {
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={(e) => e.stopPropagation()}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg border-[0.5px] border-solid border-neutral-300 bg-gray-50 shadow-none transition-all duration-300 hover:border-neutral-200/80 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.14)] hover:scale-[0.98] cursor-pointer flex-shrink-0"
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg border-[0.5px] border-solid border-neutral-300 bg-kenoo-white shadow-none transition-all duration-300 hover:border-neutral-200/80 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.14)] hover:scale-[0.98] cursor-pointer flex-shrink-0"
                   >
                     <Play className="w-4 h-4 flex-shrink-0 text-neutral-700" />
                     <span className="text-sm font-light text-neutral-700 whitespace-nowrap">View Post</span>
