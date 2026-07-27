@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getFirestore, collection, getDocs } from "firebase/firestore";
+import { getSupabaseClient } from "@/app/auth/supabaseClient";
 import {
   Select,
   SelectContent,
@@ -21,28 +21,41 @@ interface LeadSource {
   name: string;
 }
 
-export function LeadSourceSelect({ value, onValueChange, className }: LeadSourceSelectProps) {
+export function LeadSourceSelect({
+  value,
+  onValueChange,
+  className,
+}: LeadSourceSelectProps) {
   const [sources, setSources] = useState<LeadSource[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchSources = async () => {
       try {
-        const db = getFirestore();
-        const sourcesCollection = collection(db, "typesLeadsLeadSource");
-        const snapshot = await getDocs(sourcesCollection);
-        
-        const sourcesData = snapshot.docs.map(doc => ({
-          id: doc.id,
-          name: doc.data().name || "",
-        }));
-        
-        // Sort sources alphabetically by name
-        sourcesData.sort((a, b) => a.name.localeCompare(b.name));
-        
-        setSources(sourcesData);
+        const supabase = getSupabaseClient();
+        const { data, error } = await supabase
+          .from("people")
+          .select("source")
+          .not("source", "is", null);
+
+        if (error) {
+          console.error("Error fetching lead sources:", error);
+          setSources([]);
+          return;
+        }
+
+        const unique = Array.from(
+          new Set(
+            (data || [])
+              .map((row: { source: string | null }) => row.source)
+              .filter((s): s is string => Boolean(s?.trim())),
+          ),
+        ).sort((a, b) => a.localeCompare(b));
+
+        setSources(unique.map((name) => ({ id: name, name })));
       } catch (error) {
         console.error("Error fetching lead sources:", error);
+        setSources([]);
       } finally {
         setLoading(false);
       }
@@ -54,21 +67,20 @@ export function LeadSourceSelect({ value, onValueChange, className }: LeadSource
   return (
     <Select value={value || undefined} onValueChange={onValueChange} disabled={loading}>
       <SelectTrigger className={className}>
-        <SelectValue placeholder={loading ? "Loading sources..." : "Select a lead source"} />
+        <SelectValue
+          placeholder={loading ? "Loading sources..." : "Select a lead source"}
+        />
       </SelectTrigger>
       <SelectContent>
         <SelectItem value="none" className="text-muted-foreground">
           -- None --
         </SelectItem>
         {sources.map((source) => (
-          <SelectItem 
-            key={source.id} 
-            value={source.name}
-          >
+          <SelectItem key={source.id} value={source.name}>
             {source.name}
           </SelectItem>
         ))}
       </SelectContent>
     </Select>
   );
-} 
+}

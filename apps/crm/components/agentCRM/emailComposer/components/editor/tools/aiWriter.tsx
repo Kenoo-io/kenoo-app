@@ -6,13 +6,6 @@ import { useState, useRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Sparkles, Loader2, X, Pencil } from "lucide-react";
 import { EditorRef } from '../editor';
-import {
-  collection,
-  query,
-  where,
-  getDocs,
-  getFirestore
-} from 'firebase/firestore';
 import { Input } from '@/components/ui/borderless-input';
 import {
   Popover,
@@ -308,59 +301,42 @@ export function AIWriterTool({
     setShowPersonalInfo(false);
   }, [diffBlocks, reviewableBlocks.length, hasPendingReview, decisions, editorRef, onChange]);
 
-  // ── Firestore helpers ────────────────────────────────────────────────────
+  // ── Recipient context helpers ────────────────────────────────────────────
 
-  const getFirestoreData = async (email: string) => {
+  const getRecipientContext = async (email: string) => {
     try {
-      const db = getFirestore();
-      let recipientDoc;
-      let companyName;
-      let firstName;
+      const supabase = getSupabaseClient();
+      const { data: person, error } = await supabase
+        .from("people")
+        .select(
+          "first_name, email, company_name, company_id, companies:company_id(name, overview)",
+        )
+        .ilike("email", email)
+        .maybeSingle();
 
-      const leadsRef = collection(db, 'leads');
-      const leadsQuery = query(leadsRef, where('email', '==', email));
-      let recipientDocs = await getDocs(leadsQuery);
-
-      if (recipientDocs.empty) {
-        const contactsRef = collection(db, 'contacts');
-        const contactsQuery = query(contactsRef, where('email', '==', email));
-        recipientDocs = await getDocs(contactsQuery);
-      }
-
-      if (recipientDocs.empty) {
-        const scoutersRef = collection(db, 'scouter');
-        const scoutersQuery = query(scoutersRef, where('personalEmail', '==', email));
-        recipientDocs = await getDocs(scoutersQuery);
-
-        if (!recipientDocs.empty) {
-          recipientDoc = recipientDocs.docs[0].data();
-          firstName = recipientDoc.creatorAlias || '';
-          return { companyData: null, recipientData: { firstName, email } };
-        }
-      }
-
-      if (!recipientDocs.empty) {
-        recipientDoc = recipientDocs.docs[0].data();
-        firstName = recipientDoc.firstName || '';
-        companyName = recipientDoc.company;
-      } else {
+      if (error || !person) {
         return null;
       }
 
-      let companyData = null;
-      if (companyName) {
-        const companiesRef = collection(db, 'companies');
-        const companiesQuery = query(companiesRef, where('name', '==', companyName));
-        const companyDocs = await getDocs(companiesQuery);
-        if (!companyDocs.empty) companyData = companyDocs.docs[0].data();
-      }
+      const companyRel = person.companies as
+        | { name?: string; overview?: string }
+        | { name?: string; overview?: string }[]
+        | null;
+      const company = Array.isArray(companyRel) ? companyRel[0] : companyRel;
 
       return {
-        companyData: companyData ? { name: companyData.name, overview: companyData.overview } : null,
-        recipientData: { firstName, email },
+        companyData: company
+          ? { name: company.name, overview: company.overview }
+          : person.company_name
+            ? { name: person.company_name, overview: undefined }
+            : null,
+        recipientData: {
+          firstName: person.first_name || "",
+          email: person.email || email,
+        },
       };
     } catch (error) {
-      console.error('AIWriterTool - Error getting Firestore data:', error);
+      console.error("AIWriterTool - Error getting recipient context:", error);
       return null;
     }
   };
@@ -504,7 +480,7 @@ export function AIWriterTool({
       if (!recipientEmails.length) throw new Error('No recipient email found');
 
       const primaryRecipient = recipientEmails[0];
-      const firestoreData = await getFirestoreData(primaryRecipient);
+      const firestoreData = await getRecipientContext(primaryRecipient);
       const firstName = firestoreData?.recipientData?.firstName || 'there';
 
       if (isFollowUpTab) {
@@ -583,7 +559,7 @@ export function AIWriterTool({
     try {
       setIsGenerating(true);
       const primaryRecipient = recipientEmails[0];
-      const firestoreData = await getFirestoreData(primaryRecipient);
+      const firestoreData = await getRecipientContext(primaryRecipient);
       const firstName = firestoreData?.recipientData?.firstName || 'there';
       const talentContext = await fetchTalentContext(selectedCreators.map((c) => c.id));
 

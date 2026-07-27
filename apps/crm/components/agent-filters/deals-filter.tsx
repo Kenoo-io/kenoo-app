@@ -11,7 +11,6 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
-import { getFirestore, collection, getDocs } from "firebase/firestore";
 import { useAuth } from "@/app/auth/AuthContext";
 import { getSupabaseClient } from "@/app/auth/supabaseClient";
 
@@ -116,16 +115,25 @@ export function DealsFilter({
 
     const fetchStages = async () => {
       try {
-        const db = getFirestore();
-        const stagesRef = collection(db, "typesDealsStage");
-        const querySnapshot = await getDocs(stagesRef);
+        const supabase = getSupabaseClient();
+        const { data, error } = await supabase
+          .from("deal_stages")
+          .select("name")
+          .order("order_index", { ascending: true });
 
-        const stagesList = querySnapshot.docs.map(doc => doc.data().name || "");
-        stagesList.sort();
+        if (error) {
+          console.error("Error fetching stages:", error);
+          setStages([]);
+          return;
+        }
 
+        const stagesList = (data || [])
+          .map((row: { name: string | null }) => row.name || "")
+          .filter(Boolean);
         setStages(stagesList);
       } catch (error) {
         console.error("Error fetching stages:", error);
+        setStages([]);
       } finally {
         setLoading(prev => ({ ...prev, stages: false }));
       }
