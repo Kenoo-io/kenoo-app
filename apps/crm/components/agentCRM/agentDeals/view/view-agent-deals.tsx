@@ -1349,10 +1349,7 @@ export default function EditAgentDeals({ analyticsData, dealId, initialData, isO
         e.preventDefault();
         if (!isSubmitting) handleSave();
       }
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        onClose();
-      }
+      // Escape is handled by the Sheet (Radix) so nested Selects/Popovers can close first
     };
 
     window.addEventListener('keydown', handleKeyDown);
