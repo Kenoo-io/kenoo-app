@@ -904,10 +904,7 @@ export default function CreateAgentDeals({ analyticsData, isOpen, onClose, onSuc
         e.preventDefault();
         if (!isSubmitting) handleSave();
       }
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        onClose();
-      }
+      // Escape is handled by the Sheet (Radix) so nested Selects/Popovers can close first
     };
 
     window.addEventListener('keydown', handleKeyDown);
