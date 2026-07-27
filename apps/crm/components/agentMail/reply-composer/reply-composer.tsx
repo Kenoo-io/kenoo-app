@@ -21,7 +21,6 @@ import { ScheduleDialog } from '@/components/agentCRM/emailComposer/components/f
 import { AIReplier } from '@/components/agentMail/reply-composer/aiReplier';
 import { RecipientField } from '@/components/agentCRM/emailComposer/components/recipients/recipient-field';
 import { cn } from "@/lib/utils";
-import { Timestamp } from 'firebase/firestore';
 
 import { createThreadedReply } from '@/utils/reply-formatting';
 import { ReplyTo } from '@/types/email.types';
@@ -181,7 +180,7 @@ export default function ReplyComposer({
     setSending(false);
   };
 
-  const handleScheduleSend = async (timestamp: Timestamp, timezone: string) => {
+  const handleScheduleSend = async (scheduledAt: Date, timezone: string) => {
     if (!hasReplyContent) return;
     const html = editorRef.current?.getEditor()?.getHTML() || '';
     const content = normalizeReplyHtmlForSend(html);
@@ -195,7 +194,10 @@ export default function ReplyComposer({
         to: toEmails,
         subject: replyTo?.subject ?? 'Re: No Subject',
         message: content,
-        scheduledTime: { seconds: timestamp.seconds, nanoseconds: timestamp.nanoseconds },
+        scheduledTime: {
+          seconds: Math.floor(scheduledAt.getTime() / 1000),
+          nanoseconds: 0,
+        },
         timezone,
         attachments: attachments.length ? attachments : undefined
       }),

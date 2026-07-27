@@ -8,7 +8,6 @@ import { EditorToolbar } from '../editor/editor-toolbar';
 import { EditorRef, normalizeEmailHtmlForSend } from '../editor/editor';
 import { SendOptionsDropdown } from '../editor/tools/sendOptions';
 import { TestSendTool } from '../editor/tools/testSend';
-import { Timestamp } from 'firebase/firestore';
 import { PitchTracker, type SelectedCreatorSummary } from '../editor/tools/pitchTracker';
 import {
   Tooltip,
@@ -63,7 +62,7 @@ export function EmailFooter({
   const [showScheduleDialog, setShowScheduleDialog] = useState(false);
   const { handleTestSend } = TestSendTool();
 
-  const handleScheduleSend = async (timestamp: Timestamp, timezone: string) => {
+  const handleScheduleSend = async (scheduledAt: Date, timezone: string) => {
     try {
       // Normalize HTML for send so paragraph spacing is preserved in Gmail etc.
       const content = normalizeEmailHtmlForSend(editorRef.current?.getEditor()?.getHTML() || '');
@@ -79,8 +78,8 @@ export function EmailFooter({
           subject,
           message: content,
           scheduledTime: {
-            seconds: timestamp.seconds,
-            nanoseconds: timestamp.nanoseconds
+            seconds: Math.floor(scheduledAt.getTime() / 1000),
+            nanoseconds: 0,
           },
           timezone,
           attachments

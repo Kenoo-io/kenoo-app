@@ -17,14 +17,13 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { collection, getDocs, getFirestore, query, where } from "firebase/firestore";
-import Image from 'next/image';
+import { getSupabaseClient } from "@/app/auth/supabaseClient";
 
 interface Recipient {
   id: string;
   name: string;
   email: string;
-  type: 'contact' | 'lead';
+  type: "contact" | "lead";
   company: string;
 }
 
@@ -36,12 +35,18 @@ interface RecipientSelectorProps {
   disabled?: boolean;
 }
 
-export function RecipientSelector({ value, onChange, selectedCompany, className, disabled }: RecipientSelectorProps) {
+export function RecipientSelector({
+  value,
+  onChange,
+  selectedCompany,
+  className,
+  disabled,
+}: RecipientSelectorProps) {
   const [open, setOpen] = React.useState(false);
   const [recipients, setRecipients] = React.useState<Recipient[]>([]);
-  const [selectedRecipient, setSelectedRecipient] = React.useState<Recipient | null>(null);
+  const [selectedRecipient, setSelectedRecipient] =
+    React.useState<Recipient | null>(null);
   const [searchTerm, setSearchTerm] = React.useState("");
-  const [imageErrors, setImageErrors] = React.useState<Record<string, boolean>>({});
 
   React.useEffect(() => {
     const fetchRecipients = async () => {
@@ -52,47 +57,81 @@ export function RecipientSelector({ value, onChange, selectedCompany, className,
       }
 
       try {
-        const db = getFirestore();
-        
-        // Fetch contacts
-        const contactsRef = collection(db, "contacts");
-        const contactsQuery = query(contactsRef, where("company", "==", selectedCompany));
-        const contactsSnapshot = await getDocs(contactsQuery);
-        
-        // Fetch leads
-        const leadsRef = collection(db, "leads");
-        const leadsQuery = query(leadsRef, where("company", "==", selectedCompany));
-        const leadsSnapshot = await getDocs(leadsQuery);
+        const supabase = getSupabaseClient();
 
-        const contacts = contactsSnapshot.docs.map(doc => ({
-          id: doc.id,
-          name: `${doc.data().firstName} ${doc.data().lastName}`.trim(),
-          email: doc.data().email,
-          type: 'contact' as const,
-          company: doc.data().company
-        }));
+        // Resolve company by name (pitch UI passes company name) or by id.
+        let companyId: string | null = null;
+        const byId = await supabase
+          .from("companies")
+          .select("id, name")
+          .eq("id", selectedCompany)
+          .maybeSingle();
 
-        const leads = leadsSnapshot.docs.map(doc => ({
-          id: doc.id,
-          name: `${doc.data().firstName} ${doc.data().lastName}`.trim(),
-          email: doc.data().email,
-          type: 'lead' as const,
-          company: doc.data().company
-        }));
+        if (byId.data?.id) {
+          companyId = byId.data.id;
+        } else {
+          const byName = await supabase
+            .from("companies")
+            .select("id, name")
+            .eq("name", selectedCompany)
+            .maybeSingle();
+          companyId = byName.data?.id ?? null;
+        }
 
-        const allRecipients = [...contacts, ...leads]
-          .filter(recipient => 
-            recipient.email && 
-            (!searchTerm || 
-              recipient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-              recipient.email.toLowerCase().includes(searchTerm.toLowerCase())
-            )
+        let query = supabase
+          .from("people")
+          .select("id, first_name, last_name, email, company_name, person_type")
+          .not("email", "is", null);
+
+        if (companyId) {
+          query = query.eq("company_id", companyId);
+        } else {
+          query = query.eq("company_name", selectedCompany);
+        }
+
+        const { data, error } = await query.limit(500);
+        if (error) {
+          console.error("Error fetching recipients:", error);
+          setRecipients([]);
+          return;
+        }
+
+        const allRecipients = (data || [])
+          .map(
+            (row: {
+              id: string;
+              first_name: string | null;
+              last_name: string | null;
+              email: string | null;
+              company_name: string | null;
+              person_type: string | null;
+            }) => ({
+              id: row.id,
+              name: `${row.first_name || ""} ${row.last_name || ""}`.trim(),
+              email: row.email || "",
+              type: (row.person_type === "lead" ? "lead" : "contact") as
+                | "contact"
+                | "lead",
+              company: row.company_name || selectedCompany,
+            }),
+          )
+          .filter(
+            (recipient) =>
+              recipient.email &&
+              (!searchTerm ||
+                recipient.name
+                  .toLowerCase()
+                  .includes(searchTerm.toLowerCase()) ||
+                recipient.email
+                  .toLowerCase()
+                  .includes(searchTerm.toLowerCase())),
           )
           .sort((a, b) => a.name.localeCompare(b.name));
 
         setRecipients(allRecipients);
-        const selected = allRecipients.find(r => r.email === value);
-        setSelectedRecipient(selected || null);
+        setSelectedRecipient(
+          allRecipients.find((r) => r.email === value) || null,
+        );
       } catch (error) {
         console.error("Error fetching recipients:", error);
         setRecipients([]);
@@ -102,13 +141,6 @@ export function RecipientSelector({ value, onChange, selectedCompany, className,
     fetchRecipients();
   }, [selectedCompany, value, searchTerm]);
 
-  const handleImageError = (recipientId: string) => {
-    setImageErrors(prev => ({
-      ...prev,
-      [recipientId]: true
-    }));
-  };
-
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -117,24 +149,33 @@ export function RecipientSelector({ value, onChange, selectedCompany, className,
           role="combobox"
           aria-expanded={open}
           disabled={disabled || !selectedCompany}
-          className={cn("w-full justify-between bg-background text-foreground", className)}
+          className={cn(
+            "w-full justify-between bg-background text-foreground",
+            className,
+          )}
         >
           <div className="flex items-center gap-2">
             {selectedRecipient && (
               <div className="flex items-center gap-2">
                 <span>{selectedRecipient.name}</span>
-                <span className="text-muted-foreground">({selectedRecipient.email})</span>
+                <span className="text-muted-foreground">
+                  ({selectedRecipient.email})
+                </span>
               </div>
             )}
-            <span>{!selectedCompany ? "Select a company first..." : value || "Select recipient..."}</span>
+            <span>
+              {!selectedCompany
+                ? "Select a company first..."
+                : value || "Select recipient..."}
+            </span>
           </div>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[--radix-popover-trigger-width] p-0 bg-background z-[10000]">
         <Command className="w-full bg-background">
-          <CommandInput 
-            placeholder="Search recipients..." 
+          <CommandInput
+            placeholder="Search recipients..."
             value={searchTerm}
             onValueChange={setSearchTerm}
             className="bg-background"
@@ -155,7 +196,9 @@ export function RecipientSelector({ value, onChange, selectedCompany, className,
                 >
                   <div className="flex flex-col">
                     <span>{recipient.name}</span>
-                    <span className="text-sm text-muted-foreground">{recipient.email}</span>
+                    <span className="text-sm text-muted-foreground">
+                      {recipient.email}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-medium px-2 py-1 rounded-full bg-blue-50 text-blue-600 capitalize">
@@ -164,7 +207,7 @@ export function RecipientSelector({ value, onChange, selectedCompany, className,
                     <Check
                       className={cn(
                         "ml-2 h-4 w-4",
-                        value === recipient.email ? "opacity-100" : "opacity-0"
+                        value === recipient.email ? "opacity-100" : "opacity-0",
                       )}
                     />
                   </div>
@@ -176,4 +219,4 @@ export function RecipientSelector({ value, onChange, selectedCompany, className,
       </PopoverContent>
     </Popover>
   );
-} 
+}

@@ -11,7 +11,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
-import { getFirestore, collection, getDocs, query, where, doc, getDoc } from "firebase/firestore";
+import { getSupabaseClient } from "@/app/auth/supabaseClient";
 import {
   Command,
   CommandEmpty,
@@ -106,77 +106,115 @@ export function PitchesFilter({
     }));
   };
 
-  // Fetch agents (users with Agent role)
+  // Fetch agents (team members)
   useEffect(() => {
     const fetchAgents = async () => {
       try {
-        const db = getFirestore();
-        const usersRef = collection(db, "users");
-        const q = query(
-          usersRef,
-          where("userType", "in", ["Super Admin", "Admin", "Agent"])
+        const supabase = getSupabaseClient();
+        const { data: teamData, error: teamError } = await supabase
+          .from("team")
+          .select("user_id")
+          .not("user_id", "is", null);
+
+        if (teamError || !teamData?.length) {
+          setAgents([]);
+          return;
+        }
+
+        const userIds = Array.from(
+          new Set(
+            teamData
+              .map((t: { user_id: string | null }) => t.user_id)
+              .filter(Boolean),
+          ),
+        ) as string[];
+
+        const { data: usersData, error: usersError } = await supabase
+          .from("users")
+          .select("id, first_name, last_name, email, avatar_url")
+          .in("id", userIds);
+
+        if (usersError) {
+          setAgents([]);
+          return;
+        }
+
+        const agentsList = (usersData || []).map(
+          (u: {
+            id: string;
+            first_name: string | null;
+            last_name: string | null;
+            email: string | null;
+            avatar_url: string | null;
+          }) => ({
+            id: u.id,
+            displayName:
+              `${u.first_name || ""} ${u.last_name || ""}`.trim() ||
+              u.email ||
+              "Unknown User",
+            userType: "Agent",
+            photoURL: u.avatar_url || "",
+          }),
         );
-        
-        const querySnapshot = await getDocs(q);
-        const agentsList = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          displayName: doc.data().displayName || doc.data().name || "Unknown User",
-          userType: doc.data().userType,
-          photoURL: doc.data().photoURL || ""
-        }));
-        
+
         agentsList.sort((a, b) => a.displayName.localeCompare(b.displayName));
         setAgents(agentsList);
       } catch (error) {
         console.error("Error fetching agents:", error);
+        setAgents([]);
       } finally {
-        setLoading(prev => ({ ...prev, agents: false }));
+        setLoading((prev) => ({ ...prev, agents: false }));
       }
     };
 
     fetchAgents();
   }, []);
 
-  // Fetch contacts and leads
+  // Fetch contacts and leads from people
   useEffect(() => {
     const fetchContacts = async () => {
       try {
-        const db = getFirestore();
-        const contactsRef = collection(db, "contacts");
-        const leadsRef = collection(db, "leads");
-        
-        const [contactsSnapshot, leadsSnapshot] = await Promise.all([
-          getDocs(contactsRef),
-          getDocs(leadsRef)
-        ]);
+        const supabase = getSupabaseClient();
+        const { data, error } = await supabase
+          .from("people")
+          .select("id, first_name, last_name, email, company_name")
+          .not("email", "is", null)
+          .limit(2000);
 
-        const allContacts = [
-          ...contactsSnapshot.docs.map(doc => ({
-            id: doc.id,
-            firstName: doc.data().firstName || "",
-            lastName: doc.data().lastName || "",
-            email: doc.data().email || "",
-            company: doc.data().company || "",
-          })),
-          ...leadsSnapshot.docs.map(doc => ({
-            id: doc.id,
-            firstName: doc.data().firstName || "",
-            lastName: doc.data().lastName || "",
-            email: doc.data().email || "",
-            company: doc.data().company || "",
-          }))
-        ] as Contact[];
+        if (error) {
+          console.error("Error fetching contacts:", error);
+          setContacts([]);
+          return;
+        }
 
-        // Sort by name
-        allContacts.sort((a, b) => 
-          `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`)
+        const allContacts = (data || []).map(
+          (row: {
+            id: string;
+            first_name: string | null;
+            last_name: string | null;
+            email: string | null;
+            company_name: string | null;
+          }) => ({
+            id: row.id,
+            firstName: row.first_name || "",
+            lastName: row.last_name || "",
+            email: row.email || "",
+            company: row.company_name || "",
+          }),
+        ) as Contact[];
+
+        allContacts.sort((a, b) =>
+          `${a.firstName} ${a.lastName}`.localeCompare(
+            `${b.firstName} ${b.lastName}`,
+          ),
         );
 
         setContacts(allContacts);
       } catch (error) {
         console.error("Error fetching contacts:", error);
+        setContacts([]);
       } finally {
-        setLoading(prev => ({ ...prev, contacts: false }));
+        setLoading((prev) => ({ ...prev, contacts: false }));
       }
     };
 
@@ -187,22 +225,37 @@ export function PitchesFilter({
   useEffect(() => {
     const fetchCompanies = async () => {
       try {
-        const db = getFirestore();
-        const companiesRef = collection(db, "companies");
-        const snapshot = await getDocs(companiesRef);
-        
-        const companiesList = snapshot.docs.map(doc => ({
-          id: doc.id,
-          name: doc.data().name,
-          website: doc.data().website || "",
-        }));
-        
-        companiesList.sort((a, b) => a.name.localeCompare(b.name));
-        setCompanies(companiesList);
+        const supabase = getSupabaseClient();
+        const { data, error } = await supabase
+          .from("companies")
+          .select("id, name, website")
+          .order("name", { ascending: true })
+          .limit(2000);
+
+        if (error) {
+          console.error("Error fetching companies:", error);
+          setCompanies([]);
+          return;
+        }
+
+        setCompanies(
+          (data || []).map(
+            (row: {
+              id: string;
+              name: string | null;
+              website: string | null;
+            }) => ({
+              id: row.id,
+              name: row.name || "",
+              website: row.website || "",
+            }),
+          ),
+        );
       } catch (error) {
         console.error("Error fetching companies:", error);
+        setCompanies([]);
       } finally {
-        setLoading(prev => ({ ...prev, companies: false }));
+        setLoading((prev) => ({ ...prev, companies: false }));
       }
     };
 
@@ -213,22 +266,42 @@ export function PitchesFilter({
   useEffect(() => {
     const fetchCreators = async () => {
       try {
-        const db = getFirestore();
-        const rosterRef = collection(db, "roster");
-        const snapshot = await getDocs(rosterRef);
-        
-        const creatorsList = snapshot.docs.map(doc => ({
-          id: doc.id,
-          creatorAlias: doc.data().creatorAlias,
-          profilePictureUrl: doc.data().profilePictureUrl || "",
-        }));
-        
-        creatorsList.sort((a, b) => a.creatorAlias.localeCompare(b.creatorAlias));
+        const supabase = getSupabaseClient();
+        const { data, error } = await supabase
+          .from("talent")
+          .select("id, first_name, last_name, avatar_url")
+          .order("first_name", { ascending: true });
+
+        if (error) {
+          console.error("Error fetching creators:", error);
+          setCreators([]);
+          return;
+        }
+
+        const creatorsList = (data || []).map(
+          (row: {
+            id: string;
+            first_name: string | null;
+            last_name: string | null;
+            avatar_url: string | null;
+          }) => ({
+            id: row.id,
+            creatorAlias:
+              `${row.first_name || ""} ${row.last_name || ""}`.trim() ||
+              "Unknown",
+            profilePictureUrl: row.avatar_url || "",
+          }),
+        );
+
+        creatorsList.sort((a, b) =>
+          a.creatorAlias.localeCompare(b.creatorAlias),
+        );
         setCreators(creatorsList);
       } catch (error) {
         console.error("Error fetching creators:", error);
+        setCreators([]);
       } finally {
-        setLoading(prev => ({ ...prev, creators: false }));
+        setLoading((prev) => ({ ...prev, creators: false }));
       }
     };
 

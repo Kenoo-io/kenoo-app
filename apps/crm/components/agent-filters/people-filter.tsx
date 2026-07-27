@@ -11,7 +11,6 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
-import { getFirestore, collection, getDocs, query, where } from "firebase/firestore";
 import { getSupabaseClient } from "@/app/auth/supabaseClient";
 import { CompanySearch } from "@/components/ui/searches/companySearch/company-search";
 
@@ -60,25 +59,55 @@ export function LeadsFilter({
   useEffect(() => {
     const fetchEmployees = async () => {
       try {
-        const db = getFirestore();
-        const usersRef = collection(db, "users");
-        const q = query(
-          usersRef,
-          where("userType", "in", ["Super Admin", "Admin", "Agent"])
-        );
-        
-        const querySnapshot = await getDocs(q);
-        const employeesList = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          displayName: doc.data().displayName || doc.data().name || "Unknown User",
-          userType: doc.data().userType
+        const supabase = getSupabaseClient();
+        const { data: teamData, error: teamError } = await supabase
+          .from("team")
+          .select("user_id")
+          .not("user_id", "is", null);
+
+        if (teamError || !teamData?.length) {
+          setEmployees([]);
+          return;
+        }
+
+        const userIds = Array.from(
+          new Set(teamData.map((t: { user_id: string | null }) => t.user_id).filter(Boolean)),
+        ) as string[];
+
+        if (userIds.length === 0) {
+          setEmployees([]);
+          return;
+        }
+
+        const { data: usersData, error: usersError } = await supabase
+          .from("users")
+          .select("id, first_name, last_name, email")
+          .in("id", userIds);
+
+        if (usersError) {
+          setEmployees([]);
+          return;
+        }
+
+        const employeesList = (usersData || []).map((u: {
+          id: string;
+          first_name: string | null;
+          last_name: string | null;
+          email: string | null;
+        }) => ({
+          id: u.id,
+          displayName:
+            `${u.first_name || ""} ${u.last_name || ""}`.trim() ||
+            u.email ||
+            "Unknown User",
+          userType: "Agent",
         }));
-        
+
         employeesList.sort((a, b) => a.displayName.localeCompare(b.displayName));
-        
         setEmployees(employeesList);
       } catch (error) {
         console.error("Error fetching employees:", error);
+        setEmployees([]);
       } finally {
         setLoading(prev => ({ ...prev, employees: false }));
       }
@@ -86,21 +115,30 @@ export function LeadsFilter({
 
     const fetchLeadSources = async () => {
       try {
-        const db = getFirestore();
-        const sourcesCollection = collection(db, "typesLeadsLeadSource");
-        const snapshot = await getDocs(sourcesCollection);
-        
-        const sourcesData = snapshot.docs.map(doc => ({
-          id: doc.id,
-          name: doc.data().name || "",
-        }));
-        
-        // Sort sources alphabetically by name
-        sourcesData.sort((a, b) => a.name.localeCompare(b.name));
-        
-        setLeadSources(sourcesData);
+        const supabase = getSupabaseClient();
+        const { data, error } = await supabase
+          .from("people")
+          .select("source")
+          .not("source", "is", null);
+
+        if (error) {
+          console.error("Error fetching lead sources:", error);
+          setLeadSources([]);
+          return;
+        }
+
+        const unique = Array.from(
+          new Set(
+            (data || [])
+              .map((row: { source: string | null }) => row.source)
+              .filter((s): s is string => Boolean(s?.trim())),
+          ),
+        ).sort((a, b) => a.localeCompare(b));
+
+        setLeadSources(unique.map((name) => ({ id: name, name })));
       } catch (error) {
         console.error("Error fetching lead sources:", error);
+        setLeadSources([]);
       } finally {
         setLoading(prev => ({ ...prev, sources: false }));
       }
