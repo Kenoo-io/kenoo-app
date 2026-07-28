@@ -38,8 +38,11 @@ import {
   getAggressivenessLabel,
   getProjectedWeeklyUplift,
   getRiskScore,
+  getStopLossMetricLabel,
+  isSalesStopLossContext,
   OPTIMIZATION_GOAL_OPTIONS,
   optimizationGoalLabel,
+  resolveStopLossMetric,
   type OptimizationGoal,
   type SpendAutomationSettings,
 } from "@/lib/spend-automation-settings";
@@ -51,17 +54,13 @@ import { RoasFloorActionsField } from "@/components/ui/roas-floor-actions-field"
 import { Textarea } from "@walls/ui/textarea";
 
 import {
-  glassSegmentTrackClass,
   glassToggleCardActiveClass,
   glassToggleCardBaseClass,
   glassToggleCardInactiveClass,
-  glassToggleChipActiveClass,
-  glassToggleChipBaseClass,
-  glassToggleChipInactiveClass,
   panelGlassClass,
   primaryButtonClass,
 } from "@/components/ui/button-styles";
-import { SegmentThumb } from "./segment-thumb";
+import { SegmentToggle } from "@/components/ui/segment-toggle";
 
 const GOAL_ICONS: Record<OptimizationGoal, LucideIcon> = {
   roas: TrendingUp,
@@ -275,6 +274,11 @@ export function AdSpendControls() {
     form.settings.maxDailyIncreasePct,
   );
   const autonomyLabel = getAggressivenessLabel(form.settings.aggressiveness);
+  const presetStopLossContext = {
+    optimizationGoal: form.optimizationGoal,
+  } as const;
+  const presetStopLossMetric = resolveStopLossMetric(presetStopLossContext);
+  const presetSupportsBreakEven = isSalesStopLossContext(presetStopLossContext);
 
   return (
     <section>
@@ -594,72 +598,42 @@ export function AdSpendControls() {
         >
           <p className="text-sm font-medium text-foreground">Guardrails</p>
           <p className="mt-1 text-xs font-light text-neutral-500">
-            Hard stops that pause or slow scaling before efficiency drops.
+            Objective-aware stop-loss protection that keeps AdPilot inside your
+            efficiency targets.
           </p>
 
           <div className="mt-5 grid gap-5 sm:grid-cols-2">
-            {form.optimizationGoal === "roas" || form.optimizationGoal === "conversions" ? (
-              <div className="sm:col-span-2 space-y-5">
-                <RoasFloorField
-                  variant="settings"
-                  settings={form.settings}
-                  onChange={(patch) => {
-                    setForm((prev) =>
-                      prev ? { ...prev, settings: { ...prev.settings, ...patch } } : prev,
-                    );
-                    setSaved(false);
-                  }}
-                />
-                <RoasFloorActionsField
-                  value={form.settings.roasFloorActions}
-                  onChange={(roasFloorActions) =>
-                    updateSetting("roasFloorActions", roasFloorActions)
-                  }
-                />
+            <div className="sm:col-span-2 space-y-5">
+              <div className="rounded-2xl border border-dashed border-neutral-200 bg-white/40 px-4 py-3 text-xs font-light text-neutral-500">
+                Preset previews use the optimization goal to estimate the stop-loss
+                metric. Entity pages use the campaign&apos;s actual platform and
+                objective. Expected metric:{" "}
+                <span className="font-medium text-neutral-700">
+                  {getStopLossMetricLabel(presetStopLossMetric)}
+                </span>
+                {presetSupportsBreakEven
+                  ? " Sales presets can also calculate true break-even ROAS from profit per sale."
+                  : "."}
               </div>
-            ) : null}
 
-            {form.optimizationGoal === "ctr" ? (
-              <div className="space-y-2">
-                <FloatingLabelInput
-                  type="number"
-                  min={0}
-                  step={0.1}
-                  label="CTR floor (%)"
-                  value={form.settings.ctrFloorPct ?? ""}
-                  onChange={(e) =>
-                    updateSetting(
-                      "ctrFloorPct",
-                      e.target.value ? Number(e.target.value) : null,
-                    )
-                  }
-                />
-                <p className="text-xs font-light text-neutral-500">
-                  Minimum click-through rate before scaling continues
-                </p>
-              </div>
-            ) : null}
-
-            {form.optimizationGoal === "cpa" || form.optimizationGoal === "conversions" ? (
-              <div className="space-y-2">
-                <FloatingLabelInput
-                  type="number"
-                  min={0}
-                  step={1}
-                  label="CPA ceiling"
-                  value={form.settings.cpaCeiling ?? ""}
-                  onChange={(e) =>
-                    updateSetting(
-                      "cpaCeiling",
-                      e.target.value ? Number(e.target.value) : null,
-                    )
-                  }
-                />
-                <p className="text-xs font-light text-neutral-500">
-                  Max cost per acquisition (USD)
-                </p>
-              </div>
-            ) : null}
+              <RoasFloorField
+                variant="settings"
+                settings={form.settings}
+                context={presetStopLossContext}
+                onChange={(patch) => {
+                  setForm((prev) =>
+                    prev ? { ...prev, settings: { ...prev.settings, ...patch } } : prev,
+                  );
+                  setSaved(false);
+                }}
+              />
+              <RoasFloorActionsField
+                value={form.settings.roasFloorActions}
+                onChange={(roasFloorActions) =>
+                  updateSetting("roasFloorActions", roasFloorActions)
+                }
+              />
+            </div>
           </div>
 
           <div className="mt-5">
@@ -670,34 +644,19 @@ export function AdSpendControls() {
               Minimum wait before AdPilot can increase or decrease the daily budget
               again on the same entity.
             </p>
-            <div
-              className={cn("mt-3", glassSegmentTrackClass)}
-              role="group"
+            <SegmentToggle
+              className="mt-3"
+              equalWidth
               aria-label="Cooldown between budget changes"
-            >
-              {COOLDOWN_OPTIONS.map((option) => {
-                const active = form.settings.cooldownHours === option.value;
-                return (
-                  <button
-                    key={option.value}
-                    type="button"
-                    aria-pressed={active}
-                    onClick={() => updateSetting("cooldownHours", option.value)}
-                    className={cn(
-                      glassToggleChipBaseClass,
-                      active
-                        ? glassToggleChipActiveClass
-                        : glassToggleChipInactiveClass,
-                    )}
-                  >
-                    {active ? (
-                      <SegmentThumb layoutId="cooldown-thumb" variant="glass" />
-                    ) : null}
-                    <span className="relative z-10">{option.label}</span>
-                  </button>
-                );
-              })}
-            </div>
+              value={String(form.settings.cooldownHours) as "24" | "48" | "72"}
+              onChange={(value) =>
+                updateSetting("cooldownHours", Number(value))
+              }
+              options={COOLDOWN_OPTIONS.map((option) => ({
+                value: String(option.value) as "24" | "48" | "72",
+                label: option.label,
+              }))}
+            />
           </div>
         </div>
 

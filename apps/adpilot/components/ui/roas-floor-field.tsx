@@ -5,92 +5,57 @@ import { AnimatePresence, motion } from "framer-motion";
 import { TrendingUp } from "lucide-react";
 
 import { FloatingLabelInput } from "@/components/ui/floating-label-input";
+import { SegmentToggle } from "@/components/ui/segment-toggle";
 import { Slider } from "@walls/ui/slider";
 import { cn } from "@walls/utils";
 
-import { SegmentThumb } from "@/components/settings/segment-thumb";
-import {
-  glassSegmentTrackClass,
-  glassToggleChipActiveClass,
-  glassToggleChipBaseClass,
-  glassToggleChipInactiveClass,
-} from "@/components/settings/button-styles";
 import { formatRoas } from "@/lib/format-analytics";
 import {
   CONTRIBUTION_MARGIN_PRESETS,
-  getEffectiveRoasFloor,
+  getBreakEvenRoas,
+  getStopLossMetricDefinition,
+  getStopLossValue,
+  isSalesStopLossContext,
+  patchStopLossValue,
   patchRoasFloorSettings,
+  resolveStopLossMetric,
+  type StopLossContext,
   type RoasFloorInputMode,
   type SpendAutomationSettings,
 } from "@/lib/spend-automation-settings";
 
-type RoasFloorSlice = Pick<
-  SpendAutomationSettings,
-  "roasFloor" | "roasFloorInputMode" | "contributionMarginPct"
->;
+type RoasFloorSlice = Partial<SpendAutomationSettings>;
 
 type RoasFloorFieldProps = {
   settings: RoasFloorSlice;
   onChange: (patch: RoasFloorSlice) => void;
+  context: StopLossContext;
   variant?: "settings" | "detail";
   className?: string;
 };
 
 const MODE_OPTIONS: Array<{ value: RoasFloorInputMode; label: string }> = [
-  { value: "direct", label: "ROAS floor" },
-  { value: "margin", label: "Gross margin" },
+  { value: "direct", label: "Stop-loss" },
+  { value: "margin", label: "Break-Even ROAS" },
 ];
-
-function ModeToggle({
-  mode,
-  onChange,
-  layoutId,
-}: {
-  mode: RoasFloorInputMode;
-  onChange: (mode: RoasFloorInputMode) => void;
-  layoutId: string;
-}) {
-  return (
-    <div
-      className={glassSegmentTrackClass}
-      role="group"
-      aria-label="ROAS floor input mode"
-    >
-      {MODE_OPTIONS.map((option) => {
-        const active = mode === option.value;
-        return (
-          <button
-            key={option.value}
-            type="button"
-            aria-pressed={active}
-            onClick={() => onChange(option.value)}
-            className={cn(
-              glassToggleChipBaseClass,
-              active
-                ? glassToggleChipActiveClass
-                : glassToggleChipInactiveClass,
-            )}
-          >
-            {active ? (
-              <SegmentThumb layoutId={layoutId} variant="glass" />
-            ) : null}
-            <span className="relative z-10">{option.label}</span>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
 
 export function RoasFloorField({
   settings,
   onChange,
-  variant = "settings",
+  context,
   className,
 }: RoasFloorFieldProps) {
+  const stopLossMetric = resolveStopLossMetric(context);
+  const stopLossDefinition = getStopLossMetricDefinition(stopLossMetric);
+  const supportsBreakEven =
+    stopLossMetric === "roas" && isSalesStopLossContext(context);
   const mode = settings.roasFloorInputMode ?? "direct";
   const marginPct = settings.contributionMarginPct ?? 50;
-  const effectiveRoas = getEffectiveRoasFloor({
+  const directStopLossValue = getStopLossValue(
+    settings as SpendAutomationSettings,
+    context,
+  );
+  const breakEvenRoas = getBreakEvenRoas({
     ...settings,
     roasFloorInputMode: mode,
     contributionMarginPct: marginPct,
@@ -111,25 +76,59 @@ export function RoasFloorField({
     );
   };
 
-  const layoutId = variant === "settings" ? "roas-floor-mode" : "roas-floor-mode-detail";
+  if (!supportsBreakEven) {
+    return (
+      <div className={cn("space-y-3", className)}>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-foreground">Stop loss</p>
+            <p className="mt-0.5 text-xs font-light text-neutral-500">
+              {stopLossDefinition.thresholdHint}
+            </p>
+          </div>
+          <div className="rounded-full border border-black/[0.06] bg-white/60 px-3 py-1 text-xs font-medium text-neutral-600 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-xl">
+            {stopLossDefinition.label}
+          </div>
+        </div>
+
+        <FloatingLabelInput
+          type="number"
+          min={0}
+          step={0.1}
+          label={stopLossDefinition.thresholdLabel}
+          value={directStopLossValue ?? ""}
+          onChange={(e) =>
+            onChange(
+              patchStopLossValue(
+                settings as SpendAutomationSettings,
+                context,
+                e.target.value ? Number(e.target.value) : null,
+              ) as RoasFloorSlice,
+            )
+          }
+        />
+      </div>
+    );
+  }
 
   return (
     <div className={cn("space-y-3", className)}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-sm font-medium text-foreground">
-            {mode === "margin" ? "Break-even guardrail" : "ROAS floor"}
+            {mode === "margin" ? "True Break-Even ROAS" : "Stop loss"}
           </p>
           <p className="mt-0.5 text-xs font-light text-neutral-500">
             {mode === "margin"
-              ? "Set contribution margin - we derive the minimum ROAS to break even before ad spend."
-              : "Minimum return before scaling continues."}
+              ? "How much you keep from each sale after expenses. We calculate the ROAS you need to actually be profitable."
+              : "The ROAS floor where AdPilot should slow down, pause, or alert."}
           </p>
         </div>
-        <ModeToggle
-          mode={mode}
-          layoutId={layoutId}
+        <SegmentToggle
+          aria-label="Stop-loss input mode"
+          value={mode}
           onChange={(nextMode) => applyPatch({ roasFloorInputMode: nextMode })}
+          options={MODE_OPTIONS}
         />
       </div>
 
@@ -146,8 +145,8 @@ export function RoasFloorField({
               type="number"
               min={0}
               step={0.1}
-              label="Minimum ROAS"
-              value={settings.roasFloor ?? ""}
+              label="Stop-loss ROAS"
+              value={settings.roasFloor ?? directStopLossValue ?? ""}
               onChange={(e) =>
                 applyPatch({
                   roasFloor: e.target.value ? Number(e.target.value) : null,
@@ -168,13 +167,14 @@ export function RoasFloorField({
               <div className="flex items-end justify-between gap-4">
                 <div>
                   <p className="text-[11px] font-normal uppercase tracking-[0.14em] text-neutral-500">
-                    Break-even ROAS
+                    You need at least
                   </p>
                   <p className="mt-1 text-3xl font-medium tracking-tight text-neutral-700">
-                    {formatRoas(effectiveRoas)}
+                    {formatRoas(breakEvenRoas)}
                   </p>
-                  <p className="mt-1 text-xs font-light text-neutral-500">
-                    1 ÷ {marginPct}% contribution margin
+                  <p className="mt-1 text-xs font-light leading-relaxed text-neutral-500">
+                    ROAS to break even after all business costs, not just ad
+                    spend. Based on keeping {marginPct}% of each sale.
                   </p>
                 </div>
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/70 bg-white/55 text-neutral-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_1px_2px_rgba(0,0,0,0.04)] backdrop-blur-xl backdrop-saturate-150">
@@ -184,12 +184,17 @@ export function RoasFloorField({
             </div>
 
             <div className="space-y-4">
+              <p className="text-xs font-light leading-relaxed text-neutral-500">
+                Of every dollar you make on a sale, what percentage is left
+                after product cost, fulfillment, fees, and overhead, before you
+                pay for ads?
+              </p>
               <FloatingLabelInput
                 type="number"
                 min={1}
                 max={100}
                 step={0.1}
-                label="Contribution margin (%)"
+                label="Profit kept per sale (%)"
                 value={settings.contributionMarginPct ?? ""}
                 onChange={(e) =>
                   applyPatch({
@@ -207,17 +212,17 @@ export function RoasFloorField({
                 min={1}
                 max={100}
                 step={1}
-                aria-label="Contribution margin"
+                aria-label="Profit kept per sale"
               />
               <div className="flex justify-between text-[10px] font-light uppercase tracking-wider text-neutral-400">
-                <span>1%</span>
-                <span>100%</span>
+                <span>1% kept</span>
+                <span>100% kept</span>
               </div>
             </div>
 
             <div>
               <p className="mb-2 text-[11px] font-normal uppercase tracking-[0.14em] text-neutral-500">
-                Quick presets
+                Common margins
               </p>
               <div className="flex flex-wrap gap-1.5">
                 {CONTRIBUTION_MARGIN_PRESETS.map((preset) => {

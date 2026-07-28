@@ -46,6 +46,7 @@ import {
   formatResultCount,
   formatRoas,
 } from "@/lib/format-analytics";
+import { calculateAdjustedProfitMicros } from "@/lib/spend-automation-settings";
 
 /**
  * Settings-page aesthetic: transparent, free-flowing sections with a bold
@@ -585,6 +586,7 @@ export function EntityMetricsGrid({
   reachSaturation,
   dailyBudgetMicros,
   afterFooter,
+  breakEvenRoas,
 }: {
   metrics: EntityDetailMetrics;
   reachSaturation?: ReachSaturation | null;
@@ -592,7 +594,14 @@ export function EntityMetricsGrid({
   dailyBudgetMicros?: number | null;
   /** Content below the saturation bar (e.g. daily progress chart). */
   afterFooter?: React.ReactNode;
+  breakEvenRoas?: number | null;
 }) {
+  const adjustedProfitMicros = calculateAdjustedProfitMicros({
+    revenueMicros: metrics.conversionValueMicros,
+    spendMicros: metrics.spendMicros,
+    breakEvenRoas,
+  });
+  const showAdjustedProfit = breakEvenRoas != null && metrics.websitePurchases != null;
   const items = [
     { label: "Ad spend", value: formatCurrencyFromMicros(metrics.spendMicros) },
     { label: "Impressions", value: formatCompactNumber(metrics.impressions) },
@@ -610,6 +619,13 @@ export function EntityMetricsGrid({
           : "-",
     },
   ];
+
+  if (showAdjustedProfit) {
+    items[5] = {
+      label: "Profit",
+      value: formatCurrencyFromMicros(adjustedProfitMicros),
+    };
+  }
 
   const saturation = hasReachSaturationData(reachSaturation)
     ? reachSaturation!

@@ -4,6 +4,7 @@ import {
   formatPercent,
   formatRoas,
 } from "@/lib/format-analytics";
+import { calculateAdjustedProfitMicros } from "@/lib/spend-automation-settings";
 import {
   getObjectiveBucketLabel,
   getObjectiveProgressConfig,
@@ -207,6 +208,7 @@ function summarizePeriod(
   days: EntityDailyProgressPoint[],
   primary: ObjectiveProgressMetric,
   secondary: ObjectiveProgressMetric | null,
+  breakEvenRoas?: number | null,
 ): EntityDailyProgressSummary {
   const totals: DayTotals = days.reduce<DayTotals>(
     (acc, day) => ({
@@ -238,7 +240,11 @@ function summarizePeriod(
     secondary?.key === "earnings" ||
     primary.key === "roas";
   const profitMicros = tracksEarnings
-    ? totals.conversionValueMicros - totals.spendMicros
+    ? calculateAdjustedProfitMicros({
+        revenueMicros: totals.conversionValueMicros,
+        spendMicros: totals.spendMicros,
+        breakEvenRoas,
+      })
     : null;
 
   return {
@@ -261,6 +267,7 @@ function summarizePeriod(
 export function buildEntityDailyProgress(
   rows: DailyMetricRow[],
   objectiveBucket: DashboardObjectiveBucket | null,
+  breakEvenRoas?: number | null,
   rangeDays = 30,
 ): EntityDailyProgress {
   const { primary, secondary } = getObjectiveProgressConfig(objectiveBucket);
@@ -303,7 +310,7 @@ export function buildEntityDailyProgress(
     primaryMetric: primary,
     secondaryMetric: secondary,
     days,
-    summary: summarizePeriod(days, primary, secondary),
+    summary: summarizePeriod(days, primary, secondary, breakEvenRoas),
   };
 }
 
