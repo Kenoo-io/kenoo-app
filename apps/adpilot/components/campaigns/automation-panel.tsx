@@ -43,7 +43,10 @@ import type { EntityDetailResult } from "@/lib/entity-detail-server";
 import { formatCurrencyFromMicros } from "@/lib/format-analytics";
 import {
   COOLDOWN_OPTIONS,
+  getStopLossMetricLabel,
+  isSalesStopLossContext,
   optimizationGoalLabel,
+  resolveStopLossMetric,
   spendSettingsEqual,
   type OptimizationGoal,
   type SpendAutomationSettings,
@@ -53,15 +56,11 @@ import { SliderField } from "@/components/ui/slider-field";
 import { RoasFloorField } from "@/components/ui/roas-floor-field";
 import { RoasFloorActionsField } from "@/components/ui/roas-floor-actions-field";
 import {
-  glassSegmentTrackClass,
-  glassToggleChipActiveClass,
-  glassToggleChipBaseClass,
-  glassToggleChipInactiveClass,
   panelGlassClass,
   primaryButtonClass,
   secondaryButtonClass,
 } from "@/components/ui/button-styles";
-import { SegmentThumb } from "@/components/settings/segment-thumb";
+import { SegmentToggle } from "@/components/ui/segment-toggle";
 
 const rulesPanelClass = cn(
   "overflow-hidden rounded-[28px] px-4 py-5 md:px-6 md:py-6",
@@ -290,6 +289,16 @@ export function EntityAutomationSection({
     !spendSettingsEqual(settings, selectedProfile.settings);
   const optimizationGoal: OptimizationGoal =
     selectedProfile?.optimizationGoal ?? "roas";
+  const stopLossObjective = (
+    "campaignObjective" in detail ? detail.campaignObjective : detail.objective
+  ) as string | null;
+  const stopLossContext = {
+    provider: detail.provider,
+    objective: stopLossObjective,
+    optimizationGoal,
+  } as const;
+  const stopLossMetric = resolveStopLossMetric(stopLossContext);
+  const supportsBreakEven = isSalesStopLossContext(stopLossContext);
 
   const markDirty = () => {
     dirtyRef.current = true;
@@ -880,7 +889,8 @@ export function EntityAutomationSection({
           <div className={rulesPanelClass}>
             <p className="text-sm font-medium text-foreground">Guardrails</p>
             <p className="mt-1 text-xs font-light text-neutral-500">
-              Hard stops that pause or slow scaling before efficiency drops.
+              Objective-aware stop-loss protection based on this entity&apos;s live
+              campaign context.
             </p>
 
             {(optimizationGoal === "roas" ||
@@ -888,68 +898,33 @@ export function EntityAutomationSection({
               optimizationGoal === "ctr" ||
               optimizationGoal === "cpa") && (
               <div className="mt-5 grid gap-5 sm:grid-cols-2">
-                {optimizationGoal === "roas" ||
-                optimizationGoal === "conversions" ? (
-                  <div className="sm:col-span-2 space-y-5">
-                    <RoasFloorField
-                      variant="detail"
-                      settings={settings}
-                      onChange={(patch) => {
-                        markDirty();
-                        setSettings((prev) => ({ ...prev, ...patch }));
-                      }}
-                    />
-                    <RoasFloorActionsField
-                      value={settings.roasFloorActions}
-                      onChange={(roasFloorActions) =>
-                        updateSetting("roasFloorActions", roasFloorActions)
-                      }
-                    />
+                <div className="sm:col-span-2 space-y-5">
+                  <div className="rounded-2xl border border-dashed border-neutral-200 bg-white/40 px-4 py-3 text-xs font-light text-neutral-500">
+                    Active stop-loss metric:{" "}
+                    <span className="font-medium text-neutral-700">
+                      {getStopLossMetricLabel(stopLossMetric)}
+                    </span>
+                    {supportsBreakEven
+                      ? " Sales campaigns can also calculate true break-even ROAS from profit per sale."
+                      : "."}
                   </div>
-                ) : null}
 
-                {optimizationGoal === "ctr" ? (
-                  <div className="space-y-2">
-                    <FloatingLabelInput
-                      type="number"
-                      min={0}
-                      step={0.1}
-                      label="CTR floor (%)"
-                      value={settings.ctrFloorPct ?? ""}
-                      onChange={(e) =>
-                        updateSetting(
-                          "ctrFloorPct",
-                          e.target.value ? Number(e.target.value) : null,
-                        )
-                      }
-                    />
-                    <p className="text-xs font-light text-neutral-500">
-                      Minimum click-through rate before scaling continues
-                    </p>
-                  </div>
-                ) : null}
-
-                {optimizationGoal === "cpa" ||
-                optimizationGoal === "conversions" ? (
-                  <div className="space-y-2">
-                    <FloatingLabelInput
-                      type="number"
-                      min={0}
-                      step={1}
-                      label="CPA ceiling (USD)"
-                      value={settings.cpaCeiling ?? ""}
-                      onChange={(e) =>
-                        updateSetting(
-                          "cpaCeiling",
-                          e.target.value ? Number(e.target.value) : null,
-                        )
-                      }
-                    />
-                    <p className="text-xs font-light text-neutral-500">
-                      Max cost per acquisition (USD)
-                    </p>
-                  </div>
-                ) : null}
+                  <RoasFloorField
+                    variant="detail"
+                    settings={settings}
+                    context={stopLossContext}
+                    onChange={(patch) => {
+                      markDirty();
+                      setSettings((prev) => ({ ...prev, ...patch }));
+                    }}
+                  />
+                  <RoasFloorActionsField
+                    value={settings.roasFloorActions}
+                    onChange={(roasFloorActions) =>
+                      updateSetting("roasFloorActions", roasFloorActions)
+                    }
+                  />
+                </div>
               </div>
             )}
 
@@ -961,39 +936,19 @@ export function EntityAutomationSection({
                 Minimum wait before AdPilot can increase or decrease the daily
                 budget again on this {entityLabel}.
               </p>
-              <div
-                className={cn("mt-3", glassSegmentTrackClass)}
-                role="group"
+              <SegmentToggle
+                className="mt-3"
+                equalWidth
                 aria-label="Cooldown between budget changes"
-              >
-                {COOLDOWN_OPTIONS.map((option) => {
-                  const active = settings.cooldownHours === option.value;
-                  return (
-                    <button
-                      key={option.value}
-                      type="button"
-                      aria-pressed={active}
-                      onClick={() =>
-                        updateSetting("cooldownHours", option.value)
-                      }
-                      className={cn(
-                        glassToggleChipBaseClass,
-                        active
-                          ? glassToggleChipActiveClass
-                          : glassToggleChipInactiveClass,
-                      )}
-                    >
-                      {active ? (
-                        <SegmentThumb
-                          layoutId="entity-cooldown-thumb"
-                          variant="glass"
-                        />
-                      ) : null}
-                      <span className="relative z-10">{option.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
+                value={String(settings.cooldownHours) as "24" | "48" | "72"}
+                onChange={(value) =>
+                  updateSetting("cooldownHours", Number(value))
+                }
+                options={COOLDOWN_OPTIONS.map((option) => ({
+                  value: String(option.value) as "24" | "48" | "72",
+                  label: option.label,
+                }))}
+              />
             </div>
           </div>
 
@@ -1133,20 +1088,28 @@ function AgentInstructionsSection({
   onInstructionsChange?: (items: AgentInstruction[]) => void;
 }) {
   const [items, setItems] = React.useState(initialInstructions);
+  const onInstructionsChangeRef = React.useRef(onInstructionsChange);
+  const userChangedRef = React.useRef(false);
+
+  onInstructionsChangeRef.current = onInstructionsChange;
 
   React.useEffect(() => {
     setItems(initialInstructions);
   }, [initialInstructions]);
 
+  React.useEffect(() => {
+    if (!userChangedRef.current) return;
+    userChangedRef.current = false;
+    onInstructionsChangeRef.current?.(items);
+  }, [items]);
+
   const handleItemsChange: React.Dispatch<
     React.SetStateAction<AgentInstruction[]>
   > = (updater) => {
-    setItems((current) => {
-      const next =
-        typeof updater === "function" ? updater(current) : updater;
-      onInstructionsChange?.(next);
-      return next;
-    });
+    userChangedRef.current = true;
+    setItems((current) =>
+      typeof updater === "function" ? updater(current) : updater,
+    );
   };
 
   return (

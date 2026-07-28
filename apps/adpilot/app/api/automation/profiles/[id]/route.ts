@@ -52,7 +52,15 @@ export async function PATCH(request: Request, context: RouteContext) {
 
     return NextResponse.json({ profile });
   } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Failed to update profile";
+    const status =
+      message === "Profile not found" ||
+      message.includes("Stop-loss") ||
+      message.includes("Profit kept per sale")
+        ? 400
+        : 500;
     console.error("[adpilot] update automation profile:", error);
-    return NextResponse.json({ error: "Failed to update profile" }, { status: 500 });
+    return NextResponse.json({ error: message }, { status });
   }
 }

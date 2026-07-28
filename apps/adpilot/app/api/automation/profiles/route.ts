@@ -65,7 +65,15 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ profile }, { status: 201 });
   } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Failed to create profile";
+    const status =
+      message === "Profile not found" ||
+      message.includes("Stop-loss") ||
+      message.includes("Profit kept per sale")
+        ? 400
+        : 500;
     console.error("[adpilot] create automation profile:", error);
-    return NextResponse.json({ error: "Failed to create profile" }, { status: 500 });
+    return NextResponse.json({ error: message }, { status });
   }
 }

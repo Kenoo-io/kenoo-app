@@ -26,6 +26,7 @@ import {
   isCurrencyProgressMetric,
   type ObjectiveProgressMetricKey,
 } from "@/lib/meta-objectives";
+import { calculateAdjustedProfitMicros } from "@/lib/spend-automation-settings";
 
 import { panelGlassClass } from "@/components/ui/button-styles";
 
@@ -39,6 +40,7 @@ type ProgressTooltipProps = {
   label?: string;
   payload?: Array<{ payload?: ChartPoint }>;
   progress: EntityDailyProgress;
+  breakEvenRoas?: number | null;
 };
 
 function MetricTooltipValue({
@@ -60,6 +62,7 @@ function ProgressTooltip({
   label,
   payload,
   progress,
+  breakEvenRoas,
 }: ProgressTooltipProps) {
   if (!active || !payload?.length) return null;
 
@@ -70,7 +73,11 @@ function ProgressTooltip({
     progress.objectiveBucket === "OUTCOME_SALES" ||
     progress.primaryMetric.key === "earnings" ||
     progress.secondaryMetric?.key === "earnings";
-  const profitMicros = point.conversionValueMicros - point.spendMicros;
+  const profitMicros = calculateAdjustedProfitMicros({
+    revenueMicros: point.conversionValueMicros,
+    spendMicros: point.spendMicros,
+    breakEvenRoas,
+  });
   const spend = point.spendMicros / 1_000_000;
   const roas =
     spend > 0 ? point.conversionValueMicros / 1_000_000 / spend : null;
@@ -158,6 +165,7 @@ function ChartLegend({ progress }: { progress: EntityDailyProgress }) {
 
 type EntityDailyProgressSectionProps = {
   progress: EntityDailyProgress;
+  breakEvenRoas?: number | null;
   /**
    * When true, render without the standalone glass panel — for nesting inside
    * HeroStatsBar below the saturation section.
@@ -167,6 +175,7 @@ type EntityDailyProgressSectionProps = {
 
 export function EntityDailyProgressSection({
   progress,
+  breakEvenRoas,
   embedded = false,
 }: EntityDailyProgressSectionProps) {
   const hasLiveData = progress.days.some((day) => day.spendMicros > 0);
@@ -324,7 +333,14 @@ export function EntityDailyProgressSection({
                   />
                 ) : null}
 
-                <Tooltip content={<ProgressTooltip progress={progress} />} />
+                <Tooltip
+                  content={
+                    <ProgressTooltip
+                      progress={progress}
+                      breakEvenRoas={breakEvenRoas}
+                    />
+                  }
+                />
 
                 {progress.secondaryMetric && secondaryColor ? (
                   <Area

@@ -17,6 +17,8 @@ import {
   DEFAULT_SPEND_AUTOMATION_SETTINGS,
   normalizeCooldownHours,
   parseAutomationSettings,
+  sanitizeBreakEvenRoasSettings,
+  validateAutomationSettings,
   type AutomationStatus,
   type OptimizationGoal,
   type SpendAutomationSettings,
@@ -100,6 +102,34 @@ function mapProfile(row: Record<string, unknown>): AutomationProfile {
   };
 }
 
+function sanitizeProfileSettings(
+  settings: SpendAutomationSettings,
+  optimizationGoal: OptimizationGoal,
+): SpendAutomationSettings {
+  const sanitized = sanitizeBreakEvenRoasSettings(settings, {
+    optimizationGoal,
+  });
+  const validationError = validateAutomationSettings(sanitized, {
+    optimizationGoal,
+  });
+  if (validationError) throw new Error(validationError);
+  return sanitized;
+}
+
+function diffSettingsOverride(
+  base: SpendAutomationSettings,
+  next: SpendAutomationSettings,
+): Partial<SpendAutomationSettings> {
+  const knownKeys = Object.keys(
+    DEFAULT_SPEND_AUTOMATION_SETTINGS,
+  ) as Array<keyof SpendAutomationSettings>;
+  return Object.fromEntries(
+    knownKeys
+      .filter((key) => key !== "cooldownHours" && next[key] !== base[key])
+      .map((key) => [key, next[key]]),
+  ) as Partial<SpendAutomationSettings>;
+}
+
 export async function ensureDefaultAutomationProfile(
   scope: AdDataScope,
 ): Promise<AutomationProfile> {
@@ -169,6 +199,11 @@ export async function createAutomationProfile(input: {
 }): Promise<AutomationProfile> {
   const supabase = await createClient();
   const now = new Date().toISOString();
+  const optimizationGoal = input.optimizationGoal ?? "roas";
+  const settings = sanitizeProfileSettings(
+    parseAutomationSettings(input.settings ?? DEFAULT_SPEND_AUTOMATION_SETTINGS),
+    optimizationGoal,
+  );
 
   if (input.isDefault) {
     await withAdScope(
@@ -186,8 +221,8 @@ export async function createAutomationProfile(input: {
       name: input.name,
       description: input.description ?? null,
       is_default: input.isDefault ?? false,
-      optimization_goal: input.optimizationGoal ?? "roas",
-      settings: input.settings ?? DEFAULT_SPEND_AUTOMATION_SETTINGS,
+      optimization_goal: optimizationGoal,
+      settings,
       agent_instructions: normalizeProfileAgentInstructions(
         input.agentInstructions ?? [],
       ),
@@ -231,7 +266,19 @@ export async function updateAutomationProfile(input: {
   if (input.patch.optimizationGoal !== undefined) {
     row.optimization_goal = input.patch.optimizationGoal;
   }
-  if (input.patch.settings !== undefined) row.settings = input.patch.settings;
+  if (
+    input.patch.settings !== undefined ||
+    input.patch.optimizationGoal !== undefined
+  ) {
+    const currentProfile = await fetchAutomationProfile(input.scope, input.profileId);
+    if (!currentProfile) throw new Error("Profile not found");
+    const optimizationGoal =
+      input.patch.optimizationGoal ?? currentProfile.optimizationGoal;
+    const candidateSettings = parseAutomationSettings(
+      input.patch.settings ?? currentProfile.settings,
+    );
+    row.settings = sanitizeProfileSettings(candidateSettings, optimizationGoal);
+  }
   if (input.patch.agentInstructions !== undefined) {
     row.agent_instructions = normalizeProfileAgentInstructions(
       input.patch.agentInstructions,
@@ -333,6 +380,44 @@ async function mapAutomationRow(
   return mapEntityAutomation(row, profile);
 }
 
+async function resolveEntityStopLossContext(input: {
+  scope: AdDataScope;
+  entity: {
+    provider: string;
+    objective: string | null;
+    entity_type: "campaign" | "ad_group";
+    parent_id: string | null;
+  };
+  optimizationGoal: OptimizationGoal | null;
+}): Promise<{
+  provider: string;
+  objective: string | null;
+  optimizationGoal: OptimizationGoal | null;
+}> {
+  if (input.entity.entity_type !== "ad_group" || !input.entity.parent_id) {
+    return {
+      provider: input.entity.provider,
+      objective: input.entity.objective,
+      optimizationGoal: input.optimizationGoal,
+    };
+  }
+
+  const supabase = await createClient();
+  const { data: parent } = await withAdScope(
+    supabase
+      .from("ad_entities")
+      .select("objective")
+      .eq("id", input.entity.parent_id),
+    input.scope,
+  ).maybeSingle();
+
+  return {
+    provider: input.entity.provider,
+    objective: (parent?.objective as string | null) ?? input.entity.objective,
+    optimizationGoal: input.optimizationGoal,
+  };
+}
+
 export async function getEntityAutomation(input: {
   scope: AdDataScope;
   entityId: string;
@@ -402,7 +487,7 @@ export async function upsertEntityAutomation(input: {
     withAdScope(
       supabase
         .from("ad_entities")
-        .select("id, entity_type, account_connection_id")
+        .select("id, entity_type, provider, objective, parent_id, account_connection_id")
         .eq("id", input.entityId),
       input.scope,
     ).maybeSingle(),
@@ -442,7 +527,14 @@ export async function upsertEntityAutomation(input: {
     profileId = knownProfile.id;
   }
 
-  const settingsOverride = stripCooldownFromOverride(
+  const profile =
+    profileId && (!knownProfile || knownProfile.id !== profileId)
+      ? await fetchAutomationProfile(input.scope, profileId)
+      : knownProfile;
+
+  const baseSettings = profile?.settings ?? DEFAULT_SPEND_AUTOMATION_SETTINGS;
+
+  const rawSettingsOverride = stripCooldownFromOverride(
     input.patch.settingsOverride !== undefined
       ? input.patch.settingsOverride
       : (existing?.settings_override as Partial<SpendAutomationSettings> | null) ??
@@ -472,6 +564,35 @@ export async function upsertEntityAutomation(input: {
         : "active")
     : "inactive";
 
+  const stopLossContext = await resolveEntityStopLossContext({
+    scope: input.scope,
+    entity: {
+      provider: entity.provider as string,
+      objective: (entity.objective as string | null) ?? null,
+      entity_type: entity.entity_type as "campaign" | "ad_group",
+      parent_id: (entity.parent_id as string | null) ?? null,
+    },
+    optimizationGoal: profile?.optimizationGoal ?? null,
+  });
+
+  const effectiveSettings = parseAutomationSettings({
+    ...baseSettings,
+    ...rawSettingsOverride,
+    cooldownHours: normalizeCooldownHours(
+      cooldownHours ?? baseSettings.cooldownHours,
+    ),
+  });
+  const sanitizedSettings = sanitizeBreakEvenRoasSettings(
+    effectiveSettings,
+    stopLossContext,
+  );
+  const validationError = validateAutomationSettings(
+    sanitizedSettings,
+    stopLossContext,
+  );
+  if (validationError) throw new Error(validationError);
+  const settingsOverride = diffSettingsOverride(baseSettings, sanitizedSettings);
+
   const row = {
     ...adScopeFields(input.scope),
     account_connection_id: entity.account_connection_id as string,
@@ -486,23 +607,15 @@ export async function upsertEntityAutomation(input: {
     updated_at: now,
   };
 
-  const profilePromise =
-    profileId && (!knownProfile || knownProfile.id !== profileId)
-      ? fetchAutomationProfile(input.scope, profileId)
-      : Promise.resolve(knownProfile);
+  const { data: upserted, error: upsertError } = await supabase
+    .from("ad_entity_automation")
+    .upsert(row, { onConflict: "entity_id" })
+    .select(ENTITY_AUTOMATION_SELECT)
+    .single();
 
-  const [upsertResult, profile] = await Promise.all([
-    supabase
-      .from("ad_entity_automation")
-      .upsert(row, { onConflict: "entity_id" })
-      .select(ENTITY_AUTOMATION_SELECT)
-      .single(),
-    profilePromise,
-  ]);
+  if (upsertError) throw upsertError;
 
-  if (upsertResult.error) throw upsertResult.error;
-
-  const automation = mapEntityAutomation(upsertResult.data, profile);
+  const automation = mapEntityAutomation(upserted, profile);
 
   // Copy preset agentic instructions onto the entity only when explicitly
   // requested (applying a preset from the Rules UI).

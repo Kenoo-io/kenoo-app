@@ -71,10 +71,10 @@ export function RoasFloorActionsField({
   return (
     <div className={className}>
       <p className="text-sm font-medium text-foreground">
-        When ROAS drops below the floor
+        When stop loss is breached
       </p>
       <p className="mt-1 text-xs font-light text-neutral-500">
-        Optional — stop the campaign, send an email alert, both, or neither.
+        Optional: stop the campaign, send an email alert, both, or neither.
         Manage who receives emails on the{" "}
         <Link href="/alerts" className="text-[var(--kenoo-sky)] hover:underline">
           Alerts
@@ -92,7 +92,7 @@ export function RoasFloorActionsField({
               "outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0",
               open && "bg-white/80",
             )}
-            aria-label="ROAS floor actions"
+            aria-label="Stop-loss actions"
           >
             <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
               {selectionLabel(value)}

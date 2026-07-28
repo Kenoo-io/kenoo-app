@@ -17,6 +17,7 @@ import {
 } from "@/components/campaigns/entity-detail-shared";
 import type { AdSetDetailResult } from "@/lib/entity-detail-server";
 import { formatCurrencyFromMicros } from "@/lib/format-analytics";
+import { getBreakEvenRoas } from "@/lib/spend-automation-settings";
 
 type AdSetDetailTab =
   | "stats"
@@ -67,7 +68,7 @@ export function AdSetDetailPage() {
 
   if (error || !detail) {
     return (
-      <div className="mx-auto w-full max-w-7xl px-6 pt-16 md:px-10 md:pt-20">
+      <div className="mx-auto w-full max-w-6xl px-6 pt-16 md:px-10 md:pt-20">
         <button
           type="button"
           onClick={() => router.push(`/campaigns/${campaignId}`)}
@@ -82,6 +83,14 @@ export function AdSetDetailPage() {
   }
 
   const campaignName = detail.parentName ?? "Campaign";
+  const hasConfiguredBreakEvenRoas =
+    detail.automation.profileId != null ||
+    detail.automation.settingsOverride.contributionMarginPct != null ||
+    detail.automation.settingsOverride.roasFloor != null;
+  const breakEvenRoas =
+    detail.metrics.websitePurchases != null && hasConfiguredBreakEvenRoas
+      ? getBreakEvenRoas(detail.automation.effectiveSettings)
+      : null;
   const tabs = [
     { id: "stats" as const, label: "Stats" },
     { id: "creatives" as const, label: "Creatives" },
@@ -98,7 +107,7 @@ export function AdSetDetailPage() {
   ];
 
   return (
-    <div className="mx-auto w-full max-w-7xl px-6 pt-4 pb-10 md:px-10 md:pt-5">
+    <div className="mx-auto w-full max-w-6xl px-6 pt-4 pb-10 md:px-10 md:pt-5">
       <DetailBreadcrumbs
         items={[
           { label: "Campaigns", href: "/campaigns" },
@@ -167,9 +176,11 @@ export function AdSetDetailPage() {
           metrics={detail.metrics}
           reachSaturation={detail.reachSaturation}
           dailyBudgetMicros={detail.dailyBudgetMicros}
+          breakEvenRoas={breakEvenRoas}
           afterFooter={
             <EntityDailyProgressSection
               progress={detail.dailyProgress}
+              breakEvenRoas={breakEvenRoas}
               embedded
             />
           }

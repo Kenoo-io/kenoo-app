@@ -36,6 +36,7 @@ import {
   formatRoas,
 } from "@/lib/format-analytics";
 import { formatObjectiveLabel } from "@/lib/meta-objectives";
+import { getBreakEvenRoas } from "@/lib/spend-automation-settings";
 
 const AD_SET_COLUMNS = [
   { id: "name", label: "Name" },
@@ -168,7 +169,7 @@ export function CampaignDetailPage() {
 
   if (error || !detail) {
     return (
-      <div className="mx-auto w-full max-w-7xl px-6 pt-16 md:px-10 md:pt-20">
+      <div className="mx-auto w-full max-w-6xl px-6 pt-16 md:px-10 md:pt-20">
         <button
           type="button"
           onClick={() => router.push("/campaigns")}
@@ -196,9 +197,17 @@ export function CampaignDetailPage() {
         ]
       : []),
   ];
+  const hasConfiguredBreakEvenRoas =
+    detail.automation.profileId != null ||
+    detail.automation.settingsOverride.contributionMarginPct != null ||
+    detail.automation.settingsOverride.roasFloor != null;
+  const breakEvenRoas =
+    detail.metrics.websitePurchases != null && hasConfiguredBreakEvenRoas
+      ? getBreakEvenRoas(detail.automation.effectiveSettings)
+      : null;
 
   return (
-    <div className="mx-auto w-full max-w-7xl px-6 pt-4 pb-10 md:px-10 md:pt-5">
+    <div className="mx-auto w-full max-w-6xl px-6 pt-4 pb-10 md:px-10 md:pt-5">
       <DetailBreadcrumbs
         items={[
           { label: "Campaigns", href: "/campaigns" },
@@ -270,6 +279,7 @@ export function CampaignDetailPage() {
           metrics={detail.metrics}
           reachSaturation={detail.reachSaturation}
           dailyBudgetMicros={detail.dailyBudgetMicros}
+          breakEvenRoas={breakEvenRoas}
         />
       ) : null}
 

@@ -34,7 +34,10 @@ import {
   buildEntityDailyProgress,
   type EntityDailyProgress,
 } from "@/lib/entity-daily-progress";
-import type { AutomationStatus } from "@/lib/spend-automation-settings";
+import {
+  getBreakEvenRoas,
+  type AutomationStatus,
+} from "@/lib/spend-automation-settings";
 
 export type EntityDetailMetrics = {
   spendMicros: number;
@@ -75,6 +78,7 @@ export type EntityDetailResult = {
   id: string;
   entityType: CampaignEntityType;
   name: string;
+  provider: string;
   status: string | null;
   objective: string | null;
   accountName: string;
@@ -282,7 +286,7 @@ function withChildAudienceFallback(
 }
 
 const ENTITY_DETAIL_SELECT =
-  "id, entity_type, name, status, objective, parent_id, account_connection_id, daily_budget_micros, lifetime_reach, lifetime_spend_micros, estimated_audience_lower, estimated_audience_upper, audience_estimate_ready";
+  "id, entity_type, name, provider, status, objective, parent_id, account_connection_id, daily_budget_micros, lifetime_reach, lifetime_spend_micros, estimated_audience_lower, estimated_audience_upper, audience_estimate_ready";
 
 async function buildEntityDetail(input: {
   scope: AdDataScope;
@@ -290,6 +294,7 @@ async function buildEntityDetail(input: {
     id: string;
     entity_type: CampaignEntityType;
     name: string | null;
+    provider: string;
     status: string | null;
     objective: string | null;
     parent_id: string | null;
@@ -378,6 +383,7 @@ async function buildEntityDetail(input: {
     id: entityId,
     entityType,
     name: entity.name ?? "Untitled",
+    provider: entity.provider,
     status: entity.status,
     objective: entity.objective,
     accountName: (connection?.name as string) ?? "Ad account",
@@ -576,13 +582,22 @@ export async function getAdSetDetail(input: {
   ]);
 
   const campaignObjective = (campaign?.objective as string | null) ?? null;
+  const tracksWebsitePurchases = isSalesObjective(campaignObjective);
   const objectiveBucket = resolveObjectiveBucket(campaignObjective);
+  const hasConfiguredBreakEvenRoas =
+    base.automation.profileId != null ||
+    base.automation.settingsOverride.contributionMarginPct != null ||
+    base.automation.settingsOverride.roasFloor != null;
+  const breakEvenRoas =
+    (tracksWebsitePurchases || base.metrics.websitePurchases != null) &&
+    hasConfiguredBreakEvenRoas
+      ? getBreakEvenRoas(base.automation.effectiveSettings)
+      : null;
   const dailyProgress = buildEntityDailyProgress(
     (dailyMetrics ?? []) as Parameters<typeof buildEntityDailyProgress>[0],
     objectiveBucket,
+    breakEvenRoas,
   );
-
-  const tracksWebsitePurchases = isSalesObjective(campaignObjective);
 
   const { data: adEntities } = await withAdScope(
     supabase
