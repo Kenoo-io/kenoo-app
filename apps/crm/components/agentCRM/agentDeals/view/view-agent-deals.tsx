@@ -6,6 +6,8 @@ import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/auth/AuthContext";
 import { getSupabaseClient } from "@/app/auth/supabaseClient";
+import { useActiveAccount } from "@/components/active-account-context";
+import { crmAccountFields, withCrmAccount } from "@/lib/crm-account";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/toaster";
 import { HoldRevealDeleteCloseXButton } from "@/components/ui/hold-reveal-delete-close-x-button";
@@ -64,8 +66,8 @@ function detailsEntriesToObject(entries: [string, string][] | undefined): Record
   return Object.keys(obj).length > 0 ? obj : null;
 }
 
-/** Panel surface for `SheetContent` — header icon hover uses a step darker so it stays visible on gray-50. */
-const DEAL_VIEW_SHEET_PANEL_SURFACE = "bg-gray-50 border border-neutral-200/80";
+/** Panel surface for `SheetContent` — header icon hover uses a step darker so it stays visible on kenoo-white. */
+const DEAL_VIEW_SHEET_PANEL_SURFACE = "bg-kenoo-white border border-neutral-200/80";
 
 /** Same pattern as people-table-toolbar + button: no chrome at rest. */
 const dealSheetHeaderIconButtonClass =
@@ -203,6 +205,7 @@ const parseDeliverables = (data: any): Deliverable[] => {
 
 export default function EditAgentDeals({ analyticsData, dealId, initialData, isOpen, onClose, onSaved }: EditAgentDealsProps) {
   const { user } = useAuth();
+  const { activeAccountId } = useActiveAccount();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<string>('basic');
   const [contractSignedOrder, setContractSignedOrder] = useState<number | null>(null);
@@ -337,11 +340,14 @@ export default function EditAgentDeals({ analyticsData, dealId, initialData, isO
       try {
         const supabase = getSupabaseClient();
         // Fetch company data
-        const { data: companies } = await supabase
+        let companyQuery = supabase
           .from('companies')
           .select('id, name, website, logo_url')
-          .eq('name', formData.company)
-          .limit(1);
+          .eq('name', formData.company);
+        if (activeAccountId) {
+          companyQuery = withCrmAccount(companyQuery, activeAccountId);
+        }
+        const { data: companies } = await companyQuery.limit(1);
         
         if (companies && companies.length > 0) {
           setCompanyWebsite(companies[0].website || '');
@@ -370,17 +376,20 @@ export default function EditAgentDeals({ analyticsData, dealId, initialData, isO
     if (formData.company && formData.creator) {
       fetchCompanyAndCreatorData();
     }
-  }, [formData.company, formData.creator]);
+  }, [formData.company, formData.creator, activeAccountId]);
 
   // Fetch deal_stages for tab order and Contract Signed visibility
   useEffect(() => {
     const fetchStageData = async () => {
       try {
         const supabase = getSupabaseClient();
-        const { data: dealStages } = await supabase
+        let stagesQuery = supabase
           .from('deal_stages')
-          .select('id, name, slug, order_index')
-          .order('order_index', { ascending: true });
+          .select('id, name, slug, order_index');
+        if (activeAccountId) {
+          stagesQuery = withCrmAccount(stagesQuery, activeAccountId);
+        }
+        const { data: dealStages } = await stagesQuery.order('order_index', { ascending: true });
 
         if (dealStages?.length) {
           const stagesData = dealStages.map((s: any) => ({
@@ -398,7 +407,7 @@ export default function EditAgentDeals({ analyticsData, dealId, initialData, isO
     };
 
     fetchStageData();
-  }, []);
+  }, [activeAccountId]);
 
   // Derive _stageIndexOrder from _dealStageId for tabs, and optionally next step from deal_stages
   useEffect(() => {
@@ -713,7 +722,7 @@ export default function EditAgentDeals({ analyticsData, dealId, initialData, isO
 
       onClose();
       if (onSaved) onSaved();
-      else router.push("/agents/crm/deals");
+      else router.push("/deals");
 
     } catch (error) {
       console.error("Error updating deal:", error);
@@ -726,6 +735,10 @@ export default function EditAgentDeals({ analyticsData, dealId, initialData, isO
   const handleCopyDeal = async () => {
     if (!user) {
       wallsToast.error("Error", "You must be logged in to copy a deal");
+      return;
+    }
+    if (!activeAccountId) {
+      wallsToast.error("Error", "No active account selected");
       return;
     }
     try {
@@ -741,6 +754,7 @@ export default function EditAgentDeals({ analyticsData, dealId, initialData, isO
           deal_stage_id: (formData as any)._dealStageId || null,
           deal_owner: formData.dealOwner || user.id,
           vendor_company_id: (formData as any).invoiceVendorCompanyId ?? null,
+          ...crmAccountFields(activeAccountId),
         })
         .select('id')
         .single();
@@ -868,7 +882,7 @@ export default function EditAgentDeals({ analyticsData, dealId, initialData, isO
       wallsToast.negative("Success", "Deal and all associated data deleted successfully");
       onClose();
       if (onSaved) onSaved();
-      else router.push("/agents/crm/deals");
+      else router.push("/deals");
     } catch (error) {
       console.error("Error deleting deal:", error);
       wallsToast.error("Error", "Failed to delete deal");
@@ -1013,7 +1027,11 @@ export default function EditAgentDeals({ analyticsData, dealId, initialData, isO
         const stageOrder = stage?.order_index ?? null;
         let nextStep = '';
         if (stageOrder !== null) {
-          const { data: allStages } = await supabase.from('deal_stages').select('id, name, order_index, is_won, is_lost').order('order_index', { ascending: true });
+          let allStagesQuery = supabase.from('deal_stages').select('id, name, order_index, is_won, is_lost');
+          if (activeAccountId) {
+            allStagesQuery = withCrmAccount(allStagesQuery, activeAccountId);
+          }
+          const { data: allStages } = await allStagesQuery.order('order_index', { ascending: true });
           const list = (allStages || []) as { order_index?: number; name: string; is_won?: boolean; is_lost?: boolean }[];
           const next = list.find((s) => (s.order_index ?? 999) > stageOrder && !s.is_won && !s.is_lost);
           const stageAny = stage as { is_won?: boolean; is_lost?: boolean } | null;
@@ -1391,7 +1409,7 @@ export default function EditAgentDeals({ analyticsData, dealId, initialData, isO
                     alt={`${formData.company} Logo`}
                     width={70}
                     height={70}
-                    className="absolute left-0 top-0 w-[70px] h-[70px] rounded-full z-10 bg-gray-50 object-cover"
+                    className="absolute left-0 top-0 w-[70px] h-[70px] rounded-full z-10 bg-kenoo-white object-cover"
                     onError={(e) => {
                       const target = e.target as HTMLImageElement;
                       target.src = "/images/og-image.png";
@@ -1403,7 +1421,7 @@ export default function EditAgentDeals({ analyticsData, dealId, initialData, isO
                       alt={`${formData.creator} Profile`}
                       width={70}
                       height={70}
-                      className="absolute left-10 top-0 w-[70px] h-[70px] rounded-full bg-gray-50 object-cover"
+                      className="absolute left-10 top-0 w-[70px] h-[70px] rounded-full bg-kenoo-white object-cover"
                       onError={(e) => {
                         const target = e.target as HTMLImageElement;
                         target.src = "/images/og-image.png";

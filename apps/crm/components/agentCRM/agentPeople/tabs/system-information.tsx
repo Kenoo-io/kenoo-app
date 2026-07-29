@@ -5,11 +5,11 @@ import { UserDisplay } from "@/components/ui/user-display";
 import { SequenceSwitch } from "@/components/agentCRM/agentSequences/ui/sequence-switch";
 import { ContactOwnerSelect } from "../ui/contact-owner-select";
 import { AgentOption } from "../index/types";
-
-const fieldRowClass = "border-0 rounded-full bg-transparent hover:bg-gray-100 px-4 py-2 transition-colors";
-const fieldLabelClass = "w-40 text-[11px] font-normal uppercase tracking-[0.16em] text-neutral-500";
-const fieldValueClass = "text-[15px] font-light text-neutral-900 truncate";
-const fieldEmptyValueClass = "text-[15px] font-light text-neutral-300";
+import {
+  FloatingLabelField,
+  FloatingLabelValue,
+  floatingSelectTriggerClass,
+} from "@/components/ui/floating-label-input";
 
 function formatTimestamp(timestamp: any) {
   if (!timestamp) return null;
@@ -75,7 +75,7 @@ export default function SystemInformation({
 }: SystemInformationProps) {
   return (
     <div className="space-y-6">
-      <div className="bg-gray-50 rounded-[30px] p-6">
+      <div className="bg-kenoo-white rounded-[30px] p-6">
         <div className="flex items-center mb-6">
           <h2 className="text-black font-black text-4xl">SYSTEM INFORMATION</h2>
           <div className="flex-1 border-t border-black h-[1px] mx-4" />
@@ -83,114 +83,76 @@ export default function SystemInformation({
         <div className="grid grid-cols-2 gap-4 items-start">
           {/* Left Column */}
           <div className="space-y-4">
-            <div className={fieldRowClass}>
-              <div className="flex items-center gap-2">
-                <span className={fieldLabelClass}>Verified</span>
+            {/* A switch has no resting state to reveal, so its label stays floated. */}
+            <FloatingLabelField label="Verified" hasValue>
+              <div className="flex h-12 items-center">
                 <SequenceSwitch
                   checked={!!isVerified}
                   onCheckedChange={(checked) => onToggleVerified?.(checked)}
                 />
               </div>
-            </div>
+            </FloatingLabelField>
 
-            <div className={fieldRowClass}>
-              <div className="flex items-center gap-2 min-w-0">
-                <span className={fieldLabelClass}>Contact owner</span>
-                <ContactOwnerSelect
-                  value={contactOwner}
-                  agents={agents}
-                  onValueChange={(ownerId) => onContactOwnerChange?.(ownerId)}
-                  className="border-0 bg-transparent w-full [&>*]:border-0 [&>*]:bg-transparent [&_*]:font-light [&_*]:text-neutral-900 focus:ring-0 h-8 min-w-0 flex-1"
-                />
-              </div>
-            </div>
+            {/* The trigger always renders "Unassigned", so never rest the label over it. */}
+            <FloatingLabelField label="Contact owner" hasValue>
+              <ContactOwnerSelect
+                value={contactOwner}
+                agents={agents}
+                onValueChange={(ownerId) => onContactOwnerChange?.(ownerId)}
+                className={floatingSelectTriggerClass}
+              />
+            </FloatingLabelField>
 
-            <div className={fieldRowClass}>
-              <div className="flex items-center gap-2">
-                <span className={fieldLabelClass}>Created by</span>
-                {formData.createdBy ? (
+            <FloatingLabelValue
+              label="Created by"
+              value={
+                formData.createdBy ? (
                   <UserDisplay
                     userId={formData.createdBy}
                     className="opacity-75 [&>span]:font-light [&>div:first-child]:hidden"
                   />
                 ) : (
-                  <span className={fieldValueClass}>WALLS</span>
-                )}
-              </div>
-            </div>
+                  "WALLS"
+                )
+              }
+            />
 
-            <div className={fieldRowClass}>
-              <div className="flex items-center gap-2">
-                <span className={fieldLabelClass}>Created at</span>
-                <span className={formatTimestamp(formData.createdAt) ? fieldValueClass : fieldEmptyValueClass}>
-                  {formatTimestamp(formData.createdAt) || "—"}
-                </span>
-              </div>
-            </div>
+            <FloatingLabelValue
+              label="Created at"
+              value={formatTimestamp(formData.createdAt) || "—"}
+            />
 
-            <div className={fieldRowClass}>
-              <div className="flex items-center gap-2">
-                <span className={fieldLabelClass}>Last enriched</span>
-                <span className={formatRelativeTime(formData.lastEnriched) ? fieldValueClass : fieldEmptyValueClass}>
-                  {formatRelativeTime(formData.lastEnriched) || "—"}
-                </span>
-              </div>
-            </div>
+            <FloatingLabelValue
+              label="Last enriched"
+              value={formatRelativeTime(formData.lastEnriched) || "—"}
+            />
 
-            <div className={fieldRowClass}>
-              <div className="flex items-center gap-2">
-                <span className={fieldLabelClass}>WALLS ID</span>
-                <span className={personId ? fieldValueClass : fieldEmptyValueClass}>{personId || "—"}</span>
-              </div>
-            </div>
+            <FloatingLabelValue label="WALLS ID" value={personId || "—"} />
           </div>
 
           {/* Right Column */}
           <div className="space-y-4">
-            <div className={fieldRowClass}>
-              <div className="flex items-center gap-2">
-                <span className={fieldLabelClass}>Timezone</span>
-                <span className={formData.timeZone ? fieldValueClass : fieldEmptyValueClass}>
-                  {formData.timeZone || "—"}
-                </span>
-              </div>
-            </div>
+            <FloatingLabelValue label="Timezone" value={formData.timeZone || "—"} />
 
-            <div className={fieldRowClass}>
-              <div className="flex items-center gap-2">
-                <span className={fieldLabelClass}>Last Contacted</span>
-                <span className={formatTimestamp(formData.lastContacted) ? fieldValueClass : fieldEmptyValueClass}>
-                  {formatTimestamp(formData.lastContacted) || "—"}
-                </span>
-              </div>
-            </div>
+            <FloatingLabelValue
+              label="Last Contacted"
+              value={formatTimestamp(formData.lastContacted) || "—"}
+            />
 
-            <div className={fieldRowClass}>
-              <div className="flex items-center gap-2">
-                <span className={fieldLabelClass}>Apollo Contact ID</span>
-                <span className={formData.apollo_contact_id ? fieldValueClass : fieldEmptyValueClass}>
-                  {formData.apollo_contact_id || "—"}
-                </span>
-              </div>
-            </div>
+            <FloatingLabelValue
+              label="Apollo Contact ID"
+              value={formData.apollo_contact_id || "—"}
+            />
 
-            <div className={fieldRowClass}>
-              <div className="flex items-center gap-2">
-                <span className={fieldLabelClass}>Apollo Person ID</span>
-                <span className={formData.apollo_person_id ? fieldValueClass : fieldEmptyValueClass}>
-                  {formData.apollo_person_id || "—"}
-                </span>
-              </div>
-            </div>
+            <FloatingLabelValue
+              label="Apollo Person ID"
+              value={formData.apollo_person_id || "—"}
+            />
 
-            <div className={fieldRowClass}>
-              <div className="flex items-center gap-2">
-                <span className={fieldLabelClass}>Updated at</span>
-                <span className={formatTimestamp(formData.updated_at) ? fieldValueClass : fieldEmptyValueClass}>
-                  {formatTimestamp(formData.updated_at) || "—"}
-                </span>
-              </div>
-            </div>
+            <FloatingLabelValue
+              label="Updated at"
+              value={formatTimestamp(formData.updated_at) || "—"}
+            />
           </div>
         </div>
       </div>

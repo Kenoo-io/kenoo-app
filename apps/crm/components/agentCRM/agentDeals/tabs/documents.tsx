@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Loader2, MoreVertical, X } from "lucide-react";
 import { getSupabaseClient } from "@/app/auth/supabaseClient";
 import { useAuth } from "@/app/auth/AuthContext";
+import { useActiveAccount } from "@/components/active-account-context";
+import { crmAccountFields, withCrmAccount } from "@/lib/crm-account";
 import { Input as BorderlessInput } from "@/components/ui/borderless-input";
 import {
   Select,
@@ -92,6 +94,7 @@ const getFileIcon = (mimeType: string, fileName: string) => {
 
 export default function Documents({ formData, setFormData }: DocumentsProps) {
   const { user } = useAuth();
+  const { activeAccountId } = useActiveAccount();
   const [isUploading, setIsUploading] = useState(false);
   const [fileError, setFileError] = useState("");
 
@@ -114,15 +117,21 @@ export default function Documents({ formData, setFormData }: DocumentsProps) {
 
       // If we don't have a dealId (create flow), create a minimal deal first
       if (!currentDealId || currentDealId === "unnamed") {
+        if (!activeAccountId) {
+          wallsToast.error("Error", "No active account selected");
+          return;
+        }
         try {
           // Get deal stage ID if stage is set
           let dealStageId = null;
           if (formData.stage) {
-            const { data: stage } = await supabase
-              .from('deal_stages')
-              .select('id')
-              .eq('name', formData.stage)
-              .single();
+            const { data: stage } = await withCrmAccount(
+              supabase
+                .from('deal_stages')
+                .select('id')
+                .eq('name', formData.stage),
+              activeAccountId
+            ).single();
             dealStageId = stage?.id;
           }
 
@@ -135,6 +144,7 @@ export default function Documents({ formData, setFormData }: DocumentsProps) {
               deal_type: formData.pipeline || null,
               deal_stage_id: dealStageId,
               deal_owner: formData.dealOwner || user.id,
+              ...crmAccountFields(activeAccountId),
             })
             .select('id')
             .single();
@@ -154,11 +164,13 @@ export default function Documents({ formData, setFormData }: DocumentsProps) {
 
           // If company is set, create deal_companies relationship
           if (formData.company) {
-            const { data: company } = await supabase
-              .from('companies')
-              .select('id')
-              .eq('name', formData.company)
-              .single();
+            const { data: company } = await withCrmAccount(
+              supabase
+                .from('companies')
+                .select('id')
+                .eq('name', formData.company),
+              activeAccountId
+            ).single();
             
             if (company?.id) {
               await supabase.from('deal_companies').insert({
@@ -242,7 +254,7 @@ export default function Documents({ formData, setFormData }: DocumentsProps) {
       }
       setIsUploading(false);
     },
-    [dealId, setFormData, user, formData],
+    [dealId, setFormData, user, formData, activeAccountId],
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -405,7 +417,7 @@ export default function Documents({ formData, setFormData }: DocumentsProps) {
 
   return (
     <div className="space-y-6">
-      <div className="bg-gray-50 rounded-[30px] p-6">
+      <div className="bg-kenoo-white rounded-[30px] p-6">
         <div className="flex items-center mb-6">
           <h2 className="text-black font-black text-4xl">DOCUMENTS</h2>
           <div className="flex-1 border-t border-black h-px mx-4" />
@@ -544,7 +556,7 @@ export default function Documents({ formData, setFormData }: DocumentsProps) {
                               type="button"
                               variant="ghost"
                               size="icon"
-                              className="h-7 w-7 text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+                              className="h-7 w-7 text-gray-500 hover:text-gray-700 hover:bg-kenoo-white"
                               onClick={cancelRename}
                             >
                               <X className="h-4 w-4" />

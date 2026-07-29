@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import OpenAI from "openai";
 import { syncCompanySocialUrls } from "@/lib/company-social";
+import { getCrmDataScope, crmScopeFields } from "@/lib/crm-scope";
 
 const APOLLO_API_KEY = process.env.APOLLO_API_KEY;
 const APOLLO_MASTER_API_KEY = process.env.APOLLO_MASTER_API_KEY || APOLLO_API_KEY;
@@ -123,6 +124,7 @@ async function inferCompanyNameAndIndustryFromSerper(
 async function trySerperOpenAiCompaniesFallback(
   normalizedDomain: string
 ): Promise<NextResponse | null> {
+  const scope = await getCrmDataScope();
   if (!process.env.SERPER_API_KEY || !process.env.OPENAI_API_KEY) {
     console.log(
       "[apollo-domain-supabase-sync] Serper/OpenAI fallback skipped (set SERPER_API_KEY and OPENAI_API_KEY)"
@@ -182,7 +184,7 @@ async function trySerperOpenAiCompaniesFallback(
   } else {
     const { data: newCompany, error: insertError } = await supabase
       .from("companies")
-      .insert({ ...companyPayload, created_at: new Date().toISOString() })
+      .insert({ ...companyPayload, created_at: new Date().toISOString(), ...(scope ? crmScopeFields(scope) : {}) })
       .select("id")
       .single();
     if (insertError) {
@@ -209,6 +211,7 @@ export async function POST(request: Request) {
   }
 
   try {
+    const scope = await getCrmDataScope();
     const { domain, companyId: requestedCompanyId } = await request.json();
     const rawDomain = typeof domain === "string" ? domain.trim() : "";
 
@@ -376,7 +379,7 @@ export async function POST(request: Request) {
     } else {
       const { data: newCompany, error: insertError } = await supabase
         .from("companies")
-        .insert({ ...companyData, created_at: new Date().toISOString() })
+        .insert({ ...companyData, created_at: new Date().toISOString(), ...(scope ? crmScopeFields(scope) : {}) })
         .select("id")
         .single();
       if (insertError) throw new Error(insertError.message);

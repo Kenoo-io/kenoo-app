@@ -93,7 +93,7 @@ export function TextFormattingTool({ editor }: TextFormattingToolProps) {
           disabled={!editor}
         >
           <div className="relative">
-            <div className="relative z-10 p-3 rounded-full transition-all duration-300 ease-in-out group-hover:bg-gray-50 group-hover:border group-hover:border-neutral-200 group-hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] group-hover:scale-95">
+            <div className="relative z-10 p-3 rounded-full transition-all duration-300 ease-in-out group-hover:bg-kenoo-white group-hover:border group-hover:border-neutral-200 group-hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] group-hover:scale-95">
               <Baseline className="h-[18px] w-[18px] stroke-[1.5] text-neutral-500" />
             </div>
           </div>

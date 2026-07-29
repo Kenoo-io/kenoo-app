@@ -17,12 +17,12 @@ export function CompaniesSidebar() {
     { 
       name: 'Storage',
       icon: <HardDrive className="h-[18px] w-[18px] stroke-[1.5]" />,
-      href: '/agents/crm/companies'
+      href: '/companies'
     },
     { 
       name: 'Search',
       icon: <Search className="h-[18px] w-[18px] stroke-[1.5]" />,
-      href: '/agents/crm/companies/search'
+      href: '/companies/search'
     }
   ];
 

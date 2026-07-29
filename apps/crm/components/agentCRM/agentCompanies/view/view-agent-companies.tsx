@@ -324,7 +324,7 @@ export default function EditAgentCompanies({ analyticsData, companyId, initialDa
 
       onClose();
       if (onSaved) onSaved();
-      else router.push("/agents/crm/companies");
+      else router.push("/companies");
     } catch (error) {
       console.error("Error updating company:", error);
       wallsToast.error("Error", "Failed to update company");
@@ -355,7 +355,7 @@ export default function EditAgentCompanies({ analyticsData, companyId, initialDa
 
       onClose();
       if (onSaved) onSaved();
-      else router.push("/agents/crm/companies");
+      else router.push("/companies");
     } catch (error) {
       console.error("Error deleting company:", error);
       wallsToast.error("Error", "Failed to delete company");
@@ -429,7 +429,7 @@ export default function EditAgentCompanies({ analyticsData, companyId, initialDa
       <SheetContent 
         side="right" 
         className={cn(
-          "overflow-y-auto overflow-x-hidden overscroll-contain p-0 [&>button]:hidden shadow-2xl rounded-none bg-gray-50 border border-neutral-200/80",
+          "overflow-y-auto overflow-x-hidden overscroll-contain p-0 [&>button]:hidden shadow-2xl rounded-none bg-kenoo-white border border-neutral-200/80",
           isMaximized ? "w-full" : "w-3/4"
         )}
         style={{

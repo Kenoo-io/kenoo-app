@@ -10,6 +10,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { syncCompanySocialUrls } from "@/lib/company-social";
+import { getCrmDataScope, crmScopeFields } from "@/lib/crm-scope";
 
 const APOLLO_API_KEY = process.env.APOLLO_API_KEY;
 const APOLLO_MASTER_API_KEY = process.env.APOLLO_MASTER_API_KEY || APOLLO_API_KEY;
@@ -38,6 +39,7 @@ export async function POST(request: Request) {
   }
 
   try {
+    const scope = await getCrmDataScope();
     const { organizationId } = await request.json();
     const rawId = typeof organizationId === "string" ? organizationId.trim() : null;
     if (!rawId) {
@@ -149,7 +151,7 @@ export async function POST(request: Request) {
     } else {
       const { data: newCompany, error: insertError } = await supabase
         .from("companies")
-        .insert({ ...companyData, created_at: new Date().toISOString() })
+        .insert({ ...companyData, created_at: new Date().toISOString(), ...(scope ? crmScopeFields(scope) : {}) })
         .select("id")
         .single();
       if (insertError) throw new Error(insertError.message);

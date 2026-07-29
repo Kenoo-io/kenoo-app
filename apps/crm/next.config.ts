@@ -35,6 +35,21 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  // Old walls-app nested paths → monorepo top-level routes
+  async redirects() {
+    return [
+      {
+        source: "/agents/crm",
+        destination: "/",
+        permanent: true,
+      },
+      {
+        source: "/agents/crm/:path*",
+        destination: "/:path*",
+        permanent: true,
+      },
+    ];
+  },
   images: {
     remotePatterns: [
       {

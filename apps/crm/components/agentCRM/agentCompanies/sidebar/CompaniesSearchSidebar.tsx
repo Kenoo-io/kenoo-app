@@ -388,7 +388,7 @@ export function CompaniesSearchSidebar() {
               <div className="h-[1px] bg-gray-200/50 mx-2 mb-4" />
 
               <div className="space-y-2">
-                <Link href="/agents/crm/companies">
+                <Link href="/companies">
                   <Button
                     variant="ghost"
                     className={`

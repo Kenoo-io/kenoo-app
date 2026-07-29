@@ -10,6 +10,8 @@ import {
 } from "@/components/ui/select";
 import { getSupabaseClient } from "@/app/auth/supabaseClient";
 import { useAuth } from "@/app/auth/AuthContext";
+import { useActiveAccount } from "@/components/active-account-context";
+import { withCrmAccount } from "@/lib/crm-account";
 import { Building2, User, Users, ListChecks } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -33,6 +35,7 @@ type FilterType = "all" | "my" | "team" | "added";
 
 export function SequenceSelect({ value, onValueChange, className, personId }: SequenceSelectProps) {
   const { user } = useAuth();
+  const { activeAccountId } = useActiveAccount();
   const [sequences, setSequences] = useState<Sequence[]>([]);
   const [filteredSequences, setFilteredSequences] = useState<Sequence[]>([]);
   const [searchFilteredSequences, setSearchFilteredSequences] = useState<Sequence[]>([]);
@@ -49,6 +52,11 @@ export function SequenceSelect({ value, onValueChange, className, personId }: Se
     const fetchSequences = async () => {
       try {
         setLoading(true);
+        if (!activeAccountId) {
+          setSequences([]);
+          setLoading(false);
+          return;
+        }
         const supabase = getSupabaseClient();
         
         // Get current user's ID
@@ -79,12 +87,14 @@ export function SequenceSelect({ value, onValueChange, className, personId }: Se
 
         setCurrentUserId(userData.id);
 
-        // Fetch all sequences (we'll filter client-side)
-        const { data: sequencesData, error } = await supabase
+        // Fetch account-scoped sequences (we'll filter client-side)
+        let sequencesQuery = supabase
           .from('sequences')
           .select('id, name, description, status, sequence_owner, is_campaign')
           .in('status', ['draft', 'active', 'paused'])
           .order('created_at', { ascending: false });
+        sequencesQuery = withCrmAccount(sequencesQuery, activeAccountId);
+        const { data: sequencesData, error } = await sequencesQuery;
 
         if (error) {
           console.error("Error fetching sequences:", error);
@@ -101,7 +111,7 @@ export function SequenceSelect({ value, onValueChange, className, personId }: Se
     };
 
     fetchSequences();
-  }, [user?.email]);
+  }, [user?.email, activeAccountId]);
 
   // Fetch sequences that the person is already in
   useEffect(() => {

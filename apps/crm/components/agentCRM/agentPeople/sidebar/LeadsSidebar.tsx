@@ -17,12 +17,12 @@ export function LeadsSidebar() {
     { 
       name: 'Storage',
       icon: <HardDrive className="h-[18px] w-[18px] stroke-[1.5]" />,
-      href: '/agents/crm/people'
+      href: '/people'
     },
     { 
       name: 'Search',
       icon: <Search className="h-[18px] w-[18px] stroke-[1.5]" />,
-      href: '/agents/crm/people/search'
+      href: '/people/search'
     }
   ];
 

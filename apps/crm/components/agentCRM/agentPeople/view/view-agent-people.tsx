@@ -251,7 +251,7 @@ export default function EditAgentPeople({ analyticsData, personId, initialData, 
 
       onClose();
       if (onSaved) onSaved();
-      else router.push("/agents/crm/people");
+      else router.push("/people");
     } catch (error) {
       console.error("Error updating person:", error);
       wallsToast.error("Error", "Failed to update person");
@@ -282,7 +282,7 @@ export default function EditAgentPeople({ analyticsData, personId, initialData, 
 
       onClose();
       if (onSaved) onSaved();
-      else router.push("/agents/crm/people");
+      else router.push("/people");
     } catch (error) {
       console.error("Error deleting person:", error);
       wallsToast.error("Error", "Failed to delete person");
@@ -355,7 +355,7 @@ export default function EditAgentPeople({ analyticsData, personId, initialData, 
       <SheetContent 
         side="right" 
         className={cn(
-          "overflow-y-auto overflow-x-hidden overscroll-contain p-0 [&>button]:hidden shadow-2xl rounded-none bg-gray-50 border border-neutral-200/80",
+          "overflow-y-auto overflow-x-hidden overscroll-contain p-0 [&>button]:hidden shadow-2xl rounded-none bg-kenoo-white border border-neutral-200/80",
           isMaximized ? "w-full" : "w-3/4"
         )}
         style={{

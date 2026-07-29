@@ -330,7 +330,7 @@ export default function ReplyComposer({
               <Button
                 onClick={handleSend}
                 disabled={sending || !hasReplyContent}
-                className="bg-transparent text-neutral-500 border border-transparent hover:bg-gray-50 hover:text-neutral-500 hover:border-neutral-200 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] transition-all duration-300 ease-in-out px-6 font-normal font-[Arial] shadow-none"
+                className="bg-transparent text-neutral-500 border border-transparent hover:bg-kenoo-white hover:text-neutral-500 hover:border-neutral-200 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] transition-all duration-300 ease-in-out px-6 font-normal font-[Arial] shadow-none"
                 size="lg"
               >
                 {sending ? (
@@ -379,7 +379,7 @@ export default function ReplyComposer({
             title="Discard reply"
           >
             <div className="relative">
-              <div className="relative z-10 p-3 rounded-full transition-all duration-300 ease-in-out group-hover:bg-gray-50 group-hover:border group-hover:border-neutral-200 group-hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] group-hover:scale-95">
+              <div className="relative z-10 p-3 rounded-full transition-all duration-300 ease-in-out group-hover:bg-kenoo-white group-hover:border group-hover:border-neutral-200 group-hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] group-hover:scale-95">
                 <Trash2 className="h-[18px] w-[18px] stroke-[1.5] text-neutral-500 transition-colors group-hover:text-red-500" />
               </div>
             </div>

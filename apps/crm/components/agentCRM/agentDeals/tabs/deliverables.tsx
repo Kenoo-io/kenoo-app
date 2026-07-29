@@ -4,7 +4,12 @@ import { useEffect, useState } from "react";
 import { getSupabaseClient } from "@/app/auth/supabaseClient";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { Button } from "@/components/ui/button";
-import { Input as BorderlessInput } from "@/components/ui/borderless-input";
+import {
+  FloatingLabelField,
+  FloatingLabelInput,
+  floatingSelectTriggerClass,
+} from "@/components/ui/floating-label-input";
+import { FloatingLabelDatePicker } from "@/components/ui/floating-label-date-picker";
 import { AnimatePresence, motion } from "framer-motion";
 import { Plus, ChevronDown, ChevronUp, MoreVertical } from "lucide-react";
 import {
@@ -106,15 +111,11 @@ function getValueLabel(d: DeliverableRow): string | undefined {
   return billingIntervalToValueLabel(d.billing_interval);
 }
 
-const fieldWrapperClass =
-  "border-0 border-b border-neutral-200 rounded-none px-0 py-0 bg-transparent transition-colors focus-within:border-b-[var(--kenoo-sky)]";
-const inputInnerClass =
-  "border-0 rounded-none px-0 py-2 font-light bg-transparent flex-1 w-full min-w-0 placeholder:text-neutral-300 h-10 focus:outline-none focus-visible:outline-none focus-visible:ring-0 focus:ring-0";
-const numberInputClass = `${inputInnerClass} [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]`;
-/** Select trigger when wrapped in fieldWrapperClass - no own border/bg so wrapper dictates underline */
-const selectTriggerClass =
-  "w-full border-0 rounded-none px-0 py-2 font-light bg-transparent shadow-none min-h-10 h-10 flex items-center justify-between focus:outline-none focus-visible:outline-none focus-visible:ring-0 focus:ring-0 hover:bg-transparent";
-const labelClass = "text-xs font-normal text-neutral-400 tracking-wide block mb-1";
+/** Compact currency picker that shares the unit-price field container. */
+const currencySelectTriggerClass =
+  "h-12 w-[4.25rem] shrink-0 border-0 bg-transparent px-0 py-0 text-xs font-light text-neutral-500 shadow-none outline-none hover:bg-transparent focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0";
+const unitPriceInputClass =
+  "h-12 w-full min-w-0 flex-1 border-0 bg-transparent px-0 pl-2 text-sm font-light text-neutral-900 placeholder:text-transparent focus:outline-none focus-visible:outline-none focus-visible:ring-0 focus:ring-0";
 
 interface DeliverablesProps {
   formData: { deliverables?: DeliverableRow[]; [key: string]: any };
@@ -349,7 +350,7 @@ export default function Deliverables({ formData, setFormData }: DeliverablesProp
             className="relative hover:bg-transparent p-0"
           >
             <motion.div
-              className="relative z-10 p-3 bg-gray-50 backdrop-blur-md rounded-full border-0 px-6"
+              className="relative z-10 p-3 bg-kenoo-white backdrop-blur-md rounded-full border-0 px-6"
               whileHover={{
                 backgroundColor: "rgb(249 250 251)",
                 boxShadow: "inset 0 3px 6px rgba(0, 0, 0, 0.25)",
@@ -374,7 +375,7 @@ export default function Deliverables({ formData, setFormData }: DeliverablesProp
             return (
             <div
               key={d.id ?? `row-${index}`}
-              className={`bg-gray-50 rounded-[30px] p-6 shrink-0 ${collapsedDetails.has(index) ? "flex flex-col justify-center min-h-[5rem]" : ""}`}
+              className={`bg-kenoo-white rounded-[30px] p-6 shrink-0 ${collapsedDetails.has(index) ? "flex flex-col justify-center min-h-[5rem]" : ""}`}
             >
               <div className={`flex items-center flex-nowrap gap-4 min-w-0 ${collapsedDetails.has(index) ? "mb-0" : "mb-6"}`}>
                 <div className="flex min-w-0 max-w-[min(100%,90%)] items-center gap-1.5">
@@ -437,107 +438,86 @@ export default function Deliverables({ formData, setFormData }: DeliverablesProp
                   >
               <div className="space-y-4">
                 {/* Row 1: Name (left) | Billing, Interval (right) */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-end">
-                  <div>
-                    <label className={labelClass}>Name</label>
-                    <div className={fieldWrapperClass}>
-                      <BorderlessInput
-                        value={d.name ?? ""}
-                        onChange={(e) => updateRow(index, "name", e.target.value)}
-                        placeholder="e.g. Instagram Reel"
-                        className={inputInnerClass}
-                      />
-                    </div>
-                  </div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+                  <FloatingLabelInput
+                    label="Name"
+                    value={d.name ?? ""}
+                    onChange={(e) => updateRow(index, "name", e.target.value)}
+                  />
                   <div className={`grid gap-4 ${d.billing_type === "recurring" ? "grid-cols-3" : "grid-cols-2"}`}>
-                    <div>
-                      <label className={labelClass}>Billing</label>
-                      <div className={fieldWrapperClass}>
+                    <FloatingLabelField label="Billing" hasValue>
+                      <Select
+                        value={d.billing_type ?? "one_off"}
+                        onValueChange={(v) => updateRow(index, "billing_type", v as BillingType)}
+                      >
+                        <SelectTrigger className={floatingSelectTriggerClass}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {BILLING_TYPE_OPTIONS.map((billingType) => (
+                            <SelectItem
+                              key={billingType}
+                              value={billingType}
+                            >
+                              {formatBillingTypeLabel(billingType)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </FloatingLabelField>
+                    {d.billing_type === "recurring" && (
+                      <FloatingLabelField
+                        label="Interval"
+                        hasValue={Boolean(d.billing_interval ?? billingIntervals[0])}
+                      >
                         <Select
-                          value={d.billing_type ?? "one_off"}
-                          onValueChange={(v) => updateRow(index, "billing_type", v as BillingType)}
+                          value={d.billing_interval ?? billingIntervals[0] ?? ""}
+                          onValueChange={(v) => updateRow(index, "billing_interval", v)}
                         >
-                          <SelectTrigger className={selectTriggerClass}>
-                            <SelectValue />
+                          <SelectTrigger className={floatingSelectTriggerClass}>
+                            <SelectValue placeholder={loadingIntervals ? "Loading…" : ""} />
                           </SelectTrigger>
                           <SelectContent>
-                            {BILLING_TYPE_OPTIONS.map((billingType) => (
+                            {billingIntervals.map((interval) => (
                               <SelectItem
-                                key={billingType}
-                                value={billingType}
+                                key={interval}
+                                value={interval}
                               >
-                                {formatBillingTypeLabel(billingType)}
+                                {formatBillingIntervalLabel(interval)}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
-                      </div>
-                    </div>
-                    {d.billing_type === "recurring" && (
-                      <div>
-                        <label className={labelClass}>Interval</label>
-                        <div className={fieldWrapperClass}>
-                          <Select
-                            value={d.billing_interval ?? billingIntervals[0] ?? ""}
-                            onValueChange={(v) => updateRow(index, "billing_interval", v)}
-                          >
-                            <SelectTrigger className={selectTriggerClass}>
-                              <SelectValue placeholder={loadingIntervals ? "Loading…" : "Select interval"} />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {billingIntervals.map((interval) => (
-                                <SelectItem
-                                  key={interval}
-                                  value={interval}
-                                >
-                                  {formatBillingIntervalLabel(interval)}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
+                      </FloatingLabelField>
                     )}
-                    <div>
-                      <label className={labelClass}>NET (days)</label>
-                      <div className={fieldWrapperClass}>
-                        <BorderlessInput
-                          type="number"
-                          min={0}
-                          value={d.net_payout ?? ""}
-                          onChange={(e) => updateRow(index, "net_payout", e.target.value === "" ? null : e.target.value)}
-                          placeholder="Days after trigger"
-                          className={numberInputClass}
-                        />
-                      </div>
-                    </div>
+                    <FloatingLabelInput
+                      label="NET (days)"
+                      type="number"
+                      min={0}
+                      value={d.net_payout ?? ""}
+                      onChange={(e) => updateRow(index, "net_payout", e.target.value === "" ? null : e.target.value)}
+                    />
                   </div>
                 </div>
 
                 {/* Row 2: Quantity, Unit price (left) | Starts at, Recurrence count (right) */}
                 {d.billing_type !== "time_based" && (
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-end">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
                     <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className={labelClass}>Quantity</label>
-                        <div className={fieldWrapperClass}>
-                          <BorderlessInput
-                            type="number"
-                            min={1}
-                            value={d.quantity ?? 1}
-                            onChange={(e) => updateRow(index, "quantity", e.target.value)}
-                            className={numberInputClass}
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <label className={labelClass}>Unit price</label>
-                        <div className={`${fieldWrapperClass} flex items-center gap-0`}>
+                      <FloatingLabelInput
+                        label="Quantity"
+                        type="number"
+                        min={1}
+                        value={d.quantity ?? 1}
+                        onChange={(e) => updateRow(index, "quantity", e.target.value)}
+                      />
+                      <FloatingLabelField label="Unit price" hasValue>
+                        <div className="flex items-center">
                           <Select
                             value={d.currency || "USD"}
                             onValueChange={(v) => updateRow(index, "currency", v)}
                           >
-                            <SelectTrigger className="border-0 bg-transparent shadow-none h-10 w-[4rem] shrink-0 px-0 focus:ring-0 focus-visible:ring-0 text-xs text-neutral-500 hover:bg-transparent">
+                            <SelectTrigger className={currencySelectTriggerClass}>
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -557,56 +537,38 @@ export default function Deliverables({ formData, setFormData }: DeliverablesProp
                             value={((d.unit_price_cents ?? 0) / 100).toFixed(2)}
                             onChange={(value) => setPriceFromDollars(index, value)}
                             currency={d.currency || "USD"}
-                            className={`${inputInnerClass} pl-2`}
+                            className={unitPriceInputClass}
                           />
                         </div>
-                      </div>
+                      </FloatingLabelField>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       {d.billing_type === "recurring" && (
-                        <div>
-                          <label className={labelClass}>Starts at (date)</label>
-                          <div className={fieldWrapperClass}>
-                            <BorderlessInput
-                              type="date"
-                              value={d.starts_at ?? ""}
-                              onChange={(e) => updateRow(index, "starts_at", e.target.value || null)}
-                              className={inputInnerClass}
-                            />
-                          </div>
-                        </div>
+                        <FloatingLabelDatePicker
+                          label="Starts at"
+                          value={d.starts_at ?? null}
+                          onChange={(value) => updateRow(index, "starts_at", value || null)}
+                        />
                       )}
                       {d.billing_type === "recurring" && (
-                        <div>
-                          <label className={labelClass}>Recurrence count (optional)</label>
-                          <div className={fieldWrapperClass}>
-                            <BorderlessInput
-                              type="number"
-                              min={0}
-                              value={d.recurrence_count ?? ""}
-                              onChange={(e) => updateRow(index, "recurrence_count", e.target.value === "" ? null : e.target.value)}
-                              placeholder="Leave empty for indefinite"
-                              className={numberInputClass}
-                            />
-                          </div>
-                        </div>
+                        <FloatingLabelInput
+                          label="Recurrence count"
+                          type="number"
+                          min={0}
+                          value={d.recurrence_count ?? ""}
+                          onChange={(e) => updateRow(index, "recurrence_count", e.target.value === "" ? null : e.target.value)}
+                        />
                       )}
                     </div>
                   </div>
                 )}
 
                 {/* Row 3: Description */}
-                <div>
-                  <label className={labelClass}>Description (optional)</label>
-                  <div className={fieldWrapperClass}>
-                    <BorderlessInput
-                      value={d.description ?? ""}
-                      onChange={(e) => updateRow(index, "description", e.target.value || null)}
-                      placeholder="Short description"
-                      className={`${inputInnerClass} text-sm`}
-                    />
-                  </div>
-                </div>
+                <FloatingLabelInput
+                  label="Description (optional)"
+                  value={d.description ?? ""}
+                  onChange={(e) => updateRow(index, "description", e.target.value || null)}
+                />
               </div>
                   </motion.div>
                 )}

@@ -48,6 +48,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { syncCompanySocialUrls } from '@/lib/company-social';
+import { getCrmDataScope, crmScopeFields } from "@/lib/crm-scope";
 
 const APOLLO_API_KEY = process.env.APOLLO_API_KEY;
 const APOLLO_API_URL = 'https://api.apollo.io/api/v1/accounts';
@@ -83,6 +84,7 @@ export async function POST(request: Request) {
   }
 
   try {
+    const scope = await getCrmDataScope();
     const { accountId } = await request.json();
 
     // REQUIRED: Account ID must be provided - this endpoint only works with Apollo account IDs
@@ -219,6 +221,7 @@ export async function POST(request: Request) {
         .insert({
           ...companyData,
           created_at: new Date().toISOString(),
+          ...(scope ? crmScopeFields(scope) : {}),
         })
         .select('id')
         .single();

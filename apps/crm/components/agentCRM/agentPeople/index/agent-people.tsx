@@ -11,6 +11,8 @@ import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { MobileFAB } from "@/components/ui/mobile-fab";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getSupabaseClient } from "@/app/auth/supabaseClient";
+import { useActiveAccount } from "@/components/active-account-context";
+import { withCrmAccount } from "@/lib/crm-account";
 import UserProfileButton from "@/components/user-profile-button";
 import EditAgentCompanies from "@/components/agentCRM/agentCompanies/view/view-agent-companies";
 import EditAgentPeople from "@/components/agentCRM/agentPeople/view/view-agent-people";
@@ -45,6 +47,7 @@ interface AgentLeadsProps {
 
 function AgentLeadsContent({ analyticsData }: AgentLeadsProps) {
   const { user, isLoading: authLoading } = useAuth();
+  const { activeAccountId, loading: accountsLoading } = useActiveAccount();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -124,6 +127,7 @@ function AgentLeadsContent({ analyticsData }: AgentLeadsProps) {
         setLoading(false);
         return;
       }
+      if (!activeAccountId) return;
       setLoading(true);
       try {
         const supabase = getSupabaseClient();
@@ -153,6 +157,8 @@ function AgentLeadsContent({ analyticsData }: AgentLeadsProps) {
             )
           `, { count: 'exact' })
           .eq('person_type', 'contact');
+
+        query = withCrmAccount(query, activeAccountId);
 
         if (filters.status) query = query.eq('status', filters.status);
         if (filters.source) query = query.eq('source', filters.source);
@@ -252,6 +258,7 @@ function AgentLeadsContent({ analyticsData }: AgentLeadsProps) {
     [
       authLoading,
       user,
+      activeAccountId,
       debouncedSearchTerm,
       filters.status,
       filters.source,
@@ -273,8 +280,18 @@ function AgentLeadsContent({ analyticsData }: AgentLeadsProps) {
       lastFetchKeyRef.current = null;
       return;
     }
+    if (accountsLoading) { setLoading(true); return; }
+    if (!activeAccountId) {
+      setLeads([]);
+      setTotalItems(0);
+      setTotalPages(1);
+      setLoading(false);
+      lastFetchKeyRef.current = null;
+      return;
+    }
     const fetchKey = [
       currentPage,
+      activeAccountId,
       debouncedSearchTerm,
       filters.status,
       filters.source,
@@ -287,7 +304,7 @@ function AgentLeadsContent({ analyticsData }: AgentLeadsProps) {
     }
     lastFetchKeyRef.current = fetchKey;
     fetchLeads(currentPage);
-  }, [authLoading, user, currentPage, debouncedSearchTerm, filters.status, filters.source, filters.country, filters.companyId, filters.verified, fetchLeads, leads.length, refreshTrigger]);
+  }, [authLoading, user, accountsLoading, activeAccountId, currentPage, debouncedSearchTerm, filters.status, filters.source, filters.country, filters.companyId, filters.verified, fetchLeads, leads.length, refreshTrigger]);
 
   useLayoutEffect(() => {
     const syncScrollPositions = () => {
@@ -346,19 +363,19 @@ function AgentLeadsContent({ analyticsData }: AgentLeadsProps) {
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
-    router.replace(`/agents/crm/people${buildCleanUrl(filters, page)}`);
+    router.replace(`/people${buildCleanUrl(filters, page)}`);
   };
 
   /** Refresh the list (e.g. after adding a new person). Resets to page 1 and fetches so the new person appears at top. */
   const refreshPeopleList = useCallback(() => {
-    const key = [1, debouncedSearchTerm, filters.status, filters.source, filters.country, filters.companyId, filters.verified].join("|");
+    const key = [1, activeAccountId, debouncedSearchTerm, filters.status, filters.source, filters.country, filters.companyId, filters.verified].join("|");
     lastFetchKeyRef.current = null;
     setCurrentPage(1);
     setRefreshTrigger((t) => t + 1);
     fetchLeads(1);
     lastFetchKeyRef.current = key;
-    router.replace(`/agents/crm/people${buildCleanUrl(filters, 1)}`);
-  }, [fetchLeads, debouncedSearchTerm, filters, router]);
+    router.replace(`/people${buildCleanUrl(filters, 1)}`);
+  }, [fetchLeads, activeAccountId, debouncedSearchTerm, filters, router]);
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return '';
@@ -384,14 +401,14 @@ function AgentLeadsContent({ analyticsData }: AgentLeadsProps) {
     const updatedFilters = { ...filters, [filterKey]: value };
     setFilters(updatedFilters);
     setCurrentPage(1);
-    router.replace(`/agents/crm/people${buildCleanUrl(updatedFilters, 1)}`);
+    router.replace(`/people${buildCleanUrl(updatedFilters, 1)}`);
   };
 
   const handleCompanyClick = async (companyId: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     
-    if (!companyId) return;
+    if (!companyId || !activeAccountId) return;
     
     setSelectedCompanyId(companyId);
     setLoadingCompanyData(true);
@@ -403,6 +420,7 @@ function AgentLeadsContent({ analyticsData }: AgentLeadsProps) {
         .from('companies')
         .select('*')
         .eq('id', companyId)
+        .eq('account_id', activeAccountId)
         .single();
 
       if (error) {
@@ -610,7 +628,7 @@ function AgentLeadsContent({ analyticsData }: AgentLeadsProps) {
     e.preventDefault();
     e.stopPropagation();
     
-    if (!personId) return;
+    if (!personId || !activeAccountId) return;
     
     setSelectedPersonId(personId);
     setLoadingPersonData(true);
@@ -629,6 +647,7 @@ function AgentLeadsContent({ analyticsData }: AgentLeadsProps) {
           )
         `)
         .eq('id', personId)
+        .eq('account_id', activeAccountId)
         .single();
 
       if (error) {

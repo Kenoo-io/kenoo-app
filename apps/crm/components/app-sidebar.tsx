@@ -20,11 +20,11 @@ import { useAppSidebar } from "./app-sidebar-context";
 
 const navItems = [
   { href: "/", label: "Overview", icon: LayoutDashboard },
-  { href: "/agents/crm/people", label: "People", icon: Users },
-  { href: "/agents/crm/companies", label: "Companies", icon: Building2 },
-  { href: "/agents/crm/deals", label: "Deals", icon: Handshake },
-  { href: "/agents/crm/pitches", label: "Pitches", icon: Megaphone },
-  { href: "/agents/crm/sequences", label: "Sequences", icon: Mail },
+  { href: "/people", label: "People", icon: Users },
+  { href: "/companies", label: "Companies", icon: Building2 },
+  { href: "/deals", label: "Deals", icon: Handshake },
+  { href: "/pitches", label: "Pitches", icon: Megaphone },
+  { href: "/sequences", label: "Sequences", icon: Mail },
 ] as const;
 
 export function AppSidebar({ headerVisible = true }: { headerVisible?: boolean }) {

@@ -16,6 +16,7 @@ import {
 import { getSupabaseClient } from "@/app/auth/supabaseClient";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/app/auth/AuthContext";
+import { useActiveAccount } from "@/components/active-account-context";
 import {
   Tooltip,
   TooltipContent,
@@ -59,6 +60,7 @@ export function CompanyPeopleSearch({
   onSelectContact,
 }: CompanyPeopleSearchProps) {
   const { user } = useAuth();
+  const { activeAccountId } = useActiveAccount();
   const [open, setOpen] = React.useState(false);
   const [contacts, setContacts] = React.useState<Contact[]>([]);
   const [apolloContacts, setApolloContacts] = React.useState<Contact[]>([]);
@@ -73,7 +75,7 @@ export function CompanyPeopleSearch({
   // Fetch existing database contacts for the company
   React.useEffect(() => {
     const fetchContacts = async () => {
-      if (!companyId) {
+      if (!companyId || !activeAccountId) {
         setContacts([]);
         return;
       }
@@ -84,6 +86,7 @@ export function CompanyPeopleSearch({
           .from("people")
           .select("id, first_name, last_name, email, title, photo_url, country")
           .eq("company_id", companyId)
+          .eq("account_id", activeAccountId)
           .not("email", "is", null)
           .order("first_name", { ascending: true });
 
@@ -113,7 +116,7 @@ export function CompanyPeopleSearch({
     };
 
     fetchContacts();
-  }, [companyId]);
+  }, [companyId, activeAccountId]);
 
   const filteredContacts = React.useMemo(() => {
     const allContacts = [...contacts, ...apolloContacts];
@@ -228,12 +231,13 @@ export function CompanyPeopleSearch({
       if (data.success) {
         setEnrichedIds(prev => new Set(prev).add(contact.id));
         // Refresh contacts list to show the newly enriched contact
-        if (companyId) {
+        if (companyId && activeAccountId) {
           const supabase = getSupabaseClient();
           const { data: refreshedData } = await supabase
             .from("people")
             .select("id, first_name, last_name, email, title, photo_url, country")
             .eq("company_id", companyId)
+            .eq("account_id", activeAccountId)
             .not("email", "is", null)
             .order("first_name", { ascending: true });
           

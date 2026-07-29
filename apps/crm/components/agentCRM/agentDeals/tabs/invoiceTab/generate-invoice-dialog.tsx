@@ -14,7 +14,7 @@ import { suggestedInvoiceDatesIso } from "./invoice-helpers";
 import { labelClass } from "./invoice-tab-styles";
 
 const dialogFooterButtonClass =
-  "group inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all duration-300 ease-in-out border border-transparent bg-transparent hover:bg-gray-50 hover:border hover:border-neutral-200 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] hover:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed";
+  "group inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all duration-300 ease-in-out border border-transparent bg-transparent hover:bg-kenoo-white hover:border hover:border-neutral-200 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] hover:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed";
 
 const deliverableDotTransition = { duration: 0.2, ease: [0.22, 1, 0.36, 1] as const };
 

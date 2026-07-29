@@ -11,6 +11,8 @@ import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { MobileFAB } from "@/components/ui/mobile-fab";
 import { useRouter } from "next/navigation";
 import { getSupabaseClient } from "@/app/auth/supabaseClient";
+import { useActiveAccount } from "@/components/active-account-context";
+import { withCrmAccount } from "@/lib/crm-account";
 import UserProfileButton from "@/components/user-profile-button";
 import EditAgentCompanies from "../view/view-agent-companies";
 import CreateAgentCompanies from "../create/create-agent-companies";
@@ -76,6 +78,7 @@ function mapSupabaseCompany(company: any): Company {
 
 function AgentCompaniesContent({ analyticsData }: AgentCompaniesProps) {
   const { user, isLoading: authLoading } = useAuth();
+  const { activeAccountId, loading: accountsLoading } = useActiveAccount();
   const router = useRouter();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -145,6 +148,7 @@ function AgentCompaniesContent({ analyticsData }: AgentCompaniesProps) {
         setLoading(false);
         return;
       }
+      if (!activeAccountId) return;
       setLoading(true);
       try {
         const supabase = getSupabaseClient();
@@ -161,6 +165,8 @@ function AgentCompaniesContent({ analyticsData }: AgentCompaniesProps) {
         let query = supabase
           .from('companies')
           .select('*, companies_tags(tag, type)', { count: 'exact' });
+
+        query = withCrmAccount(query, activeAccountId);
 
         if (filters.industry) query = query.eq('industry', filters.industry);
         if (filters.country) query = query.eq('country', filters.country);
@@ -249,6 +255,7 @@ function AgentCompaniesContent({ analyticsData }: AgentCompaniesProps) {
     [
       authLoading,
       user,
+      activeAccountId,
       debouncedSearchTerm,
       filters.industry,
       filters.country,
@@ -258,12 +265,14 @@ function AgentCompaniesContent({ analyticsData }: AgentCompaniesProps) {
   );
 
   const refreshCompanyInList = useCallback(async (companyId: string) => {
+    if (!activeAccountId) return;
     try {
       const supabase = getSupabaseClient();
       const { data, error } = await supabase
         .from('companies')
         .select('*, companies_tags(tag, type)')
         .eq('id', companyId)
+        .eq('account_id', activeAccountId)
         .single();
 
       if (error || !data) return;
@@ -273,7 +282,7 @@ function AgentCompaniesContent({ analyticsData }: AgentCompaniesProps) {
     } catch (error) {
       console.error('Error refreshing enriched company:', error);
     }
-  }, []);
+  }, [activeAccountId]);
 
   const handleCompanyEnriched = useCallback((companyId: string) => {
     const now = new Date().toISOString();
@@ -295,8 +304,18 @@ function AgentCompaniesContent({ analyticsData }: AgentCompaniesProps) {
       lastFetchKeyRef.current = null;
       return;
     }
+    if (accountsLoading) { setLoading(true); return; }
+    if (!activeAccountId) {
+      setCompanies([]);
+      setTotalItems(0);
+      setTotalPages(1);
+      setLoading(false);
+      lastFetchKeyRef.current = null;
+      return;
+    }
     const fetchKey = [
       currentPage,
+      activeAccountId,
       debouncedSearchTerm,
       filters.industry,
       filters.country,
@@ -308,7 +327,7 @@ function AgentCompaniesContent({ analyticsData }: AgentCompaniesProps) {
     }
     lastFetchKeyRef.current = fetchKey;
     fetchCompanies(currentPage);
-  }, [authLoading, user, currentPage, debouncedSearchTerm, filters.industry, filters.country, filters.employeeCount, filters.revenueRange, fetchCompanies, companies.length, refreshTrigger]);
+  }, [authLoading, user, accountsLoading, activeAccountId, currentPage, debouncedSearchTerm, filters.industry, filters.country, filters.employeeCount, filters.revenueRange, fetchCompanies, companies.length, refreshTrigger]);
 
   useLayoutEffect(() => {
     const syncScrollPositions = () => {
@@ -361,13 +380,13 @@ function AgentCompaniesContent({ analyticsData }: AgentCompaniesProps) {
   };
 
   const refreshCompaniesList = useCallback(() => {
-    const key = [1, debouncedSearchTerm, filters.industry, filters.country, filters.employeeCount, filters.revenueRange].join("|");
+    const key = [1, activeAccountId, debouncedSearchTerm, filters.industry, filters.country, filters.employeeCount, filters.revenueRange].join("|");
     lastFetchKeyRef.current = null;
     setCurrentPage(1);
     setRefreshTrigger((t) => t + 1);
     fetchCompanies(1);
     lastFetchKeyRef.current = key;
-  }, [fetchCompanies, debouncedSearchTerm, filters.industry, filters.country, filters.employeeCount, filters.revenueRange]);
+  }, [fetchCompanies, activeAccountId, debouncedSearchTerm, filters.industry, filters.country, filters.employeeCount, filters.revenueRange]);
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return '';
@@ -434,6 +453,7 @@ function AgentCompaniesContent({ analyticsData }: AgentCompaniesProps) {
   const handleCompanyClick = async (companyId: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    if (!activeAccountId) return;
     setSelectedCompanyId(companyId);
     setLoadingCompanyData(true);
     setIsSheetOpen(true);
@@ -443,6 +463,7 @@ function AgentCompaniesContent({ analyticsData }: AgentCompaniesProps) {
         .from('companies')
         .select('*')
         .eq('id', companyId)
+        .eq('account_id', activeAccountId)
         .single();
 
       if (error) {
@@ -662,6 +683,7 @@ function AgentCompaniesContent({ analyticsData }: AgentCompaniesProps) {
   const handleAddToSequence = async (companyId: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    if (!activeAccountId) return;
     
     try {
       // Fetch company data from Supabase
@@ -670,6 +692,7 @@ function AgentCompaniesContent({ analyticsData }: AgentCompaniesProps) {
         .from('companies')
         .select('name, website')
         .eq('id', companyId)
+        .eq('account_id', activeAccountId)
         .single();
 
       if (error || !company) {

@@ -3,20 +3,23 @@
 
 import { wallsToast } from "@/components/ui/walls-toast";
 import { RefObject, useEffect, useRef, useState } from "react";
-import { Calendar, CalendarClock, Check, ChevronDown, FileDown, FilePlus, Loader2, MoreVertical, Plus, Send, Trash2 } from "lucide-react";
+import { Check, ChevronDown, FileDown, FilePlus, Loader2, MoreVertical, Plus, Send, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AnimatePresence, motion } from "framer-motion";
-import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input as BorderlessInput } from "@/components/ui/borderless-input";
-import { MiniCalendar } from "@/components/ui/mini-calendar";
+import {
+  FloatingLabelField,
+  FloatingLabelInput,
+  floatingSelectTriggerClass,
+} from "@/components/ui/floating-label-input";
+import { FloatingLabelDatePicker } from "@/components/ui/floating-label-date-picker";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -44,10 +47,9 @@ const invoiceFieldWrapperClass =
   "border-0 border-b border-neutral-200 rounded-none px-0 py-0 bg-transparent";
 const invoiceInputInnerClass =
   "border-0 bg-transparent px-0 py-2 font-light focus:outline-none focus-visible:outline-none focus-visible:ring-0 focus:ring-0 focus:border-b-[var(--kenoo-sky)] w-full min-w-0 placeholder:text-neutral-300";
-const invoiceSelectTriggerClass =
-  "w-full border-0 border-b border-neutral-200 rounded-none px-0 py-2 font-light bg-transparent justify-between shadow-none focus:outline-none focus-visible:outline-none focus-visible:ring-0 focus:ring-0 focus:border-b-[var(--kenoo-sky)] hover:bg-transparent [&_[data-placeholder]]:text-neutral-300";
-const invoiceDateButtonClass =
-  "w-full border-0 border-b border-neutral-200 rounded-none px-0 py-2 bg-transparent text-left transition-colors hover:border-b-[var(--kenoo-sky)] focus:outline-none focus-visible:outline-none focus-visible:ring-0 focus:ring-0";
+/** Compact currency picker that shares the read-only total field container. */
+const invoiceCurrencySelectTriggerClass =
+  "h-12 w-[4.25rem] shrink-0 border-0 bg-transparent px-0 pr-2 text-sm font-light text-foreground shadow-none outline-none hover:bg-transparent focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 [&>span]:text-foreground";
 const lineItemHeaderClass =
   "text-left pb-3 pr-4 text-[11px] font-normal uppercase tracking-[0.16em] text-neutral-500 whitespace-nowrap";
 
@@ -137,12 +139,6 @@ function formatSummaryDate(iso: string | null | undefined): string {
   const d = new Date(s.includes("T") ? s : `${s.split("T")[0]}T12:00:00`);
   if (Number.isNaN(d.getTime())) return "—";
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
-}
-
-function parseDateValue(value: string): Date | undefined {
-  if (!value) return undefined;
-  const date = new Date(`${value}T00:00:00`);
-  return Number.isNaN(date.getTime()) ? undefined : date;
 }
 
 function formatWisePaymentMeta(p: InvoicePaymentForm): string {
@@ -249,8 +245,6 @@ export function InvoiceDetailsCard({
 }: InvoiceDetailsCardProps) {
   const hasPersistedInvoices = invoiceSummaries.length > 0;
   const [invoiceDropdownOpen, setInvoiceDropdownOpen] = useState(false);
-  const [issuePopoverOpen, setIssuePopoverOpen] = useState(false);
-  const [duePopoverOpen, setDuePopoverOpen] = useState(false);
   const [invoiceSendLoading, setInvoiceSendLoading] = useState(false);
   const [invoiceSendSuccess, setInvoiceSendSuccess] = useState(false);
   const [invoiceDownloadLoading, setInvoiceDownloadLoading] = useState(false);
@@ -458,7 +452,7 @@ export function InvoiceDetailsCard({
   }, []);
 
   return (
-    <div className="bg-gray-50 rounded-[30px] p-6 overflow-visible">
+    <div className="bg-kenoo-white rounded-[30px] p-6 overflow-visible">
       <div
         className={`flex flex-wrap items-center gap-2 sm:gap-3 ${invoiceDetailsPanelMode !== "hidden" ? "mb-6" : "mb-0"}`}
       >
@@ -787,10 +781,9 @@ export function InvoiceDetailsCard({
           >
             <div className="pt-1">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-start">
-                <div>
-                  <label className={labelClass}>Status</label>
+                <FloatingLabelField label="Status" hasValue={Boolean(invoiceDetails.status)}>
                   <Select value={invoiceDetails.status} onValueChange={(value) => onUpdateInvoiceField("status", value)}>
-                    <SelectTrigger className={invoiceSelectTriggerClass}>
+                    <SelectTrigger className={floatingSelectTriggerClass}>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -801,16 +794,20 @@ export function InvoiceDetailsCard({
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
+                </FloatingLabelField>
                 <div>
-                  <label className={labelClass}>Tax (all line items)</label>
+                  <FloatingLabelField
+                    label="Tax (all line items)"
+                    hasValue={lineItems.length > 0 && Boolean(taxSelectionValue)}
+                    disabled={lineItems.length === 0}
+                  >
                   <Select
                     value={taxSelectionValue}
                     onValueChange={onApplyTaxToAllLineItems}
                     disabled={lineItems.length === 0}
                   >
-                    <SelectTrigger className={invoiceSelectTriggerClass}>
-                      <SelectValue placeholder="Select tax treatment" />
+                    <SelectTrigger className={floatingSelectTriggerClass}>
+                      <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       {taxSelectionValue === "__mixed__" ? (
@@ -825,6 +822,7 @@ export function InvoiceDetailsCard({
                       ))}
                     </SelectContent>
                   </Select>
+                  </FloatingLabelField>
                   {taxRecommendation &&
                   lineItems.length > 0 &&
                   taxSelectionValue !== taxRecommendation.dropdownValue ? (
@@ -854,14 +852,13 @@ export function InvoiceDetailsCard({
                     </div>
                   ) : null}
                 </div>
-                <div>
-                  <label className={labelClass}>Currency</label>
-                  <div className={cn(invoiceFieldWrapperClass, "flex min-h-10 items-end gap-0 pr-2")}>
+                <FloatingLabelField label="Currency & total" hasValue>
+                  <div className="flex items-center">
                     <Select
                       value={invoiceDetails.currency}
                       onValueChange={(value) => onUpdateInvoiceField("currency", value)}
                     >
-                      <SelectTrigger className="border-0 bg-transparent shadow-none h-10 w-[4rem] shrink-0 px-0 mr-2 focus:ring-0 focus-visible:ring-0 text-[15px] font-light text-foreground hover:bg-transparent [&>span]:text-foreground">
+                      <SelectTrigger className={invoiceCurrencySelectTriggerClass}>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -872,117 +869,40 @@ export function InvoiceDetailsCard({
                         ))}
                       </SelectContent>
                     </Select>
-                    <div className="w-px h-5 bg-neutral-200 shrink-0 self-center" />
-                    <div className="flex min-w-0 flex-1 items-end pl-2">
-                      <BorderlessInput
-                        value={(displayTotalCents / 100).toFixed(2)}
-                        readOnly
-                        aria-readonly="true"
-                        tabIndex={-1}
-                        className={cn(
-                          invoiceInputInnerClass,
-                          "cursor-not-allowed select-none text-neutral-400 placeholder:text-neutral-300"
-                        )}
-                      />
-                      <span className="shrink-0 text-[10px] uppercase tracking-[0.14em] text-neutral-400">
-                        Total from line items
-                      </span>
-                    </div>
+                    <div className="w-px h-5 bg-neutral-200 shrink-0" />
+                    <BorderlessInput
+                      value={(displayTotalCents / 100).toFixed(2)}
+                      readOnly
+                      aria-readonly="true"
+                      aria-label="Total from line items"
+                      tabIndex={-1}
+                      className={cn(
+                        invoiceInputInnerClass,
+                        "h-12 px-0 pl-2 text-sm cursor-not-allowed select-none text-neutral-400"
+                      )}
+                    />
                   </div>
-                </div>
+                </FloatingLabelField>
                 <div className="sm:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-4 items-start">
-                  <div>
-                    <label className={labelClass}>Issue date</label>
-                    <Popover open={issuePopoverOpen} onOpenChange={setIssuePopoverOpen}>
-                      <PopoverTrigger asChild>
-                        <button
-                          type="button"
-                          className={cn(invoiceDateButtonClass, "h-10")}
-                        >
-                          <div className="flex items-center gap-2">
-                            <Calendar className="h-4 w-4 text-gray-500 shrink-0" />
-                            <span className="text-gray-500 text-sm shrink-0">Issue:</span>
-                            <span
-                              className={cn(
-                                "text-[15px] font-light truncate min-w-0",
-                                invoiceDetails.issue_date ? "text-foreground" : "text-gray-500"
-                              )}
-                            >
-                              {invoiceDetails.issue_date
-                                ? format(parseDateValue(invoiceDetails.issue_date) ?? new Date(), "MMM d, yyyy")
-                                : "Select date"}
-                            </span>
-                          </div>
-                        </button>
-                      </PopoverTrigger>
-                      <PopoverContent
-                        className="w-auto p-0 border-0 rounded-3xl shadow-[0_14px_32px_rgba(0,0,0,0.18)]"
-                        align="start"
-                      >
-                        <MiniCalendar
-                          selected={parseDateValue(invoiceDetails.issue_date)}
-                          onSelect={(date) => {
-                            if (!date) return;
-                            onUpdateInvoiceField("issue_date", format(date, "yyyy-MM-dd"));
-                            setIssuePopoverOpen(false);
-                          }}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                  <div>
-                    <label className={labelClass}>Due date</label>
-                    <Popover open={duePopoverOpen} onOpenChange={setDuePopoverOpen}>
-                      <PopoverTrigger asChild>
-                        <button
-                          type="button"
-                          className={cn(invoiceDateButtonClass, "h-10")}
-                        >
-                          <div className="flex items-center gap-2">
-                            <CalendarClock className="h-4 w-4 text-gray-500 shrink-0" />
-                            <span className="text-gray-500 text-sm shrink-0">Due:</span>
-                            <span
-                              className={cn(
-                                "text-[15px] font-light truncate min-w-0",
-                                invoiceDetails.due_date ? "text-foreground" : "text-gray-500"
-                              )}
-                            >
-                              {invoiceDetails.due_date
-                                ? format(parseDateValue(invoiceDetails.due_date) ?? new Date(), "MMM d, yyyy")
-                                : "Select date"}
-                            </span>
-                          </div>
-                        </button>
-                      </PopoverTrigger>
-                      <PopoverContent
-                        className="w-auto p-0 border-0 rounded-3xl shadow-[0_14px_32px_rgba(0,0,0,0.18)]"
-                        align="start"
-                      >
-                        <MiniCalendar
-                          selected={parseDateValue(invoiceDetails.due_date)}
-                          onSelect={(date) => {
-                            if (!date) return;
-                            onUpdateInvoiceField("due_date", format(date, "yyyy-MM-dd"));
-                            setDuePopoverOpen(false);
-                          }}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                  <div>
-                    <label className={labelClass}>Net term (days)</label>
-                    <div className={cn(invoiceFieldWrapperClass, "flex min-h-10 items-end")}>
-                      <BorderlessInput
-                        type="number"
-                        min={0}
-                        value={String(invoiceDetails.net_term)}
-                        onChange={(e) => onUpdateInvoiceField("net_term", Number(e.target.value || 0))}
-                        className={invoiceInputInnerClass}
-                      />
-                    </div>
-                  </div>
+                  <FloatingLabelDatePicker
+                    label="Issue date"
+                    value={invoiceDetails.issue_date}
+                    onChange={(value) => onUpdateInvoiceField("issue_date", value)}
+                    showClearButton={false}
+                  />
+                  <FloatingLabelDatePicker
+                    label="Due date"
+                    value={invoiceDetails.due_date}
+                    onChange={(value) => onUpdateInvoiceField("due_date", value)}
+                    showClearButton={false}
+                  />
+                  <FloatingLabelInput
+                    label="Net term (days)"
+                    type="number"
+                    min={0}
+                    value={String(invoiceDetails.net_term)}
+                    onChange={(e) => onUpdateInvoiceField("net_term", Number(e.target.value || 0))}
+                  />
                 </div>
                 {canManageInvoiceWisePayments ? (
                   <div className="sm:col-span-3 mt-6 border-t border-neutral-200 pt-6">

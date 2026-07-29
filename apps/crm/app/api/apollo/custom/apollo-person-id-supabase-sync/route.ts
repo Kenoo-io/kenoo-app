@@ -17,6 +17,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import OpenAI from "openai";
 import { extractEmailAddresses } from "@/utils/format-utils";
+import { getCrmDataScope, crmScopeFields } from "@/lib/crm-scope";
 
 const APOLLO_API_KEY = process.env.APOLLO_API_KEY;
 /** People Enrichment endpoint: match by id returns full person (organization, contact, employment_history, etc.) */
@@ -410,6 +411,7 @@ function buildInboxFallbackPersonName(firstName: string | null, lastName: string
 
 /** Email-only enrich: when Apollo match fails, infer name from our inbox + OpenAI. */
 async function tryEmailInboxFallbackResponse(rawEmail: string): Promise<NextResponse | null> {
+  const scope = await getCrmDataScope();
   const normalizedEmail = normalizePersonEmail(rawEmail);
   if (!normalizedEmail.includes("@")) {
     console.log("[apollo-person-id-supabase-sync] inbox fallback skipped (invalid email)");
@@ -502,7 +504,7 @@ async function tryEmailInboxFallbackResponse(rawEmail: string): Promise<NextResp
   } else {
     const { data: created, error: insertErr } = await supabase
       .from("people")
-      .insert({ ...payload, status: "New", created_at: now })
+      .insert({ ...payload, status: "New", created_at: now, ...(scope ? crmScopeFields(scope) : {}) })
       .select("id")
       .single();
 
@@ -577,6 +579,7 @@ export async function POST(request: Request) {
   }
 
   try {
+    const scope = await getCrmDataScope();
     const { personId, email: requestEmail } = await request.json();
     const rawPersonId =
       typeof personId === "string" ? personId.trim() : null;
@@ -861,6 +864,7 @@ export async function POST(request: Request) {
       const insertPayload = {
         ...personData,
         created_at: new Date().toISOString(),
+        ...(scope ? crmScopeFields(scope) : {}),
       };
       const { data: newPerson, error: insertError } = await supabase
         .from("people")

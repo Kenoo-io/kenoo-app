@@ -12,6 +12,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
 import { getSupabaseClient } from "@/app/auth/supabaseClient";
+import { useActiveAccount } from "@/components/active-account-context";
 import {
   Command,
   CommandEmpty,
@@ -73,6 +74,7 @@ export function PitchesFilter({
   filters,
   onFilterChange,
 }: PitchesFilterProps) {
+  const { activeAccountId } = useActiveAccount();
   const [agents, setAgents] = useState<UserData[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -173,11 +175,17 @@ export function PitchesFilter({
   // Fetch contacts and leads from people
   useEffect(() => {
     const fetchContacts = async () => {
+      if (!activeAccountId) {
+        setContacts([]);
+        setLoading((prev) => ({ ...prev, contacts: false }));
+        return;
+      }
       try {
         const supabase = getSupabaseClient();
         const { data, error } = await supabase
           .from("people")
           .select("id, first_name, last_name, email, company_name")
+          .eq("account_id", activeAccountId)
           .not("email", "is", null)
           .limit(2000);
 
@@ -219,16 +227,22 @@ export function PitchesFilter({
     };
 
     fetchContacts();
-  }, []);
+  }, [activeAccountId]);
 
   // Fetch companies
   useEffect(() => {
     const fetchCompanies = async () => {
+      if (!activeAccountId) {
+        setCompanies([]);
+        setLoading((prev) => ({ ...prev, companies: false }));
+        return;
+      }
       try {
         const supabase = getSupabaseClient();
         const { data, error } = await supabase
           .from("companies")
           .select("id, name, website")
+          .eq("account_id", activeAccountId)
           .order("name", { ascending: true })
           .limit(2000);
 
@@ -260,7 +274,7 @@ export function PitchesFilter({
     };
 
     fetchCompanies();
-  }, []);
+  }, [activeAccountId]);
 
   // Fetch creators
   useEffect(() => {
@@ -357,7 +371,7 @@ export function PitchesFilter({
                 value={filters.pitchedBy}
                 onValueChange={(value) => onFilterChange("pitchedBy", value === "all" ? "" : value)}
               >
-                <SelectTrigger className="border border-transparent rounded-full focus:ring-0 focus-visible:ring-0 px-4 [&>svg]:hidden hover:bg-gray-50 hover:border-neutral-200 hover:scale-95 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] transition-all duration-300">
+                <SelectTrigger className="border border-transparent rounded-full focus:ring-0 focus-visible:ring-0 px-4 [&>svg]:hidden hover:bg-kenoo-white hover:border-neutral-200 hover:scale-95 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] transition-all duration-300">
                   <div className="flex items-center gap-2">
                     <span className="text-neutral-700">Pitched By:</span>
                     <SelectValue placeholder={loading.agents ? "Loading…" : "Select person"}>
@@ -412,7 +426,7 @@ export function PitchesFilter({
                 value={filters.pitchedTo}
                 onValueChange={(value) => onFilterChange("pitchedTo", value === "all" ? "" : value)}
               >
-                <SelectTrigger className="border border-transparent rounded-full focus:ring-0 focus-visible:ring-0 px-4 [&>svg]:hidden hover:bg-gray-50 hover:border-neutral-200 hover:scale-95 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] transition-all duration-300">
+                <SelectTrigger className="border border-transparent rounded-full focus:ring-0 focus-visible:ring-0 px-4 [&>svg]:hidden hover:bg-kenoo-white hover:border-neutral-200 hover:scale-95 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] transition-all duration-300">
                   <div className="flex items-center gap-2">
                     <span className="text-neutral-700">Pitched To:</span>
                     <SelectValue placeholder={loading.contacts ? "Loading contacts..." : "Select contact"}>
@@ -455,7 +469,7 @@ export function PitchesFilter({
                 value={filters.company}
                 onValueChange={(value) => onFilterChange("company", value === "all" ? "" : value)}
               >
-                <SelectTrigger className="border border-transparent rounded-full focus:ring-0 focus-visible:ring-0 px-4 [&>svg]:hidden hover:bg-gray-50 hover:border-neutral-200 hover:scale-95 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] transition-all duration-300">
+                <SelectTrigger className="border border-transparent rounded-full focus:ring-0 focus-visible:ring-0 px-4 [&>svg]:hidden hover:bg-kenoo-white hover:border-neutral-200 hover:scale-95 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] transition-all duration-300">
                   <div className="flex items-center gap-2">
                     <span className="text-neutral-700">Company:</span>
                     <SelectValue placeholder={loading.companies ? "Loading companies..." : "Select company"}>
@@ -518,7 +532,7 @@ export function PitchesFilter({
                 value={filters.creator}
                 onValueChange={(value) => onFilterChange("creator", value === "all" ? "" : value)}
               >
-                <SelectTrigger className="border border-transparent rounded-full focus:ring-0 focus-visible:ring-0 px-4 [&>svg]:hidden hover:bg-gray-50 hover:border-neutral-200 hover:scale-95 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] transition-all duration-300">
+                <SelectTrigger className="border border-transparent rounded-full focus:ring-0 focus-visible:ring-0 px-4 [&>svg]:hidden hover:bg-kenoo-white hover:border-neutral-200 hover:scale-95 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] transition-all duration-300">
                   <div className="flex items-center gap-2">
                     <span className="text-neutral-700">Creator:</span>
                     <SelectValue placeholder={loading.creators ? "Loading creators..." : "Select creator"}>
@@ -582,7 +596,7 @@ export function PitchesFilter({
               onFilterChange("company", "");
               onFilterChange("creator", "");
             }}
-            className="w-full h-[50px] rounded-full border border-transparent hover:bg-gray-50 hover:border-neutral-200 hover:scale-95 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] transition-all duration-300 cursor-pointer flex items-center justify-center gap-2 text-black font-medium"
+            className="w-full h-[50px] rounded-full border border-transparent hover:bg-kenoo-white hover:border-neutral-200 hover:scale-95 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] transition-all duration-300 cursor-pointer flex items-center justify-center gap-2 text-black font-medium"
           >
             <RotateCcw className="h-4 w-4" strokeWidth={1.5} />
             Reset Filters

@@ -124,7 +124,7 @@ export function PeopleCompanyCell({
               : "Hold to link company"
           }
           className={cn(
-            "relative flex items-center gap-2 px-3 py-1.5 rounded-md bg-gray-50 border border-transparent transition-all duration-300 ease-in-out cursor-pointer w-fit max-w-full min-w-0 overflow-hidden text-sm font-light text-foreground",
+            "relative flex items-center gap-2 px-3 py-1.5 rounded-md bg-kenoo-white border border-transparent transition-all duration-300 ease-in-out cursor-pointer w-fit max-w-full min-w-0 overflow-hidden text-sm font-light text-foreground",
             "disabled:opacity-50 disabled:cursor-not-allowed",
             isPressed
               ? "scale-[0.98] shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)]"

@@ -843,7 +843,7 @@ export default function DepartmentHeadcount({ formData, handleInputChange, compa
                             )}
                           >
                             <td className="py-4 pr-4 min-w-0 overflow-hidden">
-                              <Link href={`/agents/crm/edit-leads/${person.id}`} className="flex items-center gap-2 hover:opacity-80 min-w-0">
+                              <Link href={`/edit-leads/${person.id}`} className="flex items-center gap-2 hover:opacity-80 min-w-0">
                                 <Image
                                   src={
                                     !imageStates[person.id]?.profileFailed && person.photoURL && !person.photoURL.includes("static.licdn.com/aero-v1/sc/h/9c8pery4andzj6ohjkjp54ma2")

@@ -5,6 +5,8 @@ import { wallsToast } from "@/components/ui/walls-toast";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/auth/AuthContext";
+import { useActiveAccount } from "@/components/active-account-context";
+import { crmAccountFields } from "@/lib/crm-account";
 import { createClient } from '@supabase/supabase-js';
 import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/toaster";
@@ -34,6 +36,7 @@ export interface CreateAgentSequencesProps {
 
 export default function CreateAgentSequences({ isOpen, onClose, onSuccess }: CreateAgentSequencesProps) {
   const { user } = useAuth();
+  const { activeAccountId } = useActiveAccount();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<string>('general');
   const [formData, setFormData] = useState({
@@ -87,6 +90,11 @@ export default function CreateAgentSequences({ isOpen, onClose, onSuccess }: Cre
       return null;
     }
 
+    if (!activeAccountId) {
+      wallsToast.error("Error", "No active account selected");
+      return null;
+    }
+
     if (!formData.name.trim()) {
       wallsToast.error("Error", "Please enter a sequence name");
       return null;
@@ -118,6 +126,7 @@ export default function CreateAgentSequences({ isOpen, onClose, onSuccess }: Cre
           use_case: formData.use_case || null,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
+          ...crmAccountFields(activeAccountId),
         })
         .select('id')
         .single();
@@ -285,7 +294,7 @@ export default function CreateAgentSequences({ isOpen, onClose, onSuccess }: Cre
     <Sheet open={isOpen} onOpenChange={handleSheetClose}>
       <SheetContent 
         side="right" 
-        className={cn("overflow-y-auto p-0 [&>button]:hidden shadow-2xl rounded-none bg-gray-50 border border-neutral-200/80", isMaximized ? "w-full" : "w-3/4")}
+        className={cn("overflow-y-auto p-0 [&>button]:hidden shadow-2xl rounded-none bg-kenoo-white border border-neutral-200/80", isMaximized ? "w-full" : "w-3/4")}
         style={{
           transition: "width 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
         }}
@@ -436,7 +445,7 @@ export default function CreateAgentSequences({ isOpen, onClose, onSuccess }: Cre
               />
             )}
             {activeTab === 'steps' && !sequenceId && (
-              <div className="bg-gray-50 rounded-[30px] p-6">
+              <div className="bg-kenoo-white rounded-[30px] p-6">
                 <div className="text-center py-8">
                   <p className="text-sm font-light text-muted-foreground">
                     Please enter a sequence name and save to start adding steps.
@@ -452,7 +461,7 @@ export default function CreateAgentSequences({ isOpen, onClose, onSuccess }: Cre
               />
             )}
             {activeTab === 'schedule' && !sequenceId && (
-              <div className="bg-gray-50 rounded-[30px] p-6">
+              <div className="bg-kenoo-white rounded-[30px] p-6">
                 <div className="text-center py-8">
                   <p className="text-sm font-light text-muted-foreground">
                     Please create the sequence first to configure schedule.

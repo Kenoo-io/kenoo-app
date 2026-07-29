@@ -139,7 +139,7 @@ export function SequenceFilter({
                 value={filters.status || "all"}
                 onValueChange={(value) => onFilterChange("status", value === "all" ? "" : value)}
               >
-                <SelectTrigger className="border border-transparent rounded-full focus:ring-0 focus-visible:ring-0 px-4 [&>svg]:hidden hover:bg-gray-50 hover:border-neutral-200 hover:scale-95 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] transition-all duration-300">
+                <SelectTrigger className="border border-transparent rounded-full focus:ring-0 focus-visible:ring-0 px-4 [&>svg]:hidden hover:bg-kenoo-white hover:border-neutral-200 hover:scale-95 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] transition-all duration-300">
                   <div className="flex items-center gap-2">
                     <span className="text-neutral-700">Status:</span>
                     <SelectValue />
@@ -162,7 +162,7 @@ export function SequenceFilter({
                 value={filters.is_campaign || "default"}
                 onValueChange={(value) => onFilterChange("is_campaign", value === "default" ? "" : value)}
               >
-                <SelectTrigger className="border border-transparent rounded-full focus:ring-0 focus-visible:ring-0 px-4 [&>svg]:hidden hover:bg-gray-50 hover:border-neutral-200 hover:scale-95 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] transition-all duration-300">
+                <SelectTrigger className="border border-transparent rounded-full focus:ring-0 focus-visible:ring-0 px-4 [&>svg]:hidden hover:bg-kenoo-white hover:border-neutral-200 hover:scale-95 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] transition-all duration-300">
                   <div className="flex items-center gap-2">
                     <span className="text-neutral-700">Is Campaign:</span>
                     <SelectValue />
@@ -182,7 +182,7 @@ export function SequenceFilter({
                 value={filters.use_case || "all"}
                 onValueChange={(value) => onFilterChange("use_case", value === "all" ? "" : value)}
               >
-                <SelectTrigger className="border border-transparent rounded-full focus:ring-0 focus-visible:ring-0 px-4 [&>svg]:hidden hover:bg-gray-50 hover:border-neutral-200 hover:scale-95 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] transition-all duration-300">
+                <SelectTrigger className="border border-transparent rounded-full focus:ring-0 focus-visible:ring-0 px-4 [&>svg]:hidden hover:bg-kenoo-white hover:border-neutral-200 hover:scale-95 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] transition-all duration-300">
                   <div className="flex items-center gap-2">
                     <span className="text-neutral-700">Use Case:</span>
                     <SelectValue />
@@ -212,7 +212,7 @@ export function SequenceFilter({
                   onFilterChange("owner", value === "default" ? "" : value)
                 }
               >
-                <SelectTrigger className="border border-transparent rounded-full focus:ring-0 focus-visible:ring-0 px-4 [&>svg]:hidden hover:bg-gray-50 hover:border-neutral-200 hover:scale-95 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] transition-all duration-300">
+                <SelectTrigger className="border border-transparent rounded-full focus:ring-0 focus-visible:ring-0 px-4 [&>svg]:hidden hover:bg-kenoo-white hover:border-neutral-200 hover:scale-95 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] transition-all duration-300">
                   <div className="flex items-center gap-2">
                     <span className="text-neutral-700">Owner:</span>
                     <SelectValue />
@@ -235,7 +235,7 @@ export function SequenceFilter({
         <div className="p-6 border-t border-black/10">
           <button
             onClick={onReset}
-            className="w-full h-[50px] rounded-full border border-transparent hover:bg-gray-50 hover:border-neutral-200 hover:scale-95 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] transition-all duration-300 cursor-pointer flex items-center justify-center gap-2 text-black font-medium"
+            className="w-full h-[50px] rounded-full border border-transparent hover:bg-kenoo-white hover:border-neutral-200 hover:scale-95 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] transition-all duration-300 cursor-pointer flex items-center justify-center gap-2 text-black font-medium"
           >
             <RotateCcw className="h-4 w-4" strokeWidth={1.5} />
             Reset Filters

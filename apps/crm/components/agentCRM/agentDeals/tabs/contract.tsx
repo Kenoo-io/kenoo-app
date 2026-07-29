@@ -110,7 +110,7 @@ export default function Contract({ formData, setFormData }: ContractProps) {
               className={`border-2 border-dashed rounded-[50px] p-10 text-center cursor-pointer transition-colors ${
                 isDragActive 
                   ? "border-blue-400 bg-blue-50" 
-                  : "border-gray-300 hover:bg-gray-50"
+                  : "border-gray-300 hover:bg-kenoo-white"
               } ${isUploading ? "opacity-75 cursor-not-allowed" : ""}`}
             >
               <input {...getInputProps()} />
@@ -160,7 +160,7 @@ export default function Contract({ formData, setFormData }: ContractProps) {
             <p className="text-red-500 text-sm mt-2">{fileError}</p>
           )}
 
-          <div className="bg-gray-50/30 rounded-[15px] p-4">
+          <div className="bg-kenoo-white/30 rounded-[15px] p-4">
             <h3 className="font-medium mb-2">Contract Information</h3>
             <p className="text-sm text-gray-600">
               {hasExistingContract 
@@ -179,7 +179,7 @@ export default function Contract({ formData, setFormData }: ContractProps) {
               <p className="text-sm font-medium text-gray-500 mb-2">Need to replace the contract with a new version?</p>
               <div 
                 {...getRootProps()} 
-                className="border-2 border-dashed rounded-[50px] p-6 text-center cursor-pointer transition-colors bg-gray-50 hover:bg-gray-100"
+                className="border-2 border-dashed rounded-[50px] p-6 text-center cursor-pointer transition-colors bg-kenoo-white hover:bg-gray-100"
               >
                 <input {...getInputProps()} />
                 <div className="flex items-center justify-center gap-2">

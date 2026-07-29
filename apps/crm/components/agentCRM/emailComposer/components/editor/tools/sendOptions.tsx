@@ -27,7 +27,7 @@ export function SendOptionsDropdown({
         <Button
           variant="default"
           size="lg"
-          className="bg-transparent text-neutral-500 border border-transparent border-l-[0.5px] border-l-neutral-300/80 hover:bg-gray-50 hover:text-neutral-500 hover:border-neutral-200 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] transition-all duration-300 ease-in-out px-2 shadow-none"
+          className="bg-transparent text-neutral-500 border border-transparent border-l-[0.5px] border-l-neutral-300/80 hover:bg-kenoo-white hover:text-neutral-500 hover:border-neutral-200 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] transition-all duration-300 ease-in-out px-2 shadow-none"
           disabled={disabled}
         >
           <ChevronUp className="h-4 w-4 text-neutral-500" />

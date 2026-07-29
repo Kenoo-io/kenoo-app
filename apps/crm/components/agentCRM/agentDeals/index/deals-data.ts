@@ -22,11 +22,13 @@ export interface BuildDealsQueryParams {
   withCount: boolean;
   /** Kanban shows the full pipeline — all stages and deal statuses, not list-style defaults. */
   forKanban?: boolean;
+  /** Active Kenoo account; scopes deals to the current tenant when set. */
+  accountId?: string | null;
 }
 
 /** Builds (but does not execute) the base `deals` query shared by the table and kanban views. */
 export function buildDealsQuery(supabase: SupabaseClient, params: BuildDealsQueryParams) {
-  const { filters, currentUserId, debouncedSearchTerm, sort, withCount, forKanban = false } = params;
+  const { filters, currentUserId, debouncedSearchTerm, sort, withCount, forKanban = false, accountId } = params;
   const { sortDirection, isSortingByRecency, isSortingByName, isSortingByStage } = sort;
 
   const searchTerm = debouncedSearchTerm.trim().toLowerCase();
@@ -66,6 +68,8 @@ export function buildDealsQuery(supabase: SupabaseClient, params: BuildDealsQuer
     `,
       withCount ? { count: "exact" } : undefined
     );
+
+  if (accountId) query = query.eq("account_id", accountId);
 
   if (effectiveStatus === "active") {
     query = query.eq("deal_stages.is_won", false).eq("deal_stages.is_lost", false);

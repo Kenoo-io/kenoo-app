@@ -13,19 +13,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Input as BorderlessInput } from "@/components/ui/borderless-input";
+import {
+  FloatingLabelField,
+  FloatingLabelInput,
+  floatingSelectTriggerClass,
+} from "@/components/ui/floating-label-input";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { VendorBillingInfo } from "./invoice-vendor-shared";
-import {
-  FALLBACK_IMAGE_URL,
-  labelClass,
-} from "./invoice-tab-styles";
+import { FALLBACK_IMAGE_URL } from "./invoice-tab-styles";
 
 const noopSetAddress = () => {};
-const vendorFieldClass =
-  "border-0 border-b border-neutral-200 rounded-none px-0 py-2 font-light focus:outline-none focus-visible:outline-none focus-visible:ring-0 focus:ring-0 focus:border-b-[var(--kenoo-sky)] bg-transparent placeholder:text-neutral-300";
-const vendorSelectTriggerClass =
-  "w-full border-0 border-b border-neutral-200 rounded-none px-0 py-2 font-light focus:outline-none focus-visible:outline-none focus-visible:ring-0 focus:ring-0 focus:border-b-[var(--kenoo-sky)] bg-transparent justify-between [&_[data-placeholder]]:text-neutral-300";
 
 export type DealCompanyOption = {
   company_id: string;
@@ -72,7 +69,7 @@ export function VendorDetailsCard({
   );
 
   return (
-    <div className="bg-gray-50 rounded-[30px] p-6">
+    <div className="bg-kenoo-white rounded-[30px] p-6">
       <LayoutGroup id="vendor-details-header">
         <motion.div
           layout
@@ -168,10 +165,11 @@ export function VendorDetailsCard({
                 }
               >
                 <div className="min-w-0">
-                  <label className={labelClass}>Vendor company</label>
+                  {/* `__none__` is an explicit option, so the trigger always shows text and the label stays floated. */}
+                  <FloatingLabelField label="Vendor company" hasValue>
                   <Select value={selectedCompanyId ?? "__none__"} onValueChange={onSelectVendor}>
-                    <SelectTrigger className={vendorSelectTriggerClass}>
-                      <SelectValue placeholder="Select a company linked to this deal" />
+                    <SelectTrigger className={floatingSelectTriggerClass}>
+                      <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="__none__">Select a company…</SelectItem>
@@ -200,6 +198,7 @@ export function VendorDetailsCard({
                       ))}
                     </SelectContent>
                   </Select>
+                  </FloatingLabelField>
                   {dealCompanies.length === 0 && (
                     <p className="text-sm text-muted-foreground mt-2">
                       No companies linked to this deal. Add companies on the <strong>Architecture</strong> tab
@@ -214,15 +213,11 @@ export function VendorDetailsCard({
                         Loading…
                       </div>
                     ) : (
-                      <>
-                        <label className={labelClass}>Legal name</label>
-                        <BorderlessInput
-                          value={vendorInfo.legal_name}
-                          onChange={(e) => onVendorFieldChange("legal_name", e.target.value)}
-                          className={`${vendorFieldClass} h-10`}
-                          placeholder="Legal company name"
-                        />
-                      </>
+                      <FloatingLabelInput
+                        label="Legal name"
+                        value={vendorInfo.legal_name}
+                        onChange={(e) => onVendorFieldChange("legal_name", e.target.value)}
+                      />
                     )}
                   </div>
                 ) : null}
@@ -232,16 +227,12 @@ export function VendorDetailsCard({
                 <div>
                   {loadingVendor ? null : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
-                      <div>
-                        <label className={labelClass}>Vendor email</label>
-                        <BorderlessInput
-                          type="email"
-                          value={vendorInfo.vendor_email}
-                          onChange={(e) => onVendorFieldChange("vendor_email", e.target.value)}
-                          className={vendorFieldClass}
-                          placeholder="vendor@company.com"
-                        />
-                      </div>
+                      <FloatingLabelInput
+                        label="Vendor email"
+                        type="email"
+                        value={vendorInfo.vendor_email}
+                        onChange={(e) => onVendorFieldChange("vendor_email", e.target.value)}
+                      />
                       <div className="sm:col-span-2 mt-5">
                         <AutocompleteComponent
                           key={selectedCompanyId ?? "no-company"}
@@ -252,51 +243,32 @@ export function VendorDetailsCard({
                           onStructuredPlaceSelected={onStructuredPlaceSelected}
                         />
                       </div>
-                      <div className="sm:col-span-2">
-                        <label className={labelClass}>Street address</label>
-                        <BorderlessInput
-                          value={vendorInfo.address}
-                          onChange={(e) => onVendorFieldChange("address", e.target.value)}
-                          className={vendorFieldClass}
-                          placeholder="Street address"
-                        />
-                      </div>
-                      <div>
-                        <label className={labelClass}>City</label>
-                        <BorderlessInput
-                          value={vendorInfo.city}
-                          onChange={(e) => onVendorFieldChange("city", e.target.value)}
-                          className={vendorFieldClass}
-                          placeholder="City"
-                        />
-                      </div>
-                      <div>
-                        <label className={labelClass}>State</label>
-                        <BorderlessInput
-                          value={vendorInfo.state}
-                          onChange={(e) => onVendorFieldChange("state", e.target.value)}
-                          className={vendorFieldClass}
-                          placeholder="State / Region"
-                        />
-                      </div>
-                      <div>
-                        <label className={labelClass}>Post code</label>
-                        <BorderlessInput
-                          value={vendorInfo.post_code}
-                          onChange={(e) => onVendorFieldChange("post_code", e.target.value)}
-                          className={vendorFieldClass}
-                          placeholder="Postal code"
-                        />
-                      </div>
-                      <div>
-                        <label className={labelClass}>Country</label>
-                        <BorderlessInput
-                          value={vendorInfo.country}
-                          onChange={(e) => onVendorFieldChange("country", e.target.value)}
-                          className={vendorFieldClass}
-                          placeholder="Country"
-                        />
-                      </div>
+                      <FloatingLabelInput
+                        containerClassName="sm:col-span-2"
+                        label="Street address"
+                        value={vendorInfo.address}
+                        onChange={(e) => onVendorFieldChange("address", e.target.value)}
+                      />
+                      <FloatingLabelInput
+                        label="City"
+                        value={vendorInfo.city}
+                        onChange={(e) => onVendorFieldChange("city", e.target.value)}
+                      />
+                      <FloatingLabelInput
+                        label="State / Region"
+                        value={vendorInfo.state}
+                        onChange={(e) => onVendorFieldChange("state", e.target.value)}
+                      />
+                      <FloatingLabelInput
+                        label="Post code"
+                        value={vendorInfo.post_code}
+                        onChange={(e) => onVendorFieldChange("post_code", e.target.value)}
+                      />
+                      <FloatingLabelInput
+                        label="Country"
+                        value={vendorInfo.country}
+                        onChange={(e) => onVendorFieldChange("country", e.target.value)}
+                      />
                     </div>
                   )}
                 </div>

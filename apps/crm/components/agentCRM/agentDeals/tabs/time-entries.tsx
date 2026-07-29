@@ -126,8 +126,8 @@ function FlipDigit({
         "relative w-12 h-16 md:w-16 md:h-20 overflow-hidden rounded-xl border flex items-center justify-center",
         "font-mono text-3xl md:text-5xl font-bold tabular-nums",
         isRunning
-          ? "bg-gray-50/85 text-neutral-900 border-[var(--kenoo-sky)]/45 shadow-[inset_0_4px_8px_rgba(0,0,0,0.14),0_0_0_1px_rgba(82,175,236,0.18)]"
-          : "bg-gray-50/70 text-neutral-500 border-neutral-200/80 shadow-[inset_0_4px_8px_rgba(0,0,0,0.12)]"
+          ? "bg-kenoo-white/85 text-neutral-900 border-[var(--kenoo-sky)]/45 shadow-[inset_0_4px_8px_rgba(0,0,0,0.14),0_0_0_1px_rgba(82,175,236,0.18)]"
+          : "bg-kenoo-white/70 text-neutral-500 border-neutral-200/80 shadow-[inset_0_4px_8px_rgba(0,0,0,0.12)]"
       )}
     >
       <AnimatePresence mode="popLayout" initial={false}>
@@ -514,7 +514,7 @@ export default function TimeEntries({ dealId }: TimeEntriesProps) {
                   type="button"
                   onClick={handleStart}
                   aria-label="Start timer"
-                  className="h-16 w-16 md:h-20 md:w-20 rounded-full border border-[rgba(110,173,192,0.5)] bg-gray-50/80 backdrop-blur-sm backdrop-saturate-150 text-neutral-900 flex items-center justify-center transition-all duration-300 ease-in-out shadow-[0_6px_18px_-8px_rgba(0,0,0,0.16),0_0_0_1px_rgba(110,173,192,0.36),0_0_10px_rgba(110,173,192,0.32)] hover:scale-[0.98]"
+                  className="h-16 w-16 md:h-20 md:w-20 rounded-full border border-[rgba(110,173,192,0.5)] bg-kenoo-white/80 backdrop-blur-sm backdrop-saturate-150 text-neutral-900 flex items-center justify-center transition-all duration-300 ease-in-out shadow-[0_6px_18px_-8px_rgba(0,0,0,0.16),0_0_0_1px_rgba(110,173,192,0.36),0_0_10px_rgba(110,173,192,0.32)] hover:scale-[0.98]"
                 >
                   <Play className="h-8 w-8 fill-[var(--kenoo-sky)] stroke-[0] opacity-60" />
                 </button>

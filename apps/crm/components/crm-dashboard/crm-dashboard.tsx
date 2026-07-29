@@ -205,7 +205,7 @@ function InteractionCard({
 
   return (
     <Link
-      href={`/agents/crm/deals`}
+      href={`/deals`}
       className={cn(
         "group relative flex min-h-[118px] flex-col justify-between overflow-hidden rounded-[22px] p-4 transition duration-300",
         "hover:scale-[1.015] hover:shadow-[0_12px_28px_rgba(15,23,42,0.14)]",
@@ -400,7 +400,7 @@ function StageFunnel({
             <MoreHorizontal className="h-3.5 w-3.5" strokeWidth={1.75} />
           </button>
           <Link
-            href="/agents/crm/deals"
+            href="/deals"
             title="Open deals"
             className="flex h-8 w-8 items-center justify-center rounded-full border border-white/70 bg-white/70 text-neutral-400 shadow-[0_2px_8px_rgba(15,23,42,0.04)] backdrop-blur-sm transition hover:bg-white/90 hover:text-neutral-600"
           >
@@ -490,7 +490,7 @@ function StageFunnel({
                     </p>
                   </div>
                   <Link
-                    href="/agents/crm/deals"
+                    href="/deals"
                     title={`View ${row.name} deals`}
                     className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/70 bg-white/80 text-neutral-400 opacity-70 shadow-[0_2px_6px_rgba(15,23,42,0.04)] backdrop-blur-sm transition group-hover:opacity-100 hover:bg-white hover:text-neutral-600"
                   >
@@ -521,7 +521,7 @@ function ContactPanel({ contact }: { contact: FeaturedContact | null }) {
           Add people to see their details here.
         </p>
         <Button asChild className="mt-4 rounded-full" size="sm">
-          <Link href="/agents/crm/people">Go to People</Link>
+          <Link href="/people">Go to People</Link>
         </Button>
       </div>
     );
@@ -576,7 +576,7 @@ function ContactPanel({ contact }: { contact: FeaturedContact | null }) {
         <div className="mt-5 flex items-center justify-center gap-2">
           {[
             {
-              href: `/agents/crm/people`,
+              href: `/people`,
               icon: Pencil,
               label: "Edit",
             },
@@ -587,12 +587,12 @@ function ContactPanel({ contact }: { contact: FeaturedContact | null }) {
               ? { href: `tel:${contact.phone}`, icon: Phone, label: "Call" }
               : null,
             {
-              href: "/agents/crm/people",
+              href: "/people",
               icon: Plus,
               label: "Add",
             },
             {
-              href: "/agents/crm/deals",
+              href: "/deals",
               icon: CalendarIcon,
               label: "Schedule",
             },
@@ -636,7 +636,7 @@ function ContactPanel({ contact }: { contact: FeaturedContact | null }) {
                 <p className="mt-0.5 truncate text-sm text-foreground">{field.value}</p>
               </div>
               <Link
-                href={`/agents/crm/people`}
+                href={`/people`}
                 className="shrink-0 rounded-full p-1.5 text-neutral-300 transition hover:bg-white/70 hover:text-neutral-500"
               >
                 <Pencil className="h-3 w-3" strokeWidth={1.5} />
@@ -779,7 +779,7 @@ export function CrmDashboard() {
                 Interaction History
               </h2>
               <Link
-                href="/agents/crm/deals"
+                href="/deals"
                 className="text-xs font-medium text-neutral-500 transition hover:text-neutral-800"
               >
                 View all deals

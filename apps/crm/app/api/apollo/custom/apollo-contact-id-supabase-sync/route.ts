@@ -46,6 +46,7 @@
 
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getCrmDataScope, crmScopeFields } from "@/lib/crm-scope";
 
 const APOLLO_API_KEY = process.env.APOLLO_API_KEY;
 const APOLLO_API_URL = 'https://api.apollo.io/api/v1/contacts';
@@ -145,6 +146,7 @@ export async function POST(request: Request) {
   }
 
   try {
+    const scope = await getCrmDataScope();
     const { contactId } = await request.json();
 
     // REQUIRED: Contact ID must be provided - this endpoint only works with Apollo contact IDs
@@ -444,6 +446,7 @@ export async function POST(request: Request) {
           seniority: contact.seniority || null,
           time_zone: contact.time_zone || null,
           created_at: new Date().toISOString(),
+          ...(scope ? crmScopeFields(scope) : {}),
         })
         .select('id')
         .single();

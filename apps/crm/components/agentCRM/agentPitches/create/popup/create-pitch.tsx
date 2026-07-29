@@ -9,6 +9,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Plus, X, Check } from "lucide-react";
 import { getSupabaseClient } from "@/app/auth/supabaseClient";
 import { useAuth } from "@/app/auth/AuthContext";
+import { useActiveAccount } from "@/components/active-account-context";
+import { crmAccountFields } from "@/lib/crm-account";
 import { CompanySearch } from "@/components/ui/searches/companySearch/company-search";
 import { CreatorSearch } from "@/components/ui/creator-search";
 import { RecipientSelector } from "@/components/ui/recipient-selector";
@@ -81,6 +83,7 @@ const DROPDOWN_WIDTH = 300;
 
 function CreatePitchForm({ onClose, onCreated }: { onClose: () => void; onCreated?: () => void }) {
   const { user } = useAuth();
+  const { activeAccountId } = useActiveAccount();
   const [selectedCompany, setSelectedCompany] = useState("");
   const [selectedCreator, setSelectedCreator] = useState("");
   const [creators, setCreators] = useState<{ id: string; name: string; avatar_url?: string }[]>([]);
@@ -108,6 +111,10 @@ function CreatePitchForm({ onClose, onCreated }: { onClose: () => void; onCreate
 
   const handleSave = async () => {
     if (!user) return;
+    if (!activeAccountId) {
+      wallsToast.error("Error", "No active account selected");
+      return;
+    }
     setIsSaving(true);
     try {
       const supabase = getSupabaseClient();
@@ -168,6 +175,7 @@ function CreatePitchForm({ onClose, onCreated }: { onClose: () => void; onCreate
           channel,
           timestamp: new Date().toISOString(),
           message: null,
+          ...crmAccountFields(activeAccountId),
         })
         .select('id')
         .single();

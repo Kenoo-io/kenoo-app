@@ -196,7 +196,7 @@ export default function EditAgentSequences({ analyticsData, sequenceId, initialD
 
       onDelete?.();
       onClose();
-      router.push("/agents/crm/sequences");
+      router.push("/sequences");
     } catch (error) {
       console.error("Error deleting sequence:", error);
       wallsToast.error("Error", "Failed to delete sequence");
@@ -375,7 +375,7 @@ export default function EditAgentSequences({ analyticsData, sequenceId, initialD
       <SheetContent 
         side="right" 
         className={cn(
-          "overflow-x-hidden overscroll-contain p-0 [&>button]:hidden shadow-2xl rounded-none bg-gray-50 border border-neutral-200/80",
+          "overflow-x-hidden overscroll-contain p-0 [&>button]:hidden shadow-2xl rounded-none bg-kenoo-white border border-neutral-200/80",
           activeTab === "contacts" ? "overflow-hidden" : "overflow-y-auto",
           isMaximized ? "w-full" : "w-3/4"
         )}

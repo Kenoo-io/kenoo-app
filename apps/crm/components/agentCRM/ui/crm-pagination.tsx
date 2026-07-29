@@ -15,7 +15,7 @@ interface CRMPaginationProps {
 }
 
 const scouterPaginationButtonClass =
-  "flex items-center justify-center h-9 min-w-9 px-2 p-0 rounded-full bg-gray-50 shadow-none transition-all duration-300 ease-in-out hover:bg-gray-50 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.14)] hover:scale-[0.98] text-neutral-700 font-light text-xs";
+  "flex items-center justify-center h-9 min-w-9 px-2 p-0 rounded-full bg-kenoo-white shadow-none transition-all duration-300 ease-in-out hover:bg-kenoo-white hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.14)] hover:scale-[0.98] text-neutral-700 font-light text-xs";
 
 const scouterPaginationActiveClass =
   "!bg-neutral-100/40 text-neutral-700 font-light shadow-[inset_0_3px_7px_rgba(0,0,0,0.11)] scale-[0.98] hover:!bg-neutral-100/40 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.14)]";
@@ -113,7 +113,7 @@ export function CRMPagination({
   );
   const jumpInputClass =
     buttonVariant === "scouter"
-      ? "w-20 h-9 text-center rounded-full bg-gray-50 shadow-none border-0 font-light text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
+      ? "w-20 h-9 text-center rounded-full bg-kenoo-white shadow-none border-0 font-light text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
       : "w-20 h-8 text-center rounded-full bg-neutral-100 backdrop-blur-sm shadow-inner border border-neutral-200/50 font-light text-xs";
   const searchIconClass = buttonVariant === "scouter" ? "h-4 w-4 text-neutral-300" : undefined;
 

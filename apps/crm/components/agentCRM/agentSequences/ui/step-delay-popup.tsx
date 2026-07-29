@@ -166,13 +166,13 @@ export function StepDelayPopup({
           <Button
             variant="outline"
             onClick={onClose}
-            className="!bg-transparent backdrop-blur-none !border-0 shadow-none text-gray-800 text-sm font-normal hover:bg-gray-50/70 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.12)] hover:scale-[0.99] transition-all duration-300"
+            className="!bg-transparent backdrop-blur-none !border-0 shadow-none text-gray-800 text-sm font-normal hover:bg-kenoo-white/70 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.12)] hover:scale-[0.99] transition-all duration-300"
           >
             Cancel
           </Button>
           <Button
             onClick={handleSave}
-            className="!bg-transparent backdrop-blur-none !border-0 shadow-none text-gray-800 text-sm font-normal hover:bg-gray-50/70 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.12)] hover:scale-[0.99] transition-all duration-300"
+            className="!bg-transparent backdrop-blur-none !border-0 shadow-none text-gray-800 text-sm font-normal hover:bg-kenoo-white/70 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.12)] hover:scale-[0.99] transition-all duration-300"
           >
             Save
           </Button>

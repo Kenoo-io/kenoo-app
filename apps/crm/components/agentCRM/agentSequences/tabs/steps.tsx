@@ -719,7 +719,7 @@ const Steps = forwardRef<StepsRef, StepsProps>(({ sequenceId, onTemplateChange }
             className="relative hover:bg-transparent p-0"
           >
             <motion.div
-              className="relative z-10 p-3 bg-gray-50 backdrop-blur-md rounded-full border-0 px-6"
+              className="relative z-10 p-3 bg-kenoo-white backdrop-blur-md rounded-full border-0 px-6"
               whileHover={{
                 backgroundColor: "rgb(249 250 251)",
                 boxShadow: "inset 0 3px 6px rgba(0, 0, 0, 0.25)",
@@ -784,7 +784,7 @@ const Steps = forwardRef<StepsRef, StepsProps>(({ sequenceId, onTemplateChange }
                 <button
                   onClick={() => handleDelayClick(step.id, step.delay_minutes)}
                   type="button"
-                  className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-full border border-neutral-300/30 bg-white/60 backdrop-blur-sm backdrop-saturate-150 shadow-[0_1px_2px_rgba(0,0,0,0.06),0_8px_22px_-8px_rgba(0,0,0,0.1)] transition-all duration-300 ease-in-out hover:border-white/55 hover:bg-gray-50/70 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.12)] hover:scale-[0.99] cursor-pointer"
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-full border border-neutral-300/30 bg-white/60 backdrop-blur-sm backdrop-saturate-150 shadow-[0_1px_2px_rgba(0,0,0,0.06),0_8px_22px_-8px_rgba(0,0,0,0.1)] transition-all duration-300 ease-in-out hover:border-white/55 hover:bg-kenoo-white/70 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.12)] hover:scale-[0.99] cursor-pointer"
                 >
                   <Clock className="h-3.5 w-3.5 text-neutral-700" strokeWidth={1.75} />
                   <span className="text-[11px] font-light text-neutral-800">
@@ -799,7 +799,7 @@ const Steps = forwardRef<StepsRef, StepsProps>(({ sequenceId, onTemplateChange }
             {/* Step Container */}
             <div className="flex items-center gap-3">
               {/* Step Content */}
-              <div className="flex-1 bg-gray-50 rounded-[30px] p-6">
+              <div className="flex-1 bg-kenoo-white rounded-[30px] p-6">
                 <div className="flex items-center">
                 <div className="flex items-center gap-3">
                 {getChannelIcon(step.step?.channel)}
