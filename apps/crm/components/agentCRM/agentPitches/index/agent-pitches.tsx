@@ -10,6 +10,7 @@ import { CRMSkeleton } from "@/components/agentCRM/agentPeople/custom-ui/crm-ske
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { MobileFAB } from "@/components/ui/mobile-fab";
 import { getSupabaseClient } from "@/app/auth/supabaseClient";
+import { useActiveAccount } from "@/components/active-account-context";
 import UserProfileButton from "@/components/user-profile-button";
 import { PitchesTableToolbar } from "./table/pitches-table-toolbar";
 import { PitchesTableHeader } from "./table/pitches-table-header";
@@ -28,6 +29,7 @@ interface AgentPitchesProps {
 
 function AgentPitchesContent({ analyticsData }: AgentPitchesProps) {
   const { user, isLoading: authLoading } = useAuth();
+  const { activeAccountId, loading: accountsLoading } = useActiveAccount();
   const [pitches, setPitches] = useState<Pitch[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -71,11 +73,16 @@ function AgentPitchesContent({ analyticsData }: AgentPitchesProps) {
       setLoading(false);
       return;
     }
+    if (!activeAccountId) return;
+
+    // Cache per account so switching accounts never serves the previous account's pitches.
+    const cacheKey = `${PITCHES_CACHE_KEY}:${activeAccountId}`;
+    const cacheTimestampKey = `${PITCHES_CACHE_TIMESTAMP_KEY}:${activeAccountId}`;
 
     if (!hasInitialFetchRef.current) {
       try {
-        const cachedData = localStorage.getItem(PITCHES_CACHE_KEY);
-        const cachedTimestamp = localStorage.getItem(PITCHES_CACHE_TIMESTAMP_KEY);
+        const cachedData = localStorage.getItem(cacheKey);
+        const cachedTimestamp = localStorage.getItem(cacheTimestampKey);
         if (cachedData && cachedTimestamp) {
           const cacheAge = Date.now() - parseInt(cachedTimestamp, 10);
           if (cacheAge < 5000) {
@@ -123,6 +130,7 @@ function AgentPitchesContent({ analyticsData }: AgentPitchesProps) {
             last_name
           )
         `)
+        .eq('account_id', activeAccountId)
         .order('created_at', { ascending: false })
         .limit(10000);
 
@@ -322,8 +330,8 @@ function AgentPitchesContent({ analyticsData }: AgentPitchesProps) {
       hasInitialFetchRef.current = true;
 
       try {
-        localStorage.setItem(PITCHES_CACHE_KEY, JSON.stringify(pageData));
-        localStorage.setItem(PITCHES_CACHE_TIMESTAMP_KEY, Date.now().toString());
+        localStorage.setItem(cacheKey, JSON.stringify(pageData));
+        localStorage.setItem(cacheTimestampKey, Date.now().toString());
       } catch {}
     } catch (error) {
       console.error("Error fetching pitches:", error);
@@ -335,11 +343,19 @@ function AgentPitchesContent({ analyticsData }: AgentPitchesProps) {
 
   useEffect(() => {
     if (authLoading) { setLoading(true); return; }
+    if (accountsLoading) { setLoading(true); return; }
+    if (!activeAccountId) {
+      setPitches([]);
+      setTotalItems(0);
+      setTotalPages(1);
+      setLoading(false);
+      return;
+    }
     if (user) {
       hasInitialFetchRef.current = true;
       fetchPitches(1);
     }
-  }, [authLoading, user, filters]);
+  }, [authLoading, user, accountsLoading, activeAccountId, filters]);
 
   useLayoutEffect(() => {
     const syncScrollPositions = () => {
@@ -411,6 +427,7 @@ function AgentPitchesContent({ analyticsData }: AgentPitchesProps) {
   const handlePitchClick = async (pitchId: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    if (!activeAccountId) return;
     setSelectedPitchId(pitchId);
     setLoadingPitchData(true);
     setIsSheetOpen(true);
@@ -433,6 +450,7 @@ function AgentPitchesContent({ analyticsData }: AgentPitchesProps) {
           people (id, email, first_name, last_name)
         `)
         .eq('id', pitchId)
+        .eq('account_id', activeAccountId)
         .single();
 
       if (error || !pitch) {

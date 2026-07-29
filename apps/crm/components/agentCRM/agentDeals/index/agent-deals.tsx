@@ -11,6 +11,7 @@ import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { MobileFAB } from "@/components/ui/mobile-fab";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getSupabaseClient } from "@/app/auth/supabaseClient";
+import { useActiveAccount } from "@/components/active-account-context";
 import UserProfileButton from "@/components/user-profile-button";
 import EditAgentCompanies from "@/components/agentCRM/agentCompanies/view/view-agent-companies";
 import EditAgentDeals from "@/components/agentCRM/agentDeals/view/view-agent-deals";
@@ -32,6 +33,7 @@ interface AgentDealsProps {
 
 export default function AgentDeals({ analyticsData }: AgentDealsProps) {
   const { user, isLoading: authLoading } = useAuth();
+  const { activeAccountId, loading: accountsLoading } = useActiveAccount();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [deals, setDeals] = useState<Deal[]>([]);
@@ -142,14 +144,14 @@ export default function AgentDeals({ analyticsData }: AgentDealsProps) {
 
   const handleViewChange = (nextView: DealsView) => {
     setView(nextView);
-    router.replace(`/agents/crm/deals${buildCleanUrl(filters, currentPage, nextView)}`);
+    router.replace(`/deals${buildCleanUrl(filters, currentPage, nextView)}`);
   };
 
   const handleFilterChange = (filterKey: string, value: string) => {
     const updatedFilters = { ...filters, [filterKey]: value };
     setFilters(updatedFilters);
     setCurrentPage(1);
-    router.replace(`/agents/crm/deals${buildCleanUrl(updatedFilters, 1)}`);
+    router.replace(`/deals${buildCleanUrl(updatedFilters, 1)}`);
   };
 
   useEffect(() => {
@@ -169,6 +171,7 @@ export default function AgentDeals({ analyticsData }: AgentDealsProps) {
         setLoading(false);
         return;
       }
+      if (!activeAccountId) return;
       setLoading(true);
       try {
         const supabase = getSupabaseClient();
@@ -182,6 +185,7 @@ export default function AgentDeals({ analyticsData }: AgentDealsProps) {
           debouncedSearchTerm,
           sort,
           withCount: !useAmountFilter,
+          accountId: activeAccountId,
         });
 
         let dealsDataRaw: any[] | null;
@@ -243,6 +247,7 @@ export default function AgentDeals({ analyticsData }: AgentDealsProps) {
     [
       authLoading,
       user,
+      activeAccountId,
       debouncedSearchTerm,
       filters.status,
       filters.stage,
@@ -314,6 +319,15 @@ export default function AgentDeals({ analyticsData }: AgentDealsProps) {
       lastFetchKeyRef.current = null;
       return;
     }
+    if (accountsLoading) { setLoading(true); return; }
+    if (!activeAccountId) {
+      setDeals([]);
+      setTotalItems(0);
+      setTotalPages(1);
+      setLoading(false);
+      lastFetchKeyRef.current = null;
+      return;
+    }
     // Wait for current user ID before fetching when using default owner filter
     if (filters.owner === "" && currentUserId === null) {
       setLoading(true);
@@ -321,6 +335,7 @@ export default function AgentDeals({ analyticsData }: AgentDealsProps) {
     }
     const fetchKey = [
       currentPage,
+      activeAccountId,
       debouncedSearchTerm,
       filters.status,
       filters.stage,
@@ -337,22 +352,22 @@ export default function AgentDeals({ analyticsData }: AgentDealsProps) {
     }
     lastFetchKeyRef.current = fetchKey;
     fetchDeals(currentPage);
-  }, [view, authLoading, user, currentPage, debouncedSearchTerm, filters.status, filters.stage, filters.owner, filters.amountRange, sortDirection, isSortingByRecency, isSortingByName, isSortingByStage, currentUserId, fetchDeals, deals.length, refreshTrigger]);
+  }, [view, authLoading, user, accountsLoading, activeAccountId, currentPage, debouncedSearchTerm, filters.status, filters.stage, filters.owner, filters.amountRange, sortDirection, isSortingByRecency, isSortingByName, isSortingByStage, currentUserId, fetchDeals, deals.length, refreshTrigger]);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
-    router.replace(`/agents/crm/deals${buildCleanUrl(filters, page)}`);
+    router.replace(`/deals${buildCleanUrl(filters, page)}`);
   };
 
   const refreshDealsList = useCallback(() => {
-    const key = [1, debouncedSearchTerm, filters.status, filters.stage, filters.owner, filters.amountRange, sortDirection, isSortingByRecency, isSortingByName, isSortingByStage].join("|");
+    const key = [1, activeAccountId, debouncedSearchTerm, filters.status, filters.stage, filters.owner, filters.amountRange, sortDirection, isSortingByRecency, isSortingByName, isSortingByStage].join("|");
     lastFetchKeyRef.current = null;
     setCurrentPage(1);
     setRefreshTrigger((t) => t + 1);
     fetchDeals(1);
     lastFetchKeyRef.current = key;
-    router.replace(`/agents/crm/deals${buildCleanUrl(filters, 1)}`);
-  }, [fetchDeals, debouncedSearchTerm, filters, sortDirection, isSortingByRecency, isSortingByName, isSortingByStage, router]);
+    router.replace(`/deals${buildCleanUrl(filters, 1)}`);
+  }, [fetchDeals, activeAccountId, debouncedSearchTerm, filters, sortDirection, isSortingByRecency, isSortingByName, isSortingByStage, router]);
 
 
   const formatDate = (dateString: string | null) => {
@@ -387,7 +402,7 @@ export default function AgentDeals({ analyticsData }: AgentDealsProps) {
     e.preventDefault();
     e.stopPropagation();
     
-    if (!companyId) return;
+    if (!companyId || !activeAccountId) return;
     
     setSelectedCompanyId(companyId);
     setLoadingCompanyData(true);
@@ -399,6 +414,7 @@ export default function AgentDeals({ analyticsData }: AgentDealsProps) {
         .from('companies')
         .select('*')
         .eq('id', companyId)
+        .eq('account_id', activeAccountId)
         .single();
 
       if (error) {
@@ -570,7 +586,7 @@ export default function AgentDeals({ analyticsData }: AgentDealsProps) {
   const handleDealClick = async (dealId: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!dealId) return;
+    if (!dealId || !activeAccountId) return;
     setSelectedDealId(dealId);
     setLoadingDealData(true);
     setIsDealSheetOpen(true);
@@ -593,6 +609,7 @@ export default function AgentDeals({ analyticsData }: AgentDealsProps) {
           users!deals_deal_owner_fkey (id, first_name, last_name, avatar_url)
         `)
         .eq('id', dealId)
+        .eq('account_id', activeAccountId)
         .single();
 
       if (error || !deal) {

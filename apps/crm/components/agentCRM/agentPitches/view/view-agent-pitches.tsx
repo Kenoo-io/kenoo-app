@@ -185,7 +185,7 @@ export default function ViewAgentPitches({
       <SheetContent
         side="right"
         className={cn(
-          "overflow-y-auto overflow-x-hidden overscroll-contain p-0 [&>button]:hidden shadow-2xl rounded-none bg-gray-50 border border-neutral-200/80",
+          "overflow-y-auto overflow-x-hidden overscroll-contain p-0 [&>button]:hidden shadow-2xl rounded-none bg-kenoo-white border border-neutral-200/80",
           isMaximized ? "w-full" : "w-3/4"
         )}
         style={{ transition: "width 0.3s cubic-bezier(0.4, 0, 0.2, 1)" }}

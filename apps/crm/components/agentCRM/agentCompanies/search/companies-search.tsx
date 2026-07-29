@@ -507,7 +507,7 @@ function CompaniesSearchContent({ analyticsData }: CompaniesSearchProps) {
                   const clearbitFailed = imageErrors[`clearbit-${domain}`];
                   
                   return (
-                    <Link href={`/agents/crm/edit-companies/${company.id}`} key={company.id} className="block">
+                    <Link href={`/edit-companies/${company.id}`} key={company.id} className="block">
                       <Card className="w-full bg-neutral-100 backdrop-blur-md shadow-inner border border-neutral-200/50 transition-all duration-300 group relative overflow-visible hover:cursor-pointer hover:shadow-[inset_0_2px_4px_rgba(0,0,0,0.15)]">
                         <CardContent className="p-4 relative z-10 overflow-visible">
                           <div className="flex items-center justify-between">

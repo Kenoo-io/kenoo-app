@@ -12,6 +12,7 @@ import {
   SelectTrigger,
 } from "@/components/ui/select";
 import { getSupabaseClient } from "@/app/auth/supabaseClient";
+import { useActiveAccount } from "@/components/active-account-context";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ContactSearchApolloEnrich } from "./contact-search-apollo-enrich";
 import { FallbackEmailAvatar } from "@/components/agentMail/ui/fallback-email-avatar";
@@ -121,12 +122,16 @@ function normalizePersonRows(
     .filter((row) => row.firstName || row.lastName || row.email);
 }
 
-async function fetchContactPersonRowById(personId: string): Promise<PersonRow | null> {
+async function fetchContactPersonRowById(
+  personId: string,
+  accountId: string
+): Promise<PersonRow | null> {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from("people")
     .select("id, first_name, last_name, email, photo_url")
     .eq("id", personId)
+    .eq("account_id", accountId)
     .maybeSingle();
 
   if (error || !data) {
@@ -218,6 +223,7 @@ export function ContactSearch({
   hideTrigger = false,
 }: ContactSearchProps) {
   const router = useRouter();
+  const { activeAccountId } = useActiveAccount();
   const suffix = resolvedTriggerSuffix(triggerIcon, hideChevron);
 
   const [open, setOpen] = React.useState(!!autoOpen);
@@ -248,7 +254,7 @@ export function ContactSearch({
 
   /** First page: same filter as infinite scroll, capped payload for faster queries. */
   React.useEffect(() => {
-    if (!open) {
+    if (!open || !activeAccountId) {
       fetchGenRef.current += 1;
       setPeople([]);
       setHasMore(true);
@@ -269,6 +275,7 @@ export function ContactSearch({
           .from("people")
           .select("id, first_name, last_name, email, photo_url")
           .eq("person_type", CONTACT_PERSON_TYPE)
+          .eq("account_id", activeAccountId)
           .order("first_name", { ascending: true })
           .range(0, PAGE_SIZE);
 
@@ -325,7 +332,7 @@ export function ContactSearch({
     };
 
     void run();
-  }, [open, debouncedSearch, listRefreshKey]);
+  }, [open, activeAccountId, debouncedSearch, listRefreshKey]);
 
   React.useEffect(() => {
     if (listScrollRef.current) {
@@ -334,7 +341,7 @@ export function ContactSearch({
   }, [debouncedSearch]);
 
   const fetchNextPage = React.useCallback(async () => {
-    if (!open || listLoading || loadingMoreInFlightRef.current || !hasMore) return;
+    if (!open || !activeAccountId || listLoading || loadingMoreInFlightRef.current || !hasMore) return;
 
     const listGen = fetchGenRef.current;
     const offset = people.length;
@@ -347,6 +354,7 @@ export function ContactSearch({
         .from("people")
         .select("id, first_name, last_name, email, photo_url")
         .eq("person_type", CONTACT_PERSON_TYPE)
+        .eq("account_id", activeAccountId)
         .order("first_name", { ascending: true })
         .range(offset, offset + PAGE_SIZE);
 
@@ -401,7 +409,7 @@ export function ContactSearch({
       loadingMoreInFlightRef.current = false;
       setLoadingMore(false);
     }
-  }, [open, listLoading, hasMore, debouncedSearch, people.length]);
+  }, [open, activeAccountId, listLoading, hasMore, debouncedSearch, people.length]);
 
   const handleListScroll = React.useCallback(
     (e: React.UIEvent<HTMLDivElement>) => {
@@ -439,9 +447,9 @@ export function ContactSearch({
       setDebouncedSearch(searchLabel);
 
       let inserted = false;
-      if (personId) {
+      if (personId && activeAccountId) {
         pinnedEnrichIdRef.current = personId;
-        const row = await fetchContactPersonRowById(personId);
+        const row = await fetchContactPersonRowById(personId, activeAccountId);
         if (row) {
           inserted = true;
           setPeople((prev) => [row, ...prev.filter((p) => p.id !== row.id)]);
@@ -456,14 +464,14 @@ export function ContactSearch({
       setShowEnrichPanel(false);
       setTimeout(() => inputRef.current?.focus(), 0);
     },
-    []
+    [activeAccountId]
   );
 
   React.useEffect(() => {
     const loadSelected = async () => {
       const trimmed = value.trim();
       const isUnset = trimmed === "" || trimmed === "—";
-      if (isUnset) {
+      if (isUnset || !activeAccountId) {
         setSelectedFromValue(null);
         return;
       }
@@ -481,6 +489,7 @@ export function ContactSearch({
           .from("people")
           .select("id, first_name, last_name, email, photo_url")
           .eq("person_type", CONTACT_PERSON_TYPE)
+          .eq("account_id", activeAccountId)
           .ilike("first_name", first);
         if (last) {
           query = query.ilike("last_name", last);
@@ -497,7 +506,7 @@ export function ContactSearch({
       }
     };
     void loadSelected();
-  }, [value, people]);
+  }, [value, people, activeAccountId]);
 
   React.useEffect(() => {
     if (autoOpen) {
@@ -726,7 +735,7 @@ export function ContactSearch({
                   e.preventDefault();
                   e.stopPropagation();
                   setOpen(false);
-                  router.push("/agents/crm/people/create");
+                  router.push("/people/create");
                 }}
               >
                 <Plus className="mr-2 h-4 w-4" />

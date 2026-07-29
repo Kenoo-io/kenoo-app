@@ -5,6 +5,8 @@ import { wallsToast } from "@/components/ui/walls-toast";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/auth/AuthContext";
+import { useActiveAccount } from "@/components/active-account-context";
+import { crmAccountFields } from "@/lib/crm-account";
 import { createClient } from '@supabase/supabase-js';
 import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/toaster";
@@ -91,6 +93,7 @@ const initialFormData: LeadFormData = {
 
 export default function CreateAgentLeads({ analyticsData, isOpen, onClose, onSuccess }: CreateAgentLeadsProps) {
   const { user } = useAuth();
+  const { activeAccountId } = useActiveAccount();
   const router = useRouter();
   const [formData, setFormData] = useState<LeadFormData>(initialFormData);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -116,12 +119,17 @@ export default function CreateAgentLeads({ analyticsData, isOpen, onClose, onSuc
       setDuplicateEmail(null);
       return;
     }
+    if (!activeAccountId) {
+      setDuplicateEmail(null);
+      return;
+    }
 
     try {
       const { data, error } = await supabase
         .from('people')
         .select('id')
         .eq('email', email.toLowerCase())
+        .eq('account_id', activeAccountId)
         .maybeSingle();
 
       if (error && error.code !== 'PGRST116') { // PGRST116 is "not found" which is fine
@@ -194,9 +202,15 @@ export default function CreateAgentLeads({ analyticsData, isOpen, onClose, onSuc
     is_verified: formData.isVerified || false,
     contact_owner: formData.contactOwner || null,
     photo_url: null,
+    ...(activeAccountId ? crmAccountFields(activeAccountId) : {}),
   });
 
   const ensureDraftPerson = async (): Promise<string | null> => {
+    if (!activeAccountId) {
+      wallsToast.error("Error", "No active account selected");
+      return null;
+    }
+
     if (draftPersonId) {
       const { error } = await supabase
         .from('people')
@@ -289,6 +303,11 @@ export default function CreateAgentLeads({ analyticsData, isOpen, onClose, onSuc
   const handleSave = async (createNew: boolean = false) => {
     if (!user) {
       wallsToast.error("Error", "You must be logged in to create a lead");
+      return;
+    }
+
+    if (!activeAccountId) {
+      wallsToast.error("Error", "No active account selected");
       return;
     }
 
@@ -427,7 +446,7 @@ export default function CreateAgentLeads({ analyticsData, isOpen, onClose, onSuc
         onSuccess?.();
         setHasCompletedSave(true);
         onClose();
-        router.push("/agents/crm/people");
+        router.push("/people");
       }
     } catch (error) {
       console.error("Error saving lead data:", error);
@@ -441,7 +460,7 @@ export default function CreateAgentLeads({ analyticsData, isOpen, onClose, onSuc
     <Sheet open={isOpen} onOpenChange={(open) => !open && void handleSheetClose()}>
       <SheetContent 
         side="right" 
-        className={cn("overflow-y-auto p-0 [&>button]:hidden shadow-2xl rounded-none bg-gray-50 border border-neutral-200/80", isMaximized ? "w-full" : "w-3/4")}
+        className={cn("overflow-y-auto p-0 [&>button]:hidden shadow-2xl rounded-none bg-kenoo-white border border-neutral-200/80", isMaximized ? "w-full" : "w-3/4")}
         style={{
           transition: "width 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
         }}

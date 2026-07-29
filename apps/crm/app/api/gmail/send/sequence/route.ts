@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { toUser } from "@/hooks/user";
 import { transformToGmailFormat } from "@/utils/composition-formatting";
 import { v4 as uuidv4 } from 'uuid';
+import { getCrmDataScope, crmScopeFields } from "@/lib/crm-scope";
 
 // Function to generate the email signature
 const generateSignature = (userData: { 
@@ -126,6 +127,7 @@ function formatSnippet(html: string): string {
 
 export async function POST(req: Request) {
   try {
+    const scope = await getCrmDataScope();
     const supabase = await createClient();
     const { data: { user: supabaseUser }, error: authError } = await supabase.auth.getUser();
 
@@ -205,7 +207,8 @@ export async function POST(req: Request) {
         daily_limit: null,
         sequence_owner: userData.id,
         is_campaign: false,
-        schedule_id: 'dc470131-edaf-40a7-a03d-1206db7410b5' // Default schedule ID
+        schedule_id: 'dc470131-edaf-40a7-a03d-1206db7410b5', // Default schedule ID
+        ...(scope ? crmScopeFields(scope) : {}),
       })
       .select()
       .single();

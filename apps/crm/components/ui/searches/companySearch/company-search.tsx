@@ -13,6 +13,7 @@ import {
   SelectTrigger,
 } from "@/components/ui/select";
 import { getSupabaseClient } from "@/app/auth/supabaseClient";
+import { useActiveAccount } from "@/components/active-account-context";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CompanySearchApolloEnrich } from "./company-search-apollo-enrich";
 
@@ -126,6 +127,7 @@ export function CompanySearch({
   hideTrigger = false,
 }: CompanySearchProps) {
   const router = useRouter();
+  const { activeAccountId } = useActiveAccount();
   const suffix = resolvedTriggerSuffix(triggerIcon, hideChevron);
 
   const [open, setOpen] = React.useState(!!autoOpen);
@@ -154,7 +156,7 @@ export function CompanySearch({
 
   /** First page: same filter as infinite scroll, capped payload for faster queries. */
   React.useEffect(() => {
-    if (!open) {
+    if (!open || !activeAccountId) {
       fetchGenRef.current += 1;
       setCompanies([]);
       setHasMore(true);
@@ -174,6 +176,7 @@ export function CompanySearch({
         let query = supabase
           .from("companies")
           .select("id, name, logo_url")
+          .eq("account_id", activeAccountId)
           .order("name", { ascending: true })
           .range(0, PAGE_SIZE);
 
@@ -213,7 +216,7 @@ export function CompanySearch({
     };
 
     void run();
-  }, [open, debouncedSearch, listRefreshKey]);
+  }, [open, activeAccountId, debouncedSearch, listRefreshKey]);
 
   React.useEffect(() => {
     if (listScrollRef.current) {
@@ -222,7 +225,7 @@ export function CompanySearch({
   }, [debouncedSearch]);
 
   const fetchNextPage = React.useCallback(async () => {
-    if (!open || listLoading || loadingMoreInFlightRef.current || !hasMore) return;
+    if (!open || !activeAccountId || listLoading || loadingMoreInFlightRef.current || !hasMore) return;
 
     const listGen = fetchGenRef.current;
     const offset = companies.length;
@@ -234,6 +237,7 @@ export function CompanySearch({
       let query = supabase
         .from("companies")
         .select("id, name, logo_url")
+        .eq("account_id", activeAccountId)
         .order("name", { ascending: true })
         .range(offset, offset + PAGE_SIZE);
 
@@ -279,7 +283,7 @@ export function CompanySearch({
       loadingMoreInFlightRef.current = false;
       setLoadingMore(false);
     }
-  }, [open, listLoading, hasMore, debouncedSearch, companies.length]);
+  }, [open, activeAccountId, listLoading, hasMore, debouncedSearch, companies.length]);
 
   const handleListScroll = React.useCallback(
     (e: React.UIEvent<HTMLDivElement>) => {
@@ -311,7 +315,7 @@ export function CompanySearch({
     const loadSelected = async () => {
       const trimmed = value.trim();
       const isUnset = trimmed === "" || trimmed === "—";
-      if (isUnset) {
+      if (isUnset || !activeAccountId) {
         setSelectedFromValue(null);
         return;
       }
@@ -322,7 +326,7 @@ export function CompanySearch({
       }
       try {
         const supabase = getSupabaseClient();
-        const { data, error } = await supabase.from("companies").select("id, name, logo_url").eq("name", value).maybeSingle();
+        const { data, error } = await supabase.from("companies").select("id, name, logo_url").eq("name", value).eq("account_id", activeAccountId).maybeSingle();
         if (error || !data?.name) {
           setSelectedFromValue(null);
           return;
@@ -337,7 +341,7 @@ export function CompanySearch({
       }
     };
     loadSelected();
-  }, [value, companies]);
+  }, [value, companies, activeAccountId]);
 
   React.useEffect(() => {
     if (autoOpen) {

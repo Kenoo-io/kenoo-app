@@ -5,6 +5,8 @@ import { wallsToast } from "@/components/ui/walls-toast";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/auth/AuthContext";
+import { useActiveAccount } from "@/components/active-account-context";
+import { crmAccountFields } from "@/lib/crm-account";
 import { createClient } from '@supabase/supabase-js';
 import { Button } from "@/components/ui/button";
 import BasicInformation from "../tabs/general";
@@ -142,6 +144,7 @@ const formatWebsiteUrl = (url: string): string | null => {
 
 export default function CreateAgentCompanies({ analyticsData, onSuccess, isOpen, onClose }: CreateAgentCompaniesProps) {
   const { user } = useAuth();
+  const { activeAccountId } = useActiveAccount();
   console.log("Current user state:", user);
   const router = useRouter();
   const [formData, setFormData] = useState<CompanyFormData>(initialFormData);
@@ -172,11 +175,13 @@ export default function CreateAgentCompanies({ analyticsData, onSuccess, isOpen,
   };
 
   const checkDuplicateWebsite = async (website: string) => {
+    if (!activeAccountId) return false;
     try {
       const { data, error } = await supabase
         .from('companies')
         .select('id')
         .eq('website', website)
+        .eq('account_id', activeAccountId)
         .limit(1);
       
       if (error) {
@@ -201,6 +206,11 @@ export default function CreateAgentCompanies({ analyticsData, onSuccess, isOpen,
     if (!user) {
       console.log("No user found:", user);
       wallsToast.error("Error", "You must be logged in to create a company");
+      return;
+    }
+
+    if (!activeAccountId) {
+      wallsToast.error("Error", "No active account selected");
       return;
     }
 
@@ -259,6 +269,7 @@ export default function CreateAgentCompanies({ analyticsData, onSuccess, isOpen,
         postal_code: formData.zipCode || null,
         address: formData.addressLine1 || null,
         street_address: formData.addressLine1 || null,
+        ...crmAccountFields(activeAccountId),
       };
 
       // Insert company
@@ -305,7 +316,7 @@ export default function CreateAgentCompanies({ analyticsData, onSuccess, isOpen,
         if (onClose) {
           onClose();
         } else {
-          router.push("/agents/crm/companies");
+          router.push("/companies");
         }
       }
     } catch (error) {
@@ -419,7 +430,7 @@ export default function CreateAgentCompanies({ analyticsData, onSuccess, isOpen,
 
   const content = (
     <div
-      className="flex flex-col min-h-screen bg-gray-50"
+      className="flex flex-col min-h-screen bg-kenoo-white"
     >
       <div className="flex-1 w-full px-6 pt-6 pb-8">
         <div className="mb-4 flex items-center justify-between relative z-[2]">
@@ -456,7 +467,7 @@ export default function CreateAgentCompanies({ analyticsData, onSuccess, isOpen,
                     variant="ghost"
                     onClick={() => {
                       if (onClose) onClose();
-                      else router.push("/agents/crm/companies");
+                      else router.push("/companies");
                     }}
                     className={companySheetHeaderIconButtonClass}
                   >
@@ -548,7 +559,7 @@ export default function CreateAgentCompanies({ analyticsData, onSuccess, isOpen,
         <SheetContent
           side="right"
           className={cn(
-            "overflow-y-auto overflow-x-hidden overscroll-contain p-0 [&>button]:hidden shadow-2xl rounded-none bg-gray-50 border border-neutral-200/80",
+            "overflow-y-auto overflow-x-hidden overscroll-contain p-0 [&>button]:hidden shadow-2xl rounded-none bg-kenoo-white border border-neutral-200/80",
             isMaximized ? "w-full" : "w-3/4"
           )}
           style={{ transition: "width 0.3s cubic-bezier(0.4, 0, 0.2, 1)" }}

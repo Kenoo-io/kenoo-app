@@ -171,7 +171,7 @@ export default function EmploymentHistory({ personId }: EmploymentHistoryProps) 
   return (
     <div className="space-y-6">
       {/* Current Employer */}
-      <div className="bg-gray-50 rounded-[30px] p-6">
+      <div className="bg-kenoo-white rounded-[30px] p-6">
         <div className="flex items-center">
           <div className="flex items-center flex-1 min-w-0">
             <h2 className="text-black font-black text-4xl">CURRENT</h2>
@@ -247,7 +247,7 @@ export default function EmploymentHistory({ personId }: EmploymentHistoryProps) 
       </div>
 
       {/* Employment History */}
-      <div className="bg-gray-50 rounded-[30px] p-6">
+      <div className="bg-kenoo-white rounded-[30px] p-6">
       <div className="flex items-center">
         <h2 className="text-black font-black text-4xl">EMPLOYMENT HISTORY</h2>
         <div className="flex-1 border-t border-black h-[1px] mx-4" />

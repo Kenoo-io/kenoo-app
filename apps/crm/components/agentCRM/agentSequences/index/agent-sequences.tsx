@@ -11,6 +11,8 @@ import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { MobileFAB } from "@/components/ui/mobile-fab";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getSupabaseClient } from "@/app/auth/supabaseClient";
+import { useActiveAccount } from "@/components/active-account-context";
+import { withCrmAccount } from "@/lib/crm-account";
 import UserProfileButton from "@/components/user-profile-button";
 import EditAgentSequences from "../view/view-agent-sequences";
 import CreateAgentSequences from "../create/create-agent-sequences";
@@ -35,6 +37,7 @@ interface AgentSequencesProps {
 
 function AgentSequencesContent({ analyticsData }: AgentSequencesProps) {
   const { user } = useAuth();
+  const { activeAccountId, loading: accountsLoading } = useActiveAccount();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [sequences, setSequences] = useState<EmailSequence[]>([]);
@@ -115,6 +118,7 @@ function AgentSequencesContent({ analyticsData }: AgentSequencesProps) {
         setLoading(false);
         return;
       }
+      if (!activeAccountId) return;
       setLoading(true);
       try {
         const supabase = getSupabaseClient();
@@ -139,6 +143,8 @@ function AgentSequencesContent({ analyticsData }: AgentSequencesProps) {
           `,
             { count: "exact" }
           );
+
+        query = withCrmAccount(query, activeAccountId);
 
         if (filters.status) query = query.eq("status", filters.status);
         // Default to campaigns only; "all" means no filter
@@ -310,7 +316,7 @@ function AgentSequencesContent({ analyticsData }: AgentSequencesProps) {
       setLoading(false);
     }
   },
-  [user, debouncedSearchTerm, filters.status, filters.is_campaign, filters.owner, filters.talent, filters.use_case, currentUserId]
+  [user, activeAccountId, debouncedSearchTerm, filters.status, filters.is_campaign, filters.owner, filters.talent, filters.use_case, currentUserId]
   );
 
   // Fetch the current user's app ID once so we can apply default owner filter implicitly
@@ -343,6 +349,15 @@ function AgentSequencesContent({ analyticsData }: AgentSequencesProps) {
       lastFetchKeyRef.current = null;
       return;
     }
+    if (accountsLoading) { setLoading(true); return; }
+    if (!activeAccountId) {
+      setSequences([]);
+      setTotalItems(0);
+      setTotalPages(1);
+      setLoading(false);
+      lastFetchKeyRef.current = null;
+      return;
+    }
     // Wait for current user ID before fetching when using default owner filter
     if (filters.owner === "" && currentUserId === null) {
       setLoading(true);
@@ -350,6 +365,7 @@ function AgentSequencesContent({ analyticsData }: AgentSequencesProps) {
     }
     const fetchKey = [
       currentPage,
+      activeAccountId,
       debouncedSearchTerm,
       filters.status,
       filters.is_campaign,
@@ -363,7 +379,7 @@ function AgentSequencesContent({ analyticsData }: AgentSequencesProps) {
     }
     lastFetchKeyRef.current = fetchKey;
     fetchSequences(currentPage);
-  }, [user, currentPage, debouncedSearchTerm, filters.status, filters.is_campaign, filters.owner, filters.talent, filters.use_case, fetchSequences, sequences.length, refreshTrigger, currentUserId]);
+  }, [user, accountsLoading, activeAccountId, currentPage, debouncedSearchTerm, filters.status, filters.is_campaign, filters.owner, filters.talent, filters.use_case, fetchSequences, sequences.length, refreshTrigger, currentUserId]);
 
   useLayoutEffect(() => {
     const syncScrollPositions = () => {
@@ -414,19 +430,19 @@ function AgentSequencesContent({ analyticsData }: AgentSequencesProps) {
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
     const cleanUrl = buildCleanUrl(filters, page);
-    router.replace(`/agents/crm/sequences${cleanUrl}`);
+    router.replace(`/sequences${cleanUrl}`);
   };
 
   const refreshSequencesList = useCallback(() => {
-    const key = [1, debouncedSearchTerm, filters.status, filters.is_campaign, filters.owner, filters.talent].join("|");
+    const key = [1, activeAccountId, debouncedSearchTerm, filters.status, filters.is_campaign, filters.owner, filters.talent].join("|");
     lastFetchKeyRef.current = null;
     setCurrentPage(1);
     setRefreshTrigger((t) => t + 1);
     fetchSequences(1);
     lastFetchKeyRef.current = key;
     const cleanUrl = buildCleanUrl(filters, 1);
-    router.replace(`/agents/crm/sequences${cleanUrl}`);
-  }, [fetchSequences, debouncedSearchTerm, filters, router]);
+    router.replace(`/sequences${cleanUrl}`);
+  }, [fetchSequences, activeAccountId, debouncedSearchTerm, filters, router]);
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return '';
@@ -448,7 +464,7 @@ function AgentSequencesContent({ analyticsData }: AgentSequencesProps) {
 
     // Update URL with new filters
     const cleanUrl = buildCleanUrl(updatedFilters, 1);
-    router.replace(`/agents/crm/sequences${cleanUrl}`);
+    router.replace(`/sequences${cleanUrl}`);
   };
 
   const handleReset = () => {
@@ -456,7 +472,7 @@ function AgentSequencesContent({ analyticsData }: AgentSequencesProps) {
     setFilters(resetFilters);
     setCurrentPage(1);
     lastFetchKeyRef.current = null;
-    router.replace(`/agents/crm/sequences`);
+    router.replace(`/sequences`);
   };
 
   const handleStatusToggle = async (sequenceId: string, currentStatus: string, checked: boolean) => {
@@ -577,6 +593,7 @@ function AgentSequencesContent({ analyticsData }: AgentSequencesProps) {
   };
 
   const handleSequenceClick = async (sequenceId: string) => {
+    if (!activeAccountId) return;
     setSelectedSequenceId(sequenceId);
     setLoadingSequenceData(true);
     setIsSheetOpen(true);
@@ -592,6 +609,7 @@ function AgentSequencesContent({ analyticsData }: AgentSequencesProps) {
           )
         `)
         .eq('id', sequenceId)
+        .eq('account_id', activeAccountId)
         .single();
 
       if (error) {

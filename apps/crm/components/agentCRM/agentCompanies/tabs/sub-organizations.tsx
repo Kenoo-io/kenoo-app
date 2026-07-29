@@ -12,7 +12,7 @@ export default function SubOrganizations({ formData }: SubOrganizationsProps) {
   const suborganizationsCount = formData.suborganizations?.length || 0;
 
   return (
-    <div className="bg-gray-50 rounded-[30px] p-6">
+    <div className="bg-kenoo-white rounded-[30px] p-6">
           <div className="flex items-center">
             <h2 className="text-black font-black text-4xl">SUB-ORGANIZATIONS</h2>
             <div className="flex-1 border-t border-black h-[1px] mx-4" />

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { syncCompanySocialUrls } from "@/lib/company-social";
+import { getCrmDataScope, crmScopeFields } from "@/lib/crm-scope";
 
 const APOLLO_API_KEY = process.env.APOLLO_API_KEY;
 const APOLLO_MASTER_API_KEY = process.env.APOLLO_MASTER_API_KEY || process.env.APOLLO_API_KEY;
@@ -49,6 +50,7 @@ export async function POST(request: Request) {
   }
 
   try {
+    const scope = await getCrmDataScope();
     const body: LeadEnrichRequestBody = await request.json();
     const { userId, companyId, apolloAccountId } = body;
 
@@ -575,6 +577,7 @@ export async function POST(request: Request) {
                     .insert({
                       ...companyData,
                       created_at: new Date().toISOString(),
+                      ...(scope ? crmScopeFields(scope) : {}),
                     })
                     .select('id')
                     .single();
@@ -1025,7 +1028,10 @@ export async function POST(request: Request) {
         // Insert new person
         const { data: newPerson, error: insertError } = await supabase
           .from('people')
-          .insert(personData)
+          .insert({
+            ...personData,
+            ...(scope ? crmScopeFields(scope) : {}),
+          })
           .select('id')
           .single();
 

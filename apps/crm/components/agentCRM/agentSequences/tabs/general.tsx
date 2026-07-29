@@ -5,7 +5,12 @@ import { wallsToast } from "@/components/ui/walls-toast";
 import { useState, useEffect } from "react";
 import { FALLBACK_ICON_URL } from "@/lib/asset-urls";
 import { createClient } from '@supabase/supabase-js';
-import { Input } from "@/components/ui/borderless-input";
+import {
+  FloatingLabelField,
+  FloatingLabelInput,
+  FloatingLabelValue,
+  floatingSelectTriggerClass,
+} from "@/components/ui/floating-label-input";
 import { format } from "date-fns";
 import { SequenceSwitch } from "@/components/agentCRM/agentSequences/ui/sequence-switch";
 import { TalentSelector } from "./talent-selector";
@@ -180,10 +185,6 @@ export default function General({
     return '—';
   };
 
-  const fieldRowClass = "border-0 rounded-full bg-transparent hover:bg-gray-100 px-4 py-2 w-full";
-  const fieldLabelClass = "w-32 text-[11px] font-normal uppercase tracking-[0.16em] text-neutral-500";
-  const inputClass = "border-0 bg-transparent px-0 text-[15px] font-light text-neutral-900 placeholder:text-neutral-300 focus-visible:ring-0 focus:ring-0 flex-1";
-
   return (
     <div className="space-y-6">
       {/* Sequence Information Container */}
@@ -193,92 +194,57 @@ export default function General({
           <div className="flex-1 border-t border-black h-[1px] mx-4" />
         </div>
         <div className="grid grid-cols-2 gap-4 items-start">
-          {/* Name - left */}
-          <div className="min-h-[48px] flex items-center">
-            <div className={fieldRowClass}>
-              <div className="flex items-center">
-                <span className={fieldLabelClass}>Name</span>
-                <Input
-                  placeholder="Sequence Name"
-                  value={formData.name}
-                  onChange={handleInputChange("name")}
-                  className={inputClass}
-                />
-              </div>
-            </div>
-          </div>
+          <FloatingLabelInput
+            label="Name"
+            value={formData.name}
+            onChange={handleInputChange("name")}
+          />
 
-          {/* Stop on reply - right */}
-          <div className="min-h-[48px] flex items-center">
-            <div className={fieldRowClass}>
-              <div className="flex items-center gap-2">
-                <span className={fieldLabelClass}>Stop on reply</span>
-                <SequenceSwitch
-                  checked={formData.stop_on_reply}
-                  onCheckedChange={(checked) => handleSelectChange("stop_on_reply")(checked)}
-                />
-              </div>
+          {/* A switch has no resting state to reveal, so its label stays floated. */}
+          <FloatingLabelField label="Stop on reply" hasValue>
+            <div className="flex h-12 items-center">
+              <SequenceSwitch
+                checked={formData.stop_on_reply}
+                onCheckedChange={(checked) => handleSelectChange("stop_on_reply")(checked)}
+              />
             </div>
-          </div>
+          </FloatingLabelField>
 
-          {/* Use case - left */}
-          <div className="min-h-[48px] flex items-center">
-            <div className={fieldRowClass}>
-              <div className="flex items-center">
-                <span className={fieldLabelClass}>Use case</span>
-                <Select
-                  value={formData.use_case || "general"}
-                  onValueChange={(value) => handleSelectChange("use_case")(value)}
-                >
-                  <SelectTrigger className="border-0 bg-transparent shadow-none h-8 px-0 focus:ring-0 focus-visible:ring-0 flex-1 font-light text-neutral-900">
-                    <SelectValue placeholder="General" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="general">
-                      General
-                    </SelectItem>
-                    <SelectItem value="scouting">
-                      Scouting
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </div>
+          <FloatingLabelField label="Use case" hasValue>
+            <Select
+              value={formData.use_case || "general"}
+              onValueChange={(value) => handleSelectChange("use_case")(value)}
+            >
+              <SelectTrigger className={floatingSelectTriggerClass}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="general">
+                  General
+                </SelectItem>
+                <SelectItem value="scouting">
+                  Scouting
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </FloatingLabelField>
 
-          {/* Daily limit - right */}
-          <div className="min-h-[48px] flex items-center">
-            <div className={fieldRowClass}>
-              <div className="flex items-center">
-                <span className={fieldLabelClass}>Daily limit</span>
-                <Input
-                  type="number"
-                  placeholder="Daily Limit"
-                  value={formData.daily_limit || ""}
-                  onChange={(e) => {
-                    const value = e.target.value === '' ? null : parseInt(e.target.value, 10);
-                    handleSelectChange("daily_limit")(value);
-                  }}
-                  className={inputClass}
-                />
-              </div>
-            </div>
-          </div>
+          <FloatingLabelInput
+            label="Daily limit"
+            type="number"
+            value={formData.daily_limit || ""}
+            onChange={(e) => {
+              const value = e.target.value === '' ? null : parseInt(e.target.value, 10);
+              handleSelectChange("daily_limit")(value);
+            }}
+          />
 
-          {/* Description - full width */}
-          <div className="col-span-2 min-h-[48px] flex items-center">
-            <div className={fieldRowClass}>
-              <div className="flex items-center">
-                <span className={fieldLabelClass}>Description</span>
-                <Input
-                  placeholder="Description"
-                  value={formData.description || ""}
-                  onChange={handleInputChange("description")}
-                  className={inputClass}
-                />
-              </div>
-            </div>
-          </div>
+          <FloatingLabelInput
+            containerClassName="col-span-2"
+            label="Description"
+            value={formData.description || ""}
+            onChange={handleInputChange("description")}
+          />
         </div>
       </div>
 
@@ -291,56 +257,23 @@ export default function General({
           </div>
           <div className="grid grid-cols-2 gap-4 items-start">
             <div className="space-y-4">
-              <div className="min-h-[48px] flex items-center">
-                <div className={fieldRowClass}>
-                  <div className="flex items-center gap-2">
-                    <span className={fieldLabelClass}>Total contacts</span>
-                    <span className="text-sm font-light">{initialData.contact_count || 0}</span>
-                  </div>
-                </div>
-              </div>
-              <div className="min-h-[48px] flex items-center">
-                <div className={fieldRowClass}>
-                  <div className="flex items-center gap-2">
-                    <span className={fieldLabelClass}>Active</span>
-                    <span className="text-sm font-light">{initialData.active_count || 0}</span>
-                  </div>
-                </div>
-              </div>
-              <div className="min-h-[48px] flex items-center">
-                <div className={fieldRowClass}>
-                  <div className="flex items-center gap-2">
-                    <span className={fieldLabelClass}>Use case</span>
-                    <span className="text-sm font-light">{initialData.use_case || "general"}</span>
-                  </div>
-                </div>
-              </div>
-              <div className="min-h-[48px] flex items-center">
-                <div className={fieldRowClass}>
-                  <div className="flex items-center gap-2">
-                    <span className={fieldLabelClass}>Paused</span>
-                    <span className="text-sm font-light">{initialData.paused_count || 0}</span>
-                  </div>
-                </div>
-              </div>
+              <FloatingLabelValue
+                label="Total contacts"
+                value={initialData.contact_count || 0}
+              />
+              <FloatingLabelValue label="Active" value={initialData.active_count || 0} />
+              <FloatingLabelValue
+                label="Use case"
+                value={initialData.use_case || "general"}
+              />
+              <FloatingLabelValue label="Paused" value={initialData.paused_count || 0} />
             </div>
             <div className="space-y-4">
-              <div className="min-h-[48px] flex items-center">
-                <div className={fieldRowClass}>
-                  <div className="flex items-center gap-2">
-                    <span className={fieldLabelClass}>Complete</span>
-                    <span className="text-sm font-light">{initialData.complete_count || 0}</span>
-                  </div>
-                </div>
-              </div>
-              <div className="min-h-[48px] flex items-center">
-                <div className={fieldRowClass}>
-                  <div className="flex items-center gap-2">
-                    <span className={fieldLabelClass}>Replied</span>
-                    <span className="text-sm font-light">{initialData.replied_count || 0}</span>
-                  </div>
-                </div>
-              </div>
+              <FloatingLabelValue
+                label="Complete"
+                value={initialData.complete_count || 0}
+              />
+              <FloatingLabelValue label="Replied" value={initialData.replied_count || 0} />
             </div>
           </div>
         </div>
@@ -355,102 +288,66 @@ export default function General({
           </div>
           <div className="grid grid-cols-2 gap-4 items-start">
             <div className="space-y-4">
-              <div className="min-h-[48px] flex items-center">
-                <div className={fieldRowClass}>
-                  <div className="flex items-center gap-2">
-                    {initialData ? (
-                      <>
-                        <span className={fieldLabelClass}>Owner</span>
-                        <div className="flex-1">
-                          <SequenceOwnerSelect
-                            value={formData.sequence_owner || ""}
-                            onValueChange={(value) => handleSelectChange("sequence_owner")(value)}
-                            className="border-0 bg-transparent w-full [&>*]:border-0 [&>*]:bg-transparent [&_*]:font-light [&_*]:text-neutral-900 focus:ring-0 h-8"
+              {initialData ? (
+                <FloatingLabelField
+                  label="Owner"
+                  hasValue={Boolean(formData.sequence_owner)}
+                >
+                  <SequenceOwnerSelect
+                    value={formData.sequence_owner || ""}
+                    onValueChange={(value) => handleSelectChange("sequence_owner")(value)}
+                    className={floatingSelectTriggerClass}
+                  />
+                </FloatingLabelField>
+              ) : (
+                <FloatingLabelValue
+                  label="Created by"
+                  value={
+                    sequenceOwnerId ? (
+                      <span className="flex items-center gap-2">
+                        {ownerData?.avatar_url ? (
+                          <Image
+                            src={ownerData.avatar_url}
+                            alt={getOwnerName()}
+                            width={24}
+                            height={24}
+                            className="rounded-full object-cover border border-neutral-200"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.src = FALLBACK_ICON_URL;
+                            }}
                           />
-                        </div>
-                      </>
+                        ) : (
+                          <span className="w-6 h-6 rounded-full bg-neutral-200 border border-neutral-200 flex items-center justify-center">
+                            <span className="text-xs text-neutral-500">—</span>
+                          </span>
+                        )}
+                        <span>{getOwnerName()}</span>
+                      </span>
                     ) : (
-                      <>
-                        <span className={fieldLabelClass}>Created by</span>
-                        <div className="flex-1 flex items-center gap-2">
-                          {sequenceOwnerId ? (
-                            <>
-                              {ownerData?.avatar_url ? (
-                                <Image
-                                  src={ownerData.avatar_url}
-                                  alt={getOwnerName()}
-                                  width={24}
-                                  height={24}
-                                  className="rounded-full object-cover border border-neutral-200"
-                                  onError={(e) => {
-                                    const target = e.target as HTMLImageElement;
-                                    target.src = FALLBACK_ICON_URL;
-                                  }}
-                                />
-                              ) : (
-                                <div className="w-6 h-6 rounded-full bg-neutral-200 border border-neutral-200 flex items-center justify-center">
-                                  <span className="text-xs text-neutral-500">—</span>
-                                </div>
-                              )}
-                              <span className="font-light text-[15px]">{getOwnerName()}</span>
-                            </>
-                          ) : (
-                            <span className="font-light text-[15px]">—</span>
-                          )}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
+                      "—"
+                    )
+                  }
+                />
+              )}
 
               {initialData && (
-                <div className="min-h-[48px] flex items-center">
-                  <div className={fieldRowClass}>
-                    <div className="flex items-center">
-                      <span className={fieldLabelClass}>Created at</span>
-                      <Input
-                        placeholder="Created at"
-                        value={formatTimestamp(formData.createdAt)}
-                        readOnly
-                        className={inputClass}
-                      />
-                    </div>
-                  </div>
-                </div>
+                <FloatingLabelValue
+                  label="Created at"
+                  value={formatTimestamp(formData.createdAt)}
+                />
               )}
             </div>
 
             <div className="space-y-4">
               {initialData && (
-                <div className="min-h-[48px] flex items-center">
-                  <div className={fieldRowClass}>
-                    <div className="flex items-center">
-                      <span className={fieldLabelClass}>Updated at</span>
-                      <Input
-                        placeholder="Updated at"
-                        value={formatTimestamp(formData.updated_at)}
-                        readOnly
-                        className={inputClass}
-                      />
-                    </div>
-                  </div>
-                </div>
+                <FloatingLabelValue
+                  label="Updated at"
+                  value={formatTimestamp(formData.updated_at)}
+                />
               )}
 
-              <div className="min-h-[48px] flex items-center">
-                <div className={fieldRowClass}>
-                  <div className="flex items-center">
-                    <span className={fieldLabelClass}>Sequence ID</span>
-                    <Input
-                      placeholder="Sequence ID"
-                      value={sequenceId || "—"}
-                      readOnly
-                      className={inputClass}
-                    />
-                  </div>
-                </div>
-              </div>
+              <FloatingLabelValue label="Sequence ID" value={sequenceId || "—"} />
             </div>
           </div>
         </div>

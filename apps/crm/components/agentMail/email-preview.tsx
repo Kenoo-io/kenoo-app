@@ -309,7 +309,7 @@ const EmailMessage = ({
                                     transition: { duration: 0.5, ease: "easeInOut" }
                                   }
                                 }}
-                                className="flex items-center justify-center p-2 rounded-full transition-all duration-300 ease-in-out group-hover:bg-gray-50 group-hover:border group-hover:border-neutral-200 group-hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] group-hover:scale-95"
+                                className="flex items-center justify-center p-2 rounded-full transition-all duration-300 ease-in-out group-hover:bg-kenoo-white group-hover:border group-hover:border-neutral-200 group-hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] group-hover:scale-95"
                               >
                                 <Reply className="h-4 w-4 text-neutral-500" />
                               </motion.span>
@@ -339,7 +339,7 @@ const EmailMessage = ({
                                       transition: { duration: 0.5, ease: "easeInOut" }
                                     }
                                   }}
-                                  className="flex items-center justify-center p-2 rounded-full transition-all duration-300 ease-in-out group-hover:bg-gray-50 group-hover:border group-hover:border-neutral-200 group-hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] group-hover:scale-95"
+                                  className="flex items-center justify-center p-2 rounded-full transition-all duration-300 ease-in-out group-hover:bg-kenoo-white group-hover:border group-hover:border-neutral-200 group-hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] group-hover:scale-95"
                                 >
                                   <ReplyAll className="h-4 w-4 text-neutral-500" />
                                 </motion.span>
@@ -369,7 +369,7 @@ const EmailMessage = ({
                                     transition: { duration: 0.5, ease: "easeInOut" }
                                   }
                                 }}
-                                className="flex items-center justify-center p-2 rounded-full transition-all duration-300 ease-in-out group-hover:bg-gray-50 group-hover:border group-hover:border-neutral-200 group-hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] group-hover:scale-95"
+                                className="flex items-center justify-center p-2 rounded-full transition-all duration-300 ease-in-out group-hover:bg-kenoo-white group-hover:border group-hover:border-neutral-200 group-hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] group-hover:scale-95"
                               >
                                 <Reply className="h-4 w-4 -scale-x-100 text-neutral-500" />
                               </motion.span>

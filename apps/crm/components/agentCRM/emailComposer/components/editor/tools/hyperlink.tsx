@@ -119,7 +119,7 @@ export function HyperlinkTool({ editorRef }: HyperlinkToolProps) {
                 'relative z-10 p-3 rounded-full transition-all duration-300 ease-in-out',
                 isLinkActive
                   ? 'bg-sky-100 border border-sky-200/80 shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)]'
-                  : 'group-hover:bg-gray-50 group-hover:border group-hover:border-neutral-200 group-hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] group-hover:scale-95'
+                  : 'group-hover:bg-kenoo-white group-hover:border group-hover:border-neutral-200 group-hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] group-hover:scale-95'
               )}
             >
               <Link2

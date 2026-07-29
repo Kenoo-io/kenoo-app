@@ -173,7 +173,7 @@ export function DealsFilter({
                 value={filters.status === "" ? "active" : filters.status}
                 onValueChange={(value) => onFilterChange("status", value === "active" ? "" : value)}
               >
-                <SelectTrigger className="border border-transparent rounded-full focus:ring-0 focus-visible:ring-0 px-4 [&>svg]:hidden hover:bg-gray-50 hover:border-neutral-200 hover:scale-95 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] transition-all duration-300">
+                <SelectTrigger className="border border-transparent rounded-full focus:ring-0 focus-visible:ring-0 px-4 [&>svg]:hidden hover:bg-kenoo-white hover:border-neutral-200 hover:scale-95 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] transition-all duration-300">
                   <div className="flex items-center gap-2">
                     <span className="text-neutral-700">Status:</span>
                     <SelectValue />
@@ -194,7 +194,7 @@ export function DealsFilter({
                 value={filters.stage || "all"}
                 onValueChange={(value) => onFilterChange("stage", value === "all" ? "" : value)}
               >
-                <SelectTrigger className="border border-transparent rounded-full focus:ring-0 focus-visible:ring-0 px-4 [&>svg]:hidden hover:bg-gray-50 hover:border-neutral-200 hover:scale-95 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] transition-all duration-300">
+                <SelectTrigger className="border border-transparent rounded-full focus:ring-0 focus-visible:ring-0 px-4 [&>svg]:hidden hover:bg-kenoo-white hover:border-neutral-200 hover:scale-95 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] transition-all duration-300">
                   <div className="flex items-center gap-2">
                     <span className="text-neutral-700">Stage:</span>
                     <SelectValue placeholder={loading.stages ? "Loading stages..." : ""} />
@@ -220,7 +220,7 @@ export function DealsFilter({
                 value={filters.owner === "" ? "me" : filters.owner}
                 onValueChange={(value) => onFilterChange("owner", value === "me" ? "" : value)}
               >
-                <SelectTrigger className="border border-transparent rounded-full focus:ring-0 focus-visible:ring-0 px-4 [&>svg]:hidden hover:bg-gray-50 hover:border-neutral-200 hover:scale-95 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] transition-all duration-300">
+                <SelectTrigger className="border border-transparent rounded-full focus:ring-0 focus-visible:ring-0 px-4 [&>svg]:hidden hover:bg-kenoo-white hover:border-neutral-200 hover:scale-95 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] transition-all duration-300">
                   <div className="flex items-center gap-2">
                     <span className="text-neutral-700">Deal Owner:</span>
                     <SelectValue placeholder={loading.owners ? "Loading..." : ""} />
@@ -247,7 +247,7 @@ export function DealsFilter({
                 value={filters.amountRange || "all"}
                 onValueChange={(value) => onFilterChange("amountRange", value === "all" ? "" : value)}
               >
-                <SelectTrigger className="border border-transparent rounded-full focus:ring-0 focus-visible:ring-0 px-4 [&>svg]:hidden hover:bg-gray-50 hover:border-neutral-200 hover:scale-95 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] transition-all duration-300">
+                <SelectTrigger className="border border-transparent rounded-full focus:ring-0 focus-visible:ring-0 px-4 [&>svg]:hidden hover:bg-kenoo-white hover:border-neutral-200 hover:scale-95 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] transition-all duration-300">
                   <div className="flex items-center gap-2">
                     <span className="text-neutral-700">Amount Range:</span>
                     <SelectValue />
@@ -274,7 +274,7 @@ export function DealsFilter({
               onFilterChange("searchTerm", "");
               onFilterChange("amountRange", "");
             }}
-            className="w-full h-[50px] rounded-full border border-transparent hover:bg-gray-50 hover:border-neutral-200 hover:scale-95 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] transition-all duration-300 cursor-pointer flex items-center justify-center gap-2 text-black font-medium"
+            className="w-full h-[50px] rounded-full border border-transparent hover:bg-kenoo-white hover:border-neutral-200 hover:scale-95 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] transition-all duration-300 cursor-pointer flex items-center justify-center gap-2 text-black font-medium"
           >
             <RotateCcw className="h-4 w-4" strokeWidth={1.5} />
             Reset Filters

@@ -143,7 +143,7 @@ export function EmailDetailsDropdown({ message, userId }: EmailDetailsDropdownPr
     <Popover>
       <PopoverTrigger asChild>
         <Button variant="ghost" size="sm" className="h-6 w-6 p-0 hover:bg-transparent shadow-none group">
-          <span className="flex items-center justify-center p-1 rounded-full transition-all duration-300 ease-in-out group-hover:bg-gray-50 group-hover:border group-hover:border-neutral-200 group-hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] group-hover:scale-95">
+          <span className="flex items-center justify-center p-1 rounded-full transition-all duration-300 ease-in-out group-hover:bg-kenoo-white group-hover:border group-hover:border-neutral-200 group-hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] group-hover:scale-95">
             <ChevronDown className="h-4 w-4 text-neutral-500" />
           </span>
         </Button>

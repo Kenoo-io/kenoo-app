@@ -46,7 +46,7 @@ export default function EditAgentCompanies({
         <p className="mt-1 text-xs text-neutral-400">ID: {companyId}</p>
         <div className="mt-6 flex flex-wrap gap-3">
           <a
-            href={`${crmOrigin}/agents/crm/companies`}
+            href={`${crmOrigin}/companies`}
             className="rounded-full bg-neutral-900 px-4 py-2 text-sm text-white"
           >
             Open CRM companies

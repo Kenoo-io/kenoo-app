@@ -18,6 +18,7 @@ import {
 } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import { getSupabaseClient } from "@/app/auth/supabaseClient";
+import { useActiveAccount } from "@/components/active-account-context";
 import { cn } from "@/lib/utils";
 import { FALLBACK_ICON_URL } from "@/lib/asset-urls";
 import { formatDealTypeLabel } from "@/components/ui/searches/deals-type-search";
@@ -262,6 +263,7 @@ export function DealsKanban({
   refreshTrigger,
   onDealClick,
 }: DealsKanbanProps) {
+  const { activeAccountId } = useActiveAccount();
   const [stages, setStages] = useState<DealStage[]>([]);
   const [deals, setDeals] = useState<Deal[]>([]);
   const [loading, setLoading] = useState(true);
@@ -273,6 +275,7 @@ export function DealsKanban({
   );
 
   const loadData = useCallback(async () => {
+    if (!activeAccountId) return;
     setLoading(true);
     try {
       const supabase = getSupabaseClient();
@@ -280,6 +283,7 @@ export function DealsKanban({
       const { data: stageRows, error: stagesError } = await supabase
         .from("deal_stages")
         .select("id, name, slug, is_won, is_lost, order_index, probability")
+        .eq("account_id", activeAccountId)
         .order("order_index", { ascending: true });
       if (stagesError) throw stagesError;
 
@@ -305,6 +309,7 @@ export function DealsKanban({
         sort,
         withCount: false,
         forKanban: true,
+        accountId: activeAccountId,
       });
       const { data: dealsDataRaw, error } = await query.limit(KANBAN_FETCH_LIMIT);
       if (error) throw error;
@@ -328,14 +333,16 @@ export function DealsKanban({
     } finally {
       setLoading(false);
     }
-  }, [filters, debouncedSearchTerm, currentUserId]);
+  }, [filters, debouncedSearchTerm, currentUserId, activeAccountId]);
 
   useEffect(() => {
+    if (!activeAccountId) return;
     const fetchKey = [
       filters.owner,
       filters.amountRange,
       debouncedSearchTerm,
       currentUserId,
+      activeAccountId,
       refreshTrigger,
     ].join("|");
     if (lastFetchKeyRef.current === fetchKey) return;
@@ -346,6 +353,7 @@ export function DealsKanban({
     filters.amountRange,
     debouncedSearchTerm,
     currentUserId,
+    activeAccountId,
     refreshTrigger,
     loadData,
   ]);

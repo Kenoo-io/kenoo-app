@@ -55,7 +55,7 @@ export const DealsTableToolbar = ({
               <div
                 className={cn(
                   "relative z-10 p-3 rounded-full transition-all duration-300 ease-in-out",
-                  "group-hover:bg-gray-50 group-hover:border group-hover:border-neutral-200 group-hover:scale-95",
+                  "group-hover:bg-kenoo-white group-hover:border group-hover:border-neutral-200 group-hover:scale-95",
                   hasActiveFilters()
                     ? [
                         "border-[rgba(110,173,192,0.45)] shadow-[0_0_0_1px_rgba(110,173,192,0.4),0_0_12px_rgba(110,173,192,0.4)]",
@@ -84,7 +84,7 @@ export const DealsTableToolbar = ({
               <div
                 className={cn(
                   "relative z-10 p-3 rounded-full transition-all duration-300 ease-in-out",
-                  "group-hover:bg-gray-50 group-hover:border group-hover:border-neutral-200 group-hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] group-hover:scale-95",
+                  "group-hover:bg-kenoo-white group-hover:border group-hover:border-neutral-200 group-hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] group-hover:scale-95",
                 )}
               >
                 <Plus className="h-[18px] w-[18px] stroke-[1.5] text-neutral-500" />

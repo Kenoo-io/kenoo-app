@@ -5,6 +5,8 @@ import { wallsToast } from "@/components/ui/walls-toast";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useAuth } from "@/app/auth/AuthContext";
 import { getSupabaseClient } from "@/app/auth/supabaseClient";
+import { useActiveAccount } from "@/components/active-account-context";
+import { crmAccountFields, withCrmAccount } from "@/lib/crm-account";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/toaster";
 import { HoldRevealDeleteCloseXButton } from "@/components/ui/hold-reveal-delete-close-x-button";
@@ -64,7 +66,7 @@ interface CreateAgentDealsProps {
 }
 
 /** Match edit/view deal panel surface and header icon controls. */
-const DEAL_VIEW_SHEET_PANEL_SURFACE = "bg-gray-50 border border-neutral-200/80";
+const DEAL_VIEW_SHEET_PANEL_SURFACE = "bg-kenoo-white border border-neutral-200/80";
 const dealSheetHeaderIconButtonClass =
   "w-10 h-10 p-0 text-slate-600 hover:bg-transparent active:bg-transparent focus-visible:bg-transparent flex items-center justify-center shadow-none relative group flex-shrink-0 disabled:opacity-50";
 const dealSheetHeaderIconInnerClass = cn(
@@ -256,6 +258,7 @@ const createDealTask = async (
 
 export default function CreateAgentDeals({ analyticsData, isOpen, onClose, onSuccess }: CreateAgentDealsProps) {
   const { user } = useAuth();
+  const { activeAccountId } = useActiveAccount();
   const [activeTab, setActiveTab] = useState<string>('basic');
   const [contractSignedOrder, setContractSignedOrder] = useState<number | null>(null);
   const [stages, setStages] = useState<Array<{ name: string; order: number }>>([]);
@@ -477,11 +480,14 @@ export default function CreateAgentDeals({ analyticsData, isOpen, onClose, onSuc
         const supabase = getSupabaseClient();
         // Fetch company data
         if (formData.company) {
-          const { data: companies } = await supabase
+          let companyQuery = supabase
             .from('companies')
             .select('id, name, website, logo_url')
-            .eq('name', formData.company)
-            .limit(1);
+            .eq('name', formData.company);
+          if (activeAccountId) {
+            companyQuery = withCrmAccount(companyQuery, activeAccountId);
+          }
+          const { data: companies } = await companyQuery.limit(1);
           
           if (companies && companies.length > 0) {
             setCompanyWebsite(companies[0].website || '');
@@ -513,17 +519,20 @@ export default function CreateAgentDeals({ analyticsData, isOpen, onClose, onSuc
     if (formData.company || formData.creator) {
       fetchCompanyAndCreatorData();
     }
-  }, [formData.company, formData.creator]);
+  }, [formData.company, formData.creator, activeAccountId]);
 
   // Fetch deal_stages for tab order and Contract Signed visibility
   useEffect(() => {
     const fetchStageData = async () => {
       try {
         const supabase = getSupabaseClient();
-        const { data: dealStages } = await supabase
+        let stagesQuery = supabase
           .from('deal_stages')
-          .select('id, name, slug, order_index')
-          .order('order_index', { ascending: true });
+          .select('id, name, slug, order_index');
+        if (activeAccountId) {
+          stagesQuery = withCrmAccount(stagesQuery, activeAccountId);
+        }
+        const { data: dealStages } = await stagesQuery.order('order_index', { ascending: true });
 
         if (dealStages?.length) {
           const stagesData = dealStages.map((s: any) => ({
@@ -541,7 +550,7 @@ export default function CreateAgentDeals({ analyticsData, isOpen, onClose, onSuc
     };
 
     fetchStageData();
-  }, []);
+  }, [activeAccountId]);
 
   // Fetch commission when deal owner changes
   useEffect(() => {
@@ -596,6 +605,11 @@ export default function CreateAgentDeals({ analyticsData, isOpen, onClose, onSuc
       return;
     }
 
+    if (!activeAccountId) {
+      wallsToast.error("Error", "No active account selected");
+      return;
+    }
+
     try {
       setIsSubmitting(true);
       const supabase = getSupabaseClient();
@@ -603,22 +617,26 @@ export default function CreateAgentDeals({ analyticsData, isOpen, onClose, onSuc
       // Get company ID
       let companyId = null;
       if (formData.company) {
-        const { data: company } = await supabase
-          .from('companies')
-          .select('id')
-          .eq('name', formData.company)
-          .single();
+        const { data: company } = await withCrmAccount(
+          supabase
+            .from('companies')
+            .select('id')
+            .eq('name', formData.company),
+          activeAccountId
+        ).single();
         companyId = company?.id;
       }
       
       // Get deal stage ID
       let dealStageId = null;
       if (formData.stage) {
-        const { data: stage } = await supabase
-          .from('deal_stages')
-          .select('id')
-          .eq('name', formData.stage)
-          .single();
+        const { data: stage } = await withCrmAccount(
+          supabase
+            .from('deal_stages')
+            .select('id')
+            .eq('name', formData.stage),
+          activeAccountId
+        ).single();
         dealStageId = stage?.id;
       }
       
@@ -632,6 +650,7 @@ export default function CreateAgentDeals({ analyticsData, isOpen, onClose, onSuc
           deal_stage_id: dealStageId,
           deal_owner: formData.dealOwner || user.id,
           vendor_company_id: formData.invoiceVendorCompanyId || null,
+          ...crmAccountFields(activeAccountId),
         })
         .select()
         .single();

@@ -2,7 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from '@supabase/supabase-js';
-import { Input } from "@/components/ui/borderless-input";
+import {
+  FloatingLabelField,
+  FloatingLabelValue,
+} from "@/components/ui/floating-label-input";
 import { SequenceSwitch } from "@/components/agentCRM/agentSequences/ui/sequence-switch";
 
 const supabase = createClient(
@@ -137,10 +140,6 @@ export default function Schedule({ sequenceId, formData, handleSelectChange }: S
     { key: 'sunday', label: 'Sunday' },
   ];
 
-  const fieldRowClass = "border-0 rounded-full bg-transparent hover:bg-gray-100 px-4 py-2 w-full";
-  const fieldLabelClass = "w-32 text-[11px] font-normal uppercase tracking-[0.16em] text-neutral-500";
-  const inputClass = "border-0 bg-transparent px-0 text-[15px] font-light text-neutral-900 placeholder:text-neutral-300 focus-visible:ring-0 focus:ring-0 flex-1";
-
   return (
     <div className="space-y-6">
       {/* Schedule Information Container */}
@@ -152,78 +151,18 @@ export default function Schedule({ sequenceId, formData, handleSelectChange }: S
         <div className="grid grid-cols-2 gap-4 items-start">
           {/* Left Column */}
           <div className="space-y-4">
-            <div className="min-h-[48px] flex items-center">
-              <div className={fieldRowClass}>
-                <div className="flex items-center">
-                  <span className={fieldLabelClass}>Name</span>
-                  <Input
-                    placeholder="Schedule Name"
-                    value={schedule.name || ""}
-                    readOnly
-                    className={inputClass}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="min-h-[48px] flex items-center">
-              <div className={fieldRowClass}>
-                <div className="flex items-center">
-                  <span className={fieldLabelClass}>Timezone</span>
-                  <Input
-                    placeholder="Timezone"
-                    value={schedule.timezone || "Recipient Timezone"}
-                    readOnly
-                    className={inputClass}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="min-h-[48px] flex items-center">
-              <div className={fieldRowClass}>
-                <div className="flex items-center">
-                  <span className={fieldLabelClass}>Start time</span>
-                  <Input
-                    placeholder="Start Time"
-                    value={formatTime(schedule.start_time)}
-                    readOnly
-                    className={inputClass}
-                  />
-                </div>
-              </div>
-            </div>
+            <FloatingLabelValue label="Name" value={schedule.name || ""} />
+            <FloatingLabelValue
+              label="Timezone"
+              value={schedule.timezone || "Recipient Timezone"}
+            />
+            <FloatingLabelValue label="Start time" value={formatTime(schedule.start_time)} />
           </div>
 
           {/* Right Column */}
           <div className="space-y-4">
-            <div className="min-h-[48px] flex items-center">
-              <div className={fieldRowClass}>
-                <div className="flex items-center">
-                  <span className={fieldLabelClass}>End time</span>
-                  <Input
-                    placeholder="End Time"
-                    value={formatTime(schedule.end_time)}
-                    readOnly
-                    className={inputClass}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="min-h-[48px] flex items-center">
-              <div className={fieldRowClass}>
-                <div className="flex items-center">
-                  <span className={fieldLabelClass}>Slug</span>
-                  <Input
-                    placeholder="Slug"
-                    value={schedule.slug || ""}
-                    readOnly
-                    className={inputClass}
-                  />
-                </div>
-              </div>
-            </div>
+            <FloatingLabelValue label="End time" value={formatTime(schedule.end_time)} />
+            <FloatingLabelValue label="Slug" value={schedule.slug || ""} />
           </div>
         </div>
       </div>
@@ -236,17 +175,14 @@ export default function Schedule({ sequenceId, formData, handleSelectChange }: S
         </div>
         <div className="grid grid-cols-2 gap-4">
           {days.map((day) => (
-            <div key={day.key} className="min-h-[48px] flex items-center">
-              <div className={fieldRowClass}>
-                <div className="flex items-center gap-2">
-                  <span className={fieldLabelClass}>{day.label}</span>
-                  <SequenceSwitch
-                    checked={schedule[day.key as keyof ScheduleData] as boolean}
-                    disabled
-                  />
-                </div>
+            <FloatingLabelField key={day.key} label={day.label} hasValue>
+              <div className="flex h-12 items-center">
+                <SequenceSwitch
+                  checked={schedule[day.key as keyof ScheduleData] as boolean}
+                  disabled
+                />
               </div>
-            </div>
+            </FloatingLabelField>
           ))}
         </div>
       </div>

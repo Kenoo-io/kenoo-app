@@ -26,11 +26,11 @@ export function ConfirmDeletePopup({
         className="absolute inset-0"
         onClick={onClose}
       />
-      <div className="animate-in fade-in-0 zoom-in-95 duration-300 bg-gradient-to-br from-gray-50 via-gray-50/95 to-gray-50/90 rounded-[50px] p-8 w-full max-w-2xl relative z-50 shadow-[0_8px_30px_rgb(0,0,0,0.12)]">
+      <div className="animate-in fade-in-0 zoom-in-95 duration-300 bg-gradient-to-br from-kenoo-white via-kenoo-white/95 to-kenoo-white/90 rounded-[50px] p-8 w-full max-w-2xl relative z-50 shadow-[0_8px_30px_rgb(0,0,0,0.12)]">
         <h2 className="text-4xl font-black text-gray-500 pl-16 mb-8">{title}</h2>
         <div className="grid grid-cols-2 gap-8">
           <Card 
-            className="cursor-pointer hover:bg-walls-gray transition-all duration-300 rounded-2xl border-2 border-transparent group bg-gray-50"
+            className="cursor-pointer hover:bg-walls-gray transition-all duration-300 rounded-2xl border-2 border-transparent group bg-kenoo-white"
             onClick={onClose}
           >
             <CardContent className="p-8 flex flex-col items-center justify-center gap-4">
@@ -44,7 +44,7 @@ export function ConfirmDeletePopup({
           </Card>
           
           <Card 
-            className="cursor-pointer hover:bg-walls-gray transition-all duration-300 rounded-2xl border-2 border-transparent group bg-gray-50"
+            className="cursor-pointer hover:bg-walls-gray transition-all duration-300 rounded-2xl border-2 border-transparent group bg-kenoo-white"
             onClick={onConfirm}
           >
             <CardContent className="p-8 flex flex-col items-center justify-center gap-4">

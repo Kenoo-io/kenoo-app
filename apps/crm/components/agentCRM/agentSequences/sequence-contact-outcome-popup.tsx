@@ -65,7 +65,7 @@ function resolveInitialSelectValue(outcomes: (string | null | undefined)[]): str
 const popupButtonOuterClass =
   "h-9 min-w-[4.75rem] w-auto p-0 text-slate-600 hover:bg-transparent flex items-center justify-center shadow-none relative group flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed";
 const popupButtonInnerClass =
-  "relative z-10 inline-flex min-w-[4rem] items-center justify-center rounded-full px-3.5 py-2 transition-all duration-300 ease-in-out group-hover:bg-gray-50 group-hover:border group-hover:border-neutral-200 group-hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] group-hover:scale-95";
+  "relative z-10 inline-flex min-w-[4rem] items-center justify-center rounded-full px-3.5 py-2 transition-all duration-300 ease-in-out group-hover:bg-kenoo-white group-hover:border group-hover:border-neutral-200 group-hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] group-hover:scale-95";
 
 const FIELD_TITLE_CLASS =
   "mb-1.5 block text-[11px] font-normal uppercase tracking-[0.16em] text-neutral-500";

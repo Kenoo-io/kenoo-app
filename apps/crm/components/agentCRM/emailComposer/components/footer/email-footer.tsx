@@ -109,7 +109,7 @@ export function EmailFooter({
               <Button
                 onClick={onSend}
                 disabled={sending || disabled}
-                className="bg-transparent text-neutral-500 border border-transparent hover:bg-gray-50 hover:text-neutral-500 hover:border-neutral-200 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] transition-all duration-300 ease-in-out px-6 font-normal font-[Arial] shadow-none"
+                className="bg-transparent text-neutral-500 border border-transparent hover:bg-kenoo-white hover:text-neutral-500 hover:border-neutral-200 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] transition-all duration-300 ease-in-out px-6 font-normal font-[Arial] shadow-none"
                 size="lg"
               >
                 {sending ? (

@@ -115,7 +115,7 @@ export function TalentSelector({ selectedTalentIds, onTalentChange, className }:
           {selectedTalent.map((t) => (
             <div
               key={t.id}
-              className="flex items-center justify-between p-3 border border-neutral-200 rounded-lg bg-white/50 hover:bg-gray-50 transition-colors"
+              className="flex items-center justify-between p-3 border border-neutral-200 rounded-lg bg-white/50 hover:bg-kenoo-white transition-colors"
             >
               <div className="flex items-center gap-2">
                 {t.avatar_url && (
@@ -152,7 +152,7 @@ export function TalentSelector({ selectedTalentIds, onTalentChange, className }:
         <PopoverTrigger asChild>
           <Button
             variant="outline"
-            className="w-full justify-between bg-transparent text-foreground border border-neutral-200 hover:bg-gray-50"
+            className="w-full justify-between bg-transparent text-foreground border border-neutral-200 hover:bg-kenoo-white"
           >
             <span className="font-normal">Add Talent...</span>
             <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />

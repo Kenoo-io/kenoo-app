@@ -400,7 +400,7 @@ export function LeadsSearchSidebar() {
               <div className="h-[1px] bg-gray-200/50 mx-2 mb-4" />
 
               <div className="space-y-2">
-                <Link href="/agents/crm/leads">
+                <Link href="/leads">
                   <Button
                     variant="ghost"
                     className={`

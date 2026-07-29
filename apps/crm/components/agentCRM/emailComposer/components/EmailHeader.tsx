@@ -47,7 +47,7 @@ export function EmailHeader({
     <div 
       className={cn(
         "flex items-center justify-between px-4 py-2 rounded-t-2xl",
-        "bg-gray-50",
+        "bg-kenoo-white",
         "border-b border-gray-200",
         isMinimized && onMinimize && "cursor-pointer hover:bg-gray-100 transition-colors"
       )}

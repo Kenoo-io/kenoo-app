@@ -474,7 +474,7 @@ export default function AgentPitches({ analyticsData }: AgentPitchesProps) {
           ) : (
             <div className="flex flex-col gap-4">
               {pitches.map((pitch) => (
-                <Link href={`/agents/crm/edit-pitches/${pitch.id}`} key={pitch.id} className="block">
+                <Link href={`/edit-pitches/${pitch.id}`} key={pitch.id} className="block">
                   <Card className="w-full bg-neutral-100 backdrop-blur-md shadow-inner border border-neutral-200/50 transition-all duration-300 group relative overflow-hidden hover:cursor-pointer hover:shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)]">
                     <CardContent className="p-4 relative z-10">
                       <div className="flex items-center justify-between">

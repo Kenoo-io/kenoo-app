@@ -4,6 +4,7 @@ import { getGmailClient } from '@/lib/gmail';
 import { createClient } from "@/lib/supabase/server";
 import { toUser } from "@/hooks/user";
 import { prepareEmailRequest, formatSenderName } from "@/utils/composition-formatting";
+import { getCrmDataScope, crmScopeFields } from "@/lib/crm-scope";
 
 // Function to generate the email signature
 const generateSignature = (userData: { 
@@ -173,6 +174,7 @@ const updateLastContactedFields = async (recipientEmails: string[]) => {
 
 export async function POST(req: Request) {
   try {
+    const scope = await getCrmDataScope();
     const supabase = await createClient();
     const { data: { user: supabaseUser }, error: authError } = await supabase.auth.getUser();
 
@@ -270,7 +272,8 @@ export async function POST(req: Request) {
         timestamp: new Date().toISOString(),
         company_website: extractCompanyWebsite(to),
         creators: selectedCreators,
-        sent_by: senderEmail
+        sent_by: senderEmail,
+        ...(scope ? crmScopeFields(scope) : {}),
       };
 
       const { error: pitchError } = await supabase

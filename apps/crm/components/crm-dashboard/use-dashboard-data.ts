@@ -13,6 +13,7 @@ import {
 
 import { useAuth } from "@/app/auth/AuthContext";
 import { getSupabaseClient } from "@/app/auth/supabaseClient";
+import { useActiveAccount } from "@/components/active-account-context";
 import {
   buildDealsQuery,
   mapRawDealsToDeals,
@@ -100,6 +101,7 @@ function toDealCard(deal: Awaited<ReturnType<typeof mapRawDealsToDeals>>[number]
 
 export function useCrmDashboardData() {
   const { user, isLoading: authLoading } = useAuth();
+  const { activeAccountId, loading: accountsLoading } = useActiveAccount();
   const [data, setData] = useState<CrmDashboardData>(EMPTY_DATA);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -107,6 +109,12 @@ export function useCrmDashboardData() {
   const fetchDashboard = useCallback(async () => {
     if (authLoading) return;
     if (!user) {
+      setLoading(false);
+      setData(EMPTY_DATA);
+      return;
+    }
+    if (accountsLoading) return;
+    if (!activeAccountId) {
       setLoading(false);
       setData(EMPTY_DATA);
       return;
@@ -132,6 +140,7 @@ export function useCrmDashboardData() {
           supabase
             .from("deal_stages")
             .select("id, name, slug, is_won, is_lost, order_index, probability")
+            .eq("account_id", activeAccountId)
             .order("order_index", { ascending: true }),
           buildDealsQuery(supabase, {
             filters: {
@@ -151,17 +160,20 @@ export function useCrmDashboardData() {
             },
             withCount: false,
             forKanban: true,
+            accountId: activeAccountId,
           }).limit(200),
           supabase
             .from("people")
             .select("id", { count: "exact", head: true })
             .eq("person_type", "contact")
+            .eq("account_id", activeAccountId)
             .gte("created_at", weekStart.toISOString())
             .lte("created_at", weekEnd.toISOString()),
           supabase
             .from("people")
             .select("id", { count: "exact", head: true })
             .eq("person_type", "contact")
+            .eq("account_id", activeAccountId)
             .gte("created_at", todayStart.toISOString())
             .lte("created_at", todayEnd.toISOString()),
           supabase
@@ -186,6 +198,7 @@ export function useCrmDashboardData() {
             `,
             )
             .eq("person_type", "contact")
+            .eq("account_id", activeAccountId)
             .order("last_contacted", { ascending: false, nullsFirst: false })
             .limit(1)
             .maybeSingle(),
@@ -393,6 +406,7 @@ export function useCrmDashboardData() {
           `,
           )
           .eq("person_type", "contact")
+          .eq("account_id", activeAccountId)
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle();
@@ -444,7 +458,7 @@ export function useCrmDashboardData() {
     } finally {
       setLoading(false);
     }
-  }, [authLoading, user]);
+  }, [authLoading, user, accountsLoading, activeAccountId]);
 
   useEffect(() => {
     void fetchDashboard();

@@ -12,7 +12,7 @@ export const kenooColors = {
   black: { DEFAULT: "#000000", hover: "#0a0b0d" },
   red: { DEFAULT: "#d82727", hover: "#b91f1f" },
   sky: { DEFAULT: "#6eadc0", hover: "#5a9ba8" },
-  orange: { DEFAULT: "#f08a5d", hover: "#e07a4d" },
+  orange: { DEFAULT: "#ff7130", hover: "#e86320" },
   emerald: { DEFAULT: "#8dcf76", hover: "#75b85f" },
   forest: { DEFAULT: "#2b5b00", hover: "#234a00" },
   white: { DEFAULT: "#FCFCFC", hover: "#FCFCFC" },

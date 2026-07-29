@@ -14,6 +14,8 @@ import { Checkbox } from "@/components/agentCRM/agentSequences/ui/checkbox";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/toaster";
 import { useAuth } from "@/app/auth/AuthContext";
+import { useActiveAccount } from "@/components/active-account-context";
+import { crmAccountFields } from "@/lib/crm-account";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -65,12 +67,13 @@ const ACTION_BUTTON_CLASS =
   "w-10 h-10 p-0 text-slate-600 hover:bg-transparent flex items-center justify-center shadow-none relative group flex-shrink-0";
 const ACTION_ICON_WRAP = cn(
   "relative z-10 p-3 rounded-full transition-all duration-300 ease-in-out",
-  "group-hover:bg-gray-50 group-hover:border group-hover:border-neutral-200 group-hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] group-hover:scale-95"
+  "group-hover:bg-kenoo-white group-hover:border group-hover:border-neutral-200 group-hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] group-hover:scale-95"
 );
 const ACTION_ICON_CLASS = "h-[18px] w-[18px] stroke-[1.5] text-neutral-500";
 
 export default function Tasks({ sequenceId }: TasksProps) {
   const { user } = useAuth();
+  const { activeAccountId } = useActiveAccount();
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [filteredTasks, setFilteredTasks] = useState<TaskItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -318,6 +321,11 @@ export default function Tasks({ sequenceId }: TasksProps) {
       return;
     }
 
+    if (!activeAccountId) {
+      wallsToast.error("Error", "No active account selected");
+      return;
+    }
+
     const taskIds = Array.from(selectedTasks);
     const selectedTasksData = tasks.filter(task => selectedTasks.has(task.id));
 
@@ -424,6 +432,7 @@ export default function Tasks({ sequenceId }: TasksProps) {
               channel: channel,
               message: null,
               sequence_people_id: task.sequence_people_id,
+              ...crmAccountFields(activeAccountId),
             };
 
             console.log("[Tasks] Creating new pitch with data:", pitchInsertData);
