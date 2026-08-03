@@ -61,7 +61,7 @@ import {
 const popupButtonOuterClass =
   "w-10 h-10 p-0 text-slate-600 hover:bg-transparent flex items-center justify-center shadow-none relative group flex-shrink-0 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50";
 const popupButtonInnerClass =
-  "relative z-10 p-3 rounded-full transition-all duration-300 ease-in-out group-hover:bg-kenoo-white group-hover:border group-hover:border-neutral-200 group-hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] group-hover:scale-95";
+  "relative z-10 p-3 rounded-full transition-all duration-300 ease-in-out group-hover:bg-neutral-100";
 const fieldLabelClass =
   "text-[11px] font-normal uppercase tracking-[0.16em] text-neutral-500";
 const fieldValueClass = "truncate text-[15px] font-light text-neutral-900";

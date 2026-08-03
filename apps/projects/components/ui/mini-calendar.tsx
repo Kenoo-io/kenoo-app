@@ -81,7 +81,7 @@ function MiniCalendar({
           day_button: cn(
             "h-8 w-8 p-0 font-light text-xs rounded-full",
             "transition-all duration-200 ease-in-out",
-            "hover:bg-neutral-100 hover:shadow-[inset_0_1px_3px_rgba(0,0,0,0.08)] hover:scale-95",
+            "hover:bg-neutral-100",
             "aria-selected:opacity-100 flex items-center justify-center cursor-pointer",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-300 focus-visible:ring-offset-1"
           ),
@@ -97,7 +97,7 @@ function MiniCalendar({
         }}
         components={{
           Chevron: ({ orientation }) => (
-            <div className="relative z-10 p-1.5 rounded-full transition-all duration-200 ease-in-out group-hover:bg-neutral-50 group-hover:shadow-[inset_0_2px_4px_rgba(0,0,0,0.08)] group-hover:scale-95 origin-center">
+            <div className="relative z-10 p-1.5 rounded-full transition-all duration-200 ease-in-out group-hover:bg-neutral-100 origin-center">
               {orientation === "left" ? (
                 <ChevronLeft className="h-2.5 w-2.5 text-neutral-500" />
               ) : (

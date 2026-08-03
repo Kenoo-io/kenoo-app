@@ -725,7 +725,7 @@ const TIMELINE_TOGGLE_ACTIVE =
   "border-neutral-200 bg-neutral-50 text-neutral-900 shadow-[inset_0_2px_4px_rgba(0,0,0,0.10)]";
 
 const TIMELINE_TOGGLE_INACTIVE =
-  "text-neutral-500 group-hover:scale-95 group-hover:border-neutral-200 group-hover:bg-neutral-50 group-hover:text-neutral-700 group-hover:shadow-[inset_0_2px_4px_rgba(0,0,0,0.10)]";
+  "text-neutral-500 group-hover:bg-neutral-100 group-hover:text-neutral-700";
 
 function TimelineSegmentToggle<T extends string>({
   value,
@@ -1129,7 +1129,7 @@ function AgentsProjectsTimelineContent({
                     className="flex cursor-pointer items-center justify-center border-none bg-transparent p-0 hover:bg-transparent group"
                     onClick={() => setRangeStart((d) => subWeeks(d, 4))}
                   >
-                    <div className="relative z-10 flex h-7 w-7 items-center justify-center rounded-full border border-transparent transition-all duration-300 ease-in-out group-hover:scale-95 group-hover:border-neutral-200 group-hover:bg-neutral-50 group-hover:shadow-[inset_0_2px_4px_rgba(0,0,0,0.10)]">
+                    <div className="relative z-10 flex h-7 w-7 items-center justify-center rounded-full border border-transparent transition-all duration-300 ease-in-out group-hover:bg-neutral-100">
                       <ChevronLeft className="h-4 w-4 text-neutral-500" />
                     </div>
                   </button>
@@ -1147,7 +1147,7 @@ function AgentsProjectsTimelineContent({
                       }, 50);
                     }}
                   >
-                    <div className="relative z-10 flex h-7 items-center gap-2 rounded-full border border-transparent px-3 text-xs font-medium uppercase tracking-wider text-neutral-500 transition-all duration-300 ease-in-out group-hover:scale-95 group-hover:border-neutral-200 group-hover:bg-neutral-50 group-hover:shadow-[inset_0_2px_4px_rgba(0,0,0,0.10)]">
+                    <div className="relative z-10 flex h-7 items-center gap-2 rounded-full border border-transparent px-3 text-xs font-medium uppercase tracking-wider text-neutral-500 transition-all duration-300 ease-in-out group-hover:bg-neutral-100">
                       <span
                         className="h-1.5 w-1.5 shrink-0 rounded-full bg-kenoo-yellow"
                         aria-hidden
@@ -1160,7 +1160,7 @@ function AgentsProjectsTimelineContent({
                     className="flex cursor-pointer items-center justify-center border-none bg-transparent p-0 hover:bg-transparent group"
                     onClick={() => setRangeStart((d) => addWeeks(d, 4))}
                   >
-                    <div className="relative z-10 flex h-7 w-7 items-center justify-center rounded-full border border-transparent transition-all duration-300 ease-in-out group-hover:scale-95 group-hover:border-neutral-200 group-hover:bg-neutral-50 group-hover:shadow-[inset_0_2px_4px_rgba(0,0,0,0.10)]">
+                    <div className="relative z-10 flex h-7 w-7 items-center justify-center rounded-full border border-transparent transition-all duration-300 ease-in-out group-hover:bg-neutral-100">
                       <ChevronRight className="h-4 w-4 text-neutral-500" />
                     </div>
                   </button>
