@@ -52,6 +52,11 @@
     scroll-behavior: smooth;
   }
 
+  /* Nested app scroller — inherited smooth scroll feels janky with trackpads */
+  [data-app-scroll-container] {
+    scroll-behavior: auto;
+  }
+
   body {
     font-family: var(--font-sans), Arial, Helvetica, sans-serif;
   }

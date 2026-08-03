@@ -21,16 +21,12 @@ function AppSidebarContent({ children, className }: AppSidebarLayoutProps) {
 
   return (
     <>
-      <AppSidebar headerVisible={headerVisible} />
-      {/* Soft white veil at the page edge — content scrolls under the floating rail */}
+      <AppSidebar />
+      {/* Soft white veil at the page edge — content scrolls under the floating rail.
+          Stays pinned below the header slot so it doesn't jump when the header hides. */}
       <div
         aria-hidden
-        className={cn(
-          "pointer-events-none fixed left-0 z-30 hidden md:block",
-          "w-20 bg-gradient-to-r from-kenoo-white via-kenoo-white/75 to-transparent",
-          "transition-[top,height] duration-300 ease-in-out",
-          headerVisible ? "top-16 h-[calc(100vh-4rem)]" : "top-0 h-screen",
-        )}
+        className="pointer-events-none fixed left-0 top-16 z-30 hidden h-[calc(100vh-4rem)] w-20 bg-gradient-to-r from-kenoo-white via-kenoo-white/75 to-transparent md:block"
       />
       <div
         className={cn(
