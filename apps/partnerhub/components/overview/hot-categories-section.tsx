@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Flame } from "lucide-react";
+import { ChevronRight, Flame } from "lucide-react";
 import { useAuth } from "@/app/auth/AuthContext";
 import { getSupabaseClient } from "@/app/auth/supabaseClient";
 import { cn } from "@/lib/utils";
@@ -119,9 +119,10 @@ export function HotCategoriesSection() {
         {!loading && (
           <Link
             href="/companies"
-            className="text-xs font-light uppercase tracking-wider text-neutral-400 transition-colors hover:text-neutral-900"
+            className="inline-flex items-center gap-0.5 text-xs font-light uppercase tracking-wider text-neutral-400 transition-colors hover:text-neutral-900"
           >
-            View all â†'
+            View all
+            <ChevronRight className="h-3 w-3" aria-hidden />
           </Link>
         )}
       </div>

@@ -2,9 +2,14 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { ChevronRight } from "lucide-react";
 import { useAuth } from "@/app/auth/AuthContext";
 import { getSupabaseClient } from "@/app/auth/supabaseClient";
 import { AVATAR_FALLBACK_URL, fallbackIconUrl } from "@/lib/asset-urls";
+import {
+  fetchYoutubeProfilePicMap,
+  resolveTalentAvatarUrl,
+} from "@/lib/talent-avatars";
 import { cn } from "@/lib/utils";
 
 interface RecentPartnership {
@@ -103,6 +108,7 @@ export function RecentPartnershipsSection() {
           `
           id,
           talent_name,
+          talent_profile_id,
           company_name,
           video_url,
           company:companies!partnerships_company_id_fkey(name, logo_url),
@@ -114,6 +120,15 @@ export function RecentPartnershipsSection() {
         .limit(DISPLAY_LIMIT);
 
       if (error) throw error;
+
+      const profileIds = (data || [])
+        .map((row: Record<string, unknown>) => row.talent_profile_id as string | null)
+        .filter((id): id is string => Boolean(id));
+
+      const youtubeProfilePicMap = await fetchYoutubeProfilePicMap(
+        supabase,
+        profileIds
+      );
 
       const parsed: RecentPartnership[] = (data || []).map((row: Record<string, unknown>) => {
         const company = row.company as { name?: string; logo_url?: string | null } | null;
@@ -127,7 +142,11 @@ export function RecentPartnershipsSection() {
         return {
           id: row.id as string,
           talentName: (row.talent_name as string) || "Creator",
-          talentAvatar: profile?.avatar_url || undefined,
+          talentAvatar: resolveTalentAvatarUrl(
+            profile?.avatar_url,
+            row.talent_profile_id as string | null,
+            youtubeProfilePicMap
+          ),
           companyName: company?.name || (row.company_name as string) || "Brand",
           companyLogo: company?.logo_url || undefined,
           partnershipUrl:
@@ -163,9 +182,10 @@ export function RecentPartnershipsSection() {
         {!loading && (
           <Link
             href="/deal-board"
-            className="text-xs font-light text-neutral-400 hover:text-neutral-900 transition-colors uppercase tracking-wider"
+            className="inline-flex items-center gap-0.5 text-xs font-light text-neutral-400 hover:text-neutral-900 transition-colors uppercase tracking-wider"
           >
-            View all â†'
+            View all
+            <ChevronRight className="h-3 w-3" aria-hidden />
           </Link>
         )}
       </div>
