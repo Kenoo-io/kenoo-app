@@ -60,7 +60,7 @@ export function CompanyFilter({
                 value={filters.industry || "all"}
                 onValueChange={(value) => onFilterChange("industry", value === "all" ? "" : value)}
               >
-                <SelectTrigger className="border border-transparent rounded-full focus:ring-0 focus-visible:ring-0 px-4 [&>svg]:hidden hover:bg-kenoo-white hover:border-neutral-200 hover:scale-95 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] transition-all duration-300">
+                <SelectTrigger className="border border-transparent rounded-full focus:ring-0 focus-visible:ring-0 px-4 [&>svg]:hidden bg-transparent hover:bg-neutral-100 transition-all duration-300 ease-in-out">
                   <div className="flex items-center gap-2">
                     <span className="text-neutral-700">Industry:</span>
                     <SelectValue />
@@ -84,7 +84,7 @@ export function CompanyFilter({
                 value={filters.status || "all"}
                 onValueChange={(value) => onFilterChange("status", value === "all" ? "" : value)}
               >
-                <SelectTrigger className="border border-transparent rounded-full focus:ring-0 focus-visible:ring-0 px-4 [&>svg]:hidden hover:bg-kenoo-white hover:border-neutral-200 hover:scale-95 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] transition-all duration-300">
+                <SelectTrigger className="border border-transparent rounded-full focus:ring-0 focus-visible:ring-0 px-4 [&>svg]:hidden bg-transparent hover:bg-neutral-100 transition-all duration-300 ease-in-out">
                   <div className="flex items-center gap-2">
                     <span className="text-neutral-700">Status:</span>
                     <SelectValue />
@@ -107,7 +107,7 @@ export function CompanyFilter({
                 value={filters.employeeCount || "all"}
                 onValueChange={(value) => onFilterChange("employeeCount", value === "all" ? "" : value)}
               >
-                <SelectTrigger className="border border-transparent rounded-full focus:ring-0 focus-visible:ring-0 px-4 [&>svg]:hidden hover:bg-kenoo-white hover:border-neutral-200 hover:scale-95 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] transition-all duration-300">
+                <SelectTrigger className="border border-transparent rounded-full focus:ring-0 focus-visible:ring-0 px-4 [&>svg]:hidden bg-transparent hover:bg-neutral-100 transition-all duration-300 ease-in-out">
                   <div className="flex items-center gap-2">
                     <span className="text-neutral-700">Employee Count:</span>
                     <SelectValue />
@@ -131,7 +131,7 @@ export function CompanyFilter({
                 value={filters.revenueRange || "all"}
                 onValueChange={(value) => onFilterChange("revenueRange", value === "all" ? "" : value)}
               >
-                <SelectTrigger className="border border-transparent rounded-full focus:ring-0 focus-visible:ring-0 px-4 [&>svg]:hidden hover:bg-kenoo-white hover:border-neutral-200 hover:scale-95 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] transition-all duration-300">
+                <SelectTrigger className="border border-transparent rounded-full focus:ring-0 focus-visible:ring-0 px-4 [&>svg]:hidden bg-transparent hover:bg-neutral-100 transition-all duration-300 ease-in-out">
                   <div className="flex items-center gap-2">
                     <span className="text-neutral-700">Revenue:</span>
                     <SelectValue />
@@ -154,7 +154,7 @@ export function CompanyFilter({
                 value={filters.country || "all"}
                 onValueChange={(value) => onFilterChange("country", value === "all" ? "" : value)}
               >
-                <SelectTrigger className="border border-transparent rounded-full focus:ring-0 focus-visible:ring-0 px-4 [&>svg]:hidden hover:bg-kenoo-white hover:border-neutral-200 hover:scale-95 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] transition-all duration-300">
+                <SelectTrigger className="border border-transparent rounded-full focus:ring-0 focus-visible:ring-0 px-4 [&>svg]:hidden bg-transparent hover:bg-neutral-100 transition-all duration-300 ease-in-out">
                   <div className="flex items-center gap-2">
                     <span className="text-neutral-700">Country:</span>
                     <SelectValue />
@@ -182,7 +182,7 @@ export function CompanyFilter({
               onFilterChange("revenueRange", "");
               onFilterChange("country", "");
             }}
-            className="w-full h-[50px] rounded-full border border-transparent hover:bg-kenoo-white hover:border-neutral-200 hover:scale-95 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] transition-all duration-300 cursor-pointer flex items-center justify-center gap-2 text-black font-medium"
+            className="w-full h-[50px] rounded-full border border-transparent bg-transparent hover:bg-neutral-100 transition-all duration-300 ease-in-out cursor-pointer flex items-center justify-center gap-2 text-black font-medium"
           >
             <RotateCcw className="h-4 w-4" strokeWidth={1.5} />
             Reset Filters
