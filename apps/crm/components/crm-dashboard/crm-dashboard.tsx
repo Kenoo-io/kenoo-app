@@ -41,20 +41,20 @@ import { cn } from "@/lib/utils";
 import type { CalendarEventMarker, DashboardDealCard, FeaturedContact } from "./types";
 import { useCrmDashboardData } from "./use-dashboard-data";
 
-/** Frosted glass surface — matches the CRM sidebar rail. */
+/** Soft elevated surface — opaque so scroll stays smooth (no backdrop-filter). */
 const GLASS_PANEL =
-  "rounded-[2rem] border border-white/60 bg-white/80 shadow-[0_10px_32px_rgba(15,23,42,0.08),0_2px_8px_rgba(15,23,42,0.04)] backdrop-blur-xl ring-1 ring-black/[0.03]";
+  "rounded-[2rem] border border-black/[0.04] bg-white shadow-[0_10px_32px_rgba(15,23,42,0.08),0_2px_8px_rgba(15,23,42,0.04)] ring-1 ring-black/[0.03]";
 
 const GLASS_INSET =
-  "rounded-2xl border border-white/50 bg-white/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] backdrop-blur-md ring-1 ring-black/[0.02]";
+  "rounded-2xl border border-black/[0.04] bg-neutral-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] ring-1 ring-black/[0.02]";
 
 const DEAL_CARD_STYLES = [
-  "bg-kenoo-blue/90 text-white backdrop-blur-md shadow-[0_8px_24px_rgba(15,23,42,0.12)] ring-1 ring-white/20",
-  "bg-kenoo-sky/90 text-white backdrop-blur-md shadow-[0_8px_24px_rgba(15,23,42,0.12)] ring-1 ring-white/20",
-  "bg-kenoo-black/90 text-white backdrop-blur-md shadow-[0_8px_24px_rgba(15,23,42,0.16)] ring-1 ring-white/15",
-  "bg-kenoo-yellow/90 text-kenoo-black backdrop-blur-md shadow-[0_8px_24px_rgba(15,23,42,0.1)] ring-1 ring-white/40",
-  "bg-white/70 text-neutral-900 backdrop-blur-md shadow-[0_8px_24px_rgba(15,23,42,0.06)] ring-1 ring-black/[0.04]",
-  "bg-neutral-100/80 text-neutral-900 backdrop-blur-md shadow-[0_8px_24px_rgba(15,23,42,0.06)] ring-1 ring-black/[0.04]",
+  "bg-kenoo-blue text-white shadow-[0_8px_24px_rgba(15,23,42,0.12)] ring-1 ring-white/20",
+  "bg-kenoo-sky text-white shadow-[0_8px_24px_rgba(15,23,42,0.12)] ring-1 ring-white/20",
+  "bg-kenoo-black text-white shadow-[0_8px_24px_rgba(15,23,42,0.16)] ring-1 ring-white/15",
+  "bg-kenoo-yellow text-kenoo-black shadow-[0_8px_24px_rgba(15,23,42,0.1)] ring-1 ring-black/[0.06]",
+  "bg-white text-neutral-900 shadow-[0_8px_24px_rgba(15,23,42,0.06)] ring-1 ring-black/[0.04]",
+  "bg-neutral-100 text-neutral-900 shadow-[0_8px_24px_rgba(15,23,42,0.06)] ring-1 ring-black/[0.04]",
 ] as const;
 
 const CAL_DOT_COLORS = [
@@ -161,7 +161,7 @@ function KpiBlock({
 }) {
   return (
     <div className="flex min-w-0 items-center gap-4">
-      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-white/70 bg-white/75 shadow-[0_6px_18px_rgba(15,23,42,0.08)] ring-1 ring-black/[0.03] backdrop-blur-md">
+      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-black/[0.04] bg-white shadow-[0_6px_18px_rgba(15,23,42,0.08)] ring-1 ring-black/[0.03]">
         <Icon className="h-[18px] w-[18px] text-neutral-500" strokeWidth={1.5} />
       </div>
       <div className="min-w-0">
@@ -207,8 +207,8 @@ function InteractionCard({
     <Link
       href={`/deals`}
       className={cn(
-        "group relative flex min-h-[118px] flex-col justify-between overflow-hidden rounded-[22px] p-4 transition duration-300",
-        "hover:scale-[1.015] hover:shadow-[0_12px_28px_rgba(15,23,42,0.14)]",
+        "group relative flex min-h-[118px] flex-col justify-between overflow-hidden rounded-[22px] p-4 transition-shadow duration-200",
+        "hover:shadow-[0_12px_28px_rgba(15,23,42,0.14)]",
         style,
       )}
     >
@@ -323,7 +323,7 @@ function TasksCalendar({
                 !inMonth && "opacity-30",
                 accent && inMonth && `${accent} text-white`,
                 !accent && isToday && "ring-1 ring-kenoo-sky/50",
-                !accent && "hover:bg-white/60 hover:backdrop-blur-sm",
+                !accent && "hover:bg-neutral-100/80",
               )}
               title={dayEvents.map((e) => e.label).join(", ") || undefined}
             >
@@ -395,14 +395,14 @@ function StageFunnel({
           <button
             type="button"
             title="More"
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-white/70 bg-white/70 text-neutral-400 shadow-[0_2px_8px_rgba(15,23,42,0.04)] backdrop-blur-sm transition hover:bg-white/90 hover:text-neutral-600"
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-black/[0.04] bg-white text-neutral-400 shadow-[0_2px_8px_rgba(15,23,42,0.04)] transition hover:bg-neutral-50 hover:text-neutral-600"
           >
             <MoreHorizontal className="h-3.5 w-3.5" strokeWidth={1.75} />
           </button>
           <Link
             href="/deals"
             title="Open deals"
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-white/70 bg-white/70 text-neutral-400 shadow-[0_2px_8px_rgba(15,23,42,0.04)] backdrop-blur-sm transition hover:bg-white/90 hover:text-neutral-600"
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-black/[0.04] bg-white text-neutral-400 shadow-[0_2px_8px_rgba(15,23,42,0.04)] transition hover:bg-neutral-50 hover:text-neutral-600"
           >
             <ArrowUpRight className="h-3.5 w-3.5" strokeWidth={1.75} />
           </Link>
@@ -416,14 +416,14 @@ function StageFunnel({
           </p>
           <p className="mt-0.5 text-xs text-neutral-400">Total in Pipeline</p>
         </div>
-        <div className="flex shrink-0 rounded-full border border-white/60 bg-white/50 p-1 text-[11px] font-medium shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] backdrop-blur-sm ring-1 ring-black/[0.02]">
+        <div className="flex shrink-0 rounded-full border border-black/[0.04] bg-neutral-50 p-1 text-[11px] font-medium shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] ring-1 ring-black/[0.02]">
           <button
             type="button"
             onClick={() => setMode("weighted")}
             className={cn(
               "rounded-full px-3 py-1.5 transition",
               mode === "weighted"
-                ? "bg-white/90 text-neutral-800 shadow-[0_2px_8px_rgba(15,23,42,0.08)]"
+                ? "bg-white text-neutral-800 shadow-[0_2px_8px_rgba(15,23,42,0.08)]"
                 : "text-neutral-400 hover:text-neutral-600",
             )}
           >
@@ -435,7 +435,7 @@ function StageFunnel({
             className={cn(
               "rounded-full px-3 py-1.5 transition",
               mode === "total"
-                ? "bg-white/90 text-neutral-800 shadow-[0_2px_8px_rgba(15,23,42,0.08)]"
+                ? "bg-white text-neutral-800 shadow-[0_2px_8px_rgba(15,23,42,0.08)]"
                 : "text-neutral-400 hover:text-neutral-600",
             )}
           >
@@ -472,10 +472,10 @@ function StageFunnel({
                 <div
                   className={cn(
                     "group flex w-full items-center justify-between gap-3 rounded-full",
-                    "border border-white/60 bg-white/65 px-5 py-3.5 backdrop-blur-md",
+                    "border border-black/[0.04] bg-white px-5 py-3.5",
                     "shadow-[0_6px_18px_rgba(15,23,42,0.06)]",
                     "ring-1 ring-black/[0.03]",
-                    "transition hover:bg-white/85 hover:shadow-[0_8px_22px_rgba(15,23,42,0.1)]",
+                    "transition-shadow hover:shadow-[0_8px_22px_rgba(15,23,42,0.1)]",
                   )}
                 >
                   <div className="min-w-0">
@@ -492,7 +492,7 @@ function StageFunnel({
                   <Link
                     href="/deals"
                     title={`View ${row.name} deals`}
-                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/70 bg-white/80 text-neutral-400 opacity-70 shadow-[0_2px_6px_rgba(15,23,42,0.04)] backdrop-blur-sm transition group-hover:opacity-100 hover:bg-white hover:text-neutral-600"
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-black/[0.04] bg-neutral-50 text-neutral-400 opacity-70 shadow-[0_2px_6px_rgba(15,23,42,0.04)] transition group-hover:opacity-100 hover:bg-white hover:text-neutral-600"
                   >
                     <Scan className="h-3 w-3" strokeWidth={1.75} />
                   </Link>
@@ -558,11 +558,11 @@ function ContactPanel({ contact }: { contact: FeaturedContact | null }) {
   return (
     <div className="flex h-full flex-col gap-4">
       <div className={cn("p-6 text-center", GLASS_PANEL)}>
-        <Avatar className="mx-auto h-24 w-24 border-4 border-white/80 shadow-[0_8px_24px_rgba(15,23,42,0.12)] ring-1 ring-black/[0.04]">
+        <Avatar className="mx-auto h-24 w-24 border-4 border-white shadow-[0_8px_24px_rgba(15,23,42,0.12)] ring-1 ring-black/[0.04]">
           {contact.photoUrl ? (
             <AvatarImage src={contact.photoUrl} alt={fullName} optimizeWidth={96} />
           ) : null}
-          <AvatarFallback className="bg-white/80 text-xl font-semibold text-neutral-500 backdrop-blur-sm">
+          <AvatarFallback className="bg-neutral-100 text-xl font-semibold text-neutral-500">
             {initials(fullName) || "?"}
           </AvatarFallback>
         </Avatar>
@@ -606,7 +606,7 @@ function ContactPanel({ contact }: { contact: FeaturedContact | null }) {
                   key={a.label}
                   href={a.href}
                   title={a.label}
-                  className="flex h-9 w-9 items-center justify-center rounded-full border border-white/70 bg-white/70 text-neutral-500 shadow-[0_2px_8px_rgba(15,23,42,0.04)] backdrop-blur-sm transition hover:bg-white hover:text-neutral-800"
+                  className="flex h-9 w-9 items-center justify-center rounded-full border border-black/[0.04] bg-neutral-50 text-neutral-500 shadow-[0_2px_8px_rgba(15,23,42,0.04)] transition hover:bg-white hover:text-neutral-800"
                 >
                   <Icon className="h-3.5 w-3.5" strokeWidth={1.5} />
                 </Link>
@@ -615,7 +615,7 @@ function ContactPanel({ contact }: { contact: FeaturedContact | null }) {
           <button
             type="button"
             title="More"
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-white/70 bg-white/70 text-neutral-500 shadow-[0_2px_8px_rgba(15,23,42,0.04)] backdrop-blur-sm transition hover:bg-white"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-black/[0.04] bg-neutral-50 text-neutral-500 shadow-[0_2px_8px_rgba(15,23,42,0.04)] transition hover:bg-white"
           >
             <MoreHorizontal className="h-3.5 w-3.5" strokeWidth={1.5} />
           </button>
@@ -637,7 +637,7 @@ function ContactPanel({ contact }: { contact: FeaturedContact | null }) {
               </div>
               <Link
                 href={`/people`}
-                className="shrink-0 rounded-full p-1.5 text-neutral-300 transition hover:bg-white/70 hover:text-neutral-500"
+                className="shrink-0 rounded-full p-1.5 text-neutral-300 transition hover:bg-neutral-50 hover:text-neutral-500"
               >
                 <Pencil className="h-3 w-3" strokeWidth={1.5} />
               </Link>
@@ -659,7 +659,7 @@ function ContactPanel({ contact }: { contact: FeaturedContact | null }) {
                       target="_blank"
                       rel="noreferrer"
                       title={s.label}
-                      className="flex h-8 w-8 items-center justify-center rounded-full border border-white/70 bg-white/70 text-neutral-500 shadow-[0_2px_8px_rgba(15,23,42,0.04)] backdrop-blur-sm transition hover:bg-white hover:text-neutral-800"
+                      className="flex h-8 w-8 items-center justify-center rounded-full border border-black/[0.04] bg-neutral-50 text-neutral-500 shadow-[0_2px_8px_rgba(15,23,42,0.04)] transition hover:bg-white hover:text-neutral-800"
                     >
                       {Icon ? (
                         <Icon className="h-3.5 w-3.5" strokeWidth={1.5} />
@@ -670,7 +670,7 @@ function ContactPanel({ contact }: { contact: FeaturedContact | null }) {
                   );
                 })
               ) : contact.source ? (
-                <span className="rounded-full border border-white/60 bg-white/60 px-2.5 py-1 text-[11px] text-neutral-600 backdrop-blur-sm">
+                <span className="rounded-full border border-black/[0.04] bg-neutral-50 px-2.5 py-1 text-[11px] text-neutral-600">
                   {contact.source}
                 </span>
               ) : (
@@ -759,7 +759,7 @@ export function CrmDashboard() {
           badge={
             kpis.tasksToday > 0 ? `+${kpis.tasksToday} today` : undefined
           }
-          badgeClassName="bg-white/80 text-neutral-600 ring-1 ring-black/[0.04] backdrop-blur-sm"
+          badgeClassName="bg-white text-neutral-600 ring-1 ring-black/[0.04]"
         />
       </div>
 

@@ -181,9 +181,9 @@ function renderMarkdownPreview(
   );
 }
 
-/* ─── Plus icon button — inset press on hover, no border ring ─ */
+/* ─── Plus icon button — flat neutral hover, no border ring ─ */
 const KANBAN_PLUS_HOVER =
-  "relative z-10 flex items-center justify-center rounded-full border-0 transition-all duration-300 ease-in-out group-hover:scale-95 group-hover:bg-kenoo-white group-hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)]";
+  "relative z-10 flex items-center justify-center rounded-full border-0 transition-all duration-300 ease-in-out group-hover:bg-neutral-100";
 
 function KanbanPlusButton({
   onClick,
@@ -1242,8 +1242,7 @@ function AgentsProjectsKanbanContent({
                   className={cn(
                     "relative z-10 p-2.5 rounded-full border-0",
                     "transition-all duration-300 ease-in-out",
-                    "group-hover:scale-95 group-hover:bg-neutral-50",
-                    "group-hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)]"
+                    "group-hover:bg-neutral-100"
                   )}
                 >
                   <RefreshCw

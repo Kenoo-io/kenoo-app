@@ -2,10 +2,14 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Flame } from "lucide-react";
+import { ChevronRight, Flame } from "lucide-react";
 import { useAuth } from "@/app/auth/AuthContext";
 import { getSupabaseClient } from "@/app/auth/supabaseClient";
 import { AVATAR_FALLBACK_URL } from "@/lib/asset-urls";
+import {
+  fetchYoutubeProfilePicMap,
+  resolveTalentAvatarUrl,
+} from "@/lib/talent-avatars";
 import { cn } from "@/lib/utils";
 import { cardSurfaceClass } from "@/components/companies/shared";
 
@@ -102,6 +106,15 @@ export function HotTalentSection() {
 
       if (error) throw error;
 
+      const profileIds = (data || [])
+        .map((row: Record<string, unknown>) => row.talent_profile_id as string | null)
+        .filter((id): id is string => Boolean(id));
+
+      const youtubeProfilePicMap = await fetchYoutubeProfilePicMap(
+        supabase,
+        profileIds
+      );
+
       const aggregated = new Map<string, HotTalent>();
 
       (data || []).forEach((row: Record<string, unknown>) => {
@@ -124,7 +137,11 @@ export function HotTalentSection() {
         aggregated.set(key, {
           id: key,
           name,
-          avatarUrl: profile?.avatar_url || undefined,
+          avatarUrl: resolveTalentAvatarUrl(
+            profile?.avatar_url,
+            profileId,
+            youtubeProfilePicMap
+          ),
           category: profile?.profile_categories?.name || undefined,
           dealCount: 1,
         });
@@ -163,9 +180,10 @@ export function HotTalentSection() {
         {!loading && (
           <Link
             href="/deal-board"
-            className="text-xs font-light uppercase tracking-wider text-neutral-400 transition-colors hover:text-neutral-900"
+            className="inline-flex items-center gap-0.5 text-xs font-light uppercase tracking-wider text-neutral-400 transition-colors hover:text-neutral-900"
           >
-            View all â†'
+            View all
+            <ChevronRight className="h-3 w-3" aria-hidden />
           </Link>
         )}
       </div>
