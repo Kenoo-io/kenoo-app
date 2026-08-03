@@ -184,7 +184,7 @@ export function TalentFilterSelect({ selectedTalentIds, onTalentChange }: Talent
       }}
       onValueChange={() => {}}
     >
-      <SelectTrigger className="border border-transparent rounded-full focus:ring-0 focus-visible:ring-0 px-4 [&>svg]:hidden hover:bg-kenoo-white hover:border-neutral-200 hover:scale-95 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] transition-all duration-300">
+      <SelectTrigger className="border border-transparent rounded-full focus:ring-0 focus-visible:ring-0 px-4 [&>svg]:hidden bg-transparent hover:bg-neutral-100 transition-all duration-300 ease-in-out">
         <div className="flex items-center gap-2 w-full">
           <span className="text-neutral-700">Talent:</span>
           <div className="flex-1 flex items-center gap-1 min-w-0">
