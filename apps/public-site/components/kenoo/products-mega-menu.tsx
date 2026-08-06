@@ -64,10 +64,10 @@ export function ProductsMegaMenu({
               <div className="flex items-end justify-between gap-6">
                 <div>
                   <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-kenoo-muted">
-                    Apps
+                    Featured apps
                   </p>
                   <h3 className="mt-2 font-display text-xl font-semibold tracking-[-0.03em] text-kenoo-ink">
-                    Everything in Kenoo
+                    AdPilot, CRM, and Health
                   </h3>
                 </div>
                 <Link
@@ -75,14 +75,14 @@ export function ProductsMegaMenu({
                   onClick={onClose}
                   className="hidden shrink-0 items-center gap-1 text-sm text-kenoo-accent transition-colors hover:text-kenoo-accent-hover sm:inline-flex"
                 >
-                  Explore product
+                  All products
                   <ArrowUpRight className="size-3.5" />
                 </Link>
               </div>
 
               {loading && apps.length === 0 ? (
-                <div className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-                  {Array.from({ length: 8 }).map((_, index) => (
+                <div className="mt-6 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                  {Array.from({ length: 3 }).map((_, index) => (
                     <div
                       key={index}
                       className="h-[5.5rem] animate-pulse rounded-2xl bg-kenoo-subtle/80"
@@ -90,13 +90,13 @@ export function ProductsMegaMenu({
                   ))}
                 </div>
               ) : (
-                <ul className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+                <ul className="mt-6 grid grid-cols-1 gap-2 sm:grid-cols-3">
                   {apps.map((app) => (
                     <li key={app.id}>
-                      <a
+                      <Link
                         href={app.href}
                         onClick={onClose}
-                        className="group flex h-full items-start gap-3 rounded-2xl border border-transparent px-3 py-3 transition-colors hover:border-kenoo-border hover:bg-kenoo-white"
+                        className="group flex h-full items-start gap-3 rounded-2xl px-3 py-3 transition-colors hover:bg-kenoo-subtle"
                       >
                         <AppIcon app={app} />
                         <span className="min-w-0 pt-0.5">
@@ -109,27 +109,11 @@ export function ProductsMegaMenu({
                             </span>
                           ) : null}
                         </span>
-                      </a>
+                      </Link>
                     </li>
                   ))}
                 </ul>
               )}
-            </div>
-
-            <div className="border-t border-kenoo-border">
-              <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 py-3.5 lg:px-8">
-                <p className="text-xs text-kenoo-muted">
-                  One Business OS across every app.
-                </p>
-                <Link
-                  href="/product"
-                  onClick={onClose}
-                  className="inline-flex items-center gap-1 text-sm font-medium text-kenoo-ink transition-colors hover:text-kenoo-accent"
-                >
-                  Explore all products
-                  <ArrowUpRight className="size-3.5" />
-                </Link>
-              </div>
             </div>
           </div>
         </motion.div>
@@ -148,7 +132,7 @@ export function MobileProductsList({
   if (loading && apps.length === 0) {
     return (
       <div className="mb-2 ml-2 space-y-1 border-l border-kenoo-border pl-3">
-        {Array.from({ length: 4 }).map((_, index) => (
+        {Array.from({ length: 3 }).map((_, index) => (
           <div
             key={index}
             className="h-10 animate-pulse rounded-xl bg-kenoo-subtle/80"
@@ -167,7 +151,7 @@ export function MobileProductsList({
         All products
       </Link>
       {apps.map((app) => (
-        <a
+        <Link
           key={app.id}
           href={app.href}
           className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-kenoo-ink"
@@ -182,7 +166,7 @@ export function MobileProductsList({
             />
           </div>
           {app.name}
-        </a>
+        </Link>
       ))}
     </div>
   );

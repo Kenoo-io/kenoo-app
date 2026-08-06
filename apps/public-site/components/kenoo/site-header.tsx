@@ -14,10 +14,12 @@ import {
   ProductsMegaMenu,
 } from "@/components/kenoo/products-mega-menu";
 import {
+  featuredAppsFallback,
   mapAppsRows,
   PUBLIC_APPS_SELECT,
   type PublicApp,
 } from "@/lib/apps";
+import { FEATURED_PRODUCT_SLUGS } from "@/lib/featured-products";
 import { KENOO_PORTAL_URL } from "@/lib/urls";
 import { cn } from "@/lib/utils";
 
@@ -36,7 +38,7 @@ export function SiteHeader() {
   const [mobileProductsOpen, setMobileProductsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [hidden, setHidden] = useState(false);
-  const [apps, setApps] = useState<PublicApp[]>([]);
+  const [apps, setApps] = useState<PublicApp[]>(() => featuredAppsFallback());
   const [appsLoading, setAppsLoading] = useState(true);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -68,12 +70,12 @@ export function SiteHeader() {
           .from("apps")
           .select(PUBLIC_APPS_SELECT)
           .eq("is_active", true)
-          .order("name", { ascending: true });
+          .in("slug", [...FEATURED_PRODUCT_SLUGS]);
 
         if (cancelled) return;
         if (error) {
           console.error("[public-site] Failed to load apps:", error.message);
-          setApps([]);
+          setApps(featuredAppsFallback());
           return;
         }
 
@@ -81,7 +83,7 @@ export function SiteHeader() {
       } catch (error) {
         if (!cancelled) {
           console.error("[public-site] Failed to load apps:", error);
-          setApps([]);
+          setApps(featuredAppsFallback());
         }
       } finally {
         if (!cancelled) setAppsLoading(false);
@@ -142,7 +144,10 @@ export function SiteHeader() {
   useEffect(() => () => clearCloseTimer(), []);
 
   const isHidden = hidden && !open;
-  const productsActive = pathname === "/product" || productsOpen;
+  const productsActive =
+    pathname === "/product" ||
+    pathname.startsWith("/product/") ||
+    productsOpen;
 
   return (
     <motion.header

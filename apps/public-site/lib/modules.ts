@@ -12,7 +12,7 @@ export const KENOO_MODULES: KenooModule[] = [
     name: "Business",
     headline: "Relationships, delivery, and growth",
     description:
-      "CRM, projects, calendar, advertising, and AI assist, so pipeline, delivery, and outreach stay in one rhythm.",
+      "CRM for pipeline and outreach, plus AdPilot for Meta Ads and Google Ads, so relationships and paid media stay in one rhythm with the rest of Kenoo.",
   },
   {
     id: "finance",
@@ -26,6 +26,6 @@ export const KENOO_MODULES: KenooModule[] = [
     name: "Health",
     headline: "Energy for the long run",
     description:
-      "Meals, activities, and goals. Optional wellness tracking that stays in its own lane.",
+      "Kenoo Health for meals, activities, and goals. Optional wellness tracking that stays in its own lane.",
   },
 ];

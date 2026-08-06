@@ -276,7 +276,7 @@ export function SuiteShowcase() {
         <div className="flex flex-col gap-8 md:flex-row md:items-start md:justify-between md:gap-16">
           <div className="max-w-md">
             <h2 className="font-display text-3xl font-semibold tracking-[-0.04em] text-kenoo-ink md:text-4xl">
-              Life OS.
+              Business OS.
               <br />
               Smart, made simple.
             </h2>

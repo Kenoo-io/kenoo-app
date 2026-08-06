@@ -1,3 +1,4 @@
+import { FeaturedApps } from "@/components/kenoo/featured-apps";
 import { FinalCta } from "@/components/kenoo/final-cta";
 import { Philosophy } from "@/components/kenoo/philosophy";
 import { Reliability } from "@/components/kenoo/reliability";
@@ -8,6 +9,7 @@ export default function HomePage() {
   return (
     <SiteShell>
       <SuiteShowcase />
+      <FeaturedApps />
       <Philosophy />
       <Reliability />
       <FinalCta />
