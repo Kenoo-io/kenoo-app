@@ -1,13 +1,15 @@
 import { KenooWordmark } from "@walls/ui/kenoo-wordmark";
 import Link from "next/link";
 
+import { FEATURED_PRODUCTS } from "@/lib/featured-products";
 import { KENOO_PORTAL_URL } from "@/lib/urls";
 
 const footerLinks = [
   { href: "/product", label: "Products" },
-  { href: "/solutions", label: "Solutions" },
-  { href: "/resources", label: "Resources" },
+  { href: "/about", label: "About" },
+  { href: "/contact", label: "Contact" },
   { href: "/enterprise", label: "Enterprise" },
+  { href: "/pricing", label: "Pricing" },
 ];
 
 export function SiteFooter() {
@@ -19,8 +21,8 @@ export function SiteFooter() {
             <KenooWordmark className="h-6 md:h-7" />
           </Link>
           <p className="mt-3 text-sm leading-relaxed text-kenoo-muted">
-            A modern business OS for business, finance, health, and the angles
-            that come next.
+            A modern business OS with polished apps for advertising, CRM, and
+            health, plus the suite angles that come next.
           </p>
           <a
             href="mailto:hello@kenoo.io"
@@ -30,22 +32,46 @@ export function SiteFooter() {
           </a>
         </div>
 
-        <div className="flex flex-wrap gap-x-8 gap-y-3 text-sm">
-          {footerLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="text-kenoo-muted transition-colors hover:text-kenoo-ink"
-            >
-              {link.label}
-            </Link>
-          ))}
-          <a
-            href={KENOO_PORTAL_URL}
-            className="text-kenoo-muted transition-colors hover:text-kenoo-ink"
-          >
-            Sign in
-          </a>
+        <div className="flex flex-col gap-8 sm:flex-row sm:gap-12">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-[0.12em] text-kenoo-muted">
+              Apps
+            </p>
+            <div className="mt-3 flex flex-col gap-2.5 text-sm">
+              {FEATURED_PRODUCTS.map((product) => (
+                <Link
+                  key={product.slug}
+                  href={`/product/${product.slug}`}
+                  className="text-kenoo-muted transition-colors hover:text-kenoo-ink"
+                >
+                  {product.name}
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <p className="text-xs font-medium uppercase tracking-[0.12em] text-kenoo-muted">
+              Company
+            </p>
+            <div className="mt-3 flex flex-col gap-2.5 text-sm">
+              {footerLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="text-kenoo-muted transition-colors hover:text-kenoo-ink"
+                >
+                  {link.label}
+                </Link>
+              ))}
+              <a
+                href={KENOO_PORTAL_URL}
+                className="text-kenoo-muted transition-colors hover:text-kenoo-ink"
+              >
+                Sign in
+              </a>
+            </div>
+          </div>
         </div>
       </div>
 

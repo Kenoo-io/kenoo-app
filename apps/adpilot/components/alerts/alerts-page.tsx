@@ -18,6 +18,11 @@ import type {
   AdpilotAlertType,
   MemberAlertSubscription,
 } from "@/lib/alert-subscriptions-server";
+import {
+  KENOO_PRIVACY_URL,
+  KENOO_SMS_DISCLOSURE,
+  KENOO_TERMS_URL,
+} from "@walls/utils";
 
 type ChannelState = {
   notifyEmail: boolean;
@@ -49,6 +54,7 @@ function MemberChannelSelect({
 }) {
   const [open, setOpen] = React.useState(false);
   const hasPhone = Boolean(member.phoneNumber?.trim());
+  const canUseSms = member.hasSmsConsent;
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
@@ -64,7 +70,7 @@ function MemberChannelSelect({
           )}
         >
           <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
-            {saving ? "Saving…" : channelLabel(state, hasPhone)}
+            {saving ? "Saving…" : channelLabel(state, canUseSms)}
           </span>
           <ChevronDown
             className={cn(
@@ -78,7 +84,7 @@ function MemberChannelSelect({
       <DropdownMenuContent
         align="end"
         sideOffset={6}
-        className="z-50 w-48 rounded-2xl border-0 bg-kenoo-white p-2 shadow-xl"
+        className="z-50 w-56 rounded-2xl border-0 bg-kenoo-white p-2 shadow-xl"
       >
         <p className="px-2 pb-1 pt-1 text-xs font-medium text-neutral-500">
           Notify via
@@ -108,16 +114,16 @@ function MemberChannelSelect({
           </div>
         </DropdownMenuItem>
         <DropdownMenuItem
-          disabled={!hasPhone}
+          disabled={!canUseSms}
           onSelect={(event) => {
             event.preventDefault();
-            if (!hasPhone) return;
+            if (!canUseSms) return;
             onChange({ notifySms: !state.notifySms });
           }}
           className={cn(
             "cursor-pointer rounded-xl px-3 py-2 focus:bg-transparent",
-            !hasPhone && "cursor-not-allowed opacity-50",
-            state.notifySms && hasPhone ? "bg-neutral-100" : "hover:bg-neutral-50",
+            !canUseSms && "cursor-not-allowed opacity-50",
+            state.notifySms && canUseSms ? "bg-neutral-100" : "hover:bg-neutral-50",
           )}
         >
           <div className="flex w-full items-center gap-2">
@@ -125,7 +131,7 @@ function MemberChannelSelect({
               <span
                 className={cn(
                   "block text-sm text-foreground",
-                  state.notifySms && hasPhone ? "font-semibold" : "font-medium",
+                  state.notifySms && canUseSms ? "font-semibold" : "font-medium",
                 )}
               >
                 Text
@@ -134,9 +140,13 @@ function MemberChannelSelect({
                 <span className="mt-0.5 block text-xs text-neutral-400">
                   No phone on file
                 </span>
+              ) : !canUseSms ? (
+                <span className="mt-0.5 block text-xs text-neutral-400">
+                  Not opted in to SMS
+                </span>
               ) : null}
             </span>
-            {state.notifySms && hasPhone ? (
+            {state.notifySms && canUseSms ? (
               <Check className="h-4 w-4 shrink-0 text-[var(--kenoo-sky)]" strokeWidth={2.75} />
             ) : null}
           </div>
@@ -186,9 +196,11 @@ export function AlertsPage() {
 
       for (const sub of payload.subscriptions ?? []) {
         if (!sub.enabled) continue;
+        const member = nextMembers.find((row) => row.userId === sub.userId);
         nextChannels[subscriptionKey(sub.userId, sub.alertKey)] = {
           notifyEmail: sub.notifyEmail,
-          notifySms: sub.notifySms,
+          // Never show Text as on unless the member still has active SMS consent.
+          notifySms: Boolean(sub.notifySms && member?.hasSmsConsent),
         };
       }
 
@@ -267,7 +279,42 @@ export function AlertsPage() {
             </h1>
             <p className="mt-2 max-w-xl text-sm font-light leading-6 text-neutral-500">
               Choose which organization members receive AdPilot alerts by email or
-              text when automation events fire.
+              text when automation events fire. Text requires each member to opt
+              in to SMS in{" "}
+              <a
+                href={
+                  process.env.NEXT_PUBLIC_SETTINGS_URL
+                    ? `${process.env.NEXT_PUBLIC_SETTINGS_URL.replace(/\/$/, "")}/`
+                    : "https://settings.kenoo.io/"
+                }
+                className="underline underline-offset-2 hover:text-neutral-800"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Kenoo Settings
+              </a>
+              .
+            </p>
+            <p className="mt-3 max-w-xl text-xs font-light leading-5 text-neutral-500">
+              {KENOO_SMS_DISCLOSURE}{" "}
+              <a
+                href={KENOO_TERMS_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline underline-offset-2 hover:text-neutral-800"
+              >
+                Terms of Service
+              </a>
+              {" · "}
+              <a
+                href={KENOO_PRIVACY_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline underline-offset-2 hover:text-neutral-800"
+              >
+                Privacy Policy
+              </a>
+              .
             </p>
           </header>
         </div>
@@ -320,6 +367,7 @@ export function AlertsPage() {
                     notifySms: false,
                   };
                   const hasPhone = Boolean(member.phoneNumber?.trim());
+                  const canUseSms = member.hasSmsConsent;
 
                   return (
                     <div
@@ -337,6 +385,7 @@ export function AlertsPage() {
                           {member.email}
                           {member.role ? ` · ${member.role}` : ""}
                           {hasPhone ? ` · ${member.phoneNumber}` : ""}
+                          {hasPhone && !canUseSms ? " · SMS off" : ""}
                         </p>
                       </div>
 

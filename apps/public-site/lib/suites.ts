@@ -35,7 +35,7 @@ export const KENOO_SUITES: KenooSuite[] = [
     id: "business",
     name: "Business",
     description:
-      "Relationships, delivery, schedule, ads, and AI. Everything that keeps the company moving.",
+      "Relationships, delivery, schedule, AdPilot ads, and AI. Everything that keeps the company moving.",
     dot: "#0b6eff",
     features: [
       {
@@ -47,7 +47,7 @@ export const KENOO_SUITES: KenooSuite[] = [
             title: "People",
             description:
               "A clear record of every relationship: roles, history, and next steps.",
-            href: "/product#business",
+            href: "/product/crm",
             orb: {
               from: "#0b6eff",
               mid: "#5a9fff",
@@ -60,7 +60,7 @@ export const KENOO_SUITES: KenooSuite[] = [
             title: "Companies",
             description:
               "Accounts connected to deals, projects, and invoices, not a disconnected list.",
-            href: "/product#business",
+            href: "/product/crm",
             orb: {
               from: "#0066b2",
               mid: "#30a1f4",
@@ -73,7 +73,7 @@ export const KENOO_SUITES: KenooSuite[] = [
             title: "Deals",
             description:
               "Stages that stay readable so wins and blockers are never buried.",
-            href: "/product#business",
+            href: "/product/crm",
             orb: {
               from: "#1a6dff",
               mid: "#4d9fff",
@@ -92,7 +92,7 @@ export const KENOO_SUITES: KenooSuite[] = [
             title: "Sequences",
             description:
               "Structured follow-ups that stay human, not spammy automation.",
-            href: "/product#business",
+            href: "/product/crm",
             orb: {
               from: "#30a1f4",
               mid: "#7cc8ff",
@@ -105,7 +105,7 @@ export const KENOO_SUITES: KenooSuite[] = [
             title: "Pitches",
             description:
               "Keep proposals and talking points tied to the right account.",
-            href: "/product#business",
+            href: "/product/crm",
             orb: {
               from: "#6eadc0",
               mid: "#a8d8e4",
@@ -118,7 +118,7 @@ export const KENOO_SUITES: KenooSuite[] = [
             title: "Drafts",
             description:
               "AI-assisted outreach that stays on-brand. You decide what sends.",
-            href: "/product#business",
+            href: "/product/crm",
             orb: {
               from: "#111111",
               mid: "#4a4a4a",
@@ -220,14 +220,14 @@ export const KENOO_SUITES: KenooSuite[] = [
       },
       {
         id: "advertising",
-        name: "Advertising",
+        name: "AdPilot",
         capabilities: [
           {
             id: "campaigns",
             title: "Campaigns",
             description:
-              "Meta campaigns, ad sets, and creatives organized the way media teams think.",
-            href: "/product#business",
+              "Meta Ads and Google Ads campaigns, ad sets, and creatives organized the way media teams think.",
+            href: "/product/adpilot",
             orb: {
               from: "#1a7ae0",
               mid: "#6eb4ff",
@@ -239,8 +239,8 @@ export const KENOO_SUITES: KenooSuite[] = [
             id: "spend",
             title: "Spend",
             description:
-              "Performance and budgets in one view, not buried in another silo.",
-            href: "/product#business",
+              "Performance and budgets in one AdPilot view, not buried in another silo.",
+            href: "/product/adpilot",
             orb: {
               from: "#0b6eff",
               mid: "#4d9aff",
@@ -253,7 +253,7 @@ export const KENOO_SUITES: KenooSuite[] = [
             title: "Automation",
             description:
               "Preview or apply campaign rules with controls that stay understandable.",
-            href: "/product#business",
+            href: "/product/adpilot",
             orb: {
               from: "#30a1f4",
               mid: "#7cc8ff",
@@ -470,7 +470,7 @@ export const KENOO_SUITES: KenooSuite[] = [
             title: "Nutrition",
             description:
               "Log meals and stay aware of intake without turning it into a chore.",
-            href: "/product#health",
+            href: "/product/health",
             orb: {
               from: "#5bb8a8",
               mid: "#8fd4c8",
@@ -483,7 +483,7 @@ export const KENOO_SUITES: KenooSuite[] = [
             title: "Calories",
             description:
               "A clear daily read so energy goals stay grounded in reality.",
-            href: "/product#health",
+            href: "/product/health",
             orb: {
               from: "#3d9a8c",
               mid: "#6ec4b6",
@@ -496,7 +496,7 @@ export const KENOO_SUITES: KenooSuite[] = [
             title: "Habits",
             description:
               "Simple patterns you can keep, not another complicated diet app.",
-            href: "/product#health",
+            href: "/product/health",
             orb: {
               from: "#7ecfc0",
               mid: "#b0e8dc",
@@ -515,7 +515,7 @@ export const KENOO_SUITES: KenooSuite[] = [
             title: "Workouts",
             description:
               "Track activity and sync from providers when you want the fuller picture.",
-            href: "/product#health",
+            href: "/product/health",
             orb: {
               from: "#5bb8a8",
               mid: "#8fd4c8",
@@ -528,7 +528,7 @@ export const KENOO_SUITES: KenooSuite[] = [
             title: "Movement",
             description:
               "See how the week actually moved, not just what you planned.",
-            href: "/product#health",
+            href: "/product/health",
             orb: {
               from: "#4aa89a",
               mid: "#7ecfc0",
@@ -541,7 +541,7 @@ export const KENOO_SUITES: KenooSuite[] = [
             title: "Sync",
             description:
               "Optional connections so logs don’t depend on manual entry alone.",
-            href: "/product#health",
+            href: "/product/health",
             orb: {
               from: "#6eadc0",
               mid: "#9fd0dc",
@@ -560,7 +560,7 @@ export const KENOO_SUITES: KenooSuite[] = [
             title: "Targets",
             description:
               "Set goals that stay visible next to meals and activity.",
-            href: "/product#health",
+            href: "/product/health",
             orb: {
               from: "#3d9a8c",
               mid: "#6ec4b6",
@@ -573,7 +573,7 @@ export const KENOO_SUITES: KenooSuite[] = [
             title: "Progress",
             description:
               "A calm dashboard for how you’re tracking, not a guilt meter.",
-            href: "/product#health",
+            href: "/product/health",
             orb: {
               from: "#5bb8a8",
               mid: "#a0ddd2",
@@ -586,7 +586,7 @@ export const KENOO_SUITES: KenooSuite[] = [
             title: "Balance",
             description:
               "Wellness that supports the work, not another product competing for attention.",
-            href: "/product#health",
+            href: "/product/health",
             orb: {
               from: "#7ecfc0",
               mid: "#b0e8dc",
