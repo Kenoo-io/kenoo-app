@@ -65,7 +65,9 @@ export async function POST(request: Request) {
     console.error("[adpilot] upsert alert subscription:", error);
     const status =
       message === "Unsupported alert key" ||
-      message === "User is not a member of this account"
+      message === "User is not a member of this account" ||
+      message ===
+        "This member has not opted in to SMS notifications in Kenoo Settings"
         ? 400
         : 500;
     return NextResponse.json({ error: message }, { status });

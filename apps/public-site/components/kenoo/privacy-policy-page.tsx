@@ -24,7 +24,8 @@ const sections: LegalSection[] = [
       "We collect information you provide directly, information generated through your use of the Services, information from third-party services you choose to connect, and information from service providers that help us operate Kenoo.",
     ],
     bullets: [
-      "Account and profile information: name, email addresses (work and personal), phone number, date of birth, address, timezone, country or tax region, avatar, LinkedIn or other profile links, role, and authentication identifiers.",
+      "Account and profile information: name, email addresses (work and personal), phone number (including mobile numbers you provide for optional SMS notifications), date of birth, address, timezone, country or tax region, avatar, LinkedIn or other profile links, role, and authentication identifiers.",
+      "SMS notification preferences: whether you have opted in to Kenoo text notifications, the phone number associated with that consent, consent and opt-out timestamps, and related audit records needed to honor STOP requests and legal requirements.",
       "Organization and membership data: workspace name, slug, website, description, contact details, icons, member invitations, and app access permissions.",
       "Workspace and Customer Content: CRM companies, people, leads, deals, pitches, sequences, notes, deliverables, commissions, contracts, documents, invoices, projects, tasks, calendar events, attendees, messages, Wallie chat threads, writing profiles, and similar business records you create or import.",
       "Communications content: email bodies, headers, recipients, attachments, drafts, and thread metadata when you connect Gmail or use Kenoo email features; support and sales messages you send us.",
@@ -53,6 +54,7 @@ const sections: LegalSection[] = [
       "Provide product features across CRM, projects, calendar, finance, ads, health, AI assistance, settings, and admin tools.",
       "Sync and process connected email, calendar, ads, fitness, and payout accounts as you configure them.",
       "Send outreach, sequences, invoices, notifications, and other communications you initiate through the Services.",
+      "Send automated transactional and operational SMS messages you opt in to receive (for example account, workflow, application, and user-configured alerts such as AdPilot performance alerts).",
       "Process subscriptions, invoices, payouts, and related billing or treasury activity.",
       "Detect, prevent, and investigate fraud, abuse, spam, and security incidents.",
       "Analyze product usage to improve reliability, performance, and design.",
@@ -105,12 +107,21 @@ const sections: LegalSection[] = [
     ],
   },
   {
-    title: "12. How we share information",
+    title: "12. SMS notifications",
+    paragraphs: [
+      "If you opt in to SMS notifications in Kenoo Settings, we use the mobile phone number you provide to send automated transactional and operational text messages from Kenoo and Kenoo applications (such as AdPilot). These messages may include account notifications, workflow notifications, application activity alerts, and user-configured alerts (for example advertising-performance or threshold alerts).",
+      "SMS is optional and is not enabled merely because a phone number is stored on your profile. Message frequency varies based on your notification settings and account activity. Message and data rates may apply. You can disable SMS in Kenoo Settings at any time, or reply STOP to opt out and HELP for help.",
+      "We do not sell your phone number or SMS opt-in information, and we do not share it with third parties for their own marketing purposes. We share phone numbers and message content with communications providers such as Twilio only as needed to deliver the texts you requested and to process standard carrier keywords such as STOP and HELP.",
+      "Providing SMS consent is not a condition of purchasing Kenoo. Consent records (including timestamps and the disclosure version accepted) may be retained as needed for compliance, audit, and to honor opt-out requests.",
+    ],
+  },
+  {
+    title: "13. How we share information",
     paragraphs: [
       "We do not sell your personal information. We may share information in the following circumstances:",
     ],
     bullets: [
-      "With service providers and subprocessors that help us host, authenticate, store, process, analyze, communicate, pay out, enrich, or secure the Services (including providers such as Supabase, Vercel, Cloudflare, Google (including Google Ads API), Meta, Strava, Wise, OpenAI, Anthropic, Perplexity, Apollo, search/enrichment providers, and infrastructure used to run Wallie), under confidentiality and data-protection obligations.",
+      "With service providers and subprocessors that help us host, authenticate, store, process, analyze, communicate (including SMS delivery via providers such as Twilio), pay out, enrich, or secure the Services (including providers such as Supabase, Vercel, Cloudflare, Google (including Google Ads API), Meta, Strava, Wise, OpenAI, Anthropic, Perplexity, Apollo, Twilio, search/enrichment providers, and infrastructure used to run Wallie), under confidentiality and data-protection obligations.",
       "With other members of your Kenoo workspace according to permissions set by your organization, including administrators with elevated access.",
       "With third-party integrations you choose to enable.",
       "With invoice or document recipients when you create share links or send communications.",
@@ -119,45 +130,45 @@ const sections: LegalSection[] = [
     ],
   },
   {
-    title: "13. Cookies and similar technologies",
+    title: "14. Cookies and similar technologies",
     paragraphs: [
       "We use cookies and similar technologies to keep you signed in across Kenoo apps (including shared authentication cookies where configured), remember preferences, measure site and product performance, and understand how the Services are used. You can control cookies through your browser settings, though disabling certain cookies may affect functionality.",
     ],
   },
   {
-    title: "14. Data retention",
+    title: "15. Data retention",
     paragraphs: [
-      "We retain personal information for as long as needed to provide the Services, fulfill the purposes described in this Policy, resolve disputes, enforce agreements, and meet legal or accounting requirements. Backups, security logs, and billing records may persist for a limited additional period.",
+      "We retain personal information for as long as needed to provide the Services, fulfill the purposes described in this Policy, resolve disputes, enforce agreements, and meet legal or accounting requirements. Backups, security logs, billing records, and SMS consent or opt-out records may persist for a limited additional period where needed for compliance.",
       "When an account or workspace is closed, or when you disconnect an integration, we delete or de-identify personal information within a reasonable period, except where retention is required by law or for legitimate business purposes such as security investigation, fraud prevention, or financial recordkeeping.",
     ],
   },
   {
-    title: "15. Security",
+    title: "16. Security",
     paragraphs: [
       "We use administrative, technical, and organizational measures designed to protect personal information, including encrypted transport, access controls, optional multi-factor authentication, and restricted admin tooling. No method of transmission or storage is completely secure, and we cannot guarantee absolute security. Please use strong credentials, enable MFA where available, and protect access to your workspace and connected accounts.",
     ],
   },
   {
-    title: "16. Your rights and choices",
+    title: "17. Your rights and choices",
     paragraphs: [
-      "Depending on where you live, you may have rights to access, correct, delete, export, or restrict processing of your personal information, or to object to certain processing. You may also have the right to withdraw consent where processing is based on consent, including for optional Health features, marketing, or certain integrations.",
-      "You can often manage profile data, disconnect integrations, and control workspace content directly in Kenoo. To exercise privacy rights, contact us at hello@kenoo.io. We may need to verify your identity before responding. If your request relates to Customer Content controlled by an organization, we may redirect you to that organization's administrator.",
+      "Depending on where you live, you may have rights to access, correct, delete, export, or restrict processing of your personal information, or to object to certain processing. You may also have the right to withdraw consent where processing is based on consent, including for optional Health features, SMS notifications, marketing, or certain integrations.",
+      "You can often manage profile data, SMS notification preferences, disconnect integrations, and control workspace content directly in Kenoo. You may also reply STOP to opt out of Kenoo SMS messages. To exercise privacy rights, contact us at hello@kenoo.io. We may need to verify your identity before responding. If your request relates to Customer Content controlled by an organization, we may redirect you to that organization's administrator.",
     ],
   },
   {
-    title: "17. International transfers",
+    title: "18. International transfers",
     paragraphs: [
-      "Kenoo may process and store information in countries other than the one where you live, including through cloud and AI subprocessors. When we transfer personal information internationally, we use appropriate safeguards required by applicable law.",
+      "Kenoo may process and store information in countries other than the one where you live, including through cloud, communications, and AI subprocessors. When we transfer personal information internationally, we use appropriate safeguards required by applicable law.",
     ],
   },
   {
-    title: "18. Children's privacy",
+    title: "19. Children's privacy",
     paragraphs: [
       "The Services are not directed to children under 16, and we do not knowingly collect personal information from children under 16. If you believe a child has provided us personal information, contact us and we will take appropriate steps to delete it.",
     ],
   },
   {
-    title: "19. Changes to this Policy",
+    title: "20. Changes to this Policy",
     paragraphs: [
       'We may update this Privacy Policy from time to time. When we make material changes, we will update the "Last updated" date and, where appropriate, provide additional notice. Continued use of the Services after an update becomes effective constitutes acceptance of the revised Policy.',
     ],
@@ -169,7 +180,7 @@ export default function PrivacyPolicyPage() {
     <LegalDocument
       eyebrow="Legal"
       title="Privacy Policy"
-      effectiveDate="July 22, 2026"
+      effectiveDate="August 7, 2026"
       intro="Please read this Privacy Policy carefully. It explains what information we collect across the Kenoo product suite, how we use it, and the choices available to you."
       sections={sections}
     />

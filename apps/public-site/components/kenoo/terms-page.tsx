@@ -94,7 +94,16 @@ const sections: LegalSection[] = [
     ],
   },
   {
-    title: "12. Subscriptions, fees, and taxes",
+    title: "12. SMS notifications",
+    paragraphs: [
+      "Kenoo may offer optional SMS notifications for transactional and operational alerts related to your account and Kenoo applications (including AdPilot alerts such as advertising-performance or threshold notifications). SMS is not used for unsolicited marketing under these Terms.",
+      "By enabling SMS notifications in Kenoo Settings, you agree to receive automated text messages from Kenoo. Message frequency varies based on your notification settings and account activity. Message and data rates may apply. Consent to receive SMS is not a condition of purchasing Kenoo or any Kenoo plan.",
+      "You can manage or disable SMS in Kenoo Settings at any time. You may also reply STOP to opt out or HELP for assistance. After you opt out, Kenoo will stop sending application-generated SMS to that number, subject to ordinary processing delays and any carrier confirmation messages required to complete the opt-out.",
+      "You are responsible for providing an accurate mobile number you are authorized to use and for updating it if it changes. Changing your phone number may require you to re-enable SMS for the new number.",
+    ],
+  },
+  {
+    title: "13. Subscriptions, fees, and taxes",
     paragraphs: [
       "Paid plans are billed according to the pricing and billing terms shown at purchase or in your order form. Fees are generally non-refundable except where required by law or expressly stated otherwise.",
       "You authorize Kenoo and its payment processors to charge applicable subscription fees, overages if any, and taxes. You are responsible for providing accurate billing information and for taxes associated with your purchase, excluding taxes based on Kenoo’s net income.",
@@ -102,69 +111,69 @@ const sections: LegalSection[] = [
     ],
   },
   {
-    title: "13. Free trials and betas",
+    title: "14. Free trials and betas",
     paragraphs: [
       "We may offer free trials, preview features, or beta products. These may be changed or discontinued at any time and are provided as-is without warranties to the fullest extent permitted by law.",
     ],
   },
   {
-    title: "14. Intellectual property",
+    title: "15. Intellectual property",
     paragraphs: [
       "Kenoo and its licensors own the Services, including software, design, branding, and documentation. These Terms do not grant you any ownership interest in the Services. Feedback you provide may be used by Kenoo without obligation to you.",
     ],
   },
   {
-    title: "15. Confidentiality",
+    title: "16. Confidentiality",
     paragraphs: [
       "Each party may receive confidential information from the other. The receiving party will use that information only to perform under these Terms and will protect it with reasonable care. Confidentiality obligations do not apply to information that is public, independently developed, or rightfully received from another source without restriction.",
     ],
   },
   {
-    title: "16. Privacy",
+    title: "17. Privacy",
     paragraphs: [
-      "Our collection and use of personal information is described in our Privacy Policy at https://kenoo.io/privacy-policy. By using the Services, you acknowledge that policy. If you use Google integrations (including Gmail, Calendar, Contacts, or Google Ads), you also acknowledge the Google-specific disclosures in the Privacy Policy.",
+      "Our collection and use of personal information is described in our Privacy Policy at https://kenoo.io/privacy-policy. By using the Services, you acknowledge that policy. If you use Google integrations (including Gmail, Calendar, Contacts, or Google Ads), you also acknowledge the Google-specific disclosures in the Privacy Policy. If you enable SMS notifications, you also acknowledge the SMS disclosures in the Privacy Policy.",
     ],
   },
   {
-    title: "17. Disclaimers",
+    title: "18. Disclaimers",
     paragraphs: [
       'THE SERVICES ARE PROVIDED "AS IS" AND "AS AVAILABLE." TO THE MAXIMUM EXTENT PERMITTED BY LAW, KENOO DISCLAIMS ALL WARRANTIES, WHETHER EXPRESS, IMPLIED, OR STATUTORY, INCLUDING WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND NON-INFRINGEMENT. WE DO NOT WARRANT THAT THE SERVICES WILL BE UNINTERRUPTED, ERROR-FREE, OR COMPLETELY SECURE, OR THAT AI OUTPUTS, ENRICHMENT DATA, AD AUTOMATION, HEALTH METRICS, OR FINANCIAL DISPLAYS WILL BE ACCURATE OR FIT FOR ANY PARTICULAR PURPOSE.',
     ],
   },
   {
-    title: "18. Limitation of liability",
+    title: "19. Limitation of liability",
     paragraphs: [
       "TO THE MAXIMUM EXTENT PERMITTED BY LAW, KENOO AND ITS AFFILIATES WILL NOT BE LIABLE FOR INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, EXEMPLARY, OR PUNITIVE DAMAGES, OR FOR LOST PROFITS, REVENUE, GOODWILL, DATA, OR BUSINESS INTERRUPTION, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.",
       "TO THE MAXIMUM EXTENT PERMITTED BY LAW, KENOO’S TOTAL LIABILITY ARISING OUT OF OR RELATED TO THESE TERMS OR THE SERVICES WILL NOT EXCEED THE AMOUNTS YOU PAID TO KENOO FOR THE SERVICES IN THE TWELVE (12) MONTHS BEFORE THE EVENT GIVING RISE TO LIABILITY.",
     ],
   },
   {
-    title: "19. Indemnification",
+    title: "20. Indemnification",
     paragraphs: [
       "You will defend and indemnify Kenoo and its affiliates against claims, damages, losses, and expenses (including reasonable attorneys’ fees) arising from your Customer Content, your outreach or advertising, your use of integrations, your use of the Services in violation of these Terms, or your violation of applicable law or third-party rights.",
     ],
   },
   {
-    title: "20. Suspension and termination",
+    title: "21. Suspension and termination",
     paragraphs: [
       "You may stop using the Services at any time and may cancel a paid subscription according to the cancellation terms in your account or order form.",
       "We may suspend or terminate access if you breach these Terms, fail to pay fees, create security or legal risk, misuse integrations, or if we discontinue the Services. Upon termination, your right to use the Services ends. Provisions that by their nature should survive will survive termination.",
     ],
   },
   {
-    title: "21. Changes to these Terms",
+    title: "22. Changes to these Terms",
     paragraphs: [
       "We may update these Terms from time to time. Material changes will be posted with an updated date and, where appropriate, communicated by additional notice. Continued use of the Services after changes become effective constitutes acceptance of the revised Terms.",
     ],
   },
   {
-    title: "22. Governing law",
+    title: "23. Governing law",
     paragraphs: [
       "These Terms are governed by the laws applicable in the jurisdiction where WALLS Entertainment Group Inc. is organized to do business, without regard to conflict-of-law principles, except where mandatory local consumer protections apply. Courts in that jurisdiction will have exclusive venue for disputes, unless applicable law requires otherwise.",
     ],
   },
   {
-    title: "23. General",
+    title: "24. General",
     paragraphs: [
       "These Terms, together with any order forms and the Privacy Policy, are the entire agreement between you and Kenoo regarding the Services. If any provision is unenforceable, the remaining provisions remain in effect. Failure to enforce a provision is not a waiver. You may not assign these Terms without our consent; we may assign them in connection with a corporate transaction.",
     ],
@@ -176,7 +185,7 @@ export default function TermsPage() {
     <LegalDocument
       eyebrow="Legal"
       title="Terms of Service"
-      effectiveDate="July 22, 2026"
+      effectiveDate="August 7, 2026"
       intro="These Terms of Service set out the rules for using the full Kenoo product suite. Please read them carefully before creating an account or using the product."
       sections={sections}
     />

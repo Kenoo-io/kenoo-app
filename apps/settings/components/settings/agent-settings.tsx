@@ -30,6 +30,8 @@ import {
   UserSchedulesSection,
   type UserSchedulesHandle,
 } from "@/components/settings/user-schedules-section";
+import { SmsNotificationsSection } from "@/components/settings/sms-notifications-section";
+import { KENOO_SMS_CONSENT_VERSION } from "@walls/utils";
 
 const fieldClass =
   "border-0 border-b border-neutral-200 rounded-none px-0 py-2 font-light focus:outline-none focus-visible:outline-none focus-visible:ring-0 focus:ring-0 focus:border-b-[var(--kenoo-sky)] bg-transparent w-full placeholder:text-neutral-300";
@@ -269,25 +271,76 @@ const AgentSettingsPage = () => {
 
     try {
       const supabase = getSupabaseClient();
-      
+
+      const { data: currentSms, error: smsReadError } = await supabase
+        .from("users")
+        .select("sms_notifications_enabled")
+        .eq("id", userId)
+        .single();
+
+      if (smsReadError) {
+        throw smsReadError;
+      }
+
+      const smsWasEnabled = Boolean(currentSms?.sms_notifications_enabled);
+      const now = new Date().toISOString();
+
+      // Changing the destination number invalidates prior SMS consent.
       const { error } = await supabase
-        .from('users')
-        .update({ phone_number: phoneNumber })
-        .eq('id', userId);
-      
+        .from("users")
+        .update({
+          phone_number: phoneNumber,
+          ...(smsWasEnabled
+            ? {
+                sms_notifications_enabled: false,
+                sms_consent_withdrawn_at: now,
+                sms_consent_source: "web_settings",
+              }
+            : {}),
+        })
+        .eq("id", userId);
+
       if (error) {
         throw error;
       }
-      
+
+      if (smsWasEnabled) {
+        await supabase.from("sms_consent_events").insert({
+          user_id: userId,
+          phone_number: existingPhoneNumber || phoneNumber,
+          action: "phone_changed",
+          consent_version: KENOO_SMS_CONSENT_VERSION,
+          source: "web_settings",
+          metadata: {
+            previous_phone: existingPhoneNumber,
+            next_phone: phoneNumber,
+          },
+        });
+
+        await supabase
+          .from("alert_subscriptions")
+          .update({
+            notify_sms: false,
+            updated_at: now,
+          })
+          .eq("user_id", userId)
+          .eq("notify_sms", true);
+      }
+
       setExistingPhoneNumber(phoneNumber);
-      
-      wallsToast.success("Success", "Phone number updated successfully");
-      
+
+      wallsToast.success(
+        "Success",
+        smsWasEnabled
+          ? "Phone updated. SMS was turned off — re-enable SMS to consent for the new number."
+          : "Phone number updated successfully",
+      );
+
       return true;
     } catch (error) {
       console.error("Error updating phone number:", error);
       wallsToast.error("Error", "Failed to update phone number");
-      
+
       return false;
     }
   };
@@ -691,6 +744,12 @@ const AgentSettingsPage = () => {
                   />
                 </div>
               </div>
+
+              <SmsNotificationsSection
+                userId={userId}
+                phoneNumber={phoneNumber}
+                existingPhoneNumber={existingPhoneNumber}
+              />
 
               {/* Timezone & Schedules Divider */}
               <div className="flex items-center mb-8 mt-8">
