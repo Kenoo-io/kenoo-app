@@ -187,7 +187,7 @@ export function SmsNotificationsSection({
         <div className="flex-1 border-t border-black h-[1px]" />
       </div>
 
-      <div className="space-y-5 max-w-2xl">
+      <div className="w-full space-y-5">
         <div className="flex items-start justify-between gap-6">
           <div className="min-w-0">
             <p className="text-sm font-medium text-foreground">
