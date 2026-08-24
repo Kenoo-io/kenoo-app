@@ -12,7 +12,7 @@ const ease = [0.22, 1, 0.36, 1] as const;
 
 function ProductIcon({ icon }: { icon: string }) {
   return (
-    <div className="relative mb-6 flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-white to-kenoo-subtle shadow-[0_2px_6px_-2px_rgba(0,0,0,0.12)]">
+    <div className="relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-white to-kenoo-subtle shadow-[0_2px_8px_-2px_rgba(0,0,0,0.14)] ring-1 ring-black/5">
       <span
         aria-hidden
         className="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/70 to-transparent"
@@ -29,7 +29,7 @@ function ProductIcon({ icon }: { icon: string }) {
 }
 
 export function FeaturedApps() {
-  const { ref, inView } = useInView({ threshold: 0.2, triggerOnce: true });
+  const { ref, inView } = useInView({ threshold: 0.15, triggerOnce: true });
 
   return (
     <section
@@ -41,22 +41,30 @@ export function FeaturedApps() {
           initial={{ opacity: 0, y: 18 }}
           animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 18 }}
           transition={{ duration: 0.65, ease }}
-          className="max-w-2xl"
+          className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between"
         >
-          <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-kenoo-muted">
-            Products
-          </p>
-          <h2 className="mt-4 font-display text-3xl font-semibold tracking-[-0.04em] text-kenoo-ink md:text-4xl">
-            Three apps, fully polished.
-          </h2>
-          <p className="mt-5 max-w-xl text-base leading-relaxed text-kenoo-muted md:text-lg">
-            Kenoo ships a broader suite over time. These are the apps we
-            highlight today: each with a clear job, a dedicated page, and a path
-            into the live product.
-          </p>
+          <div className="max-w-2xl">
+            <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-kenoo-muted">
+              Products
+            </p>
+            <h2 className="mt-4 font-display text-3xl font-semibold tracking-[-0.04em] text-kenoo-ink md:text-[2.75rem]">
+              Three live apps. Fully polished.
+            </h2>
+            <p className="mt-5 max-w-xl text-base leading-relaxed text-kenoo-muted md:text-lg">
+              Kenoo ships a broader suite over time. These are the apps we
+              highlight today — each with a clear job and a path into the live
+              product.
+            </p>
+          </div>
+          <Link
+            href="/product"
+            className="text-sm font-medium text-kenoo-ink underline-offset-4 hover:underline"
+          >
+            All products
+          </Link>
         </motion.div>
 
-        <ul className="mt-14 grid gap-2 md:grid-cols-3">
+        <ul className="mt-14 grid gap-4 md:grid-cols-3">
           {FEATURED_PRODUCTS.map((product, index) => (
             <motion.li
               key={product.slug}
@@ -72,10 +80,15 @@ export function FeaturedApps() {
             >
               <Link
                 href={`/product/${product.slug}`}
-                className="group flex h-full flex-col rounded-2xl px-5 py-6 transition-colors hover:bg-kenoo-subtle md:px-6 md:py-7"
+                className="group relative flex h-full flex-col overflow-hidden rounded-[1.75rem] border border-kenoo-border bg-kenoo-surface p-6 shadow-[0_12px_40px_-28px_rgba(17,17,17,0.35)] transition-transform duration-300 hover:-translate-y-1 md:p-7"
               >
+                <span
+                  aria-hidden
+                  className="absolute inset-x-0 top-0 h-1"
+                  style={{ background: product.accent }}
+                />
                 <ProductIcon icon={product.icon} />
-                <h3 className="flex items-center gap-1.5 font-display text-xl font-semibold tracking-[-0.03em] text-kenoo-ink">
+                <h3 className="mt-6 flex items-center gap-1.5 font-display text-xl font-semibold tracking-[-0.03em] text-kenoo-ink">
                   {product.name}
                   <ArrowUpRight className="size-4 opacity-40 transition-opacity group-hover:opacity-100" />
                 </h3>
@@ -85,7 +98,10 @@ export function FeaturedApps() {
                 <p className="mt-3 flex-1 text-sm leading-relaxed text-kenoo-muted">
                   {product.description}
                 </p>
-                <span className="mt-6 text-sm font-medium text-kenoo-accent transition-colors group-hover:text-kenoo-accent-hover">
+                <span
+                  className="mt-6 text-sm font-medium"
+                  style={{ color: product.accent }}
+                >
                   Learn more
                 </span>
               </Link>

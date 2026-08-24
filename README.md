@@ -13,6 +13,7 @@ pnpm + Turborepo monorepo for the WALLS Entertainment ecosystem.
 | **wallie**      | `apps/wallie`      | Wallie AI web app ([wallie.walls.agency](https://wallie.walls.agency)) |
 | **wallie-mobile** | `apps/wallie-mobile` | Wallie iOS/Android app (Expo dev client) |
 | **admin**       | `apps/admin`       | Agency admin ([admin.walls.agency](https://admin.walls.agency)) — users, apps, jobs, teams |
+| **platform**    | `apps/platform`    | API marketplace ([platform.kenoo.io](https://platform.kenoo.io)) — catalog, keys, prepaid credits |
 
 
 Future apps will live under `apps/`.
@@ -78,6 +79,9 @@ pnpm dev:wallie
 
 # Admin — http://localhost:3008
 pnpm dev:admin
+
+# Platform (API marketplace) — http://localhost:3014
+pnpm dev:platform
 
 # All apps at once
 pnpm dev
