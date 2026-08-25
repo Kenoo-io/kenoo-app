@@ -533,132 +533,166 @@ function CrmKpi({
   );
 }
 
-function HealthScene({ compact }: { compact?: boolean }) {
-  const cards = [
-    {
-      title: "Energy balance",
-      value: "842",
-      detail: "Remaining · 1,240 burned",
-      background: "linear-gradient(145deg, #4a6b52 0%, #6f8f6a 42%, #9bb58a 100%)",
-      text: "text-white",
-      muted: "text-white/70",
-      wide: true,
-    },
-    {
-      title: "Steps",
-      value: "8,420",
-      detail: "72% of 10,000",
-      background: "linear-gradient(135deg, #6eadc0 0%, #f0a060 48%, #e86b5a 100%)",
-      text: "text-white",
-      muted: "text-white/75",
-      wide: false,
-    },
-    {
-      title: "Protein",
-      value: "96g",
-      detail: "On track · 110g",
-      background: "linear-gradient(145deg, #f0c35a 0%, #f59e3b 48%, #ff8a4c 100%)",
-      text: "text-white",
-      muted: "text-white/75",
-      wide: false,
-    },
-    {
-      title: "Carbs",
-      value: "184g",
-      detail: "Target 210g",
-      background: "linear-gradient(145deg, #ff9a5c 0%, #ff7130 55%, #8dcf76 100%)",
-      text: "text-white",
-      muted: "text-white/75",
-      wide: false,
-    },
-    {
-      title: "Meals logged",
-      value: "3",
-      detail: "1,658 kcal today",
-      background: "linear-gradient(145deg, #d9e2e8 0%, #b7c8d2 50%, #9bb0bd 100%)",
-      text: "text-neutral-900",
-      muted: "text-neutral-600",
-      wide: false,
-    },
-  ];
+type HealthMetricCard = {
+  title: string;
+  value: string;
+  detail: string;
+  background: string;
+  text: string;
+  muted: string;
+};
 
+const HEALTH_CORE_CARDS: HealthMetricCard[] = [
+  {
+    title: "Steps",
+    value: "8,420",
+    detail: "72% of 10,000 · 3.8 mi",
+    background: "linear-gradient(135deg, #6eadc0 0%, #f0a060 48%, #e86b5a 100%)",
+    text: "text-white",
+    muted: "text-white/75",
+  },
+  {
+    title: "Protein",
+    value: "96g",
+    detail: "On track · 110g target",
+    background: "linear-gradient(145deg, #f0c35a 0%, #f59e3b 48%, #ff8a4c 100%)",
+    text: "text-white",
+    muted: "text-white/75",
+  },
+  {
+    title: "Carbs",
+    value: "184g",
+    detail: "Target 210g",
+    background: "linear-gradient(145deg, #ff9a5c 0%, #ff7130 55%, #8dcf76 100%)",
+    text: "text-white",
+    muted: "text-white/75",
+  },
+  {
+    title: "Fat",
+    value: "58g",
+    detail: "Target 65g",
+    background: "linear-gradient(145deg, #c8e86a 0%, #e2f85c 45%, #ceff00 100%)",
+    text: "text-neutral-900",
+    muted: "text-neutral-700/80",
+  },
+  {
+    title: "Meals logged",
+    value: "3",
+    detail: "1,658 kcal today",
+    background: "linear-gradient(145deg, #d9e2e8 0%, #b7c8d2 50%, #9bb0bd 100%)",
+    text: "text-neutral-900",
+    muted: "text-neutral-600",
+  },
+  {
+    title: "Active burn",
+    value: "1,240",
+    detail: "From logged activities",
+    background: "linear-gradient(145deg, #4a6b52 0%, #6f8f6a 42%, #9bb58a 100%)",
+    text: "text-white",
+    muted: "text-white/70",
+  },
+];
+
+function HealthMetricTile({
+  card,
+  compact,
+}: {
+  card: HealthMetricCard;
+  compact?: boolean;
+}) {
   return (
     <div
       className={cn(
-        "grid gap-3",
-        compact ? "grid-cols-2 p-3" : "grid-cols-1 md:grid-cols-2",
+        "relative overflow-hidden rounded-[22px] shadow-[0_18px_40px_-24px_rgba(0,0,0,0.35)]",
+        compact ? "min-h-[72px] p-2.5" : "min-h-[88px] p-3.5",
       )}
+      style={{ background: card.background }}
     >
-      {compact ? null : (
-        <div className="hidden items-center justify-center md:flex">
-          <div className="relative flex h-[220px] w-[220px] items-center justify-center">
-            <div
-              className="absolute inset-6 rounded-full"
-              style={{
-                background:
-                  "radial-gradient(circle, rgba(206,255,0,0.18) 0%, rgba(255,113,48,0.08) 45%, transparent 70%)",
-              }}
+      <p
+        className={cn(
+          "font-medium uppercase tracking-[0.16em]",
+          compact ? "text-[8px]" : "text-[9px]",
+          card.muted,
+        )}
+      >
+        {card.title}
+      </p>
+      <p
+        className={cn(
+          "mt-3 font-semibold tracking-tight tabular-nums",
+          compact ? "text-lg" : "text-xl md:text-2xl",
+          card.text,
+        )}
+      >
+        {card.value}
+      </p>
+      <p
+        className={cn(
+          "mt-0.5 truncate font-light",
+          compact ? "text-[9px]" : "text-[10px]",
+          card.muted,
+        )}
+      >
+        {card.detail}
+      </p>
+    </div>
+  );
+}
+
+function HealthScene({ compact }: { compact?: boolean }) {
+  if (compact) {
+    return (
+      <div className="grid grid-cols-2 gap-2 p-3">
+        {HEALTH_CORE_CARDS.slice(0, 4).map((card) => (
+          <HealthMetricTile key={card.title} card={card} compact />
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid h-full grid-cols-1 gap-3 md:grid-cols-2">
+      <div className="hidden items-center justify-center md:flex">
+        <div className="relative flex h-[220px] w-[220px] items-center justify-center">
+          <div
+            className="absolute inset-6 rounded-full"
+            style={{
+              background:
+                "radial-gradient(circle, rgba(206,255,0,0.18) 0%, rgba(255,113,48,0.08) 45%, transparent 70%)",
+            }}
+          />
+          <svg viewBox="0 0 200 200" className="h-full w-full -rotate-90">
+            <circle
+              cx="100"
+              cy="100"
+              r="86"
+              fill="none"
+              stroke="#e6e6e4"
+              strokeWidth="10"
             />
-            <svg viewBox="0 0 200 200" className="h-full w-full -rotate-90">
-              <circle
-                cx="100"
-                cy="100"
-                r="86"
-                fill="none"
-                stroke="#e6e6e4"
-                strokeWidth="10"
-              />
-              <circle
-                cx="100"
-                cy="100"
-                r="86"
-                fill="none"
-                stroke="#ceff00"
-                strokeWidth="10"
-                strokeLinecap="round"
-                strokeDasharray={`${2 * Math.PI * 86}`}
-                strokeDashoffset={`${2 * Math.PI * 86 * 0.32}`}
-              />
-            </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <p className="text-3xl font-semibold tracking-tight tabular-nums text-neutral-900">
-                842
-              </p>
-              <p className="text-[11px] text-neutral-400">Remaining</p>
-            </div>
+            <circle
+              cx="100"
+              cy="100"
+              r="86"
+              fill="none"
+              stroke="#ceff00"
+              strokeWidth="10"
+              strokeLinecap="round"
+              strokeDasharray={`${2 * Math.PI * 86}`}
+              strokeDashoffset={`${2 * Math.PI * 86 * 0.32}`}
+            />
+          </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <p className="text-3xl font-semibold tracking-tight tabular-nums text-neutral-900">
+              842
+            </p>
+            <p className="text-[11px] text-neutral-400">Remaining</p>
           </div>
         </div>
-      )}
-      <div className="grid grid-cols-2 gap-2.5">
-        {cards.slice(compact ? 0 : 1).map((card) => (
-          <div
-            key={card.title}
-            className={cn(
-              "relative min-h-[88px] overflow-hidden rounded-[22px] p-3.5 shadow-[0_18px_40px_-24px_rgba(0,0,0,0.35)]",
-              card.wide && "col-span-2 min-h-[110px]",
-            )}
-            style={{ background: card.background }}
-          >
-            <p
-              className={cn(
-                "text-[9px] font-medium uppercase tracking-[0.16em]",
-                card.muted,
-              )}
-            >
-              {card.title}
-            </p>
-            <p
-              className={cn(
-                "mt-4 text-xl font-semibold tracking-tight tabular-nums md:text-2xl",
-                card.text,
-              )}
-            >
-              {card.value}
-            </p>
-            <p className={cn("mt-0.5 text-[10px] font-light", card.muted)}>
-              {card.detail}
-            </p>
-          </div>
+      </div>
+      <div className="grid grid-cols-2 content-center gap-2.5">
+        {HEALTH_CORE_CARDS.map((card) => (
+          <HealthMetricTile key={card.title} card={card} />
         ))}
       </div>
     </div>
