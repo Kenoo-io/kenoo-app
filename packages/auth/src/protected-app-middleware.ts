@@ -5,6 +5,7 @@ import {
   ACTIVE_ACCOUNT_COOKIE,
   userHasAppAccessForActiveAccount,
 } from "./active-account";
+import { userIsConsoleOperator } from "./console-operator";
 import { isMfaSecondFactorPending } from "./mfa-assurance";
 import { refreshMiddlewareSession } from "./middleware-supabase";
 import { buildPortalLoginUrl, normalizePortalOrigin, resolvePortalLoginOrigin } from "./portal-url";
@@ -30,6 +31,8 @@ export interface ProtectedAppMiddlewareOptions {
   appSlug?: string;
   /** When true, user must have users.is_admin = true. */
   requireAdmin?: boolean;
+  /** When true, user must be on public.console_operators. */
+  requireConsoleOperator?: boolean;
 }
 
 export const protectedAppMiddlewareMatcher = [
@@ -164,6 +167,13 @@ export async function handleProtectedAppRequest(
     }
 
     if (options.requireAdmin && userRow?.is_admin !== true) {
+      return redirectToPortalHome(request, options.portalLoginUrl, response);
+    }
+
+    if (
+      options.requireConsoleOperator &&
+      !(await userIsConsoleOperator(supabase, user!.id, user!.email))
+    ) {
       return redirectToPortalHome(request, options.portalLoginUrl, response);
     }
 

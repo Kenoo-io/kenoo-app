@@ -24,6 +24,11 @@ export {
   userHasLegacyAppAccess,
 } from "./active-account";
 export {
+  consoleAppSlug,
+  isConsoleAppSlug,
+  userIsConsoleOperator,
+} from "./console-operator";
+export {
   buildPortalCreatePasswordUrl,
   buildPortalInviteRedirectUrl,
   buildPortalLoginUrl,

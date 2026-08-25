@@ -11,14 +11,15 @@ import {
 import { cn } from "@walls/utils";
 import {
   ChevronsUpDown,
-  CreditCard,
   Home,
   LayoutGrid,
+  ListTodo,
   LogOut,
   Menu,
   PanelLeft,
   Search,
   Settings,
+  UserCircle,
   Users,
   X,
 } from "lucide-react";
@@ -34,9 +35,7 @@ import {
   type SetStateAction,
 } from "react";
 
-import { useActiveAccount } from "@/components/active-account-context";
-import { WorkspaceSwitcher } from "@/components/admin/workspace-switcher";
-import { useAppSidebar } from "@/components/app-sidebar-context";
+import { useAppSidebar } from "./app-sidebar-context";
 
 const settingsHref = resolveAppHref({
   slug: "settings",
@@ -44,21 +43,22 @@ const settingsHref = resolveAppHref({
   platformBase: "",
 });
 
-type NavItem = {
-  href: string;
-  label: string;
-  icon: typeof Home;
-  exact?: boolean;
-};
+const navItems = [
+  { href: "/", label: "Home", icon: Home },
+  { href: "/users", label: "Users", icon: UserCircle },
+  { href: "/apps", label: "Apps", icon: LayoutGrid },
+  { href: "/jobs", label: "Jobs", icon: ListTodo },
+  { href: "/teams", label: "Teams", icon: Users },
+] as const;
 
-function isActivePath(pathname: string, href: string, exact?: boolean) {
-  if (exact || href === "/") return pathname === href;
-  return pathname === href || pathname.startsWith(`${href}/`);
+function isActivePath(pathname: string, href: string) {
+  return href === "/"
+    ? pathname === "/"
+    : pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function AdminSidebar() {
+export function AppSidebar() {
   const { isLoading, profile, user } = useAuth();
-  const { activeAccountId } = useActiveAccount();
   const pathname = usePathname();
   const router = useRouter();
   const { isCollapsed, setIsCollapsed, isMobileOpen, setIsMobileOpen } =
@@ -68,30 +68,11 @@ export function AdminSidebar() {
   const [query, setQuery] = useState("");
   const searchQuery = query.trim();
 
-  const navItems = useMemo<NavItem[]>(
-    () => [
-      { href: "/", label: "Home", icon: Home, exact: true },
-      ...(activeAccountId
-        ? [
-            {
-              href: `/accounts/${activeAccountId}`,
-              label: "Apps",
-              icon: LayoutGrid,
-            },
-          ]
-        : []),
-      { href: "/users", label: "Users", icon: Users },
-      { href: "/billing", label: "Billing", icon: CreditCard },
-      { href: "/account", label: "Account", icon: Settings },
-    ],
-    [activeAccountId],
-  );
-
   const matches = useMemo(() => {
     const q = searchQuery.toLowerCase();
     if (!q) return [];
     return navItems.filter((item) => item.label.toLowerCase().includes(q));
-  }, [navItems, searchQuery]);
+  }, [searchQuery]);
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -145,7 +126,6 @@ export function AdminSidebar() {
     searchRef,
     searchWrapRef,
     matches,
-    navItems,
     router,
     isLoading,
     displayName,
@@ -174,7 +154,7 @@ export function AdminSidebar() {
         >
           <Menu className="h-5 w-5" />
         </button>
-        <span className="text-sm font-medium">Kenoo Admin</span>
+        <span className="text-sm font-medium">Kenoo Console</span>
         <span className="w-9" />
       </div>
 
@@ -215,8 +195,7 @@ type RailProps = {
   searchQuery: string;
   searchRef: RefObject<HTMLInputElement | null>;
   searchWrapRef: RefObject<HTMLDivElement | null>;
-  matches: NavItem[];
-  navItems: NavItem[];
+  matches: typeof navItems | readonly (typeof navItems)[number][];
   router: ReturnType<typeof useRouter>;
   isLoading: boolean;
   displayName: string;
@@ -236,7 +215,6 @@ function SidebarRail({
   searchRef,
   searchWrapRef,
   matches,
-  navItems,
   router,
   isLoading,
   displayName,
@@ -259,8 +237,13 @@ function SidebarRail({
         )}
       >
         {!collapsed ? (
-          <div className="min-w-0 flex-1">
-            <WorkspaceSwitcher />
+          <div className="min-w-0 flex-1 px-1">
+            <p className="truncate text-[14px] font-semibold text-neutral-950">
+              Kenoo Console
+            </p>
+            <p className="truncate text-[11px] text-neutral-400">
+              Super-admin
+            </p>
           </div>
         ) : null}
         {!collapsed && onCollapse ? (
@@ -336,10 +319,10 @@ function SidebarRail({
         </div>
       </div>
 
-      <nav className="mt-3 flex flex-1 flex-col gap-0.5 px-3" aria-label="Admin">
+      <nav className="mt-3 flex flex-1 flex-col gap-0.5 px-3" aria-label="Console">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const active = isActivePath(pathname, item.href, item.exact);
+          const active = isActivePath(pathname, item.href);
           return (
             <Link
               key={item.href}
@@ -443,18 +426,6 @@ function SidebarAccountMenu({
             <Settings className="h-3.5 w-3.5 text-neutral-400" />
             Settings
           </a>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild className="cursor-pointer rounded-lg px-2 py-2">
-          <Link href="/account">
-            <LayoutGrid className="h-3.5 w-3.5 text-neutral-400" />
-            Account
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild className="cursor-pointer rounded-lg px-2 py-2">
-          <Link href="/billing">
-            <CreditCard className="h-3.5 w-3.5 text-neutral-400" />
-            Billing
-          </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator className="bg-neutral-100" />
         <DropdownMenuItem

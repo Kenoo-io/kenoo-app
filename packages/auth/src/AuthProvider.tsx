@@ -10,6 +10,11 @@ import {
 } from "./AuthContext";
 import { readActiveAccountIdFromDocumentCookie } from "./active-account";
 import { resolveAppHref } from "./app-url";
+import {
+  consoleAppSlug,
+  isConsoleAppSlug,
+  userIsConsoleOperator,
+} from "./console-operator";
 import { getSupabaseClient } from "./supabase-client";
 
 const PROFILE_STORAGE_KEY = "walls_profile_v2";
@@ -211,6 +216,7 @@ async function fetchUserProfile(
       a.name != null
     ) {
       const slug = String(a.slug);
+      if (isConsoleAppSlug(slug)) return;
       const name =
         slug === (process.env.NEXT_PUBLIC_ADMIN_APP_SLUG || "admin")
           ? "Admin console"
@@ -268,6 +274,39 @@ async function fetchUserProfile(
 
   for (const app of openAccessApps ?? []) {
     pushApp(appList, seenAppIds, app.id as string, app);
+  }
+
+  if (await userIsConsoleOperator(supabase, userId, email)) {
+    const { data: consoleApps } = await supabase
+      .from("apps")
+      .select("id, slug, name, icon_url, url_redirect, subdomain")
+      .eq("is_active", true)
+      .eq("slug", consoleAppSlug());
+    for (const app of consoleApps ?? []) {
+      if (seenAppIds.has(app.id as string)) continue;
+      const slug = String(app.slug);
+      const urlRedirect =
+        app.url_redirect != null ? String(app.url_redirect) : null;
+      const subdomain =
+        app.subdomain != null ? String(app.subdomain) : null;
+      const iconUrl = app.icon_url
+        ? String(app.icon_url)
+        : `https://assets.wallsentertainment.com/walls-app-icons/${slug}.svg`;
+      seenAppIds.add(app.id as string);
+      appList.push({
+        app_id: app.id as string,
+        slug,
+        name: String(app.name),
+        icon: iconUrl,
+        path: resolveAppHref({
+          slug,
+          subdomain,
+          urlRedirect,
+          platformBase,
+        }),
+        subdomain,
+      });
+    }
   }
 
   const initials = computeInitials(userFullName, email);

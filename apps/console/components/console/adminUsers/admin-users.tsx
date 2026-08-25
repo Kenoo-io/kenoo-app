@@ -1,15 +1,12 @@
 "use client";
 
-
 import { wallsToast } from "@/components/ui/walls-toast";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import {
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
-  ChevronUp,
   Plus,
   Search,
   Users,
@@ -30,21 +27,12 @@ type User = {
   email: string | null;
   is_admin: boolean;
   status: UserStatus;
-  user_platform_id: string | null;
-  platform: { name: string; code: string } | null;
-};
-
-type PlatformOption = {
-  id: string;
-  code: string;
-  name: string;
 };
 
 const ITEMS_PER_PAGE = 15;
 
 export function AdminUsers() {
   const [users, setUsers] = useState<User[]>([]);
-  const [platforms, setPlatforms] = useState<PlatformOption[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -52,16 +40,8 @@ export function AdminUsers() {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
-  const [updatingPlatformId, setUpdatingPlatformId] = useState<string | null>(null);
-  const [openPlatformDropdownId, setOpenPlatformDropdownId] = useState<string | null>(null);
-  const [platformDropdownUp, setPlatformDropdownUp] = useState(false);
   const [menuDropdownUp, setMenuDropdownUp] = useState(false);
-  const [platformFilter, setPlatformFilter] = useState<string>("all");
-  const [platformFilterOpen, setPlatformFilterOpen] = useState(false);
-  const platformFilterRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  const platformDropdownRef = useRef<HTMLDivElement>(null);
-  const platformTriggerRef = useRef<HTMLButtonElement>(null);
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
   const DROPDOWN_SPACE_THRESHOLD = 220;
 
@@ -85,36 +65,6 @@ export function AdminUsers() {
   }, [openMenuId]);
 
   useEffect(() => {
-    if (openPlatformDropdownId === null) return;
-    const spaceBelow = typeof window !== "undefined" && platformTriggerRef.current
-      ? window.innerHeight - platformTriggerRef.current.getBoundingClientRect().bottom
-      : Infinity;
-    setPlatformDropdownUp(spaceBelow < DROPDOWN_SPACE_THRESHOLD);
-  }, [openPlatformDropdownId]);
-
-  useEffect(() => {
-    if (openPlatformDropdownId === null) return;
-    function handleClickOutside(event: MouseEvent) {
-      if (platformDropdownRef.current && !platformDropdownRef.current.contains(event.target as Node)) {
-        setOpenPlatformDropdownId(null);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [openPlatformDropdownId]);
-
-  useEffect(() => {
-    if (!platformFilterOpen) return;
-    function handleClickOutside(event: MouseEvent) {
-      if (platformFilterRef.current && !platformFilterRef.current.contains(event.target as Node)) {
-        setPlatformFilterOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [platformFilterOpen]);
-
-  useEffect(() => {
     let isMounted = true;
     const supabase = getSupabaseClient();
 
@@ -122,19 +72,10 @@ export function AdminUsers() {
       setIsLoading(true);
       setError(null);
       try {
-        const [{ data: platformsData }, { data: usersData, error: usersError }] =
-          await Promise.all([
-            supabase
-              .from("user_platform")
-              .select("id, code, name")
-              .order("name", { ascending: true }),
-            supabase
-              .from("users")
-              .select(
-                "id, created_at, first_name, last_name, email, status, user_platform_id, is_admin, user_platform(name, code)",
-              )
-              .order("created_at", { ascending: false }),
-          ]);
+        const { data: usersData, error: usersError } = await supabase
+          .from("users")
+          .select("id, created_at, first_name, last_name, email, status, is_admin")
+          .order("created_at", { ascending: false });
 
         if (!isMounted) return;
         if (usersError) {
@@ -143,34 +84,15 @@ export function AdminUsers() {
           return;
         }
 
-        if (platformsData) setPlatforms(platformsData as PlatformOption[]);
-
-        const merged: User[] = (usersData ?? []).map((u) => {
-          const raw = (u as {
-            user_platform?:
-              | { name: string; code: string }
-              | { name: string; code: string }[]
-              | null;
-          }).user_platform;
-          let platform: User["platform"] = null;
-          if (raw && typeof raw === "object") {
-            const single = Array.isArray(raw) ? raw[0] : raw;
-            if (single && "name" in single && "code" in single) {
-              platform = { name: single.name, code: single.code };
-            }
-          }
-          return {
-            id: u.id,
-            created_at: u.created_at ?? "",
-            first_name: u.first_name ?? null,
-            last_name: u.last_name ?? null,
-            email: u.email ?? null,
-            is_admin: u.is_admin === true,
-            status: (u.status as UserStatus) ?? "active",
-            user_platform_id: u.user_platform_id ?? null,
-            platform,
-          };
-        });
+        const merged: User[] = (usersData ?? []).map((u) => ({
+          id: u.id,
+          created_at: u.created_at ?? "",
+          first_name: u.first_name ?? null,
+          last_name: u.last_name ?? null,
+          email: u.email ?? null,
+          is_admin: u.is_admin === true,
+          status: (u.status as UserStatus) ?? "active",
+        }));
 
         setUsers(merged);
       } catch (e) {
@@ -228,15 +150,10 @@ export function AdminUsers() {
 
   const searchLower = search.trim().toLowerCase();
   const filteredUsers = users.filter((user) => {
-    if (searchLower) {
-      const name = displayName(user).toLowerCase();
-      const email = (user.email ?? "").toLowerCase();
-      if (!name.includes(searchLower) && !email.includes(searchLower)) return false;
-    }
-    if (platformFilter !== "all") {
-      if (user.user_platform_id !== platformFilter) return false;
-    }
-    return true;
+    if (!searchLower) return true;
+    const name = displayName(user).toLowerCase();
+    const email = (user.email ?? "").toLowerCase();
+    return name.includes(searchLower) || email.includes(searchLower);
   });
 
   const totalPages = Math.max(1, Math.ceil(filteredUsers.length / ITEMS_PER_PAGE));
@@ -248,41 +165,7 @@ export function AdminUsers() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, platformFilter]);
-
-  async function updateUserPlatform(userId: string, platformId: string | null) {
-    setUpdatingPlatformId(userId);
-    const supabase = getSupabaseClient();
-    const { error: updateError } = await supabase
-      .from("users")
-      .update({ user_platform_id: platformId })
-      .eq("id", userId);
-
-    if (updateError) {
-      setError(updateError.message);
-    } else {
-      const updatedPlatform =
-        platformId === null
-          ? null
-          : platforms.find((p) => p.id === platformId) ?? null;
-      setUsers((prev) =>
-        prev.map((u) =>
-          u.id === userId
-            ? {
-                ...u,
-                user_platform_id: platformId,
-                platform:
-                  updatedPlatform === null
-                    ? null
-                    : { name: updatedPlatform.name, code: updatedPlatform.code },
-              }
-            : u,
-        ),
-      );
-      setError(null);
-    }
-    setUpdatingPlatformId(null);
-  }
+  }, [search]);
 
   const STATUS_ERROR_LABEL: Record<UserStatus, string> = {
     active: "activate",
@@ -320,8 +203,7 @@ export function AdminUsers() {
   useEffect(() => setMounted(true), []);
 
   function handleUserCreated(
-    newUser: { id: string; email: string; first_name: string; last_name: string | null; user_platform_id: string | null },
-    platform: { id: string; code: string; name: string } | null,
+    newUser: { id: string; email: string; first_name: string; last_name: string | null },
   ) {
     const created: User = {
       id: newUser.id,
@@ -331,8 +213,6 @@ export function AdminUsers() {
       email: newUser.email,
       is_admin: false,
       status: "active",
-      user_platform_id: newUser.user_platform_id,
-      platform: platform ? { name: platform.name, code: platform.code } : null,
     };
     setUsers((prev) => [created, ...prev]);
   }
@@ -347,7 +227,6 @@ export function AdminUsers() {
       <AddUserDialog
         open={addUserOpen}
         onOpenChange={setAddUserOpen}
-        platforms={platforms}
         onUserCreated={handleUserCreated}
       />
 
@@ -361,7 +240,7 @@ export function AdminUsers() {
           headerEl
         )}
 
-      <div className="flex flex-col h-[calc(100vh-4rem)] overflow-hidden">
+      <div className="flex h-full min-h-0 flex-col overflow-hidden">
         {/* Toolbar */}
         <div className="flex flex-wrap items-center gap-3 mb-5 mt-2 flex-shrink-0">
           <div className="flex items-center gap-4 flex-1 min-w-0">
@@ -376,7 +255,7 @@ export function AdminUsers() {
                 <div
                   className={cn(
                     "relative z-10 p-3 rounded-full transition-all duration-300 ease-in-out",
-                    "group-hover:bg-gray-50 group-hover:border group-hover:border-neutral-200 group-hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] group-hover:scale-95",
+                    "group-hover:bg-neutral-100",
                   )}
                 >
                   <Plus className="h-[18px] w-[18px] stroke-[1.5] text-neutral-500" />
@@ -401,67 +280,6 @@ export function AdminUsers() {
                 aria-label="Search users by name or email"
               />
             </div>
-
-            {platforms.length > 0 && (
-              <div className="relative flex-shrink-0" ref={platformFilterRef}>
-                <button
-                  type="button"
-                  onClick={() => setPlatformFilterOpen((o) => !o)}
-                  className={cn(
-                    "inline-flex items-center gap-1 rounded-none border-0 bg-transparent p-0 shadow-none",
-                    "text-xs font-light uppercase tracking-wider",
-                    platformFilter === "all" ? "text-neutral-500" : "text-neutral-800",
-                    "hover:text-neutral-900 transition-colors",
-                    "focus-visible:outline-none",
-                  )}
-                >
-                  <span className="whitespace-nowrap">
-                    {platformFilter === "all"
-                      ? "All platforms"
-                      : platforms.find((p) => p.id === platformFilter)?.name ?? "All platforms"}
-                  </span>
-                  <ChevronDown
-                    className={cn(
-                      "h-3.5 w-3.5 flex-shrink-0 text-neutral-500 transition-transform duration-200",
-                      platformFilterOpen && "rotate-180",
-                    )}
-                    strokeWidth={1.8}
-                  />
-                </button>
-
-                {platformFilterOpen && (
-                  <div className="absolute top-full left-0 mt-1.5 min-w-[160px] bg-white border border-neutral-200 rounded-xl shadow-lg z-50 py-1 overflow-hidden">
-                    <button
-                      type="button"
-                      onClick={() => { setPlatformFilter("all"); setPlatformFilterOpen(false); }}
-                      className={cn(
-                        "w-full text-left px-3 py-2 text-xs transition-colors",
-                        platformFilter === "all"
-                          ? "bg-neutral-100 text-neutral-900"
-                          : "text-neutral-700 hover:bg-neutral-50",
-                      )}
-                    >
-                      All platforms
-                    </button>
-                    {platforms.map((p) => (
-                      <button
-                        key={p.id}
-                        type="button"
-                        onClick={() => { setPlatformFilter(p.id); setPlatformFilterOpen(false); }}
-                        className={cn(
-                          "w-full text-left px-3 py-2 text-xs transition-colors",
-                          platformFilter === p.id
-                            ? "bg-neutral-100 text-neutral-900"
-                            : "text-neutral-700 hover:bg-neutral-50",
-                        )}
-                      >
-                        {p.name}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
           </div>
 
           {!isLoading && filteredUsers.length > 0 && (
@@ -498,9 +316,9 @@ export function AdminUsers() {
           <table className="w-full text-sm">
             <thead className="sticky top-0 z-10 border-b border-neutral-100 bg-gray-50">
               <tr>
-                {["Name", "Email", "Platform", "Created", "Admin", ""].map((h) => (
+                {["Name", "Email", "Created", "Admin", ""].map((h) => (
                   <th
-                    key={h}
+                    key={h || "actions"}
                     className="text-left pb-3 pr-4 font-medium text-neutral-400 text-xs uppercase tracking-wide whitespace-nowrap bg-gray-50"
                   >
                     {h || <span className="sr-only">Actions</span>}
@@ -512,7 +330,7 @@ export function AdminUsers() {
               {isLoading &&
                 Array.from({ length: ITEMS_PER_PAGE }).map((_, i) => (
                   <tr key={i} className="border-b border-neutral-50">
-                    {Array.from({ length: 6 }).map((_, j) => (
+                    {Array.from({ length: 5 }).map((_, j) => (
                       <td key={j} className="py-4 pr-4">
                         <div className="h-4 rounded bg-neutral-100 animate-pulse" />
                       </td>
@@ -521,14 +339,14 @@ export function AdminUsers() {
                 ))}
               {!isLoading && error && (
                 <tr>
-                  <td colSpan={6} className="py-16 text-center text-xs text-red-400 font-light">
+                  <td colSpan={5} className="py-16 text-center text-xs text-red-400 font-light">
                     {error}
                   </td>
                 </tr>
               )}
               {!isLoading && !error && users.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="py-16 text-center text-neutral-400 font-light">
+                  <td colSpan={5} className="py-16 text-center text-neutral-400 font-light">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <Users className="h-7 w-7 text-neutral-300" />
                       <span>No users yet.</span>
@@ -538,7 +356,7 @@ export function AdminUsers() {
               )}
               {!isLoading && !error && users.length > 0 && filteredUsers.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="py-16 text-center text-neutral-400 font-light">
+                  <td colSpan={5} className="py-16 text-center text-neutral-400 font-light">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <Users className="h-7 w-7 text-neutral-300" />
                       <span>No users match your search.</span>
@@ -563,55 +381,6 @@ export function AdminUsers() {
                     </td>
                     <td className="py-4 pr-4 text-xs text-neutral-600 font-light">
                       {user.email ?? <span className="text-neutral-300">—</span>}
-                    </td>
-                    <td className="py-4 pr-4 text-xs text-neutral-600 font-light whitespace-nowrap min-w-[180px]">
-                      <div
-                        ref={openPlatformDropdownId === user.id ? platformDropdownRef : undefined}
-                        className="relative inline-block"
-                      >
-                        <button
-                          ref={openPlatformDropdownId === user.id ? platformTriggerRef : undefined}
-                          type="button"
-                          onClick={() =>
-                            setOpenPlatformDropdownId(
-                              openPlatformDropdownId === user.id ? null : user.id,
-                            )
-                          }
-                          disabled={updatingPlatformId === user.id}
-                          aria-label={`Platform for ${displayName(user)}`}
-                          aria-expanded={openPlatformDropdownId === user.id}
-                          className="inline-flex items-center gap-1 cursor-pointer text-left text-xs text-neutral-600 font-light outline-none transition-colors hover:text-neutral-900 focus:outline-none disabled:opacity-60"
-                        >
-                          <span>{user.platform?.name ?? <span className="text-neutral-300">—</span>}</span>
-                          <span className="flex flex-col -space-y-2">
-                            <ChevronUp className="h-3.5 w-3.5 text-neutral-400" />
-                            <ChevronDown className="h-3.5 w-3.5 text-neutral-400" />
-                          </span>
-                        </button>
-                        {openPlatformDropdownId === user.id && (
-                          <div
-                            className={`absolute left-0 z-20 min-w-[160px] rounded-xl border border-neutral-200 bg-white py-1 shadow-lg ${
-                              platformDropdownUp ? "bottom-full mb-1" : "top-full mt-1"
-                            }`}
-                            role="menu"
-                          >
-                            {platforms.map((p) => (
-                              <button
-                                key={p.id}
-                                type="button"
-                                role="menuitem"
-                                onClick={() => {
-                                  updateUserPlatform(user.id, p.id);
-                                  setOpenPlatformDropdownId(null);
-                                }}
-                                className="block w-full px-3 py-2 text-left text-xs text-neutral-700 font-light transition-colors hover:bg-neutral-50"
-                              >
-                                {p.name}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
                     </td>
                     <td className="py-4 pr-4 text-xs text-neutral-400 font-light whitespace-nowrap">
                       {user.created_at ? formatDate(user.created_at) : <span className="text-neutral-300">—</span>}

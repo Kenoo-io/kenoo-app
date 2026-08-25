@@ -2,10 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
 import { createWallsMetadata } from "@walls/config/metadata";
-import { AppHeaderVisibilityProvider } from "@walls/ui/private-app-chrome";
-import { AccountSwitcher } from "@/components/account-switcher";
 import { AppSidebarLayout } from "@/components/app-sidebar-layout";
-import { AppTopChrome } from "@/components/app-top-chrome";
 import { AdminLayoutClient } from "@/components/admin/admin-layout-client";
 import { Providers } from "@/components/providers";
 
@@ -40,20 +37,12 @@ export default function RootLayout({
       data-app="admin"
       className={`${geistSans.variable} ${geistMono.variable} h-full overflow-hidden bg-kenoo-white antialiased`}
     >
-      <body className="h-screen overflow-hidden bg-kenoo-white text-foreground">
-        <div className="h-full overscroll-none overflow-hidden">
-          <Providers>
-            <AppHeaderVisibilityProvider>
-              <AppTopChrome
-                dashboardPath="/"
-                leftContent={<AccountSwitcher />}
-              />
-              <AdminLayoutClient>
-                <AppSidebarLayout>{children}</AppSidebarLayout>
-              </AdminLayoutClient>
-            </AppHeaderVisibilityProvider>
-          </Providers>
-        </div>
+      <body className="h-screen overflow-hidden bg-kenoo-white text-neutral-900">
+        <Providers>
+          <AdminLayoutClient>
+            <AppSidebarLayout>{children}</AppSidebarLayout>
+          </AdminLayoutClient>
+        </Providers>
       </body>
     </html>
   );

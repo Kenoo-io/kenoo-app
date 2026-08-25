@@ -2,7 +2,10 @@ import type { CookieOptions } from "@supabase/ssr";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { appSlugCandidates } from "./app-url";
+import { isConsoleAppSlug, userIsConsoleOperator } from "./console-operator";
 import { getSupabaseAuthCookieOptions } from "@walls/supabase/cookies";
+
+export { consoleAppSlug, isConsoleAppSlug, userIsConsoleOperator } from "./console-operator";
 
 /** Shared across portal + apps so launcher and middleware agree on context. */
 export const ACTIVE_ACCOUNT_COOKIE = "kenoo_account_id";
@@ -187,13 +190,12 @@ export async function getAccountIdsWithAppAccess(
     return new Set(accountIds);
   }
 
-  // Console is staff-only (`users.is_admin`). Admin uses account grants below.
+  // Console is super-admin only (`console_operators`). Admin uses account grants below.
   if (isConsoleAppSlug(appSlug)) {
-    if (await userIsStaffAdmin(supabase, userId)) {
+    if (await userIsConsoleOperator(supabase, userId)) {
       return new Set(accountIds);
     }
-    const hasLegacy = await userHasLegacyAppAccess(supabase, userId, appId);
-    return hasLegacy ? new Set(accountIds) : new Set();
+    return new Set();
   }
 
   const onSaaS = await userHasAccountAppGrants(supabase, userId);
@@ -221,15 +223,6 @@ export async function getAccountIdsWithAppAccess(
   );
 }
 
-/** Internal console — access is user-level (`users.is_admin`), not account-scoped. */
-function consoleAppSlug(): string {
-  return process.env.NEXT_PUBLIC_CONSOLE_APP_SLUG || "console";
-}
-
-function isConsoleAppSlug(appSlug: string): boolean {
-  return appSlug === consoleAppSlug();
-}
-
 /** Marketplace / developer portal — every signed-in Kenoo user, no per-app grant. */
 function platformAppSlug(): string {
   return process.env.NEXT_PUBLIC_PLATFORM_APP_SLUG || "platform";
@@ -238,24 +231,6 @@ function platformAppSlug(): string {
 export function isOpenAccessAppSlug(appSlug: string): boolean {
   const open = platformAppSlug();
   return appSlug === open || appSlugCandidates(appSlug).includes(open);
-}
-
-async function userIsStaffAdmin(
-  supabase: SupabaseClient,
-  userId: string,
-): Promise<boolean> {
-  const { data: userRow, error: userError } = await supabase
-    .from("users")
-    .select("is_admin")
-    .eq("id", userId)
-    .maybeSingle();
-
-  if (userError) {
-    console.error("[auth] Error checking is_admin:", userError);
-    return false;
-  }
-
-  return userRow?.is_admin === true;
 }
 
 /** True when the user can open `appSlug` under a specific account. */
@@ -303,12 +278,9 @@ export async function userHasAppAccessForActiveAccount(
     return true;
   }
 
-  // Console is staff-only. Admin and all other apps use account grants below.
+  // Console is super-admin only. Admin and all other apps use account grants below.
   if (isConsoleAppSlug(appSlug)) {
-    if (await userIsStaffAdmin(supabase, userId)) {
-      return true;
-    }
-    return userHasLegacyAppAccess(supabase, userId, appRow.id as string);
+    return userIsConsoleOperator(supabase, userId);
   }
 
   const onSaaS = await userHasAccountAppGrants(supabase, userId);

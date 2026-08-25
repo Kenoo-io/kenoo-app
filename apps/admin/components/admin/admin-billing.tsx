@@ -14,14 +14,15 @@ import { Input } from "@/components/ui/borderless-input";
 import { wallsToast } from "@/components/ui/walls-toast";
 import { Toaster } from "@/components/ui/toaster";
 import { useActiveAccount } from "@/components/active-account-context";
+import { PageShell } from "@/components/admin/page-shell";
 import type { OrganizationRecord } from "@/lib/organizations-shared";
 import { canEditOrganization } from "@/lib/organizations-shared";
 import { cn } from "@walls/utils";
 
 const labelClass =
-  "mb-1 block text-xs font-medium tracking-wide text-[#5f6368]";
+  "mb-1 block text-xs font-medium tracking-wide text-neutral-500";
 const fieldClass =
-  "w-full rounded-lg border border-[#dadce0] bg-white px-3 py-2.5 text-sm text-[#202124] placeholder:text-[#9aa0a6] focus:border-[#1967d2] focus:outline-none focus:ring-2 focus:ring-[#1967d2]/15";
+  "w-full rounded-lg border border-neutral-200 bg-kenoo-white px-3 py-2.5 text-sm text-neutral-900 placeholder:text-neutral-400 focus:border-neutral-900 focus:outline-none";
 
 function BillingPageContent() {
   const searchParams = useSearchParams();
@@ -254,27 +255,26 @@ function BillingPageContent() {
 
   if (accountLoading || loading) {
     return (
-      <div className="mx-auto max-w-5xl animate-pulse space-y-4 py-2">
-        <div className="h-8 w-48 rounded-lg bg-neutral-200/80" />
-        <div className="grid gap-4 lg:grid-cols-2">
-          <div className="h-56 rounded-2xl bg-white" />
-          <div className="h-56 rounded-2xl bg-white" />
-        </div>
-      </div>
+      <PageShell title="Billing">
+        <div className="h-40 animate-pulse rounded-xl bg-[#F3F3F4]" />
+        <div className="h-48 animate-pulse rounded-xl border border-neutral-200" />
+      </PageShell>
     );
   }
 
   if (!activeAccountId || !activeAccount) {
     return (
-      <div className="mx-auto max-w-5xl rounded-2xl border border-[#e8eaed] bg-white px-6 py-16 text-center shadow-[0_1px_2px_rgba(60,64,67,0.08)]">
-        <Building2 className="mx-auto h-10 w-10 text-[#dadce0]" />
-        <p className="mt-4 text-sm font-medium text-[#202124]">
-          No account selected
-        </p>
-        <p className="mt-1 text-sm text-[#5f6368]">
-          Choose an account from the header to manage billing.
-        </p>
-      </div>
+      <PageShell title="Billing">
+        <div className="rounded-xl border border-neutral-200 px-6 py-16 text-center">
+          <Building2 className="mx-auto h-10 w-10 text-neutral-300" />
+          <p className="mt-4 text-sm font-medium text-neutral-900">
+            No account selected
+          </p>
+          <p className="mt-1 text-sm text-neutral-500">
+            Choose a workspace from the sidebar to manage billing.
+          </p>
+        </div>
+      </PageShell>
     );
   }
 
@@ -291,67 +291,56 @@ function BillingPageContent() {
     subscription?.status === "past_due";
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 pb-12">
+    <PageShell
+      title="Billing"
+      description={`Plan details and billing contact for ${activeAccount.name}.`}
+    >
       <Toaster />
-      <header className="space-y-1">
-        <div className="flex items-center gap-2 text-[#5f6368]">
-          <CreditCard className="h-4 w-4" />
-          <span className="text-xs font-medium uppercase tracking-wide">
-            Billing
-          </span>
-        </div>
-        <h1 className="text-2xl font-normal text-[#202124]">
-          Manage subscriptions and billing
-        </h1>
-        <p className="text-sm text-[#5f6368]">
-          Plan details and billing contact for {activeAccount.name}.
-        </p>
-      </header>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <section className="rounded-2xl border border-[#e8eaed] bg-white p-6 shadow-[0_1px_2px_rgba(60,64,67,0.08)]">
+      <div className="grid overflow-hidden rounded-xl border border-neutral-200 lg:grid-cols-2">
+        <section className="border-b border-neutral-200 p-6 lg:border-b-0 lg:border-r">
           <div className="mb-5 flex items-start justify-between gap-3">
             <div>
-              <h2 className="text-base font-medium text-[#202124]">
+              <h2 className="text-sm font-semibold text-neutral-950">
                 Subscription
               </h2>
-              <p className="mt-0.5 text-sm text-[#5f6368]">
+              <p className="mt-0.5 text-[13px] text-neutral-500">
                 Current plan for this workspace
               </p>
             </div>
-            <Receipt className="h-5 w-5 text-[#5f6368]" />
+            <Receipt className="h-5 w-5 text-neutral-400" />
           </div>
 
           <div className="space-y-3 text-sm">
-            <div className="flex items-center justify-between gap-4 border-b border-[#f1f3f4] py-2">
-              <span className="text-[#5f6368]">Plan</span>
-              <span className="font-medium text-[#202124]">{planLabel}</span>
+            <div className="flex items-center justify-between gap-4 border-b border-neutral-100 py-2">
+              <span className="text-neutral-500">Plan</span>
+              <span className="font-medium text-neutral-950">{planLabel}</span>
             </div>
-            <div className="flex items-center justify-between gap-4 border-b border-[#f1f3f4] py-2">
-              <span className="text-[#5f6368]">Status</span>
-              <span className="capitalize text-[#202124]">
+            <div className="flex items-center justify-between gap-4 border-b border-neutral-100 py-2">
+              <span className="text-neutral-500">Status</span>
+              <span className="capitalize text-neutral-950">
                 {subscription?.status ?? "none"}
               </span>
             </div>
-            <div className="flex items-center justify-between gap-4 border-b border-[#f1f3f4] py-2">
-              <span className="text-[#5f6368]">Licenses</span>
-              <span className="text-[#202124]">× {memberEstimate}</span>
+            <div className="flex items-center justify-between gap-4 border-b border-neutral-100 py-2">
+              <span className="text-neutral-500">Licenses</span>
+              <span className="text-neutral-950">× {memberEstimate}</span>
             </div>
             {subscription?.currentPeriodEnd && (
               <div className="flex items-center justify-between gap-4 py-2">
-                <span className="text-[#5f6368]">Current period ends</span>
-                <span className="text-[#202124]">
+                <span className="text-neutral-500">Current period ends</span>
+                <span className="text-neutral-950">
                   {new Date(subscription.currentPeriodEnd).toLocaleDateString()}
                 </span>
               </div>
             )}
           </div>
 
-          <div className="mt-5 space-y-2 border-t border-[#f1f3f4] pt-4">
+          <div className="mt-5 space-y-2 border-t border-neutral-100 pt-4">
             <button
               type="button"
               disabled={checkoutLoading || configuredPlans.length === 0}
-              className="block text-sm text-[#1967d2] hover:underline disabled:opacity-50"
+              className="block text-sm font-medium text-neutral-800 hover:text-neutral-950 disabled:opacity-50"
               onClick={() => void startCheckout(configuredPlans[0]?.id ?? "starter")}
             >
               {checkoutLoading
@@ -361,7 +350,7 @@ function BillingPageContent() {
                   : "Buy or upgrade"}
             </button>
             {configuredPlans.length === 0 && (
-              <p className="text-xs text-[#5f6368]">
+              <p className="text-xs text-neutral-400">
                 Set STRIPE_PRICE_STARTER (or STRIPE_PRICE_ID) in env to enable
                 checkout.
               </p>
@@ -369,7 +358,7 @@ function BillingPageContent() {
             <button
               type="button"
               disabled={portalLoading || !subscription?.stripeCustomerId}
-              className="block text-sm text-[#1967d2] hover:underline disabled:opacity-50"
+              className="block text-sm font-medium text-neutral-800 hover:text-neutral-950 disabled:opacity-50"
               onClick={() => void openPortal()}
             >
               {portalLoading
@@ -381,25 +370,22 @@ function BillingPageContent() {
 
         <section
           id="billing-payment"
-          className={cn(
-            "rounded-2xl border bg-white p-6 shadow-[0_1px_2px_rgba(60,64,67,0.08)]",
-            focusPayment ? "border-[#1967d2]" : "border-[#e8eaed]",
-          )}
+          className={cn("p-6", focusPayment && "bg-neutral-50/80")}
         >
           <div className="mb-5 flex items-start justify-between gap-3">
             <div>
-              <h2 className="text-base font-medium text-[#202124]">
+              <h2 className="text-sm font-semibold text-neutral-950">
                 Payment method
               </h2>
-              <p className="mt-0.5 text-sm text-[#5f6368]">
+              <p className="mt-0.5 text-[13px] text-neutral-500">
                 Managed securely in Stripe
               </p>
             </div>
-            <CreditCard className="h-5 w-5 text-[#5f6368]" />
+            <CreditCard className="h-5 w-5 text-neutral-400" />
           </div>
 
-          <div className="rounded-xl border border-dashed border-[#dadce0] bg-[#f8f9fa] px-4 py-8 text-center">
-            <p className="text-sm text-[#5f6368]">
+          <div className="rounded-lg bg-[#F3F3F4] px-4 py-8 text-center">
+            <p className="text-sm text-neutral-500">
               {subscription?.stripeCustomerId
                 ? "Update cards and invoices in the Stripe customer portal."
                 : "No payment method yet — start checkout to add one."}
@@ -412,7 +398,7 @@ function BillingPageContent() {
                 checkoutLoading ||
                 (!subscription?.stripeCustomerId && configuredPlans.length === 0)
               }
-              className="mt-4 rounded-full border-[#dadce0] text-[#1967d2] hover:bg-[#e8f0fe]"
+              className="mt-4 rounded-lg border-neutral-200 bg-kenoo-white text-neutral-800 hover:bg-neutral-50"
               onClick={() =>
                 void (subscription?.stripeCustomerId
                   ? openPortal()
@@ -431,13 +417,13 @@ function BillingPageContent() {
         </section>
       </div>
 
-      <section className="rounded-2xl border border-[#e8eaed] bg-white p-6 shadow-[0_1px_2px_rgba(60,64,67,0.08)] sm:p-8">
+      <section className="rounded-xl border border-neutral-200 p-6">
         <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h2 className="text-base font-medium text-[#202124]">
+            <h2 className="text-sm font-semibold text-neutral-950">
               Billing contact
             </h2>
-            <p className="mt-0.5 text-sm text-[#5f6368]">
+            <p className="mt-0.5 text-[13px] text-neutral-500">
               Update the email and address used for invoices
             </p>
           </div>
@@ -446,7 +432,7 @@ function BillingPageContent() {
               type="button"
               disabled={!isChanged || saving}
               onClick={() => void saveBilling()}
-              className="rounded-full bg-[#1967d2] px-5 text-white hover:bg-[#1557b0] disabled:opacity-50"
+              className="rounded-lg bg-neutral-950 px-5 text-white hover:bg-neutral-800 disabled:opacity-50"
             >
               {saving ? (
                 <span className="flex items-center gap-2">
@@ -461,9 +447,9 @@ function BillingPageContent() {
         </div>
 
         {!isOrganization ? (
-          <p className="rounded-xl bg-[#f8f9fa] px-4 py-6 text-center text-sm text-[#5f6368]">
+          <p className="rounded-lg bg-[#F3F3F4] px-4 py-6 text-center text-sm text-neutral-500">
             Billing contact details are available for organization accounts.
-            Switch accounts in the header to update billing.
+            Switch workspaces in the sidebar to update billing.
           </p>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2">
@@ -590,7 +576,7 @@ function BillingPageContent() {
           </div>
         )}
       </section>
-    </div>
+    </PageShell>
   );
 }
 
@@ -598,10 +584,7 @@ export function AdminBillingPage() {
   return (
     <Suspense
       fallback={
-        <div className="mx-auto max-w-5xl animate-pulse space-y-4 py-2">
-          <div className="h-8 w-48 rounded-lg bg-neutral-200/80" />
-          <div className="h-56 rounded-2xl bg-white" />
-        </div>
+        <div className="h-40 animate-pulse rounded-xl bg-[#F3F3F4]" />
       }
     >
       <BillingPageContent />

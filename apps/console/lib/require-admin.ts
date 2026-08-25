@@ -1,5 +1,6 @@
 import { createClient } from "@walls/supabase/server";
 import { createAdminClient } from "@walls/supabase/admin";
+import { userIsConsoleOperator } from "@walls/auth/active-account";
 
 export async function requireAdminCaller() {
   const supabase = await createClient();
@@ -14,7 +15,7 @@ export async function requireAdminCaller() {
 
   const { data: profile, error: profileError } = await supabase
     .from("users")
-    .select("id, is_admin, status")
+    .select("id, status")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -23,7 +24,8 @@ export async function requireAdminCaller() {
     return { error: "Failed to verify access" as const, status: 500 as const };
   }
 
-  if (!profile || profile.status !== "active" || profile.is_admin !== true) {
+  const isOperator = await userIsConsoleOperator(supabase, user.id, user.email);
+  if (!profile || profile.status !== "active" || !isOperator) {
     return { error: "Forbidden" as const, status: 403 as const };
   }
 

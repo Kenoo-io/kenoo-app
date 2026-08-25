@@ -15,7 +15,6 @@ import {
 
 import { wallsToast } from "@/components/ui/walls-toast";
 import { Button } from "@/components/ui/button";
-import { ChromeFrame } from "@/components/ui/chrome-frame";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
@@ -389,45 +388,40 @@ export function OrganizationMembers({
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative min-w-0 max-w-sm flex-1">
-          <Search className="absolute left-0 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
+          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-neutral-400" />
           <input
             type="text"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Search by name or email…"
             aria-label="Search users"
-            className={cn(
-              "w-full rounded-none border-0 border-b bg-transparent py-2 pl-6 pr-3 text-sm font-light transition-colors placeholder:text-neutral-300 focus:outline-none",
-              search ? "border-b-[var(--kenoo-sky)]" : "border-neutral-200",
-              "focus:border-b-[var(--kenoo-sky)]",
-            )}
+            className="h-9 w-full rounded-lg bg-kenoo-white pl-9 pr-3 text-sm outline-none ring-1 ring-black/[0.06] placeholder:text-neutral-400"
           />
         </div>
 
-        <p className="text-xs font-light text-neutral-400 tabular-nums">
+        <p className="text-xs font-medium tabular-nums text-neutral-400">
           {filteredMembers.length}{" "}
           {filteredMembers.length === 1 ? "user" : "users"}
         </p>
 
         {canManage ? (
-          <ChromeFrame className="ml-auto" contentClassName="rounded-[calc(0.75rem-1.5px)]">
-            <Button
-              type="button"
-              onClick={() => setShowInviteForm(true)}
-              className="inline-flex h-10 items-center gap-2 rounded-xl border-0 bg-white px-4 text-sm font-medium text-neutral-800 shadow-none hover:bg-white"
-            >
-              <Plus className="h-4 w-4" />
-              Add user
-            </Button>
-          </ChromeFrame>
+          <Button
+            type="button"
+            onClick={() => setShowInviteForm(true)}
+            className="ml-auto inline-flex h-9 items-center gap-1.5 rounded-lg bg-neutral-950 px-3.5 text-sm font-medium text-white hover:bg-neutral-800"
+          >
+            <Plus className="h-4 w-4" />
+            Add user
+          </Button>
         ) : null}
       </div>
 
-      <div className="overflow-x-auto">
+      <div className="overflow-hidden rounded-xl border border-neutral-200">
+        <div className="overflow-x-auto">
         <table className="w-full min-w-[560px] table-fixed text-sm">
           <thead className="border-b border-neutral-100">
             <tr>
-              <th className="w-[32%] py-3 pr-4 text-left text-xs font-medium uppercase tracking-wide text-neutral-400">
+              <th className="w-[32%] py-3 pl-5 pr-4 text-left text-xs font-medium uppercase tracking-wide text-neutral-400">
                 Name
               </th>
               <th className="w-[34%] py-3 pl-3 pr-4 text-left text-xs font-medium uppercase tracking-wide text-neutral-400">
@@ -436,7 +430,7 @@ export function OrganizationMembers({
               <th className="w-[18%] py-3 pl-3 pr-4 text-left text-xs font-medium uppercase tracking-wide text-neutral-400">
                 Role
               </th>
-              <th className="w-[16%] py-3 pl-3 pr-4 text-right text-xs font-medium uppercase tracking-wide text-neutral-400">
+              <th className="w-[16%] py-3 pl-3 pr-5 text-right text-xs font-medium uppercase tracking-wide text-neutral-400">
                 Actions
               </th>
             </tr>
@@ -467,7 +461,7 @@ export function OrganizationMembers({
                     key={member.id}
                     className="border-b border-neutral-50 transition-colors hover:bg-neutral-50/60"
                   >
-                    <td className="overflow-hidden py-4 pr-4">
+                    <td className="overflow-hidden py-4 pl-5 pr-4">
                       <div className="flex min-w-0 items-center gap-3">
                         <MemberAvatar
                           firstName={member.firstName}
@@ -519,7 +513,7 @@ export function OrganizationMembers({
                         </span>
                       )}
                     </td>
-                    <td className="py-4 pl-3 pr-4">
+                    <td className="py-4 pl-3 pr-5">
                       <div className="flex items-center justify-end">
                         {isRemoving ? (
                           <Loader2 className="h-4 w-4 animate-spin text-neutral-400" />
@@ -568,6 +562,7 @@ export function OrganizationMembers({
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       <Dialog
@@ -780,7 +775,7 @@ export function OrganizationMembers({
                 type="button"
                 disabled={inviting || !inviteEmail.trim()}
                 onClick={() => void handleInvite()}
-                className="rounded-full bg-neutral-900 px-5 text-white hover:bg-neutral-800 disabled:opacity-40"
+                className="rounded-lg bg-neutral-950 px-5 text-white hover:bg-neutral-800 disabled:opacity-40"
               >
                 {inviting ? (
                   <span className="inline-flex items-center gap-2">

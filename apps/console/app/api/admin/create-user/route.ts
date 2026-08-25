@@ -15,7 +15,6 @@ export async function POST(request: Request) {
     email?: string;
     firstName?: string;
     lastName?: string;
-    platformId?: string;
   };
 
   try {
@@ -27,7 +26,6 @@ export async function POST(request: Request) {
   const email = body.email?.trim().toLowerCase();
   const firstName = body.firstName?.trim();
   const lastName = body.lastName?.trim() || null;
-  const platformId = body.platformId?.trim() || null;
 
   if (!email || !firstName) {
     return NextResponse.json(
@@ -67,13 +65,12 @@ export async function POST(request: Request) {
         email,
         first_name: firstName,
         last_name: lastName,
-        user_platform_id: platformId,
         status: "active",
         is_admin: false,
       },
       { onConflict: "id" },
     )
-    .select("id, email, first_name, last_name, user_platform_id")
+    .select("id, email, first_name, last_name")
     .single();
 
   if (upsertError || !userRow) {
@@ -92,7 +89,6 @@ export async function POST(request: Request) {
       email: userRow.email,
       first_name: userRow.first_name,
       last_name: userRow.last_name,
-      user_platform_id: userRow.user_platform_id,
     },
   });
 }

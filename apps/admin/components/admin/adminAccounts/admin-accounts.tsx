@@ -26,11 +26,11 @@ function PageHeader({
   description: string;
 }) {
   return (
-    <div className="mb-8">
-      <h1 className="text-2xl font-black tracking-tight text-neutral-900 md:text-3xl">
+    <div>
+      <h1 className="text-[28px] font-semibold tracking-tight text-neutral-950">
         {title}
       </h1>
-      <p className="mt-2 max-w-2xl text-sm font-light text-neutral-500">
+      <p className="mt-1.5 max-w-2xl text-sm leading-6 text-neutral-500">
         {description}
       </p>
     </div>
@@ -137,7 +137,7 @@ export function AdminAccounts() {
         );
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="mx-auto flex w-full max-w-[1100px] flex-col gap-6 px-6 py-8 md:px-10 md:py-10">
       <PageHeader
         title="Accounts"
         description="Browse and manage organization accounts, members, and app access."
@@ -151,7 +151,7 @@ export function AdminAccounts() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search accounts…"
-            className="w-full rounded-xl border border-neutral-200 bg-white py-2.5 pl-10 pr-4 text-sm font-light shadow-sm transition-colors placeholder:text-neutral-300 focus:border-kenoo-blue/40 focus:outline-none focus:ring-2 focus:ring-kenoo-blue/10"
+            className="w-full rounded-xl border border-neutral-200 bg-white py-2.5 pl-10 pr-4 text-sm font-light shadow-sm transition-colors placeholder:text-neutral-300 focus:border-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/10"
             aria-label="Search accounts"
           />
         </div>
@@ -232,7 +232,7 @@ export function AdminAccounts() {
               >
                 <Link
                   href={`/accounts/${account.id}`}
-                  className="group flex h-full flex-col rounded-2xl border border-neutral-200/80 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-kenoo-blue/25 hover:shadow-md"
+                  className="group flex h-full flex-col rounded-2xl border border-neutral-200/80 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-neutral-300 hover:shadow-md"
                 >
                   <div className="flex items-start gap-3">
                     <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-neutral-100 ring-1 ring-neutral-200/60">
@@ -248,7 +248,7 @@ export function AdminAccounts() {
                       )}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate font-semibold text-neutral-900 group-hover:text-kenoo-blue">
+                      <p className="truncate font-semibold text-neutral-900 group-hover:text-neutral-700">
                         {account.name}
                       </p>
                       <p className="truncate text-xs font-light text-neutral-400">

@@ -1,7 +1,10 @@
 import {
+  consoleAppSlug,
   getSupabaseClient,
+  isConsoleAppSlug,
   readActiveAccountIdFromDocumentCookie,
   resolveAppHref,
+  userIsConsoleOperator,
   writeActiveAccountIdToDocumentCookie,
 } from "@walls/auth";
 
@@ -46,6 +49,7 @@ function pushApp(
   }
 
   const slug = String(a.slug);
+  if (isConsoleAppSlug(slug)) return;
   const name =
     slug === ADMIN_APP_SLUG ? "Admin console" : String(a.name);
   const urlRedirect =
@@ -219,19 +223,21 @@ export async function fetchUserLauncherApps(
   const seenAppIds = new Set<string>();
 
   if (onSaaS) {
-    if (!activeAccountId) return [];
-    const { data } = await supabase
-      .from("account_app_user_access")
-      .select(
-        "app_id, apps(id, slug, name, icon_url, url_redirect, subdomain)",
-      )
-      .eq("account_id", activeAccountId)
-      .eq("user_id", userId);
+    if (activeAccountId) {
+      const { data } = await supabase
+        .from("account_app_user_access")
+        .select(
+          "app_id, apps(id, slug, name, icon_url, url_redirect, subdomain)",
+        )
+        .eq("account_id", activeAccountId)
+        .eq("user_id", userId);
 
-    for (const row of data ?? []) {
-      pushApp(appList, seenAppIds, row.app_id, row.apps);
+      for (const row of data ?? []) {
+        pushApp(appList, seenAppIds, row.app_id, row.apps);
+      }
     }
     await appendOpenAccessLauncherApps(supabase, appList, seenAppIds);
+    await appendConsoleLauncherApp(supabase, userId, appList, seenAppIds);
     return appList;
   }
 
@@ -239,6 +245,7 @@ export async function fetchUserLauncherApps(
     pushApp(appList, seenAppIds, row.app_id, row.apps);
   }
   await appendOpenAccessLauncherApps(supabase, appList, seenAppIds);
+  await appendConsoleLauncherApp(supabase, userId, appList, seenAppIds);
   return appList;
 }
 
@@ -255,5 +262,45 @@ async function appendOpenAccessLauncherApps(
 
   for (const app of data ?? []) {
     pushApp(appList, seenAppIds, app.id as string, app);
+  }
+}
+
+async function appendConsoleLauncherApp(
+  supabase: ReturnType<typeof getSupabaseClient>,
+  userId: string,
+  appList: PortalLauncherApp[],
+  seenAppIds: Set<string>,
+) {
+  if (!(await userIsConsoleOperator(supabase, userId))) return;
+
+  const { data } = await supabase
+    .from("apps")
+    .select("id, slug, name, icon_url, url_redirect, subdomain")
+    .eq("is_active", true)
+    .eq("slug", consoleAppSlug());
+
+  for (const app of data ?? []) {
+    if (seenAppIds.has(app.id as string)) continue;
+    const slug = String(app.slug);
+    const urlRedirect =
+      app.url_redirect != null ? String(app.url_redirect) : null;
+    const subdomain = app.subdomain != null ? String(app.subdomain) : null;
+    const iconUrl = app.icon_url
+      ? String(app.icon_url)
+      : `https://assets.wallsentertainment.com/walls-app-icons/${slug}.svg`;
+    seenAppIds.add(app.id as string);
+    appList.push({
+      app_id: app.id as string,
+      name: String(app.name),
+      slug,
+      icon: iconUrl,
+      subdomain,
+      href: resolveAppHref({
+        slug,
+        subdomain,
+        urlRedirect,
+        platformBase: "",
+      }),
+    });
   }
 }

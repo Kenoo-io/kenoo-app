@@ -17,7 +17,7 @@ export default async function AdminUserDetailPage({
   const { data: userRow, error } = await supabase
     .from("users")
     .select(
-      "id, created_at, first_name, last_name, email, phone_number, user_platform_id, avatar_url, date_of_birth, address, timezone, daily_email_limit, personal_email, country_code, is_admin, user_platform(id, code, name)",
+      "id, created_at, first_name, last_name, email, phone_number, avatar_url, date_of_birth, address, timezone, daily_email_limit, personal_email, country_code, is_admin",
     )
     .eq("id", id)
     .maybeSingle();
@@ -37,9 +37,6 @@ export default async function AdminUserDetailPage({
       .eq("user_id", id)
       .maybeSingle(),
   ]);
-
-  const platformRaw = userRow.user_platform;
-  const platform = Array.isArray(platformRaw) ? platformRaw[0] : platformRaw;
 
   const appAccess =
     accessRows
@@ -63,7 +60,6 @@ export default async function AdminUserDetailPage({
     last_name: userRow.last_name,
     email: userRow.email,
     phone_number: userRow.phone_number,
-    user_platform_id: userRow.user_platform_id,
     avatar_url: userRow.avatar_url,
     date_of_birth: userRow.date_of_birth,
     address: userRow.address,
@@ -73,13 +69,6 @@ export default async function AdminUserDetailPage({
     person_id: null,
     country_code: userRow.country_code,
     is_admin: userRow.is_admin === true,
-    platform: platform
-      ? {
-          id: platform.id as string,
-          code: platform.code as string,
-          name: platform.name as string,
-        }
-      : null,
     app_access: appAccess as UserDetail["app_access"],
     commission_bps:
       commissionRow?.commission_bps != null

@@ -1,18 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
-import {
-  Building2,
-  CreditCard,
-  LayoutGrid,
-  User,
-  UserPlus,
-} from "lucide-react";
+import { LayoutGrid, User, UserPlus } from "lucide-react";
 
 import { getSupabaseClient } from "@/lib/auth";
 import { useActiveAccount } from "@/components/active-account-context";
+import { PageShell } from "@/components/admin/page-shell";
 
 type MemberRow = {
   id: string;
@@ -32,14 +26,6 @@ type AppAccessRow = {
   name: string;
   icon_url: string | null;
 };
-
-function SkeletonBlock({ className }: { className?: string }) {
-  return (
-    <div
-      className={`animate-pulse rounded-2xl bg-white shadow-[0_1px_2px_rgba(60,64,67,0.06)] ${className ?? "h-48"}`}
-    />
-  );
-}
 
 function memberDisplayName(member: MemberRow): string {
   const user = member.users;
@@ -134,111 +120,93 @@ export function AdminDashboard() {
 
   const activeCount = useMemo(() => members.length, [members]);
   const isLoading = loading || accountLoading;
-  const displayName = activeAccount?.name ?? "your account";
-  const TypeIcon =
-    activeAccount?.accountType === "organization" ? Building2 : User;
+  const displayName = activeAccount?.name ?? "your workspace";
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 pb-16 pt-1">
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="space-y-1">
-          <div className="flex items-center gap-3">
-            {activeAccount && (
-              <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-white shadow-[0_1px_2px_rgba(60,64,67,0.12)]">
-                {activeAccount.iconUrl ? (
-                  <Image
-                    src={activeAccount.iconUrl}
-                    alt=""
-                    width={40}
-                    height={40}
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <TypeIcon className="h-4 w-4 text-[#5f6368]" />
-                )}
-              </div>
-            )}
-            <div>
-              <h1 className="text-xl font-normal text-[#202124] sm:text-2xl">
-                {displayName}
-              </h1>
-              <p className="text-sm text-[#5f6368]">
-                Welcome to the Kenoo Admin Console.
-              </p>
-            </div>
-          </div>
-        </div>
-      </header>
-
+    <PageShell title="Home">
       {!activeAccountId && !accountLoading ? (
-        <div className="rounded-2xl border border-[#e8eaed] bg-white px-6 py-16 text-center shadow-[0_1px_2px_rgba(60,64,67,0.08)]">
-          <Building2 className="mx-auto h-10 w-10 text-[#dadce0]" />
-          <p className="mt-4 text-sm font-medium text-[#202124]">
-            No account selected
-          </p>
-          <p className="mt-1 text-sm text-[#5f6368]">
-            Choose an account from the header switcher to view its admin home.
-          </p>
-        </div>
+        <EmptyState
+          title="No account selected"
+          body="Choose a workspace from the sidebar to view its admin home."
+        />
       ) : isLoading ? (
-        <div className="grid gap-4 lg:grid-cols-3">
-          <SkeletonBlock className="h-72 lg:col-span-1" />
-          <SkeletonBlock className="h-72 lg:col-span-1" />
-          <SkeletonBlock className="h-72 lg:col-span-1" />
+        <div className="space-y-6">
+          <div className="h-40 animate-pulse rounded-xl bg-[#F3F3F4]" />
+          <div className="h-36 animate-pulse rounded-xl border border-neutral-200" />
         </div>
       ) : (
-        <div className="grid gap-4 lg:grid-cols-3">
-          {/* Users card */}
-          <section className="rounded-2xl border border-[#e8eaed] bg-white p-5 shadow-[0_1px_2px_rgba(60,64,67,0.08)] sm:p-6">
-            <div className="mb-4 flex items-start justify-between gap-3">
+        <div className="space-y-6">
+          <section className="relative overflow-hidden rounded-xl bg-[#F3F3F4] px-6 py-6">
+            <div
+              className="pointer-events-none absolute inset-y-0 right-0 w-1/2 opacity-80"
+              style={{
+                background:
+                  "radial-gradient(circle at 70% 40%, rgba(196,181,253,0.7), transparent 55%), radial-gradient(circle at 90% 80%, rgba(253,224,71,0.55), transparent 50%), radial-gradient(circle at 50% 90%, rgba(110,231,183,0.45), transparent 45%)",
+              }}
+            />
+            <div className="relative max-w-lg">
+              <h2 className="text-lg font-semibold tracking-tight text-neutral-950">
+                {displayName}
+              </h2>
+              <p className="mt-1.5 text-sm leading-6 text-neutral-600">
+                Manage users, apps, and billing for this workspace. Changes stay
+                with the account so teammates see the same data.
+              </p>
+              <Link
+                href="/users?invite=1"
+                className="mt-4 inline-flex rounded-lg bg-neutral-950 px-3.5 py-2 text-sm font-medium text-kenoo-white hover:bg-neutral-800"
+              >
+                Add a user
+              </Link>
+            </div>
+          </section>
+
+          <div className="grid overflow-hidden rounded-xl border border-neutral-200 sm:grid-cols-3">
+            <MetricCard
+              label="Users"
+              value={String(activeCount)}
+              href="/users"
+              action="Manage users"
+            />
+            <MetricCard
+              label="Enabled apps"
+              value={String(apps.length)}
+              href={activeAccountId ? `/accounts/${activeAccountId}` : "/"}
+              action="Manage apps"
+            />
+            <MetricCard
+              label="Plan"
+              value="Starter"
+              href="/billing"
+              action="Billing"
+            />
+          </div>
+
+          <section className="overflow-hidden rounded-xl border border-neutral-200">
+            <div className="flex items-center justify-between border-b border-neutral-200 px-5 py-4">
               <div>
-                <h2 className="text-base font-medium text-[#202124]">Users</h2>
-                <p className="mt-0.5 text-sm text-[#5f6368]">
-                  Add or manage users
+                <h2 className="text-sm font-semibold text-neutral-950">
+                  People
+                </h2>
+                <p className="mt-0.5 text-[13px] text-neutral-500">
+                  Recent members in this workspace
                 </p>
               </div>
               <Link
                 href="/users"
-                className="shrink-0 text-sm font-medium text-[#1967d2] hover:underline"
+                className="text-[13px] font-medium text-neutral-700 hover:text-neutral-950"
               >
                 View all
               </Link>
             </div>
-
-            <div className="mb-5">
-              <p className="text-xs text-[#5f6368]">Active</p>
-              <p className="mt-1 text-3xl font-normal tabular-nums text-[#202124]">
-                {activeCount}
-              </p>
-            </div>
-
-            <div className="space-y-2.5 border-t border-[#f1f3f4] pt-4">
-              <Link
-                href="/users?invite=1"
-                className="flex items-center gap-2 text-sm text-[#1967d2] hover:underline"
-              >
-                <UserPlus className="h-3.5 w-3.5" />
-                Add a user
-              </Link>
-              <Link
-                href="/users"
-                className="block text-sm text-[#1967d2] hover:underline"
-              >
-                Update a user&apos;s name or email
-              </Link>
-              <Link
-                href="/account"
-                className="block text-sm text-[#1967d2] hover:underline"
-              >
-                Manage account settings
-              </Link>
-            </div>
-
-            {members.slice(0, 3).length > 0 && (
-              <div className="mt-5 space-y-2 border-t border-[#f1f3f4] pt-4">
-                {members.slice(0, 3).map((member) => (
-                  <div key={member.id} className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-[#f1f3f4]">
+            {members.slice(0, 5).length > 0 ? (
+              <ul>
+                {members.slice(0, 5).map((member) => (
+                  <li
+                    key={member.id}
+                    className="flex items-center gap-3 border-b border-neutral-100 px-5 py-3 last:border-0"
+                  >
+                    <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-neutral-100">
                       {member.users?.avatar_url ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
@@ -247,113 +215,48 @@ export function AdminDashboard() {
                           className="h-full w-full object-cover"
                         />
                       ) : (
-                        <User className="h-3.5 w-3.5 text-[#9aa0a6]" />
+                        <User className="h-3.5 w-3.5 text-neutral-400" />
                       )}
                     </div>
-                    <div className="min-w-0">
-                      <p className="truncate text-sm text-[#202124]">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-neutral-900">
                         {memberDisplayName(member)}
                       </p>
-                      <p className="truncate text-xs capitalize text-[#5f6368]">
+                      <p className="truncate text-xs capitalize text-neutral-400">
                         {member.role}
                       </p>
                     </div>
-                  </div>
+                  </li>
                 ))}
+              </ul>
+            ) : (
+              <div className="px-5 py-10 text-center">
+                <UserPlus className="mx-auto h-6 w-6 text-neutral-300" />
+                <p className="mt-2 text-sm text-neutral-500">No members yet</p>
               </div>
             )}
           </section>
 
-          {/* Billing card */}
-          <section className="rounded-2xl border border-[#e8eaed] bg-white p-5 shadow-[0_1px_2px_rgba(60,64,67,0.08)] sm:p-6">
-            <div className="mb-4 flex items-start justify-between gap-3">
-              <div>
-                <h2 className="text-base font-medium text-[#202124]">
-                  Billing
-                </h2>
-                <p className="mt-0.5 text-sm text-[#5f6368]">
-                  Manage subscriptions and billing
-                </p>
-              </div>
-              <Link
-                href="/billing"
-                className="shrink-0 text-sm font-medium text-[#1967d2] hover:underline"
-              >
-                Manage
-              </Link>
-            </div>
-
-            <div className="space-y-2 text-sm">
-              <p className="font-medium text-[#202124]">Kenoo Starter</p>
-              <p className="text-[#5f6368]">Flexible Plan</p>
-              <div className="flex items-baseline gap-1 pt-1">
-                <span className="text-2xl font-normal text-[#202124]">$0</span>
-                <span className="text-[#5f6368]">/ seat / month</span>
-              </div>
-              <p className="text-[#5f6368]">Licenses × {activeCount || 1}</p>
-              <p className="pt-1 text-[#202124]">
-                Estimated bill{" "}
-                <span className="font-medium">$0</span>
-              </p>
-            </div>
-
-            <div className="mt-5 space-y-2.5 border-t border-[#f1f3f4] pt-4">
-              <Link
-                href="/billing"
-                className="block text-sm text-[#1967d2] hover:underline"
-              >
-                View transactions / invoices
-              </Link>
-              <Link
-                href="/billing?section=payment"
-                className="flex items-center gap-2 text-sm text-[#1967d2] hover:underline"
-              >
-                <CreditCard className="h-3.5 w-3.5" />
-                Manage payment method
-              </Link>
-              <Link
-                href="/billing"
-                className="block text-sm text-[#1967d2] hover:underline"
-              >
-                Buy or upgrade
-              </Link>
-            </div>
-          </section>
-
-          {/* Apps card */}
-          <section className="rounded-2xl border border-[#e8eaed] bg-white p-5 shadow-[0_1px_2px_rgba(60,64,67,0.08)] sm:p-6">
-            <div className="mb-4 flex items-start justify-between gap-3">
-              <div>
-                <h2 className="text-base font-medium text-[#202124]">Apps</h2>
-                <p className="mt-0.5 text-sm text-[#5f6368]">
-                  Apps enabled for this account
-                </p>
-              </div>
-              {activeAccountId && (
-                <Link
-                  href={`/accounts/${activeAccountId}`}
-                  className="shrink-0 text-sm font-medium text-[#1967d2] hover:underline"
-                >
-                  Manage
-                </Link>
-              )}
-            </div>
-
-            <div className="mb-5">
-              <p className="text-xs text-[#5f6368]">Enabled</p>
-              <p className="mt-1 text-3xl font-normal tabular-nums text-[#202124]">
-                {apps.length}
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              {apps.length > 0 ? (
-                apps.slice(0, 4).map((app) => (
-                  <div
-                    key={app.id}
-                    className="flex items-center gap-3 rounded-xl bg-[#f8f9fa] px-3 py-2"
+          {apps.length > 0 ? (
+            <section className="overflow-hidden rounded-xl border border-neutral-200">
+              <div className="flex items-center justify-between border-b border-neutral-200 px-5 py-4">
+                <h2 className="text-sm font-semibold text-neutral-950">Apps</h2>
+                {activeAccountId ? (
+                  <Link
+                    href={`/accounts/${activeAccountId}`}
+                    className="text-[13px] font-medium text-neutral-700 hover:text-neutral-950"
                   >
-                    <div className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-md bg-white">
+                    Manage
+                  </Link>
+                ) : null}
+              </div>
+              <ul>
+                {apps.slice(0, 6).map((app) => (
+                  <li
+                    key={app.id}
+                    className="flex items-center gap-3 border-b border-neutral-100 px-5 py-3 last:border-0"
+                  >
+                    <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg bg-neutral-100">
                       {app.icon_url ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
@@ -362,21 +265,53 @@ export function AdminDashboard() {
                           className="h-full w-full object-cover"
                         />
                       ) : (
-                        <LayoutGrid className="h-3.5 w-3.5 text-[#9aa0a6]" />
+                        <LayoutGrid className="h-3.5 w-3.5 text-neutral-400" />
                       )}
                     </div>
-                    <p className="truncate text-sm text-[#202124]">{app.name}</p>
-                  </div>
-                ))
-              ) : (
-                <p className="py-4 text-center text-sm text-[#5f6368]">
-                  No apps enabled yet
-                </p>
-              )}
-            </div>
-          </section>
+                    <p className="truncate text-sm font-medium text-neutral-900">
+                      {app.name}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
         </div>
       )}
+    </PageShell>
+  );
+}
+
+function MetricCard({
+  label,
+  value,
+  href,
+  action,
+}: {
+  label: string;
+  value: string;
+  href: string;
+  action?: string;
+}) {
+  return (
+    <div className="border-b border-neutral-200 p-5 last:border-b-0 sm:border-b-0 sm:border-r sm:last:border-r-0">
+      <p className="text-sm text-neutral-500">{label}</p>
+      <p className="mt-3 text-[28px] font-semibold tracking-tight">{value}</p>
+      <Link
+        href={href}
+        className="mt-4 inline-flex rounded-lg border border-neutral-200 bg-kenoo-white px-2.5 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-50"
+      >
+        {action ?? "View"}
+      </Link>
+    </div>
+  );
+}
+
+function EmptyState({ title, body }: { title: string; body: string }) {
+  return (
+    <div className="rounded-xl border border-neutral-200 px-6 py-16 text-center">
+      <p className="text-sm font-medium text-neutral-900">{title}</p>
+      <p className="mt-1 text-sm text-neutral-500">{body}</p>
     </div>
   );
 }
