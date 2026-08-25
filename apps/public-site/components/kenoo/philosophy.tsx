@@ -18,7 +18,7 @@ const pillars = [
   {
     icon: Sparkles,
     title: "AI that stays visible",
-    body: "Assist where it helps — sorting the day, drafting outreach, previewing budget changes — without hiding ownership.",
+    body: "Assist where it helps: sorting the day, drafting outreach, previewing budget changes, without hiding ownership.",
   },
   {
     icon: ShieldCheck,

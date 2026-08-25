@@ -16,7 +16,7 @@ const publicEnv = {
 
 if (!publicEnv.NEXT_PUBLIC_SUPABASE_URL || !publicEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
   console.warn(
-    `[public-site] Supabase env missing after loading ${monorepoRoot}/.env — restart dev server after editing env files.`,
+    `[public-site] Supabase env missing after loading ${monorepoRoot}/.env; restart dev server after editing env files.`,
   );
 }
 

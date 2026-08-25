@@ -5,7 +5,7 @@ const stats = [
 ];
 
 const points = [
-  "Status, ownership, and progress stay on the record — not buried in a chat thread.",
+  "Status, ownership, and progress stay on the record, not buried in a chat thread.",
   "Budget and campaign changes in AdPilot can be previewed before anything goes live.",
   "Connected advertiser data lives as customer content inside the workspace that connected it.",
 ];

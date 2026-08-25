@@ -19,7 +19,7 @@ const orbSpring = {
   mass: 0.85,
 };
 
-/** Weighted glide — slight overshoot so orbs feel like metal spheres. */
+/** Weighted glide: slight overshoot so orbs feel like metal spheres. */
 const orbSlide = {
   type: "spring" as const,
   stiffness: 140,
@@ -88,7 +88,7 @@ const copyVariants = {
   }),
 };
 
-/** Set swap: soft dissolve in place — no slide, scale, or tilt. */
+/** Set swap: soft dissolve in place, no slide, scale, or tilt. */
 const setSwapVariants = {
   enter: {
     opacity: 0,

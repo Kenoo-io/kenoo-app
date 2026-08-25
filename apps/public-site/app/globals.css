@@ -50,7 +50,7 @@ body {
   font-family: var(--font-display), var(--font-sans), sans-serif;
 }
 
-/* Chrome glow — same direction as AdPilot toggle */
+/* Chrome glow: same direction as AdPilot toggle */
 @property --kenoo-chrome-reveal {
   syntax: "<angle>";
   inherits: false;
@@ -121,7 +121,7 @@ body {
   }
 }
 
-/* ── Suite orbs — metallic grain spheres ─────────────────────────── */
+/* ── Suite orbs: metallic grain spheres ─────────────────────────── */
 
 @keyframes suite-orb-float {
   0%,

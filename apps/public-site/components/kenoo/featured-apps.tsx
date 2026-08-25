@@ -65,7 +65,7 @@ export function FeaturedApps() {
             </h2>
             <p className="mt-5 max-w-xl text-base leading-relaxed text-kenoo-muted md:text-lg">
               Kenoo ships a broader suite over time. These are the apps we
-              highlight today — each with a clear job and a path into the live
+              highlight today, each with a clear job and a path into the live
               product.
             </p>
           </div>

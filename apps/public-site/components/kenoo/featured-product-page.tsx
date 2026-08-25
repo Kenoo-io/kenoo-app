@@ -1,10 +1,14 @@
-import { ArrowUpRight } from "lucide-react";
+"use client";
+
+import { motion } from "framer-motion";
+import { ArrowUpRight, ChevronRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
 import { ChromeFrame } from "@/components/kenoo/chrome-frame";
 import { DashboardPreview } from "@/components/kenoo/dashboard-preview";
 import { FinalCta } from "@/components/kenoo/final-cta";
+import { ProductCapabilityShowcase } from "@/components/kenoo/product-capability-showcase";
 import { SiteShell } from "@/components/kenoo/site-shell";
 import {
   FEATURED_PRODUCTS,
@@ -16,208 +20,125 @@ type FeaturedProductPageProps = {
   product: FeaturedProduct;
 };
 
+const ease = [0.22, 1, 0.36, 1] as const;
+
 export function FeaturedProductPage({ product }: FeaturedProductPageProps) {
   const others = FEATURED_PRODUCTS.filter((p) => p.slug !== product.slug);
 
   return (
     <SiteShell>
-      <section className="relative overflow-hidden border-b border-kenoo-border pt-16 md:pt-[4.25rem]">
+      <section className="relative overflow-hidden pt-16 md:pt-[4.25rem]">
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0"
           style={{
-            background: `radial-gradient(ellipse 70% 50% at 15% -5%, ${product.accentSoft}, transparent 55%), radial-gradient(ellipse 45% 35% at 95% 15%, rgba(17,17,17,0.03), transparent 50%), linear-gradient(180deg, #fcfcfc 0%, #ffffff 60%, #fcfcfc 100%)`,
+            background: `radial-gradient(ellipse 70% 45% at 50% -8%, ${product.accentSoft}, transparent 55%), linear-gradient(180deg, #fcfcfc 0%, #ffffff 42%, #f7f8fa 100%)`,
           }}
         />
-        <div className="relative mx-auto max-w-6xl px-5 py-16 md:px-8 md:py-24">
-          <div className="flex flex-col gap-10 md:flex-row md:items-start md:justify-between md:gap-16">
-            <div className="max-w-2xl">
-              <div className="flex items-center gap-3">
-                <div className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-white to-kenoo-subtle shadow-[0_2px_8px_-2px_rgba(0,0,0,0.14)]">
-                  <Image
-                    src={product.icon}
-                    alt=""
-                    width={48}
-                    height={48}
-                    className="object-contain"
-                    priority
-                  />
-                </div>
-                <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-kenoo-muted">
-                  Kenoo · {product.name}
-                </p>
+
+        <div className="relative mx-auto max-w-6xl px-5 pt-6 md:px-8 md:pt-8">
+          <nav
+            aria-label="Breadcrumb"
+            className="flex items-center gap-1.5 text-sm text-kenoo-muted"
+          >
+            <Link
+              href="/"
+              className="transition-colors hover:text-kenoo-ink"
+            >
+              Home
+            </Link>
+            <ChevronRight className="size-3.5 opacity-50" aria-hidden />
+            <Link
+              href="/product"
+              className="transition-colors hover:text-kenoo-ink"
+            >
+              Products
+            </Link>
+            <ChevronRight className="size-3.5 opacity-50" aria-hidden />
+            <span className="text-kenoo-ink">{product.name}</span>
+          </nav>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, ease }}
+            className="mx-auto max-w-2xl pb-10 pt-14 text-center md:pb-12 md:pt-20"
+          >
+            <div className="inline-flex items-center gap-2.5">
+              <div
+                className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl shadow-[0_2px_8px_-2px_rgba(0,0,0,0.12)]"
+                style={{
+                  background: `linear-gradient(145deg, #ffffff, ${product.accentSoft})`,
+                }}
+              >
+                <Image
+                  src={product.icon}
+                  alt=""
+                  width={30}
+                  height={30}
+                  className="object-contain"
+                  priority
+                />
               </div>
-              <h1 className="mt-6 font-display text-4xl font-semibold tracking-[-0.045em] text-kenoo-ink md:text-5xl">
-                {product.tagline}
-              </h1>
-              <p className="mt-5 max-w-xl text-base leading-relaxed text-kenoo-muted md:text-lg">
-                {product.overview}
+              <p className="font-display text-xl font-semibold tracking-[-0.02em] text-kenoo-ink">
+                {product.name}
               </p>
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
-                <ChromeFrame>
-                  <a
-                    href={KENOO_PORTAL_URL}
-                    className="inline-flex h-11 items-center justify-center rounded-[10.5px] bg-kenoo-white px-5 text-sm font-medium text-kenoo-ink transition-colors hover:bg-kenoo-subtle"
-                  >
-                    Get started
-                  </a>
-                </ChromeFrame>
-                <a
-                  href={product.appHref}
-                  className="inline-flex h-11 items-center justify-center gap-1.5 rounded-xl border border-kenoo-border bg-kenoo-surface px-5 text-sm font-medium text-kenoo-ink transition-colors hover:bg-kenoo-subtle"
-                >
-                  Open {product.name}
-                  <ArrowUpRight className="size-3.5 opacity-60" />
-                </a>
-              </div>
             </div>
 
-            <aside className="w-full max-w-sm shrink-0 rounded-[1.75rem] border border-kenoo-border/80 bg-kenoo-surface/80 p-6 shadow-[0_16px_40px_-28px_rgba(17,17,17,0.35)] backdrop-blur-sm md:mt-4">
-              <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-kenoo-muted">
-                At a glance
-              </p>
-              <p className="mt-3 text-sm leading-relaxed text-kenoo-ink">
-                {product.description}
-              </p>
-              <dl className="mt-6 space-y-3 border-t border-kenoo-border pt-5 text-sm">
-                <div className="flex justify-between gap-4">
-                  <dt className="text-kenoo-muted">Product</dt>
-                  <dd className="font-medium text-kenoo-ink">{product.name}</dd>
-                </div>
-                <div className="flex justify-between gap-4">
-                  <dt className="text-kenoo-muted">Suite</dt>
-                  <dd className="font-medium text-kenoo-ink">Kenoo</dd>
-                </div>
-                <div className="flex justify-between gap-4">
-                  <dt className="text-kenoo-muted">Company</dt>
-                  <dd className="text-right font-medium text-kenoo-ink">
-                    WALLS Entertainment Group Inc.
-                  </dd>
-                </div>
-              </dl>
-              <div className="mt-5 flex flex-wrap gap-x-4 gap-y-2 border-t border-kenoo-border pt-5 text-sm">
-                <Link
-                  href="/privacy-policy"
-                  className="text-kenoo-accent transition-colors hover:text-kenoo-accent-hover"
-                >
-                  Privacy
-                </Link>
-                <Link
-                  href="/terms-and-conditions"
-                  className="text-kenoo-accent transition-colors hover:text-kenoo-accent-hover"
-                >
-                  Terms
-                </Link>
-                <Link
-                  href="/contact"
-                  className="text-kenoo-accent transition-colors hover:text-kenoo-accent-hover"
-                >
-                  Contact
-                </Link>
-              </div>
-            </aside>
-          </div>
-        </div>
-      </section>
+            <h1 className="mt-5 font-display text-[2.5rem] font-semibold leading-[1.05] tracking-[-0.045em] text-kenoo-ink sm:text-5xl md:text-[3.5rem]">
+              {product.tagline}
+            </h1>
 
-      <section className="border-b border-kenoo-border bg-kenoo-canvas">
-        <div className="mx-auto max-w-6xl px-5 py-12 md:px-8 md:py-16">
-          <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-kenoo-muted">
-            Inside {product.name}
-          </p>
-          <h2 className="mt-3 font-display text-2xl font-semibold tracking-[-0.03em] text-kenoo-ink md:text-3xl">
-            The same dashboard you open in the app.
-          </h2>
-          <div className="mt-8">
-            <ChromeFrame className="flex w-full rounded-[1.35rem] shadow-[0_32px_80px_-48px_rgba(17,17,17,0.45)]">
-              <div className="w-full overflow-hidden rounded-[19.5px] bg-white">
-                <DashboardPreview slug={product.slug} />
+            <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-kenoo-muted md:text-lg">
+              {product.description}
+            </p>
+
+            <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+              <ChromeFrame>
+                <a
+                  href={KENOO_PORTAL_URL}
+                  className="inline-flex h-12 min-w-[10.5rem] items-center justify-center rounded-[10.5px] bg-kenoo-accent px-6 text-sm font-medium text-white transition-colors hover:bg-kenoo-accent-hover"
+                >
+                  Get started
+                </a>
+              </ChromeFrame>
+              <a
+                href={product.appHref}
+                className="inline-flex h-12 min-w-[10.5rem] items-center justify-center gap-1.5 rounded-xl border border-kenoo-accent bg-transparent px-6 text-sm font-medium text-kenoo-accent transition-colors hover:bg-kenoo-accent/5"
+              >
+                Open {product.name}
+                <ArrowUpRight className="size-3.5 opacity-70" />
+              </a>
+            </div>
+          </motion.div>
+        </div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 28 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.85, delay: 0.18, ease }}
+          className="relative mx-auto max-w-5xl px-5 md:px-8"
+        >
+          <div
+            aria-hidden
+            className="pointer-events-none absolute -inset-x-8 -top-6 h-28"
+            style={{
+              background: `radial-gradient(ellipse at center, ${product.accentSoft}, transparent 70%)`,
+            }}
+          />
+          <div className="relative overflow-hidden rounded-t-[1.35rem] shadow-[0_32px_80px_-40px_rgba(17,17,17,0.4)]">
+            <ChromeFrame className="flex w-full rounded-t-[1.35rem] rounded-b-none">
+              <div className="w-full overflow-hidden rounded-t-[19.5px] bg-white">
+                <div className="max-h-[15rem] overflow-hidden sm:max-h-[19rem] md:max-h-[24rem] lg:max-h-[28rem]">
+                  <DashboardPreview slug={product.slug} />
+                </div>
               </div>
             </ChromeFrame>
           </div>
-        </div>
+        </motion.div>
       </section>
 
-      <section className="bg-kenoo-canvas">
-        <div className="mx-auto max-w-6xl px-5 py-16 md:px-8 md:py-24">
-          <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-kenoo-muted">
-            Capabilities
-          </p>
-          <h2 className="mt-3 max-w-xl font-display text-3xl font-semibold tracking-[-0.04em] text-kenoo-ink md:text-4xl">
-            What {product.name} does
-          </h2>
-          <ul className="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-            {product.features.map((feature) => (
-              <li key={feature.title} className="max-w-sm">
-                <h3 className="font-display text-lg font-semibold tracking-[-0.02em] text-kenoo-ink">
-                  {feature.title}
-                </h3>
-                <p className="mt-2 text-sm leading-relaxed text-kenoo-muted">
-                  {feature.description}
-                </p>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </section>
-
-      {product.compliance ? (
-        <section className="border-t border-kenoo-border bg-kenoo-surface">
-          <div className="mx-auto max-w-6xl px-5 py-16 md:px-8 md:py-24">
-            <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-kenoo-muted">
-              Transparency
-            </p>
-            <h2 className="mt-3 max-w-2xl font-display text-3xl font-semibold tracking-[-0.04em] text-kenoo-ink md:text-4xl">
-              {product.compliance.title}
-            </h2>
-            <div className="mt-8 max-w-3xl space-y-5">
-              {product.compliance.paragraphs.map((paragraph) => (
-                <p
-                  key={paragraph.slice(0, 48)}
-                  className="text-base leading-relaxed text-kenoo-muted"
-                >
-                  {paragraph}
-                </p>
-              ))}
-            </div>
-            {product.compliance.bullets?.length ? (
-              <ul className="mt-8 max-w-3xl space-y-2.5 border-t border-kenoo-border pt-8">
-                {product.compliance.bullets.map((bullet) => (
-                  <li
-                    key={bullet}
-                    className="flex gap-3 text-sm leading-relaxed text-kenoo-ink"
-                  >
-                    <span
-                      className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full"
-                      style={{ backgroundColor: product.accent }}
-                      aria-hidden
-                    />
-                    {bullet}
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-            <p className="mt-8 max-w-3xl text-sm leading-relaxed text-kenoo-muted">
-              Full details are in our{" "}
-              <Link
-                href="/privacy-policy"
-                className="text-kenoo-accent underline-offset-2 hover:underline"
-              >
-                Privacy Policy
-              </Link>{" "}
-              (Google user data and Advertising / AdPilot sections covering Meta
-              Ads and Google Ads) and{" "}
-              <Link
-                href="/terms-and-conditions"
-                className="text-kenoo-accent underline-offset-2 hover:underline"
-              >
-                Terms of Service
-              </Link>
-              .
-            </p>
-          </div>
-        </section>
-      ) : null}
+      <ProductCapabilityShowcase product={product} />
 
       <section className="border-t border-kenoo-border bg-kenoo-canvas">
         <div className="mx-auto max-w-6xl px-5 py-16 md:px-8 md:py-20">

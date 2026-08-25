@@ -17,7 +17,7 @@ const steps = [
   {
     n: "03",
     title: "Operate in the open",
-    body: "Status, ownership, and spend stay visible. AI helps sort the day — it does not hide what changed.",
+    body: "Status, ownership, and spend stay visible. AI helps sort the day. It does not hide what changed.",
   },
 ];
 

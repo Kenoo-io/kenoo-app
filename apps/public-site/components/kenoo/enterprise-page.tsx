@@ -109,7 +109,7 @@ export default function EnterprisePage() {
       notes: String(data.get("notes") ?? ""),
     };
 
-    // Ready for a future API route — keep submission client-side for now.
+    // Ready for a future API route; keep submission client-side for now.
     console.info("[enterprise-inquiry]", payload);
     setSubmitted(true);
   }
@@ -193,7 +193,7 @@ export default function EnterprisePage() {
                     Inquiry received.
                   </h3>
                   <p className="mt-3 max-w-md text-sm leading-relaxed text-kenoo-muted md:text-base">
-                    Thanks — our team will review your details and follow up
+                    Thanks. Our team will review your details and follow up
                     shortly with next steps for enterprise onboarding.
                   </p>
                 </div>
