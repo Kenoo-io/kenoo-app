@@ -7,14 +7,13 @@ import {
   Building2,
   Loader2,
   Plus,
-  Settings,
   Trash2,
   Users,
 } from "lucide-react";
 
 import { wallsToast } from "@/components/ui/walls-toast";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/borderless-input";
+import { FloatingLabelInput } from "@/components/ui/floating-label-input";
 import {
   Dialog,
   DialogContent,
@@ -25,14 +24,7 @@ import { useUploadOrganizationIcon } from "@/hooks/useMutations";
 import type { OrganizationRecord } from "@/lib/organizations-shared";
 import { canEditOrganization } from "@/lib/organizations-shared";
 import { useActiveAccount } from "@/components/active-account-context";
-import { cn } from "@/lib/utils";
-
-const labelClass =
-  "mb-1 block text-xs font-medium tracking-wide text-[#5f6368]";
-const fieldClass =
-  "w-full rounded-lg border border-[#dadce0] bg-white px-3 py-2.5 text-sm text-[#202124] placeholder:text-[#9aa0a6] focus:border-[#1967d2] focus:outline-none focus:ring-2 focus:ring-[#1967d2]/15";
-const readonlyFieldClass =
-  "w-full cursor-not-allowed rounded-lg border border-[#dadce0] bg-[#f8f9fa] px-3 py-2.5 text-sm text-[#5f6368]";
+import { PageShell } from "@/components/admin/page-shell";
 
 function OrganizationAvatar({
   name,
@@ -60,7 +52,7 @@ function OrganizationAvatar({
     .join("");
 
   return (
-    <div className="flex h-[88px] w-[88px] items-center justify-center rounded-2xl bg-[#f1f3f4] text-xl font-medium text-[#5f6368]">
+    <div className="flex h-[88px] w-[88px] items-center justify-center rounded-2xl bg-neutral-100 text-xl font-medium text-neutral-500">
       {initials || <Building2 className="h-7 w-7" />}
     </div>
   );
@@ -154,12 +146,12 @@ function SectionCard({
   action?: React.ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-[#e8eaed] bg-white p-6 shadow-[0_1px_2px_rgba(60,64,67,0.08)] sm:p-8">
+    <section className="rounded-xl border border-neutral-200 p-6">
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-base font-medium text-[#202124]">{title}</h2>
+          <h2 className="text-sm font-semibold text-neutral-950">{title}</h2>
           {description ? (
-            <p className="mt-0.5 text-sm text-[#5f6368]">{description}</p>
+            <p className="mt-0.5 text-[13px] text-neutral-500">{description}</p>
           ) : null}
         </div>
         {action}
@@ -486,46 +478,27 @@ export default function OrganizationSettingsPage() {
     }
   }
 
-  const inputClass = (editable: boolean) =>
-    editable ? fieldClass : readonlyFieldClass;
-
   if (accountLoading || loading) {
     return (
-      <div className="mx-auto max-w-5xl animate-pulse space-y-4 py-2">
-        <div className="h-8 w-48 rounded-lg bg-neutral-200/80" />
-        <div className="h-4 w-72 rounded bg-neutral-100" />
-        <div className="mt-6 h-56 rounded-2xl bg-white" />
-        <div className="h-56 rounded-2xl bg-white" />
-      </div>
+      <PageShell title="Account">
+        <div className="h-40 animate-pulse rounded-xl bg-[#F3F3F4]" />
+        <div className="h-56 animate-pulse rounded-xl border border-neutral-200" />
+      </PageShell>
     );
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 pb-12">
-      <Toaster />
-
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 text-[#5f6368]">
-            <Settings className="h-4 w-4" />
-            <span className="text-xs font-medium uppercase tracking-wide">
-              Account
-            </span>
-          </div>
-          <h1 className="text-2xl font-normal text-[#202124]">
-            {activeAccount?.accountType === "organization"
-              ? "Organization profile"
-              : "Account settings"}
-          </h1>
-          <p className="text-sm text-[#5f6368]">
-            Update the profile and contact details for{" "}
-            {activeAccount?.name ?? "this account"}.
-          </p>
-        </div>
-
+    <PageShell
+      title={
+        activeAccount?.accountType === "organization"
+          ? "Organization profile"
+          : "Account settings"
+      }
+      description={`Update the profile and contact details for ${activeAccount?.name ?? "this account"}.`}
+      actions={
         <div className="flex flex-wrap items-center gap-2">
           {saving ? (
-            <span className="inline-flex items-center gap-1.5 text-xs text-[#5f6368]">
+            <span className="inline-flex items-center gap-1.5 text-xs text-neutral-500">
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
               Saving…
             </span>
@@ -534,7 +507,7 @@ export default function OrganizationSettingsPage() {
             <Button
               type="button"
               variant="outline"
-              className="rounded-full border-[#dadce0] text-[#1967d2] hover:bg-[#e8f0fe]"
+              className="rounded-lg border-neutral-200 bg-kenoo-white text-neutral-800 hover:bg-neutral-50"
               onClick={() => setShowCreateForm((value) => !value)}
             >
               <Plus className="mr-1.5 h-4 w-4" />
@@ -542,23 +515,25 @@ export default function OrganizationSettingsPage() {
             </Button>
           ) : null}
         </div>
-      </header>
+      }
+    >
+      <Toaster />
 
       {activeAccount?.accountType === "personal" ? (
-        <div className="rounded-2xl border border-[#e8eaed] bg-white px-6 py-12 text-center shadow-[0_1px_2px_rgba(60,64,67,0.08)]">
-          <Building2 className="mx-auto h-10 w-10 text-[#dadce0]" />
-          <p className="mt-4 text-sm font-medium text-[#202124]">
+        <div className="rounded-xl border border-neutral-200 px-6 py-12 text-center">
+          <Building2 className="mx-auto h-10 w-10 text-neutral-300" />
+          <p className="mt-4 text-sm font-medium text-neutral-900">
             Personal account selected
           </p>
-          <p className="mx-auto mt-1 max-w-md text-sm text-[#5f6368]">
-            Switch to an organization in the header to edit its profile, or open
+          <p className="mx-auto mt-1 max-w-md text-sm text-neutral-500">
+            Switch to an organization in the sidebar to edit its profile, or open
             account details for this personal account.
           </p>
           {activeAccountId ? (
             <Button
               asChild
               variant="outline"
-              className="mt-5 rounded-full border-[#dadce0] text-[#1967d2] hover:bg-[#e8f0fe]"
+              className="mt-5 rounded-lg border-neutral-200 bg-kenoo-white text-neutral-800 hover:bg-neutral-50"
             >
               <Link href={`/accounts/${activeAccountId}`}>
                 Open account details
@@ -577,7 +552,7 @@ export default function OrganizationSettingsPage() {
               type="button"
               disabled={creating}
               onClick={() => void handleCreate()}
-              className="rounded-full bg-[#1967d2] px-5 text-white hover:bg-[#1557b0] disabled:opacity-50"
+              className="rounded-lg bg-neutral-950 px-5 text-white hover:bg-neutral-800 disabled:opacity-50"
             >
               {creating ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -587,36 +562,30 @@ export default function OrganizationSettingsPage() {
           }
         >
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="sm:col-span-2">
-              <label className={labelClass}>Organization name</label>
-              <Input
-                value={createForm.name}
-                onChange={(event) =>
-                  setCreateForm((current) => ({
-                    ...current,
-                    name: event.target.value,
-                  }))
-                }
-                className={fieldClass}
-                placeholder="Organization name"
-              />
-            </div>
-            <div className="sm:col-span-2">
-              <label className={labelClass}>Website</label>
-              <Input
-                value={createForm.website}
-                onChange={(event) =>
-                  setCreateForm((current) => ({
-                    ...current,
-                    website: event.target.value,
-                  }))
-                }
-                className={fieldClass}
-                placeholder="https://example.com"
-              />
-            </div>
+            <FloatingLabelInput
+              containerClassName="sm:col-span-2"
+              label="Organization name"
+              value={createForm.name}
+              onChange={(event) =>
+                setCreateForm((current) => ({
+                  ...current,
+                  name: event.target.value,
+                }))
+              }
+            />
+            <FloatingLabelInput
+              containerClassName="sm:col-span-2"
+              label="Website"
+              value={createForm.website}
+              onChange={(event) =>
+                setCreateForm((current) => ({
+                  ...current,
+                  website: event.target.value,
+                }))
+              }
+            />
           </div>
-          <p className="mt-3 text-xs text-[#5f6368]">
+          <p className="mt-3 text-xs text-neutral-500">
             You can upload an icon after the organization is created.
           </p>
         </SectionCard>
@@ -625,12 +594,12 @@ export default function OrganizationSettingsPage() {
       {activeAccount?.accountType === "organization" &&
       organizations.length === 0 &&
       !showCreateForm ? (
-        <div className="rounded-2xl border border-[#e8eaed] bg-white px-6 py-16 text-center shadow-[0_1px_2px_rgba(60,64,67,0.08)]">
-          <Building2 className="mx-auto h-10 w-10 text-[#dadce0]" />
-          <p className="mt-4 text-sm font-medium text-[#202124]">
+        <div className="rounded-xl border border-neutral-200 px-6 py-16 text-center">
+          <Building2 className="mx-auto h-10 w-10 text-neutral-300" />
+          <p className="mt-4 text-sm font-medium text-neutral-900">
             No organization profile found
           </p>
-          <p className="mt-1 text-sm text-[#5f6368]">
+          <p className="mt-1 text-sm text-neutral-500">
             Create an organization to manage its profile here.
           </p>
         </div>
@@ -654,58 +623,49 @@ export default function OrganizationSettingsPage() {
                   onSelectFile={(file) => void handleIconUpload(file)}
                 />
                 {canEdit ? (
-                  <p className="text-center text-xs text-[#5f6368]">
+                  <p className="text-center text-xs text-neutral-500">
                     Click to change icon
                   </p>
                 ) : null}
               </div>
 
               <div className="grid min-w-0 flex-1 gap-4 sm:grid-cols-2">
-                <div className="sm:col-span-2">
-                  <label className={labelClass}>Organization name</label>
-                  <Input
-                    value={form.name}
-                    readOnly={!canEdit}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        name: event.target.value,
-                      }))
-                    }
-                    className={inputClass(canEdit)}
-                    placeholder="Organization name"
-                  />
-                </div>
-                <div className="sm:col-span-2">
-                  <label className={labelClass}>Website</label>
-                  <Input
-                    value={form.website}
-                    readOnly={!canEdit}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        website: event.target.value,
-                      }))
-                    }
-                    className={inputClass(canEdit)}
-                    placeholder="https://example.com"
-                  />
-                </div>
-                <div className="sm:col-span-2">
-                  <label className={labelClass}>Description</label>
-                  <Input
-                    value={form.description}
-                    readOnly={!canEdit}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        description: event.target.value,
-                      }))
-                    }
-                    className={inputClass(canEdit)}
-                    placeholder="What does your organization do?"
-                  />
-                </div>
+                <FloatingLabelInput
+                  containerClassName="sm:col-span-2"
+                  label="Organization name"
+                  value={form.name}
+                  disabled={!canEdit}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      name: event.target.value,
+                    }))
+                  }
+                />
+                <FloatingLabelInput
+                  containerClassName="sm:col-span-2"
+                  label="Website"
+                  value={form.website}
+                  disabled={!canEdit}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      website: event.target.value,
+                    }))
+                  }
+                />
+                <FloatingLabelInput
+                  containerClassName="sm:col-span-2"
+                  label="Description"
+                  value={form.description}
+                  disabled={!canEdit}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      description: event.target.value,
+                    }))
+                  }
+                />
               </div>
             </div>
           </SectionCard>
@@ -715,36 +675,28 @@ export default function OrganizationSettingsPage() {
             description="How people reach this organization"
           >
             <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label className={labelClass}>Email</label>
-                <Input
-                  value={form.email}
-                  readOnly={!canEdit}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      email: event.target.value,
-                    }))
-                  }
-                  className={inputClass(canEdit)}
-                  placeholder="contact@organization.com"
-                />
-              </div>
-              <div>
-                <label className={labelClass}>Phone</label>
-                <Input
-                  value={form.phone}
-                  readOnly={!canEdit}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      phone: event.target.value,
-                    }))
-                  }
-                  className={inputClass(canEdit)}
-                  placeholder="+1 310 387 8027"
-                />
-              </div>
+              <FloatingLabelInput
+                label="Email"
+                value={form.email}
+                disabled={!canEdit}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    email: event.target.value,
+                  }))
+                }
+              />
+              <FloatingLabelInput
+                label="Phone"
+                value={form.phone}
+                disabled={!canEdit}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    phone: event.target.value,
+                  }))
+                }
+              />
             </div>
           </SectionCard>
 
@@ -753,110 +705,88 @@ export default function OrganizationSettingsPage() {
             description="Mailing and invoice address"
           >
             <div className="grid gap-4 sm:grid-cols-2">
-              <div className="sm:col-span-2">
-                <label className={labelClass}>Address line 1</label>
-                <Input
-                  value={form.addressLine1}
-                  readOnly={!canEdit}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      addressLine1: event.target.value,
-                    }))
-                  }
-                  className={inputClass(canEdit)}
-                  placeholder="Street address"
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <label className={labelClass}>Address line 2</label>
-                <Input
-                  value={form.addressLine2}
-                  readOnly={!canEdit}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      addressLine2: event.target.value,
-                    }))
-                  }
-                  className={inputClass(canEdit)}
-                  placeholder="Suite, unit, etc."
-                />
-              </div>
-              <div>
-                <label className={labelClass}>City</label>
-                <Input
-                  value={form.city}
-                  readOnly={!canEdit}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      city: event.target.value,
-                    }))
-                  }
-                  className={inputClass(canEdit)}
-                  placeholder="City"
-                />
-              </div>
-              <div>
-                <label className={labelClass}>State / Province</label>
-                <Input
-                  value={form.stateProvince}
-                  readOnly={!canEdit}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      stateProvince: event.target.value,
-                    }))
-                  }
-                  className={inputClass(canEdit)}
-                  placeholder="State or province"
-                />
-              </div>
-              <div>
-                <label className={labelClass}>Postal code</label>
-                <Input
-                  value={form.postalCode}
-                  readOnly={!canEdit}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      postalCode: event.target.value,
-                    }))
-                  }
-                  className={inputClass(canEdit)}
-                  placeholder="Postal code"
-                />
-              </div>
-              <div>
-                <label className={labelClass}>Country code</label>
-                <Input
-                  value={form.countryCode}
-                  readOnly={!canEdit}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      countryCode: event.target.value.toUpperCase(),
-                    }))
-                  }
-                  className={inputClass(canEdit)}
-                  placeholder="US"
-                />
-              </div>
+              <FloatingLabelInput
+                containerClassName="sm:col-span-2"
+                label="Address line 1"
+                value={form.addressLine1}
+                disabled={!canEdit}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    addressLine1: event.target.value,
+                  }))
+                }
+              />
+              <FloatingLabelInput
+                containerClassName="sm:col-span-2"
+                label="Address line 2"
+                value={form.addressLine2}
+                disabled={!canEdit}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    addressLine2: event.target.value,
+                  }))
+                }
+              />
+              <FloatingLabelInput
+                label="City"
+                value={form.city}
+                disabled={!canEdit}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    city: event.target.value,
+                  }))
+                }
+              />
+              <FloatingLabelInput
+                label="State / Province"
+                value={form.stateProvince}
+                disabled={!canEdit}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    stateProvince: event.target.value,
+                  }))
+                }
+              />
+              <FloatingLabelInput
+                label="Postal code"
+                value={form.postalCode}
+                disabled={!canEdit}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    postalCode: event.target.value,
+                  }))
+                }
+              />
+              <FloatingLabelInput
+                label="Country code"
+                value={form.countryCode}
+                disabled={!canEdit}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    countryCode: event.target.value.toUpperCase(),
+                  }))
+                }
+              />
             </div>
           </SectionCard>
 
-          <section className="rounded-2xl border border-[#e8eaed] bg-white p-6 shadow-[0_1px_2px_rgba(60,64,67,0.08)] sm:p-8">
+          <section className="rounded-xl border border-neutral-200 p-6">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div className="flex items-start gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#e8f0fe]">
-                  <Users className="h-5 w-5 text-[#1967d2]" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-neutral-100">
+                  <Users className="h-5 w-5 text-neutral-700" />
                 </div>
                 <div>
-                  <h2 className="text-base font-medium text-[#202124]">
+                  <h2 className="text-sm font-semibold text-neutral-950">
                     Users &amp; app access
                   </h2>
-                  <p className="mt-0.5 text-sm text-[#5f6368]">
+                  <p className="mt-0.5 text-[13px] text-neutral-500">
                     Invite members and assign app access when adding users.
                   </p>
                 </div>
@@ -864,7 +794,7 @@ export default function OrganizationSettingsPage() {
               <Button
                 asChild
                 variant="outline"
-                className="rounded-full border-[#dadce0] text-[#1967d2] hover:bg-[#e8f0fe]"
+                className="rounded-lg border-neutral-200 bg-kenoo-white text-neutral-800 hover:bg-neutral-50"
               >
                 <Link href="/users">Manage users</Link>
               </Button>
@@ -872,16 +802,11 @@ export default function OrganizationSettingsPage() {
           </section>
 
           {canEdit ? (
-            <section
-              className={cn(
-                "rounded-2xl border bg-white p-6 shadow-[0_1px_2px_rgba(60,64,67,0.08)] sm:p-8",
-                "border-[#fce8e6]",
-              )}
-            >
-              <h2 className="text-base font-medium text-[#202124]">
+            <section className="rounded-xl border border-red-100 bg-kenoo-white p-6">
+              <h2 className="text-sm font-semibold text-neutral-950">
                 Delete organization
               </h2>
-              <p className="mt-1 max-w-2xl text-sm text-[#5f6368]">
+              <p className="mt-1 max-w-2xl text-[13px] text-neutral-500">
                 Permanently delete this organization and remove all members.
                 This cannot be undone.
               </p>
@@ -890,7 +815,7 @@ export default function OrganizationSettingsPage() {
                 variant="outline"
                 disabled={isDeleting || saving}
                 onClick={() => setShowDeleteDialog(true)}
-                className="mt-5 rounded-full border-[#f6aea9] text-[#d93025] hover:bg-[#fce8e6]"
+                className="mt-5 rounded-lg border-[#f6aea9] text-[#d93025] hover:bg-[#fce8e6]"
               >
                 {isDeleting ? (
                   <span className="flex items-center">
@@ -912,12 +837,12 @@ export default function OrganizationSettingsPage() {
                 <DialogContent showCloseButton={!isDeleting}>
                   <div className="space-y-4">
                     <div>
-                      <h2 className="text-lg font-medium text-[#202124]">
+                      <h2 className="text-lg font-medium text-neutral-950">
                         Delete organization?
                       </h2>
-                      <p className="mt-2 text-sm text-[#5f6368]">
+                      <p className="mt-2 text-sm text-neutral-500">
                         Are you sure you want to delete{" "}
-                        <span className="font-medium text-[#202124]">
+                        <span className="font-medium text-neutral-950">
                           {selectedOrganization.name}
                         </span>
                         ? This cannot be undone.
@@ -929,7 +854,7 @@ export default function OrganizationSettingsPage() {
                         variant="outline"
                         disabled={isDeleting}
                         onClick={() => setShowDeleteDialog(false)}
-                        className="rounded-full border-[#dadce0]"
+                        className="rounded-lg border-neutral-200"
                       >
                         Cancel
                       </Button>
@@ -937,7 +862,7 @@ export default function OrganizationSettingsPage() {
                         type="button"
                         disabled={isDeleting}
                         onClick={() => void handleDelete()}
-                        className="rounded-full bg-[#d93025] text-white hover:bg-[#b3261e]"
+                        className="rounded-lg bg-[#d93025] text-white hover:bg-[#b3261e]"
                       >
                         {isDeleting ? (
                           <span className="flex items-center">
@@ -956,6 +881,6 @@ export default function OrganizationSettingsPage() {
           ) : null}
         </>
       ) : null}
-    </div>
+    </PageShell>
   );
 }

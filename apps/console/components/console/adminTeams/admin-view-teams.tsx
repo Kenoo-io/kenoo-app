@@ -224,7 +224,7 @@ export function AdminViewTeam({ group }: AdminViewTeamProps) {
                 <div
                   className={cn(
                     "relative z-10 rounded-full p-3 transition-all duration-300 ease-in-out",
-                    "group-hover:scale-95 group-hover:border group-hover:border-neutral-200 group-hover:bg-gray-50 group-hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)]",
+                    "group-hover:bg-neutral-100",
                   )}
                 >
                   <Plus className="h-[18px] w-[18px] stroke-[1.5] text-neutral-500" />

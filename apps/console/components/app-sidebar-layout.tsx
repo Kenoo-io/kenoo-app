@@ -1,45 +1,35 @@
 "use client";
 
-import { useAppHeaderVisible } from "@walls/ui/private-app-chrome";
 import { cn } from "@walls/utils";
 
-import { ConsoleSidebar } from "@/components/console/console-sidebar";
-import { useConsoleSidebar } from "@/components/console/ConsoleSidebarContext";
+import { AppSidebar } from "./app-sidebar";
+import { useAppSidebar } from "./app-sidebar-context";
 
 type AppSidebarLayoutProps = {
   children: React.ReactNode;
   className?: string;
 };
 
-function AppSidebarContent({ children, className }: AppSidebarLayoutProps) {
-  const { isCollapsed } = useConsoleSidebar();
-  // Offset only when the rail is pinned open. Hover expansion overlays the
-  // page so content isn't resized mid-transition.
-  const isPinnedOpen = !isCollapsed;
-  const headerVisible = useAppHeaderVisible();
+export function AppSidebarLayout({ children, className }: AppSidebarLayoutProps) {
+  const { isCollapsed } = useAppSidebar();
 
   return (
     <>
-      <ConsoleSidebar headerVisible={headerVisible} />
+      <AppSidebar />
       <div
         className={cn(
-          "flex min-h-screen min-w-0 flex-col bg-gray-50 transition-[margin-left,padding-top] duration-300",
-          headerVisible ? "pt-16" : "pt-0",
-          isPinnedOpen ? "md:ml-40" : "md:ml-16",
+          "flex h-screen min-w-0 flex-col bg-kenoo-white pt-12 transition-[margin-left] duration-200 md:pt-0",
+          isCollapsed ? "md:ml-[68px]" : "md:ml-[248px]",
           className,
         )}
       >
         <main
           data-app-scroll-container
-          className="min-h-0 flex-1 overflow-y-auto overscroll-none px-8 pb-8"
+          className="h-0 min-h-0 flex-1 overflow-y-auto overscroll-none px-6 pb-8 pt-6 md:px-10 md:pt-8"
         >
           {children}
         </main>
       </div>
     </>
   );
-}
-
-export function AppSidebarLayout({ children, className }: AppSidebarLayoutProps) {
-  return <AppSidebarContent className={className}>{children}</AppSidebarContent>;
 }

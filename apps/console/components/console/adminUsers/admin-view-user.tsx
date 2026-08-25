@@ -26,7 +26,6 @@ export type UserDetail = {
   last_name: string | null;
   email: string | null;
   phone_number: string | null;
-  user_platform_id: string | null;
   avatar_url: string | null;
   date_of_birth: string | null;
   address: string | null;
@@ -36,7 +35,6 @@ export type UserDetail = {
   person_id: string | null;
   country_code: string | null;
   is_admin: boolean;
-  platform: { id: string; code: string; name: string } | null;
   app_access?: { id: string; slug: string; name: string; icon_url: string | null }[];
   commission_bps: number | null;
   commission_role: string | null;
@@ -374,9 +372,6 @@ export function AdminUserDetail({ user }: AdminUserDetailProps) {
                   <DetailRow label="Date of birth">
                     {user.date_of_birth ?? <span className="text-neutral-300">—</span>}
                   </DetailRow>
-                  <DetailRow label="Platform">
-                    {user.platform?.name ?? <span className="text-neutral-300">—</span>}
-                  </DetailRow>
                   <DetailRow label="Created">
                     {formatDate(user.created_at)}
                   </DetailRow>
@@ -487,13 +482,6 @@ export function AdminUserDetail({ user }: AdminUserDetailProps) {
                   <DetailRow label="Person ID">
                     {user.person_id ? (
                       <code className="font-mono text-xs">{user.person_id}</code>
-                    ) : (
-                      <span className="text-neutral-300">—</span>
-                    )}
-                  </DetailRow>
-                  <DetailRow label="Platform ID">
-                    {user.user_platform_id ? (
-                      <code className="font-mono text-xs">{user.user_platform_id}</code>
                     ) : (
                       <span className="text-neutral-300">—</span>
                     )}

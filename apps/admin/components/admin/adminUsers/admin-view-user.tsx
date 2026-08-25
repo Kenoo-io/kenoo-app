@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@walls/ui/skeleton";
+import { PageBody } from "@/components/admin/page-shell";
 import { cn } from "@/lib/utils";
 import type { AppAccessRecord } from "@/lib/app-access-shared";
 import type { AccountMemberRecord, AccountRole } from "@/lib/accounts-shared";
@@ -277,7 +278,7 @@ export function AdminViewUser({
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-3xl space-y-6 pb-12">
+      <PageBody>
         <Skeleton className="h-4 w-24 rounded" />
         <div className="flex items-center gap-4">
           <Skeleton className="h-16 w-16 rounded-full" />
@@ -287,27 +288,27 @@ export function AdminViewUser({
           </div>
         </div>
         <Skeleton className="h-64 w-full rounded-xl" />
-      </div>
+      </PageBody>
     );
   }
 
   if (notFound || !member) {
     return (
-      <div className="mx-auto max-w-3xl space-y-4 pb-12">
+      <PageBody>
         <Link
           href="/users"
-          className="inline-flex items-center gap-1.5 text-sm font-light text-neutral-500 transition-colors hover:text-neutral-800"
+          className="inline-flex items-center gap-1.5 text-sm text-neutral-500 transition-colors hover:text-neutral-800"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
           Back to users
         </Link>
-        <div className="rounded-xl border border-neutral-200/80 bg-white px-6 py-16 text-center">
+        <div className="rounded-xl border border-neutral-200 px-6 py-16 text-center">
           <p className="text-sm font-medium text-neutral-800">User not found</p>
           <p className="mt-1 text-sm font-light text-neutral-500">
             This person is not a member of the current organization.
           </p>
         </div>
-      </div>
+      </PageBody>
     );
   }
 
@@ -316,7 +317,7 @@ export function AdminViewUser({
   ).length;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 pb-12">
+    <PageBody>
       <Toaster />
 
       <Link
@@ -486,6 +487,6 @@ export function AdminViewUser({
           account in the portal.
         </p>
       </section>
-    </div>
+    </PageBody>
   );
 }

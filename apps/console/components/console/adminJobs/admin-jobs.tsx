@@ -194,7 +194,7 @@ export function AdminJobs() {
           headerEl
         )}
 
-      <div className="flex flex-col" style={{ height: "calc(100vh - 4rem)" }}>
+      <div className="flex h-full min-h-0 flex-col">
         {/* Toolbar */}
         <div className="flex flex-wrap items-center gap-3 mb-5 mt-4 flex-shrink-0">
           <div className="flex items-center gap-4 flex-1 min-w-0">
@@ -230,7 +230,7 @@ export function AdminJobs() {
                 <div
                   className={cn(
                     "relative z-10 p-3 rounded-full transition-all duration-300 ease-in-out",
-                    "group-hover:bg-gray-50 group-hover:border group-hover:border-neutral-200 group-hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] group-hover:scale-95"
+                    "group-hover:bg-neutral-100"
                   )}
                 >
                   <RefreshCw className={cn("h-4 w-4 text-neutral-400", isLoading && "animate-spin")} />

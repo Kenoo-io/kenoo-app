@@ -1,51 +1,40 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog";
-
-type PlatformOption = {
-  id: string;
-  code: string;
-  name: string;
-};
+import { FloatingLabelInput } from "@/components/ui/floating-label-input";
 
 type CreatedUser = {
   id: string;
   email: string;
   first_name: string;
   last_name: string | null;
-  user_platform_id: string | null;
 };
 
 interface AddUserDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  platforms: PlatformOption[];
-  onUserCreated: (user: CreatedUser, platform: PlatformOption | null) => void;
+  onUserCreated: (user: CreatedUser) => void;
 }
+
+const modalSecondaryButtonClass =
+  "inline-flex h-10 cursor-pointer items-center justify-center rounded-lg bg-neutral-100 px-4 text-sm font-medium text-neutral-950 transition-colors hover:bg-neutral-200 disabled:cursor-not-allowed disabled:opacity-50";
+
+const modalPrimaryButtonClass =
+  "inline-flex h-10 cursor-pointer items-center justify-center rounded-lg bg-neutral-950 px-4 text-sm font-medium text-white transition-colors hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-50";
 
 export function AddUserDialog({
   open,
   onOpenChange,
-  platforms,
   onUserCreated,
 }: AddUserDialogProps) {
-  /** Talent platform is assigned when adding talent to the roster, not here. */
-  const selectablePlatforms = useMemo(
-    () => platforms.filter((p) => p.code.toLowerCase() !== "talent"),
-    [platforms],
-  );
-
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
-  const [platformId, setPlatformId] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successPassword, setSuccessPassword] = useState<string | null>(null);
@@ -54,7 +43,6 @@ export function AddUserDialog({
     setFirstName("");
     setLastName("");
     setEmail("");
-    setPlatformId("");
     setError(null);
     setSuccessPassword(null);
   }
@@ -72,11 +60,6 @@ export function AddUserDialog({
     setIsSubmitting(true);
 
     try {
-      const safePlatformId =
-        platformId && selectablePlatforms.some((p) => p.id === platformId)
-          ? platformId
-          : undefined;
-
       const res = await fetch("/api/admin/create-user", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -84,7 +67,6 @@ export function AddUserDialog({
           email: email.trim(),
           firstName: firstName.trim(),
           lastName: lastName.trim() || undefined,
-          platformId: safePlatformId,
         }),
       });
 
@@ -95,12 +77,8 @@ export function AddUserDialog({
         return;
       }
 
-      const selectedPlatform = safePlatformId
-        ? (selectablePlatforms.find((p) => p.id === safePlatformId) ?? null)
-        : null;
-
       setSuccessPassword(data.tempPassword);
-      onUserCreated(data.user, selectedPlatform);
+      onUserCreated(data.user);
     } catch {
       setError("An unexpected error occurred");
     } finally {
@@ -108,143 +86,102 @@ export function AddUserDialog({
     }
   }
 
-  const inputClass =
-    "w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 outline-none transition-colors placeholder:text-zinc-400 focus:border-zinc-300 focus:bg-white";
-
-  const labelClass = "block text-xs font-medium text-zinc-500 mb-1";
-
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
-        className="max-w-md"
-        overlayClassName="bg-black/20"
-        showCloseButton={!isSubmitting}
+        className="max-w-md gap-0 rounded-xl border border-neutral-200 bg-kenoo-white p-5 shadow-xl backdrop-blur-none"
+        overlayClassName="bg-black/40"
+        showCloseButton={false}
       >
-        <DialogHeader>
-          <DialogTitle className="text-base font-semibold text-zinc-900">
-            Add new user
-          </DialogTitle>
-        </DialogHeader>
-
         {successPassword ? (
-          <div className="space-y-4 py-2">
-            <div className="rounded-2xl bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-800">
-              <p className="font-semibold mb-1">User created successfully</p>
-              <p className="text-emerald-700 text-xs">
-                Share this temporary password with the user — they can change it after signing in.
+          <>
+            <DialogTitle className="text-lg font-semibold text-neutral-950">
+              User created
+            </DialogTitle>
+            <p className="mt-2 text-sm leading-6 text-neutral-600">
+              Share this temporary password with the user. For security reasons,{" "}
+              <span className="font-semibold text-neutral-900">
+                they should change it after signing in
+              </span>
+              .
+            </p>
+            <div className="mt-4 rounded-lg border border-neutral-200 bg-neutral-50 py-2 px-3">
+              <p className="text-xs font-medium text-neutral-500 mb-1">
+                Temporary password
               </p>
-            </div>
-            <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3">
-              <p className="text-xs font-medium text-zinc-500 mb-1">Temporary password</p>
-              <p className="font-mono text-sm font-semibold text-zinc-900 select-all">
+              <p className="font-mono text-[13px] text-neutral-900 select-all break-all">
                 {successPassword}
               </p>
             </div>
-            <button
-              type="button"
-              onClick={() => handleOpenChange(false)}
-              className="w-full rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-zinc-700"
-            >
-              Done
-            </button>
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="space-y-4 py-2">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label htmlFor="add-first-name" className={labelClass}>
-                  First name <span className="text-red-400">*</span>
-                </label>
-                <input
-                  id="add-first-name"
-                  type="text"
-                  required
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
-                  placeholder="Jane"
-                  className={inputClass}
-                  disabled={isSubmitting}
-                />
-              </div>
-              <div>
-                <label htmlFor="add-last-name" className={labelClass}>
-                  Last name
-                </label>
-                <input
-                  id="add-last-name"
-                  type="text"
-                  value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
-                  placeholder="Smith"
-                  className={inputClass}
-                  disabled={isSubmitting}
-                />
-              </div>
+            <div className="mt-6 flex justify-end">
+              <button
+                type="button"
+                onClick={() => handleOpenChange(false)}
+                className={modalSecondaryButtonClass}
+              >
+                Done
+              </button>
             </div>
+          </>
+        ) : (
+          <form onSubmit={handleSubmit}>
+            <DialogTitle className="text-lg font-semibold text-neutral-950">
+              Add new user
+            </DialogTitle>
 
-            <div>
-              <label htmlFor="add-email" className={labelClass}>
-                Email <span className="text-red-400">*</span>
-              </label>
-              <input
-                id="add-email"
-                type="email"
+            <div className="mt-2 grid grid-cols-2 gap-3">
+              <FloatingLabelInput
+                id="add-first-name"
+                label="First name"
                 required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="jane@example.com"
-                className={inputClass}
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
                 disabled={isSubmitting}
+                autoComplete="given-name"
+              />
+              <FloatingLabelInput
+                id="add-last-name"
+                label="Last name"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                disabled={isSubmitting}
+                autoComplete="family-name"
               />
             </div>
 
-            <div>
-              <label htmlFor="add-platform" className={labelClass}>
-                Platform
-              </label>
-              <select
-                id="add-platform"
-                value={
-                  selectablePlatforms.some((p) => p.id === platformId)
-                    ? platformId
-                    : ""
-                }
-                onChange={(e) => setPlatformId(e.target.value)}
-                className={inputClass}
-                disabled={isSubmitting}
-              >
-                <option value="">— None —</option>
-                {selectablePlatforms.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <FloatingLabelInput
+              id="add-email"
+              label="Email"
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              disabled={isSubmitting}
+              autoComplete="email"
+              containerClassName="mt-2"
+            />
 
-            {error && (
-              <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-600">
-                {error}
-              </p>
-            )}
+            {error ? (
+              <p className="mt-3 text-sm text-red-600">{error}</p>
+            ) : null}
 
-            <DialogFooter className="pt-1 gap-2">
+            <div className="mt-6 flex justify-end gap-2">
               <button
                 type="button"
                 onClick={() => handleOpenChange(false)}
                 disabled={isSubmitting}
-                className="rounded-xl border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-50 disabled:opacity-50"
+                className={modalSecondaryButtonClass}
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={isSubmitting || !firstName.trim() || !email.trim()}
-                className="rounded-xl bg-zinc-900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-zinc-700 disabled:opacity-50"
+                className={modalPrimaryButtonClass}
               >
                 {isSubmitting ? "Creating…" : "Create user"}
               </button>
-            </DialogFooter>
+            </div>
           </form>
         )}
       </DialogContent>

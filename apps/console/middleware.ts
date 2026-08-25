@@ -5,7 +5,7 @@ import { handleProtectedAppRequest } from "@walls/auth/middleware";
 export async function middleware(request: NextRequest) {
   return handleProtectedAppRequest(request, {
     appSlug: process.env.NEXT_PUBLIC_CONSOLE_APP_SLUG || "console",
-    requireAdmin: true,
+    requireConsoleOperator: true,
   });
 }
 

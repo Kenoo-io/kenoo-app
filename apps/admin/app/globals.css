@@ -15,9 +15,12 @@
   --accent-foreground: #0a0a0a;
   --border: #e8e8e8;
   --input: #e8e8e8;
+  --ring: #0a0a0a;
   --ring-offset-background: var(--kenoo-white);
   --popover: var(--kenoo-white);
   --popover-foreground: #0a0a0a;
+  --primary: #0a0a0a;
+  --primary-foreground: var(--kenoo-white);
 }
 
 @theme inline {
@@ -30,9 +33,12 @@
   --color-accent-foreground: #0a0a0a;
   --color-border: #e8e8e8;
   --color-input: #e8e8e8;
+  --color-ring: #0a0a0a;
   --color-ring-offset-background: var(--kenoo-white);
   --color-popover: var(--kenoo-white);
   --color-popover-foreground: #0a0a0a;
+  --color-primary: #0a0a0a;
+  --color-primary-foreground: var(--kenoo-white);
   --color-kenoo-blue: var(--kenoo-blue);
   --color-kenoo-yellow: var(--kenoo-yellow);
   --color-kenoo-sky: var(--kenoo-sky);
@@ -43,7 +49,8 @@
 @layer base {
   html[data-app="admin"],
   html[data-app="admin"] body {
-    min-height: 100%;
+    height: 100%;
+    overflow: hidden;
     background-color: var(--kenoo-white);
     color: #0a0a0a;
   }

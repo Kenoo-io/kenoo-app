@@ -2,12 +2,12 @@
 
 import { AuthProvider } from "@walls/auth";
 
-import { ConsoleSidebarProvider } from "./console/ConsoleSidebarContext";
+import { AppSidebarProvider } from "./app-sidebar-context";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <AuthProvider>
-      <ConsoleSidebarProvider>{children}</ConsoleSidebarProvider>
+      <AppSidebarProvider>{children}</AppSidebarProvider>
     </AuthProvider>
   );
 }
