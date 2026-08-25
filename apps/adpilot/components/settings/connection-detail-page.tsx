@@ -17,6 +17,7 @@ import {
   type SafeAccountConnection,
 } from "@/lib/connections";
 import {
+  invalidateConnectionsCache,
   removeCachedConnection,
   useConnections,
 } from "@/lib/connections-cache";
@@ -59,7 +60,7 @@ const PROVIDER_CONFIG = {
     service: GOOGLE_ADS_SERVICE,
     title: "Google Ads",
     description:
-      "Authorize AdPilot to access Google Ads accounts via OAuth. You will be redirected to Google to grant consent; AdPilot stores a refresh token so access stays active without reconnecting every 60 days.",
+      "Authorize AdPilot to access Google Ads accounts via OAuth. You will be redirected to Google to pick a Google account and grant the Ads (adwords) scope. AdPilot stores a refresh token so access stays active without reconnecting every hour.",
     scopes: ["https://www.googleapis.com/auth/adwords"],
     connectHref: "/api/oauth/google/login",
     connectLabel: "Connect Google Ads account",
@@ -78,6 +79,29 @@ const PROVIDER_CONFIG = {
   },
 } as const;
 
+function oauthErrorMessage(providerKey: ConnectionProvider, error: string) {
+  if (providerKey === "google") {
+    switch (error) {
+      case "invalid_oauth_state":
+        return "The Google sign-in session expired. Click Connect and try again.";
+      case "unauthorized":
+        return "You need to be signed in to Kenoo to connect Google Ads.";
+      case "no_active_account":
+        return "Pick a Kenoo workspace, then connect Google Ads again.";
+      case "missing_adwords_scope":
+        return "Google Ads access was not granted. Allow https://www.googleapis.com/auth/adwords and try again.";
+      case "access_denied":
+        return "Google Ads access was denied. Allow the requested Ads permission and try again.";
+      case "google_oauth_failed":
+        return "Google did not finish connecting. Confirm this account is a test user on the Kenoo OAuth app, then try again.";
+      default:
+        return `Connection failed (${error}). Please try again.`;
+    }
+  }
+
+  return `Connection failed (${error}). Please try again.`;
+}
+
 export function ConnectionDetailPage({
   providerKey,
 }: {
@@ -88,15 +112,22 @@ export function ConnectionDetailPage({
   const searchParams = useSearchParams();
   const connected = searchParams.get("connected");
   const error = searchParams.get("error");
+  const warning = searchParams.get("warning");
   const justConnected = connected === config.successParam;
 
   const { connections, loading, refetch } = useConnections();
   const [disconnecting, setDisconnecting] = React.useState(false);
 
-  const connection =
-    connections.find(
-      (c) => c.provider === config.provider && c.service === config.service,
-    ) ?? null;
+  const matchingConnections = connections.filter(
+    (c) => c.provider === config.provider && c.service === config.service,
+  );
+  const connection = matchingConnections[0] ?? null;
+
+  React.useEffect(() => {
+    if (!justConnected && !error && !warning) return;
+    invalidateConnectionsCache();
+    void refetch();
+  }, [justConnected, error, warning, refetch]);
 
   const handleDisconnect = async () => {
     setDisconnecting(true);
@@ -154,10 +185,19 @@ export function ConnectionDetailPage({
           </div>
         )}
 
+        {warning === "no_ads_accounts" && (
+          <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            Google sign-in succeeded, but this Google user has no accessible Ads
+            accounts yet. Add the user to a Google Ads account (or MCC) and
+            reconnect.
+          </div>
+        )}
+
         {error && (
           <div className="flex items-start gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
             <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-            Connection failed ({error}). Please try again.
+            {oauthErrorMessage(providerKey, error)}
           </div>
         )}
 
@@ -181,23 +221,23 @@ export function ConnectionDetailPage({
             )}
           >
             <p className="font-medium text-foreground">Connected</p>
-            <p className="mt-1 text-sm font-light text-neutral-500">
-              {config.formatLabel(connection)}
-            </p>
+            <ul className="mt-2 space-y-1 text-sm font-light text-neutral-500">
+              {matchingConnections.map((item) => (
+                <li key={item.id}>{config.formatLabel(item)}</li>
+              ))}
+            </ul>
             <p className="mt-1 text-xs font-light text-neutral-400">
               Connected {new Date(connection.created_at).toLocaleDateString()}
               {config.expiryHint(connection)}
             </p>
-            <div className="mt-5">
-              <Button
-                className={dangerButtonClass}
-                onClick={() => void handleDisconnect()}
-                disabled={disconnecting}
-              >
-                <Unplug className="mr-2 h-4 w-4" />
-                Disconnect
-              </Button>
-            </div>
+            <Button
+              className={cn(dangerButtonClass, "mt-5")}
+              onClick={() => void handleDisconnect()}
+              disabled={disconnecting}
+            >
+              <Unplug className="mr-2 h-4 w-4" />
+              Disconnect
+            </Button>
           </div>
         ) : (
           <div

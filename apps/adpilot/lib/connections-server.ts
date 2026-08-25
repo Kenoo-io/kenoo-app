@@ -13,7 +13,10 @@ import {
   type MetaConnectionRecord,
   type SafeAccountConnection,
 } from "@/lib/connections";
-import type { GoogleAdsCustomer } from "@/lib/google-ads-oauth";
+import {
+  revokeGoogleOAuthToken,
+  type GoogleAdsCustomer,
+} from "@/lib/google-ads-oauth";
 
 export async function listSafeConnectionsForAccount(
   accountId: string,
@@ -331,9 +334,45 @@ export async function listGoogleAdsConnectionsWithTokens(
   return (data ?? []) as GoogleAdsConnectionRecord[];
 }
 
-/** Removes all Google Ads connections for an account. */
+export async function updateGoogleAdsConnectionTokens(input: {
+  connectionId: string;
+  accessToken: string;
+  tokenExpiry: string;
+}): Promise<void> {
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("account_connections")
+    .update({
+      access_token: input.accessToken,
+      token_expiry: input.tokenExpiry,
+      last_token_refresh: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", input.connectionId);
+
+  if (error) throw error;
+}
+
+/** Revokes Google OAuth access, then removes all Google Ads connections for an account. */
 export async function revokeGoogleAdsConnection(accountId: string) {
   const admin = createAdminClient();
+  const { data: rows, error: listError } = await admin
+    .from("account_connections")
+    .select("access_token, refresh_token")
+    .eq("account_id", accountId)
+    .eq("provider", GOOGLE_PROVIDER)
+    .eq("service", GOOGLE_ADS_SERVICE);
+
+  if (listError) throw listError;
+
+  const tokens = new Set<string>();
+  for (const row of rows ?? []) {
+    if (row.refresh_token) tokens.add(row.refresh_token);
+    else if (row.access_token) tokens.add(row.access_token);
+  }
+
+  await Promise.all([...tokens].map((token) => revokeGoogleOAuthToken(token)));
+
   const { error } = await admin
     .from("account_connections")
     .delete()

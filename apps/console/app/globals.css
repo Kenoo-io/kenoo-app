@@ -127,3 +127,20 @@
     display: none;
   }
 }
+
+@media print {
+  html[data-app="console"],
+  html[data-app="console"] body {
+    height: auto !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+
+  html[data-app="console"] body > header {
+    display: none !important;
+  }
+
+  @page {
+    margin: 16mm;
+  }
+}

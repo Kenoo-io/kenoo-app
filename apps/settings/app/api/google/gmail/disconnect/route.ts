@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
+import { revokeStoredGoogleTokens } from '@/lib/google-oauth';
+
 export async function POST(request: Request) {
   try {
     const { email } = await request.json();
@@ -33,7 +35,7 @@ export async function POST(request: Request) {
     // Find all active Gmail connections for this user
     const { data: gmailConnections, error: connectionError } = await supabase
       .from('user_connections')
-      .select('id')
+      .select('id, access_token, refresh_token')
       .eq('user_id', supabaseUser.id)
       .eq('provider', 'google')
       .eq('service', 'gmail')
@@ -54,6 +56,8 @@ export async function POST(request: Request) {
         message: 'No active Gmail connections found to disconnect'
       });
     }
+
+    await revokeStoredGoogleTokens(gmailConnections);
 
     // Revoke all Gmail connections by setting revoked_at timestamp
     const connectionIds = gmailConnections.map(conn => conn.id);

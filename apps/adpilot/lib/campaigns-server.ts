@@ -1,7 +1,6 @@
 import { createClient } from "@walls/supabase/server";
 
 import { type AdDataScope, withAdScope } from "@/lib/ad-scope";
-import { META_PROVIDER } from "@/lib/connections";
 import {
   buildAdCreativePreview,
   type AdCreativePreview,
@@ -381,7 +380,6 @@ export async function listCampaignPerformance(input: {
         supabase
           .from("ad_entities")
           .select("id, name, account_connection_id")
-          .eq("provider", META_PROVIDER)
           .eq("entity_type", "account"),
         input.scope,
       ),
@@ -393,7 +391,6 @@ export async function listCampaignPerformance(input: {
         supabase
           .from("ad_entities")
           .select("id, objective, entity_type, parent_id, daily_budget_micros")
-          .eq("provider", META_PROVIDER)
           .in("entity_type", ["campaign", "ad_group"]),
         input.scope,
       ),
@@ -435,7 +432,6 @@ export async function listCampaignPerformance(input: {
       .select(
         "id, entity_type, name, provider, status, objective, parent_id, account_connection_id, last_synced_at, daily_budget_micros, learning_status",
       )
-      .eq("provider", META_PROVIDER)
       .eq("entity_type", input.entityType),
     input.scope,
   );
