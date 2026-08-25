@@ -431,8 +431,13 @@ body {
   animation: kenoo-marquee 36s linear infinite;
 }
 
+.kenoo-product-marquee {
+  animation: kenoo-marquee 54s linear infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .kenoo-marquee-track {
+  .kenoo-marquee-track,
+  .kenoo-product-marquee {
     animation: none;
   }
 }

@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { ChromeFrame } from "@/components/kenoo/chrome-frame";
+import { DashboardPreview } from "@/components/kenoo/dashboard-preview";
 import { FinalCta } from "@/components/kenoo/final-cta";
 import { SiteShell } from "@/components/kenoo/site-shell";
 import {
@@ -115,6 +116,24 @@ export function FeaturedProductPage({ product }: FeaturedProductPageProps) {
                 </Link>
               </div>
             </aside>
+          </div>
+        </div>
+      </section>
+
+      <section className="border-b border-kenoo-border bg-kenoo-canvas">
+        <div className="mx-auto max-w-6xl px-5 py-12 md:px-8 md:py-16">
+          <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-kenoo-muted">
+            Inside {product.name}
+          </p>
+          <h2 className="mt-3 font-display text-2xl font-semibold tracking-[-0.03em] text-kenoo-ink md:text-3xl">
+            The same dashboard you open in the app.
+          </h2>
+          <div className="mt-8">
+            <ChromeFrame className="flex w-full rounded-[1.35rem] shadow-[0_32px_80px_-48px_rgba(17,17,17,0.45)]">
+              <div className="w-full overflow-hidden rounded-[19.5px] bg-white">
+                <DashboardPreview slug={product.slug} />
+              </div>
+            </ChromeFrame>
           </div>
         </div>
       </section>

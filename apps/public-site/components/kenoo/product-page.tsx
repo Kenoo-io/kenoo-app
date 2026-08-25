@@ -2,6 +2,7 @@ import { ArrowUpRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
+import { DashboardPreview } from "@/components/kenoo/dashboard-preview";
 import { FinalCta } from "@/components/kenoo/final-cta";
 import { SiteShell } from "@/components/kenoo/site-shell";
 import { FEATURED_PRODUCTS } from "@/lib/featured-products";
@@ -38,38 +39,43 @@ export default function ProductPage() {
               <li key={product.slug}>
                 <Link
                   href={`/product/${product.slug}`}
-                  className="group flex flex-col gap-6 rounded-[1.75rem] border border-kenoo-border bg-kenoo-surface p-6 transition-colors hover:border-kenoo-ink/15 hover:bg-kenoo-white sm:flex-row sm:items-start sm:gap-8 md:p-8"
+                  className="group flex flex-col gap-6 overflow-hidden rounded-[1.75rem] border border-kenoo-border bg-kenoo-surface transition-colors hover:border-kenoo-ink/15 hover:bg-kenoo-white lg:flex-row lg:items-stretch"
                 >
-                  <div
-                    className="relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl shadow-[0_2px_8px_-2px_rgba(0,0,0,0.12)]"
-                    style={{
-                      background: `linear-gradient(145deg, #ffffff, ${product.accentSoft})`,
-                    }}
-                  >
-                    <Image
-                      src={product.icon}
-                      alt=""
-                      width={52}
-                      height={52}
-                      className="object-contain"
-                    />
+                  <div className="h-48 shrink-0 overflow-hidden border-b border-kenoo-border bg-[#fafafa] lg:h-auto lg:w-[46%] lg:border-b-0 lg:border-r">
+                    <DashboardPreview slug={product.slug} variant="card" />
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                      <h3 className="font-display text-2xl font-semibold tracking-[-0.03em] text-kenoo-ink">
-                        {product.name}
-                      </h3>
-                      <span className="text-sm text-kenoo-muted">
-                        {product.tagline}
+                  <div className="flex min-w-0 flex-1 items-start gap-5 p-6 md:p-8">
+                    <div
+                      className="relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl shadow-[0_2px_8px_-2px_rgba(0,0,0,0.12)]"
+                      style={{
+                        background: `linear-gradient(145deg, #ffffff, ${product.accentSoft})`,
+                      }}
+                    >
+                      <Image
+                        src={product.icon}
+                        alt=""
+                        width={52}
+                        height={52}
+                        className="object-contain"
+                      />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <h3 className="font-display text-2xl font-semibold tracking-[-0.03em] text-kenoo-ink">
+                          {product.name}
+                        </h3>
+                        <span className="text-sm text-kenoo-muted">
+                          {product.tagline}
+                        </span>
+                      </div>
+                      <p className="mt-3 max-w-2xl text-base leading-relaxed text-kenoo-muted">
+                        {product.description}
+                      </p>
+                      <span className="mt-5 inline-flex items-center gap-1 text-sm font-medium text-kenoo-accent transition-colors group-hover:text-kenoo-accent-hover">
+                        Explore {product.name}
+                        <ArrowUpRight className="size-3.5" />
                       </span>
                     </div>
-                    <p className="mt-3 max-w-2xl text-base leading-relaxed text-kenoo-muted">
-                      {product.description}
-                    </p>
-                    <span className="mt-5 inline-flex items-center gap-1 text-sm font-medium text-kenoo-accent transition-colors group-hover:text-kenoo-accent-hover">
-                      Explore {product.name}
-                      <ArrowUpRight className="size-3.5" />
-                    </span>
                   </div>
                 </Link>
               </li>

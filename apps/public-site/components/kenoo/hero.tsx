@@ -7,8 +7,6 @@ import Link from "next/link";
 import { ProductMock } from "@/components/kenoo/product-mock";
 import { KENOO_PORTAL_URL } from "@/lib/urls";
 
-const chips = ["AdPilot", "CRM", "Ledger", "Health", "AI"];
-
 export function Hero() {
   return (
     <section className="relative overflow-hidden pt-16 md:pt-[4.25rem]">
@@ -30,7 +28,7 @@ export function Hero() {
         }}
       />
 
-      <div className="relative mx-auto max-w-6xl px-5 pb-4 pt-16 md:px-8 md:pb-6 md:pt-24">
+      <div className="relative mx-auto max-w-6xl px-5 pb-10 pt-16 md:px-8 md:pb-14 md:pt-24">
         <motion.div
           initial={{ opacity: 0, y: 22 }}
           animate={{ opacity: 1, y: 0 }}
@@ -65,16 +63,6 @@ export function Hero() {
               <ArrowRight className="size-4" />
             </Link>
           </div>
-          <ul className="mt-8 flex flex-wrap items-center justify-center gap-2">
-            {chips.map((chip) => (
-              <li
-                key={chip}
-                className="rounded-full border border-kenoo-border bg-white/70 px-3 py-1 text-xs font-medium text-kenoo-muted"
-              >
-                {chip}
-              </li>
-            ))}
-          </ul>
         </motion.div>
       </div>
 
