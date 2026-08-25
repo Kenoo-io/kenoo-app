@@ -260,6 +260,16 @@ async function fetchUserProfile(
     });
   }
 
+  const { data: openAccessApps } = await supabase
+    .from("apps")
+    .select("id, slug, name, icon_url, url_redirect, subdomain")
+    .eq("is_active", true)
+    .eq("slug", process.env.NEXT_PUBLIC_PLATFORM_APP_SLUG || "platform");
+
+  for (const app of openAccessApps ?? []) {
+    pushApp(appList, seenAppIds, app.id as string, app);
+  }
+
   const initials = computeInitials(userFullName, email);
 
   return {

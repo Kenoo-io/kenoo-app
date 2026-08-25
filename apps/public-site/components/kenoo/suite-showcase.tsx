@@ -19,7 +19,7 @@ const orbSpring = {
   mass: 0.85,
 };
 
-/** Weighted glide — slight overshoot so orbs feel like metal spheres. */
+/** Weighted glide: slight overshoot so orbs feel like metal spheres. */
 const orbSlide = {
   type: "spring" as const,
   stiffness: 140,
@@ -88,7 +88,7 @@ const copyVariants = {
   }),
 };
 
-/** Set swap: soft dissolve in place — no slide, scale, or tilt. */
+/** Set swap: soft dissolve in place, no slide, scale, or tilt. */
 const setSwapVariants = {
   enter: {
     opacity: 0,
@@ -254,7 +254,7 @@ export function SuiteShowcase() {
   }
 
   return (
-    <section className="relative overflow-hidden pt-16 md:pt-[4.25rem]">
+    <section className="relative overflow-hidden border-t border-kenoo-border">
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0"
@@ -272,30 +272,17 @@ export function SuiteShowcase() {
         }}
       />
 
-      <div className="relative mx-auto max-w-6xl px-5 pb-20 pt-10 md:px-8 md:pb-28 md:pt-12">
-        <div className="flex flex-col gap-8 md:flex-row md:items-start md:justify-between md:gap-16">
-          <div className="max-w-md">
-            <h2 className="font-display text-3xl font-semibold tracking-[-0.04em] text-kenoo-ink md:text-4xl">
-              Business OS.
-              <br />
-              Smart, made simple.
+      <div className="relative mx-auto max-w-6xl px-5 pb-20 pt-16 md:px-8 md:pb-28 md:pt-20">
+        <div className="flex flex-col gap-8 md:flex-row md:items-end md:justify-between md:gap-16">
+          <div className="max-w-lg">
+            <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-kenoo-muted">
+              The suite
+            </p>
+            <h2 className="mt-4 font-display text-3xl font-semibold tracking-[-0.04em] text-kenoo-ink md:text-[2.75rem]">
+              Every angle of the company, in one product.
             </h2>
-            <div className="mt-7 flex flex-wrap gap-3">
-              <a
-                href={KENOO_PORTAL_URL}
-                className="inline-flex h-11 items-center justify-center rounded-full bg-kenoo-ink px-5 text-sm font-medium text-white transition-colors hover:bg-black"
-              >
-                Get started
-              </a>
-              <a
-                href="/contact"
-                className="inline-flex h-11 items-center justify-center rounded-full border border-kenoo-border bg-kenoo-surface px-5 text-sm font-medium text-kenoo-ink transition-colors hover:bg-kenoo-subtle"
-              >
-                Talk to us
-              </a>
-            </div>
           </div>
-          <div className="relative max-w-sm md:pt-10">
+          <div className="relative max-w-sm">
             <AnimatePresence mode="popLayout" initial={false} custom={direction}>
               <motion.p
                 key={suite.id}

@@ -22,7 +22,7 @@ const SIZE_CLASS = {
 } as const;
 
 /**
- * Metallic, grainy 3D orb — layered lighting, film grain, bloom, specular.
+ * Metallic, grainy 3D orb: layered lighting, film grain, bloom, specular.
  */
 export function SuiteOrb({
   capability,

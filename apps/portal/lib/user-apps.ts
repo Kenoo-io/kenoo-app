@@ -231,11 +231,29 @@ export async function fetchUserLauncherApps(
     for (const row of data ?? []) {
       pushApp(appList, seenAppIds, row.app_id, row.apps);
     }
+    await appendOpenAccessLauncherApps(supabase, appList, seenAppIds);
     return appList;
   }
 
   for (const row of legacyAccessRows) {
     pushApp(appList, seenAppIds, row.app_id, row.apps);
   }
+  await appendOpenAccessLauncherApps(supabase, appList, seenAppIds);
   return appList;
+}
+
+async function appendOpenAccessLauncherApps(
+  supabase: ReturnType<typeof getSupabaseClient>,
+  appList: PortalLauncherApp[],
+  seenAppIds: Set<string>,
+) {
+  const { data } = await supabase
+    .from("apps")
+    .select("id, slug, name, icon_url, url_redirect, subdomain")
+    .eq("is_active", true)
+    .eq("slug", process.env.NEXT_PUBLIC_PLATFORM_APP_SLUG || "platform");
+
+  for (const app of data ?? []) {
+    pushApp(appList, seenAppIds, app.id as string, app);
+  }
 }

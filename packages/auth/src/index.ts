@@ -20,6 +20,7 @@ export {
   userHasAccountAppGrants,
   userHasAppAccessForAccount,
   userHasAppAccessForActiveAccount,
+  isOpenAccessAppSlug,
   userHasLegacyAppAccess,
 } from "./active-account";
 export {

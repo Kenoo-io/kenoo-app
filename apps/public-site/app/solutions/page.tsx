@@ -13,7 +13,7 @@ export default function Page() {
     <PlaceholderPage
       eyebrow="Solutions"
       title="Built for the way your team works."
-      description="Content coming soon. Use this page for industry or team-based solutions — sales, operations, finance, and more."
+      description="Content coming soon. Use this page for industry or team-based solutions: sales, operations, finance, and more."
     />
   );
 }

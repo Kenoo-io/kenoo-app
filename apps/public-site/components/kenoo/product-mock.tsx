@@ -1,117 +1,196 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
+import { useEffect, useState } from "react";
 
 import { ChromeFrame } from "@/components/kenoo/chrome-frame";
+import {
+  DashboardPreview,
+  type DashboardPreviewSlug,
+} from "@/components/kenoo/dashboard-preview";
+import { FEATURED_PRODUCTS } from "@/lib/featured-products";
+import { cn } from "@/lib/utils";
 
-const nav = ["CRM", "Projects", "Calendar", "Finance", "AI"];
+const SLUGS = FEATURED_PRODUCTS.map((p) => p.slug) as DashboardPreviewSlug[];
 
-const pipeline = [
-  { name: "Northline Studio", stage: "Proposal", value: "$48k" },
-  { name: "Harbor Collective", stage: "Negotiation", value: "$22k" },
-  { name: "Veld Digital", stage: "Won", value: "$61k" },
-];
+const ease = [0.22, 1, 0.36, 1] as const;
 
-const tasks = [
-  { title: "Send revised SOW", meta: "Today · Maya" },
-  { title: "Invoice #1042", meta: "Tomorrow · Finance" },
-  { title: "Kickoff: Veld", meta: "Thu · Projects" },
-];
+const pillSpring = {
+  type: "spring" as const,
+  stiffness: 380,
+  damping: 34,
+  mass: 0.7,
+};
+
+const MARQUEE: Record<DashboardPreviewSlug, string[]> = {
+  adpilot: [
+    "Meta Ads",
+    "Google Ads",
+    "Campaigns",
+    "Creatives",
+    "Spend",
+    "Budgets",
+    "Automation",
+    "Insights",
+  ],
+  crm: [
+    "People",
+    "Companies",
+    "Pipeline",
+    "Deals",
+    "Sequences",
+    "Pitches",
+    "Outreach",
+    "Calendar",
+  ],
+  health: [
+    "Nutrition",
+    "Meals",
+    "Activities",
+    "Goals",
+    "Calories",
+    "Steps",
+    "Apple Health",
+    "Progress",
+  ],
+};
+
+const marqueeVariants = {
+  enter: (direction: number) => ({
+    opacity: 0,
+    x: direction * 40,
+    filter: "blur(8px)",
+  }),
+  center: {
+    opacity: 1,
+    x: 0,
+    filter: "blur(0px)",
+  },
+  exit: (direction: number) => ({
+    opacity: 0,
+    x: direction * -36,
+    filter: "blur(6px)",
+  }),
+};
+
+function shortestDirection(from: number, to: number, length: number) {
+  let delta = to - from;
+  const half = length / 2;
+  if (delta > half) delta -= length;
+  if (delta < -half) delta += length;
+  return delta >= 0 ? 1 : -1;
+}
 
 export function ProductMock() {
+  const [index, setIndex] = useState(0);
+  const [direction, setDirection] = useState(1);
+  const [paused, setPaused] = useState(false);
+  const slug = SLUGS[index] ?? "adpilot";
+  const marqueeHalf = [...MARQUEE[slug], ...MARQUEE[slug]];
+  const marqueeItems = [...marqueeHalf, ...marqueeHalf];
+
+  function goTo(next: number) {
+    if (next === index) return;
+    setDirection(shortestDirection(index, next, SLUGS.length));
+    setIndex(next);
+  }
+
+  useEffect(() => {
+    if (paused) return;
+    const timer = window.setInterval(() => {
+      setDirection(1);
+      setIndex((current) => (current + 1) % SLUGS.length);
+    }, 6400);
+    return () => window.clearInterval(timer);
+  }, [index, paused]);
+
   return (
     <motion.div
-      initial={{ opacity: 0, y: 28 }}
+      initial={{ opacity: 0, y: 36 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.8, delay: 0.35, ease: [0.22, 1, 0.36, 1] }}
-      className="relative w-full border-t border-kenoo-border bg-kenoo-surface"
+      transition={{ duration: 0.85, delay: 0.22, ease }}
+      className="relative w-full"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
     >
-      <div className="mx-auto max-w-6xl px-5 py-8 md:px-8 md:py-10">
-        <ChromeFrame className="flex w-full rounded-2xl shadow-[0_24px_80px_-40px_rgba(17,17,17,0.35)]">
-          <div className="overflow-hidden rounded-[14.5px] bg-kenoo-white">
-            <div className="flex items-center gap-2 border-b border-kenoo-border bg-kenoo-surface px-4 py-3">
-              <span className="size-2.5 rounded-full bg-kenoo-subtle" />
-              <span className="size-2.5 rounded-full bg-kenoo-subtle" />
-              <span className="size-2.5 rounded-full bg-kenoo-subtle" />
-              <span className="ml-3 font-mono text-[11px] tracking-wide text-kenoo-muted">
-                kenoo.io / workspace
-              </span>
-            </div>
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -inset-x-10 -top-8 h-40 bg-[radial-gradient(ellipse_at_center,rgba(11,110,255,0.16),transparent_70%)]"
+      />
 
-            <div className="grid min-h-[280px] md:min-h-[360px] md:grid-cols-[200px_1fr]">
-              <aside className="hidden border-r border-kenoo-border bg-kenoo-surface p-4 md:block">
-                <p className="font-display text-sm font-semibold tracking-[-0.03em]">
-                  Kenoo
-                </p>
-                <ul className="mt-6 space-y-1">
-                  {nav.map((item, i) => (
-                    <li
-                      key={item}
-                      className={
-                        i === 0
-                          ? "rounded-lg bg-kenoo-subtle px-3 py-2 text-sm font-medium text-kenoo-ink"
-                          : "rounded-lg px-3 py-2 text-sm text-kenoo-muted"
-                      }
-                    >
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              </aside>
-
-              <div className="grid gap-4 p-4 sm:grid-cols-2 md:p-6">
-                <section className="rounded-xl border border-kenoo-border bg-kenoo-surface p-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-medium text-kenoo-ink">
-                      Pipeline
-                    </h3>
-                    <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-kenoo-accent">
-                      Live
-                    </span>
-                  </div>
-                  <ul className="mt-4 space-y-3">
-                    {pipeline.map((row) => (
-                      <li
-                        key={row.name}
-                        className="flex items-center justify-between gap-3 border-b border-kenoo-border/70 pb-3 last:border-0 last:pb-0"
-                      >
-                        <div>
-                          <p className="text-sm text-kenoo-ink">{row.name}</p>
-                          <p className="text-xs text-kenoo-muted">{row.stage}</p>
-                        </div>
-                        <p className="font-mono text-xs text-kenoo-ink">
-                          {row.value}
-                        </p>
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-
-                <section className="rounded-xl border border-kenoo-border bg-kenoo-surface p-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-medium text-kenoo-ink">Today</h3>
-                    <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-kenoo-muted">
-                      AI sorted
-                    </span>
-                  </div>
-                  <ul className="mt-4 space-y-3">
-                    {tasks.map((task) => (
-                      <li
-                        key={task.title}
-                        className="rounded-lg bg-kenoo-white px-3 py-3"
-                      >
-                        <p className="text-sm text-kenoo-ink">{task.title}</p>
-                        <p className="mt-1 text-xs text-kenoo-muted">
-                          {task.meta}
-                        </p>
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              </div>
-            </div>
+      <div className="relative mx-auto max-w-6xl px-5 md:px-8">
+        <div className="mb-5 flex justify-center">
+          <div className="inline-flex max-w-full items-center gap-0.5 overflow-x-auto rounded-full border border-white/50 bg-white/25 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] backdrop-blur-xl">
+            {SLUGS.map((item, i) => {
+              const selected = i === index;
+              return (
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() => goTo(i)}
+                  aria-pressed={selected}
+                  className={cn(
+                    "relative inline-flex shrink-0 items-center rounded-full px-4 py-2 text-sm transition-colors",
+                    selected
+                      ? "font-medium text-kenoo-ink"
+                      : "text-kenoo-muted hover:text-kenoo-ink",
+                  )}
+                >
+                  {selected ? (
+                    <motion.span
+                      layoutId="product-preview-pill"
+                      className="absolute inset-0 rounded-full border border-white/70 bg-white/80 shadow-[0_4px_16px_-6px_rgba(17,17,17,0.18),inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-md"
+                      transition={pillSpring}
+                    />
+                  ) : null}
+                  <span className="relative z-10 font-display tracking-[-0.02em]">
+                    {FEATURED_PRODUCTS[i]?.name}
+                  </span>
+                </button>
+              );
+            })}
           </div>
-        </ChromeFrame>
+        </div>
+
+        <div className="relative [perspective:1400px]">
+          <div className="relative origin-bottom md:[transform:rotateX(10deg)]">
+            <ChromeFrame className="flex w-full rounded-[1.35rem] shadow-[0_40px_120px_-48px_rgba(17,17,17,0.55)]">
+              <div className="w-full overflow-hidden rounded-[19.5px] bg-white">
+                <DashboardPreview slug={slug} direction={direction} />
+              </div>
+            </ChromeFrame>
+          </div>
+        </div>
+      </div>
+
+      <div className="relative z-10 mt-6 w-full overflow-hidden pb-8 md:mt-8 md:pb-10">
+        <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-16 bg-gradient-to-r from-kenoo-canvas to-transparent md:w-28" />
+        <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-16 bg-gradient-to-l from-kenoo-canvas to-transparent md:w-28" />
+        <div className="relative h-6">
+          <AnimatePresence mode="wait" initial={false} custom={direction}>
+            <motion.div
+              key={slug}
+              custom={direction}
+              variants={marqueeVariants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{ duration: 0.48, ease }}
+              className="absolute inset-x-0"
+            >
+              <div className="kenoo-product-marquee flex w-max gap-10 pr-10 md:gap-14 md:pr-14">
+                {marqueeItems.map((item, i) => (
+                  <span
+                    key={`${item}-${i}`}
+                    className="shrink-0 text-sm font-medium text-kenoo-ink/70"
+                  >
+                    {item}
+                  </span>
+                ))}
+              </div>
+            </motion.div>
+          </AnimatePresence>
+        </div>
       </div>
     </motion.div>
   );

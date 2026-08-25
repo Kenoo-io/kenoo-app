@@ -28,7 +28,7 @@ function absoluteUrl(request: Request, path: string): string {
  * Creates a Stripe Checkout Session and returns `{ url }` to redirect the browser.
  *
  * Prefer authenticated checkout via Admin (`POST /api/billing/checkout`) when
- * the buyer already has a Kenoo account — that path attaches `account_id` metadata
+ * the buyer already has a Kenoo account; that path attaches `account_id` metadata
  * and reuses the Stripe customer.
  */
 export async function POST(request: Request) {

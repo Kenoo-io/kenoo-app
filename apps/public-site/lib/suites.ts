@@ -458,7 +458,7 @@ export const KENOO_SUITES: KenooSuite[] = [
     id: "health",
     name: "Health",
     description:
-      "Meals, activities, and goals. Optional wellness that supports the work without competing for attention.",
+      "Stay sharp for work. Meals, movement, and goals - a health monitor so life balance isn’t the thing you forget.",
     dot: "#5bb8a8",
     features: [
       {
@@ -469,7 +469,7 @@ export const KENOO_SUITES: KenooSuite[] = [
             id: "nutrition",
             title: "Nutrition",
             description:
-              "Log meals and stay aware of intake without turning it into a chore.",
+              "Log meals so the fuel behind your focus stays honest - without another diet-app chore.",
             href: "/product/health",
             orb: {
               from: "#5bb8a8",
@@ -482,7 +482,7 @@ export const KENOO_SUITES: KenooSuite[] = [
             id: "calories",
             title: "Calories",
             description:
-              "A clear daily read so energy goals stay grounded in reality.",
+              "A clear daily read so you know if you’re running on empty before the afternoon crash.",
             href: "/product/health",
             orb: {
               from: "#3d9a8c",
@@ -495,7 +495,7 @@ export const KENOO_SUITES: KenooSuite[] = [
             id: "habits",
             title: "Habits",
             description:
-              "Simple patterns you can keep, not another complicated diet app.",
+              "Simple patterns that keep you sharp - not another complicated diet app.",
             href: "/product/health",
             orb: {
               from: "#7ecfc0",
@@ -514,7 +514,7 @@ export const KENOO_SUITES: KenooSuite[] = [
             id: "workouts",
             title: "Workouts",
             description:
-              "Track activity and sync from providers when you want the fuller picture.",
+              "Track activity and sync from providers when recovery matters as much as output.",
             href: "/product/health",
             orb: {
               from: "#5bb8a8",
@@ -527,7 +527,7 @@ export const KENOO_SUITES: KenooSuite[] = [
             id: "movement",
             title: "Movement",
             description:
-              "See how the week actually moved, not just what you planned.",
+              "See how the week actually moved - not only how hard you worked at the desk.",
             href: "/product/health",
             orb: {
               from: "#4aa89a",
@@ -540,7 +540,7 @@ export const KENOO_SUITES: KenooSuite[] = [
             id: "sync",
             title: "Sync",
             description:
-              "Optional connections so logs don’t depend on manual entry alone.",
+              "Optional connections so taking care of yourself doesn’t depend on manual entry alone.",
             href: "/product/health",
             orb: {
               from: "#6eadc0",
@@ -559,7 +559,7 @@ export const KENOO_SUITES: KenooSuite[] = [
             id: "targets",
             title: "Targets",
             description:
-              "Set goals that stay visible next to meals and activity.",
+              "Set goals that keep you clear-headed for work - visible next to meals and activity.",
             href: "/product/health",
             orb: {
               from: "#3d9a8c",
@@ -572,7 +572,7 @@ export const KENOO_SUITES: KenooSuite[] = [
             id: "progress",
             title: "Progress",
             description:
-              "A calm dashboard for how you’re tracking, not a guilt meter.",
+              "A calm dashboard for how you’re tracking - balance, not a guilt meter.",
             href: "/product/health",
             orb: {
               from: "#5bb8a8",
@@ -585,7 +585,7 @@ export const KENOO_SUITES: KenooSuite[] = [
             id: "balance",
             title: "Balance",
             description:
-              "Wellness that supports the work, not another product competing for attention.",
+              "Proof we’re not only optimizing output - self-care lives where the work already does.",
             href: "/product/health",
             orb: {
               from: "#7ecfc0",

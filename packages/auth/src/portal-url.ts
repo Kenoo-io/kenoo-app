@@ -6,7 +6,8 @@ const LEGACY_PROD_PORTAL_ORIGIN = "https://portal.walls.agency";
 
 /** Local next-dev ports that belong to apps, not the portal. */
 const LOCAL_APP_PORTS = new Set([
-  3000, 3001, 3003, 3004, 3005, 3006, 3007, 3008, 3009, 3010, 3011, 3012,
+  3000, 3001, 3003, 3004, 3005, 3006, 3007, 3008, 3009, 3010, 3011, 3012, 3013,
+  3014,
 ]);
 
 export function normalizePortalOrigin(raw: string): string | null {

@@ -182,6 +182,11 @@ export async function getAccountIdsWithAppAccess(
 
   const appId = appRow.id as string;
 
+  // Platform is a public Kenoo marketplace — any signed-in member can use it.
+  if (isOpenAccessAppSlug(appSlug)) {
+    return new Set(accountIds);
+  }
+
   // Console is staff-only (`users.is_admin`). Admin uses account grants below.
   if (isConsoleAppSlug(appSlug)) {
     if (await userIsStaffAdmin(supabase, userId)) {
@@ -223,6 +228,16 @@ function consoleAppSlug(): string {
 
 function isConsoleAppSlug(appSlug: string): boolean {
   return appSlug === consoleAppSlug();
+}
+
+/** Marketplace / developer portal — every signed-in Kenoo user, no per-app grant. */
+function platformAppSlug(): string {
+  return process.env.NEXT_PUBLIC_PLATFORM_APP_SLUG || "platform";
+}
+
+export function isOpenAccessAppSlug(appSlug: string): boolean {
+  const open = platformAppSlug();
+  return appSlug === open || appSlugCandidates(appSlug).includes(open);
 }
 
 async function userIsStaffAdmin(
@@ -280,6 +295,11 @@ export async function userHasAppAccessForActiveAccount(
 
   if (appError || !appRow?.id) {
     // Unknown / inactive slug: fail open (same as previous middleware).
+    return true;
+  }
+
+  // Platform is a public Kenoo marketplace — skip account_app_user_access.
+  if (isOpenAccessAppSlug(appSlug)) {
     return true;
   }
 
