@@ -15,21 +15,6 @@ const navItems = [
     href: "/",
   },
   {
-    id: "wallie-settings",
-    name: "WALLIE SETTINGS",
-    href: "/wallie-settings",
-  },
-  {
-    id: "payment",
-    name: "Payout Information",
-    href: "/payment",
-  },
-  {
-    id: "connect",
-    name: "Connect",
-    href: "/connect",
-  },
-  {
     id: "security",
     name: "Security & Privacy",
     href: "/security",

@@ -647,7 +647,10 @@ const AgentSettingsPage = () => {
                           }}
                         />
                       ) : (
-                        <div className="flex h-[120px] w-[120px] items-center justify-center rounded-full border border-dashed border-neutral-300 bg-neutral-50 transition-colors duration-200 group-hover:border-neutral-400 group-hover:bg-neutral-200">
+                        <div className="relative flex h-[120px] w-[120px] items-center justify-center rounded-full border border-neutral-200 bg-neutral-50 transition-colors duration-200 group-hover:border-neutral-400 group-hover:bg-neutral-200">
+                          <span className="absolute left-1/2 top-0 z-10 -translate-x-1/2 -translate-y-1/2 scale-[0.78] whitespace-nowrap bg-kenoo-white px-1.5 text-sm font-light leading-none text-neutral-500 transition-colors duration-200 group-hover:text-neutral-600">
+                            Profile pic
+                          </span>
                           <Plus className="h-8 w-8 text-neutral-400 transition-colors duration-200 group-hover:text-neutral-500" />
                         </div>
                       )}
