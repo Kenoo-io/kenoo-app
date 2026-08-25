@@ -429,9 +429,9 @@ function CrmScene({ compact }: { compact?: boolean }) {
             <p className="text-xs font-semibold text-neutral-900">Tasks Schedule</p>
             <p className="text-[10px] text-neutral-400">August 2026</p>
             <div className="mt-3 grid grid-cols-7 gap-1">
-              {["S", "M", "T", "W", "T", "F", "S"].map((d) => (
+              {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
                 <span
-                  key={d}
+                  key={i}
                   className="text-center text-[9px] font-medium text-neutral-400"
                 >
                   {d}

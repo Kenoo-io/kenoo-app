@@ -6,6 +6,7 @@ import {
   Activity,
   ArrowRight,
   Building2,
+  Calendar,
   CircleDollarSign,
   Handshake,
   Heart,
@@ -14,6 +15,9 @@ import {
   Mail,
   Megaphone,
   MousePointerClick,
+  Pencil,
+  Phone,
+  Plus,
   Shield,
   ShoppingBag,
   Sparkles,
@@ -22,6 +26,7 @@ import {
   UtensilsCrossed,
   Users,
   Wallet,
+  X,
 } from "lucide-react";
 import { useId } from "react";
 
@@ -168,12 +173,12 @@ function CapabilityVisual({
         <AdPilotAutomationVisual />
       ) : null}
       {visual === "adpilot-preview" ? <AdPilotPreviewVisual /> : null}
-      {visual === "crm-pipeline" ? <CrmPipelineVisual accent={accent} /> : null}
-      {visual === "crm-outreach" ? <CrmOutreachVisual accent={accent} /> : null}
-      {visual === "health-energy" ? (
-        <HealthEnergyVisual accent={accent} />
-      ) : null}
-      {visual === "health-meals" ? <HealthMealsVisual accent={accent} /> : null}
+      {visual === "crm-pipeline" ? <CrmPipelineVisual /> : null}
+      {visual === "crm-outreach" ? <CrmOutreachVisual /> : null}
+      {visual === "crm-contact" ? <CrmContactVisual /> : null}
+      {visual === "health-energy" ? <HealthEnergyVisual /> : null}
+      {visual === "health-meals" ? <HealthMealsVisual /> : null}
+      {visual === "health-pulse" ? <HealthPulseVisual accent={accent} /> : null}
     </motion.div>
   );
 }
@@ -181,36 +186,11 @@ function CapabilityVisual({
 function FloatPanel({
   children,
   className,
-  delay = 0,
 }: {
   children: React.ReactNode;
   className?: string;
-  delay?: number;
 }) {
-  const reduceMotion = useReducedMotion();
-
-  return (
-    <motion.div
-      className={cn("absolute z-10", className)}
-      animate={
-        reduceMotion
-          ? undefined
-          : { y: [0, -6, 0] }
-      }
-      transition={
-        reduceMotion
-          ? undefined
-          : {
-              duration: 5.5,
-              repeat: Infinity,
-              ease: "easeInOut",
-              delay,
-            }
-      }
-    >
-      {children}
-    </motion.div>
-  );
+  return <div className={cn("absolute z-10", className)}>{children}</div>;
 }
 
 function AdPilotPerformanceVisual() {
@@ -373,7 +353,7 @@ function AdPilotPerformanceVisual() {
 
       <FloatPanel
         className="right-[-2%] top-[36%] w-[10.5rem] sm:right-[-4%] sm:w-[11.5rem]"
-        delay={0.35}
+       
       >
         <div className="rounded-lg border border-neutral-500/80 bg-neutral-700 px-3 py-2.5 text-white shadow-lg">
           <p className="text-[10px] font-medium text-white/55">Aug 18</p>
@@ -483,7 +463,7 @@ function AdPilotAutomationVisual() {
 
       <FloatPanel
         className="left-[-2%] top-[12%] w-[12rem] sm:left-[-6%] sm:w-[13.5rem]"
-        delay={0.2}
+       
       >
         <div
           className={cn(
@@ -565,7 +545,7 @@ function AdPilotPreviewVisual() {
                   Generate preview
                 </span>
                 <span className="mt-1 block text-xs font-light text-neutral-500">
-                  Dry-run the next budget decision — nothing applies yet
+                  Dry-run the next budget decision - nothing applies yet
                 </span>
               </span>
             </div>
@@ -575,7 +555,7 @@ function AdPilotPreviewVisual() {
 
       <FloatPanel
         className="right-[-3%] top-[8%] w-[13.5rem] sm:right-[-5%] sm:w-[15.5rem]"
-        delay={0.25}
+       
       >
         <div className={cn("overflow-hidden rounded-[28px]", PANEL_GLASS)}>
           <div className="border-b border-neutral-200/80 px-4 py-4">
@@ -621,7 +601,7 @@ function AdPilotPreviewVisual() {
             {[
               { label: "Trend", value: "Growing" },
               { label: "ROAS", value: "4.2x / 3.6x" },
-              { label: "Allowed range", value: "$200 – $600" },
+              { label: "Allowed range", value: "$200 - $600" },
               { label: "State", value: "Active" },
             ].map((cell) => (
               <div key={cell.label} className="bg-white/80 px-3 py-2.5">
@@ -640,144 +620,124 @@ function AdPilotPreviewVisual() {
   );
 }
 
-function CrmPipelineVisual({ accent }: { accent: string }) {
+function CrmPipelineVisual() {
   const deals = [
-    { name: "Northline retainer", amount: "$48k", tone: "bg-[#0066b2] text-white" },
-    { name: "Harbor Collective", amount: "$22k", tone: "bg-[#6eadc0] text-white" },
-    { name: "Veld kickoff", amount: "$61k", tone: "bg-kenoo-ink text-white" },
-    { name: "Atlas retail", amount: "$19k", tone: "bg-[#e2f85c] text-neutral-900" },
+    {
+      name: "Northline retainer",
+      amount: "$48k",
+      date: "August 12",
+      tone: "bg-[#0066b2] text-white",
+      muted: "text-white/75",
+    },
+    {
+      name: "Harbor Collective",
+      amount: "$22k",
+      date: "August 18",
+      tone: "bg-[#6eadc0] text-white",
+      muted: "text-white/75",
+    },
+    {
+      name: "Veld kickoff",
+      amount: "$61k",
+      date: "August 4",
+      tone: "bg-kenoo-ink text-white",
+      muted: "text-white/75",
+    },
+    {
+      name: "Atlas retail",
+      amount: "$19k",
+      date: "August 21",
+      tone: "bg-[#e2f85c] text-neutral-900",
+      muted: "text-neutral-500",
+    },
+  ];
+
+  const funnel = [
+    { name: "Proposal", value: "48,000$", deals: 3, width: "92%", offset: "0%" },
+    { name: "Negotiation", value: "22,000$", deals: 2, width: "78%", offset: "10%" },
+    { name: "Verbal", value: "61,000$", deals: 1, width: "64%", offset: "18%" },
   ];
 
   return (
     <div className="relative aspect-[5/4] w-full overflow-visible">
-      <div className="absolute inset-0 overflow-hidden rounded-2xl border border-kenoo-border bg-white shadow-[0_24px_60px_-36px_rgba(17,17,17,0.35)]">
-        <div className="border-b border-kenoo-border px-4 py-3">
-          <p className="font-display text-sm font-semibold text-kenoo-ink">
-            Pipeline
-          </p>
-          <p className="text-[11px] text-kenoo-muted">$150k total · August</p>
+      <div
+        className={cn(
+          "absolute inset-0 overflow-hidden rounded-[2rem] border border-black/[0.04] bg-white p-4",
+          "shadow-[0_10px_32px_rgba(15,23,42,0.08),0_2px_8px_rgba(15,23,42,0.04)] ring-1 ring-black/[0.03]",
+        )}
+      >
+        <div className="mb-3 flex items-end justify-between gap-2">
+          <div>
+            <p className="text-sm font-semibold tracking-tight text-neutral-900">
+              Recent interactions
+            </p>
+            <p className="text-[11px] text-neutral-400">August pipeline</p>
+          </div>
+          <span className="rounded-full bg-[#e2f85c] px-2.5 py-1 text-[10px] font-medium text-neutral-900 shadow-[0_2px_8px_rgba(15,23,42,0.06)]">
+            +12% week
+          </span>
         </div>
-        <div className="grid grid-cols-2 gap-2.5 p-4">
+        <div className="grid grid-cols-2 gap-2.5">
           {deals.map((deal) => (
             <div
               key={deal.name}
               className={cn(
-                "flex min-h-[88px] flex-col justify-between rounded-2xl p-3",
+                "flex min-h-[96px] flex-col justify-between overflow-hidden rounded-[22px] p-3.5 shadow-[0_8px_24px_rgba(15,23,42,0.12)] ring-1 ring-white/20",
                 deal.tone,
               )}
             >
-              <p className="line-clamp-2 text-[12px] font-semibold leading-snug">
-                {deal.name}
-              </p>
+              <div>
+                <p className={cn("text-[10px] font-medium", deal.muted)}>
+                  {deal.date}
+                </p>
+                <p className="mt-1 line-clamp-2 text-[12px] font-semibold leading-snug">
+                  {deal.name}
+                </p>
+              </div>
               <p className="text-sm font-semibold tabular-nums">{deal.amount}</p>
             </div>
           ))}
         </div>
-        <div className="space-y-2 border-t border-kenoo-border px-4 py-3">
-          {[
-            { name: "Proposal", value: "$48k", width: "92%" },
-            { name: "Negotiation", value: "$22k", width: "74%" },
-          ].map((row) => (
-            <div
-              key={row.name}
-              className="rounded-full border border-kenoo-border bg-[#fafafa] px-3.5 py-2"
-              style={{ width: row.width }}
-            >
-              <p className="text-[10px] text-kenoo-muted">{row.name}</p>
-              <p className="text-xs font-semibold tabular-nums text-kenoo-ink">
-                {row.value}
-              </p>
+      </div>
+
+      <FloatPanel className="right-[-4%] top-[10%] w-[11.5rem] sm:right-[-6%] sm:w-[13rem]">
+        <div
+          className={cn(
+            "rounded-[2rem] border border-black/[0.04] bg-white p-4",
+            "shadow-[0_20px_48px_-16px_rgba(17,17,17,0.35),0_2px_8px_rgba(15,23,42,0.04)] ring-1 ring-black/[0.03]",
+          )}
+        >
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-sm font-semibold tracking-tight text-neutral-900">
+              Stage Funnel
+            </p>
+            <div className="flex rounded-full border border-black/[0.04] bg-neutral-50 p-0.5 text-[9px] font-medium">
+              <span className="rounded-full bg-white px-2 py-1 text-neutral-800 shadow-[0_2px_8px_rgba(15,23,42,0.08)]">
+                Weighted
+              </span>
+              <span className="px-2 py-1 text-neutral-400">Total</span>
             </div>
-          ))}
-        </div>
-      </div>
-
-      <FloatPanel className="right-[-4%] top-[14%] w-[10rem] sm:right-[-2%] sm:w-[11rem]" delay={0.35}>
-        <div className="rounded-2xl bg-kenoo-ink px-4 py-4 text-white shadow-[0_20px_48px_-16px_rgba(17,17,17,0.55)]">
-          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-white/55">
-            Won this month
+          </div>
+          <p className="mt-3 text-xl font-semibold tabular-nums tracking-tight text-neutral-900">
+            $131,000
           </p>
-          <p className="mt-2 font-display text-3xl font-semibold tabular-nums tracking-[-0.03em]">
-            $86k
-          </p>
-          <p className="mt-1 text-sm text-white/65">from 4 deals</p>
-          <span
-            className="mt-3 inline-flex rounded-full px-2.5 py-1 text-[10px] font-medium text-kenoo-ink"
-            style={{ backgroundColor: "#e2f85c" }}
-          >
-            +12% week
-          </span>
-          <div
-            className="mt-4 h-1.5 overflow-hidden rounded-full bg-white/15"
-          >
-            <div
-              className="h-full rounded-full"
-              style={{ width: "68%", backgroundColor: accent }}
-            />
-          </div>
-        </div>
-      </FloatPanel>
-    </div>
-  );
-}
-
-function CrmOutreachVisual({ accent }: { accent: string }) {
-  return (
-    <div className="relative aspect-[5/4] w-full overflow-visible">
-      <div className="absolute inset-0 overflow-hidden rounded-2xl border border-kenoo-border bg-white shadow-[0_24px_60px_-36px_rgba(17,17,17,0.35)]">
-        <div className="border-b border-kenoo-border px-4 py-3">
-          <p className="text-[11px] text-kenoo-muted">Sequence · Step 2</p>
-          <p className="font-display text-sm font-semibold text-kenoo-ink">
-            Brand partnership follow-up
-          </p>
-        </div>
-        <div className="space-y-3 p-4">
-          <div className="rounded-xl border border-kenoo-border bg-[#fafafa] px-3.5 py-2.5">
-            <p className="text-[10px] uppercase tracking-[0.12em] text-kenoo-muted">
-              Subject
-            </p>
-            <p className="mt-1 text-sm font-medium text-kenoo-ink">
-              Quick note on the August campaign
-            </p>
-          </div>
-          <div className="min-h-[8.5rem] rounded-xl border border-kenoo-border px-3.5 py-3">
-            <p className="text-sm leading-relaxed text-kenoo-muted">
-              Hi Maya — circling back on the creator roster we shared last week.
-              Happy to tighten the brief around the summer drop…
-            </p>
-            <span
-              className="mt-3 inline-block h-4 w-0.5 animate-pulse"
-              style={{ backgroundColor: accent }}
-            />
-          </div>
-        </div>
-      </div>
-
-      <FloatPanel className="left-[-2%] top-[20%] w-[12rem] sm:left-[-5%] sm:w-[13rem]" delay={0.15}>
-        <div className="overflow-hidden rounded-2xl bg-kenoo-ink text-white shadow-[0_20px_48px_-16px_rgba(17,17,17,0.55)]">
-          <div className="flex items-center gap-2 border-b border-white/10 px-4 py-3">
-            <Sparkles className="size-3.5" style={{ color: accent }} />
-            <p className="text-[11px] font-medium tracking-[-0.01em]">
-              AI Writer
-            </p>
-          </div>
-          <div className="py-1">
-            {[
-              "Generate subject line",
-              "Rewrite paragraph",
-              "Make it shorter",
-              "Add talent context",
-              "Draft follow-up",
-            ].map((item, i) => (
+          <p className="text-[10px] text-neutral-400">Total in Pipeline</p>
+          <div className="mt-3 space-y-2">
+            {funnel.map((row) => (
               <div
-                key={item}
-                className={cn(
-                  "px-4 py-2.5 text-sm",
-                  i === 1 ? "bg-white/10" : "text-white/80",
-                )}
-                style={i === 1 ? { color: accent } : undefined}
+                key={row.name}
+                className="rounded-full border border-black/[0.04] bg-white px-3 py-2 shadow-[0_6px_18px_rgba(15,23,42,0.06)] ring-1 ring-black/[0.03]"
+                style={{ width: row.width, marginLeft: row.offset }}
               >
-                {item}
+                <p className="truncate text-[9px] font-medium text-neutral-500">
+                  {row.name}
+                </p>
+                <p className="truncate text-[11px] font-semibold tabular-nums text-neutral-900">
+                  {row.value}
+                  <span className="ml-1 text-[9px] font-normal text-neutral-400">
+                    · {row.deals}
+                  </span>
+                </p>
               </div>
             ))}
           </div>
@@ -787,50 +747,225 @@ function CrmOutreachVisual({ accent }: { accent: string }) {
   );
 }
 
-function HealthEnergyVisual({ accent }: { accent: string }) {
+function CrmOutreachVisual() {
   return (
     <div className="relative aspect-[5/4] w-full overflow-visible">
-      <div className="absolute inset-0 overflow-hidden rounded-2xl border border-kenoo-border bg-[#f7f8fa] shadow-[0_24px_60px_-36px_rgba(17,17,17,0.35)]">
-        <div className="grid h-full grid-cols-2 gap-3 p-4">
+      <div
+        className={cn(
+          "absolute inset-0 overflow-hidden rounded-[2rem] border border-black/[0.04] bg-white",
+          "shadow-[0_10px_32px_rgba(15,23,42,0.08),0_2px_8px_rgba(15,23,42,0.04)] ring-1 ring-black/[0.03]",
+        )}
+      >
+        <div className="border-b border-black/[0.04] px-4 py-3">
+          <p className="text-[11px] text-neutral-400">Sequence · Step 2</p>
+          <p className="text-sm font-semibold tracking-tight text-neutral-900">
+            Brand partnership follow-up
+          </p>
+        </div>
+        <div className="space-y-3 p-4">
+          <div className="rounded-2xl border border-black/[0.04] bg-neutral-50 px-3.5 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
+            <p className="text-[10px] uppercase tracking-[0.12em] text-neutral-400">
+              Subject
+            </p>
+            <p className="mt-1 text-sm font-medium text-neutral-900">
+              Quick note on the August campaign
+            </p>
+          </div>
+          <div className="min-h-[8.5rem] rounded-2xl border border-black/[0.04] px-3.5 py-3">
+            <p className="text-sm leading-relaxed text-neutral-500">
+              Hi Maya - circling back on the creator roster we shared last week.
+              Happy to tighten the brief around the summer drop…
+            </p>
+            <span className="mt-3 inline-block h-4 w-0.5 animate-pulse bg-[#0066b2]" />
+          </div>
+          <div className="flex items-center justify-end gap-1">
+            <span className="flex h-9 w-9 items-center justify-center rounded-full">
+              <Sparkles className="h-4 w-4 text-neutral-500" strokeWidth={1.5} />
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <FloatPanel className="left-[-2%] top-[16%] w-[13rem] sm:left-[-6%] sm:w-[15rem]">
+        <div className="rounded-[2rem] border border-white/30 bg-white/80 p-4 shadow-2xl backdrop-blur-xl">
+          <div className="rounded-full border border-neutral-200/50 bg-neutral-100 py-2.5 pl-3 pr-3 shadow-inner backdrop-blur-md">
+            <p className="truncate text-sm text-neutral-700">
+              Make it shorter and warmer
+            </p>
+          </div>
+          <div className="mt-3 flex items-center justify-end gap-1 pl-1">
+            <span className="flex h-9 w-9 items-center justify-center rounded-full">
+              <X className="h-4 w-4 text-neutral-500" strokeWidth={1.5} />
+            </span>
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white shadow-[inset_0_4px_8px_rgba(0,0,0,0.08)] ring-1 ring-neutral-200">
+              <Sparkles className="h-4 w-4 text-neutral-500" strokeWidth={1.5} />
+            </span>
+          </div>
+        </div>
+      </FloatPanel>
+    </div>
+  );
+}
+
+function CrmContactVisual() {
+  const actions = [
+    { icon: Pencil, label: "Edit" },
+    { icon: Mail, label: "Email" },
+    { icon: Phone, label: "Call" },
+    { icon: Plus, label: "Add" },
+    { icon: Calendar, label: "Schedule" },
+  ];
+
+  return (
+    <div className="relative aspect-[5/4] w-full overflow-visible">
+      <div
+        className={cn(
+          "absolute inset-0 overflow-hidden rounded-[2rem] border border-black/[0.04] bg-[#f7f8fa] p-4",
+          "shadow-[0_10px_32px_rgba(15,23,42,0.08)]",
+        )}
+      >
+        <div
+          className={cn(
+            "mx-auto flex h-full max-w-[16rem] flex-col items-center rounded-[2rem] border border-black/[0.04] bg-white px-5 py-6 text-center",
+            "shadow-[0_10px_32px_rgba(15,23,42,0.08),0_2px_8px_rgba(15,23,42,0.04)] ring-1 ring-black/[0.03]",
+          )}
+        >
+          <div className="flex h-20 w-20 items-center justify-center rounded-full border-4 border-white bg-neutral-100 text-xl font-semibold text-neutral-500 shadow-[0_8px_24px_rgba(15,23,42,0.12)] ring-1 ring-black/[0.04]">
+            MC
+          </div>
+          <h3 className="mt-4 text-base font-semibold tracking-tight text-neutral-900">
+            Maya Chen
+          </h3>
+          <p className="mt-1 text-[11px] text-neutral-500">
+            Brand Partnerships, Harbor Collective
+          </p>
+          <div className="mt-5 flex items-center justify-center gap-1.5">
+            {actions.map(({ icon: Icon, label }) => (
+              <span
+                key={label}
+                title={label}
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-black/[0.04] bg-white text-neutral-500 shadow-[0_2px_8px_rgba(15,23,42,0.06)]"
+              >
+                <Icon className="h-3.5 w-3.5" strokeWidth={1.5} />
+              </span>
+            ))}
+          </div>
+          <div className="mt-5 w-full space-y-2 text-left">
+            {[
+              { label: "Email", value: "maya@harbor.co" },
+              { label: "Phone", value: "+1 (415) 555-0142" },
+            ].map((field) => (
+              <div
+                key={field.label}
+                className="rounded-2xl border border-black/[0.04] bg-neutral-50 px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]"
+              >
+                <p className="text-[9px] font-medium uppercase tracking-wider text-neutral-400">
+                  {field.label}
+                </p>
+                <p className="mt-0.5 truncate text-xs font-medium text-neutral-800">
+                  {field.value}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <FloatPanel className="right-[-3%] top-[18%] w-[10.5rem] sm:right-[-5%] sm:w-[11.5rem]">
+        <div
+          className={cn(
+            "rounded-[2rem] border border-black/[0.04] bg-white px-4 py-4",
+            "shadow-[0_20px_48px_-16px_rgba(17,17,17,0.35)] ring-1 ring-black/[0.03]",
+          )}
+        >
+          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-neutral-400">
+            Last contacted
+          </p>
+          <p className="mt-2 text-sm font-semibold tracking-tight text-neutral-900">
+            08/18/2026
+          </p>
+          <p className="mt-0.5 text-[11px] text-neutral-400">at 2:14 PM</p>
+          <div className="mt-3 border-t border-black/[0.04] pt-3">
+            <p className="text-[10px] text-neutral-400">Open deals</p>
+            <p className="mt-0.5 text-lg font-semibold tabular-nums text-neutral-900">
+              $22k
+            </p>
+            <p className="text-[11px] text-neutral-500">Harbor Collective</p>
+          </div>
+        </div>
+      </FloatPanel>
+    </div>
+  );
+}
+
+function HealthEnergyVisual() {
+  return (
+    <div className="relative aspect-[5/4] w-full overflow-visible">
+      <div className="absolute inset-0 overflow-hidden rounded-[28px] bg-[#f7f8fa] p-3.5 shadow-[0_24px_60px_-36px_rgba(17,17,17,0.35)]">
+        <div className="grid h-full grid-cols-2 gap-3">
           <div
-            className="flex flex-col justify-between rounded-2xl p-4 text-white"
+            className="relative flex flex-col justify-between overflow-hidden rounded-[28px] p-4 text-white shadow-[0_18px_40px_-24px_rgba(0,0,0,0.35)]"
             style={{
               background:
                 "linear-gradient(145deg, #4a6b52 0%, #6f8f6a 42%, #9bb58a 100%)",
             }}
           >
-            <p className="text-[11px] text-white/75">Energy balance</p>
-            <div>
-              <p className="font-display text-3xl font-semibold tabular-nums tracking-[-0.03em]">
+            <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-white/70">
+              Energy balance
+            </p>
+            <div className="relative z-10 pt-8">
+              <p className="text-3xl font-semibold tabular-nums tracking-[-0.04em]">
                 842
               </p>
-              <p className="mt-1 text-[11px] text-white/70">
+              <p className="mt-1.5 text-xs font-light text-white/70">
                 Remaining · 1,240 burned
               </p>
             </div>
+            <svg
+              viewBox="0 0 200 200"
+              className="pointer-events-none absolute -right-6 -bottom-8 h-36 w-36 opacity-40"
+              aria-hidden
+            >
+              {[40, 58, 76, 94].map((r) => (
+                <circle
+                  key={r}
+                  cx="100"
+                  cy="100"
+                  r={r}
+                  fill="none"
+                  stroke="white"
+                  strokeWidth="0.8"
+                  opacity={0.55}
+                />
+              ))}
+            </svg>
           </div>
           <div className="flex flex-col gap-3">
             <div
-              className="flex flex-1 flex-col justify-between rounded-2xl p-3.5 text-white"
+              className="relative flex flex-1 flex-col justify-between overflow-hidden rounded-[28px] p-3.5 text-white shadow-[0_18px_40px_-24px_rgba(0,0,0,0.35)]"
               style={{
                 background:
                   "linear-gradient(135deg, #6eadc0 0%, #f0a060 48%, #e86b5a 100%)",
               }}
             >
-              <p className="text-[11px] text-white/75">Steps</p>
-              <p className="font-display text-xl font-semibold tabular-nums">
+              <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-white/75">
+                Steps
+              </p>
+              <p className="text-2xl font-semibold tabular-nums tracking-[-0.04em]">
                 8,420
               </p>
             </div>
             <div
-              className="flex flex-1 flex-col justify-between rounded-2xl p-3.5 text-white"
+              className="relative flex flex-1 flex-col justify-between overflow-hidden rounded-[28px] p-3.5 text-white shadow-[0_18px_40px_-24px_rgba(0,0,0,0.35)]"
               style={{
                 background:
                   "linear-gradient(145deg, #f0c35a 0%, #f59e3b 48%, #ff8a4c 100%)",
               }}
             >
-              <p className="text-[11px] text-white/75">Protein</p>
-              <p className="font-display text-xl font-semibold tabular-nums">
+              <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-white/75">
+                Protein
+              </p>
+              <p className="text-2xl font-semibold tabular-nums tracking-[-0.04em]">
                 96g
               </p>
             </div>
@@ -838,120 +973,255 @@ function HealthEnergyVisual({ accent }: { accent: string }) {
         </div>
       </div>
 
-      <FloatPanel className="right-[-4%] top-[20%] w-[9.5rem] sm:right-[-2%] sm:w-[10.5rem]" delay={0.3}>
-        <div className="rounded-2xl bg-kenoo-ink px-4 py-4 text-white shadow-[0_20px_48px_-16px_rgba(17,17,17,0.55)]">
-          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-white/55">
-            Daily goal
+      <FloatPanel className="right-[-3%] top-[14%] w-[10rem] sm:right-[-5%] sm:w-[11rem]">
+        <div
+          className={cn(
+            "rounded-[28px] border border-white/70 bg-white/80 px-4 py-4 backdrop-blur-xl",
+            "shadow-[0_20px_48px_-16px_rgba(17,17,17,0.35),inset_0_1px_0_rgba(255,255,255,0.95)]",
+          )}
+        >
+          <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-neutral-400">
+            Macros
           </p>
-          <div className="relative mx-auto mt-3 flex size-[4.75rem] items-center justify-center">
-            <svg viewBox="0 0 80 80" className="absolute inset-0" aria-hidden>
-              <circle
-                cx="40"
-                cy="40"
-                r="32"
-                fill="none"
-                stroke="rgba(255,255,255,0.12)"
-                strokeWidth="7"
-              />
-              <circle
-                cx="40"
-                cy="40"
-                r="32"
-                fill="none"
-                stroke={accent}
-                strokeWidth="7"
-                strokeLinecap="round"
-                strokeDasharray="201"
-                strokeDashoffset="55"
-                transform="rotate(-90 40 40)"
-              />
-            </svg>
-            <p className="font-display text-lg font-semibold tabular-nums">
-              72%
-            </p>
+          <div className="mt-3 space-y-2.5">
+            {[
+              { label: "Protein", value: "96g", pct: "78%", color: "#6eadc0" },
+              { label: "Carbs", value: "184g", pct: "62%", color: "#f0a060" },
+              { label: "Fat", value: "58g", pct: "71%", color: "#e2f85c" },
+            ].map((row) => (
+              <div key={row.label}>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[11px] font-light text-neutral-600">
+                    {row.label}
+                  </p>
+                  <p className="text-[11px] font-medium tabular-nums text-neutral-800">
+                    {row.value}
+                  </p>
+                </div>
+                <div className="mt-1 h-1 overflow-hidden rounded-full bg-neutral-200/80">
+                  <div
+                    className="h-full rounded-full"
+                    style={{ width: row.pct, background: row.color }}
+                  />
+                </div>
+              </div>
+            ))}
           </div>
-          <p className="mt-2 text-center text-[11px] text-white/60">
-            of 10,000 steps
-          </p>
         </div>
       </FloatPanel>
     </div>
   );
 }
 
-function HealthMealsVisual({ accent }: { accent: string }) {
+function HealthMealsVisual() {
   const meals = [
-    { name: "Oats & berries", kcal: "420 kcal", time: "8:10" },
-    { name: "Chicken bowl", kcal: "680 kcal", time: "12:40" },
-    { name: "Salmon + greens", kcal: "558 kcal", time: "19:15" },
+    { name: "Oats & berries", kcal: "420 kcal", type: "Breakfast" },
+    { name: "Chicken bowl", kcal: "680 kcal", type: "Lunch" },
+    { name: "Salmon + greens", kcal: "558 kcal", type: "Dinner" },
   ];
 
   return (
     <div className="relative aspect-[5/4] w-full overflow-visible">
-      <div className="absolute inset-0 overflow-hidden rounded-2xl border border-kenoo-border bg-white shadow-[0_24px_60px_-36px_rgba(17,17,17,0.35)]">
-        <div className="flex items-center justify-between border-b border-kenoo-border px-4 py-3">
-          <div>
-            <p className="font-display text-sm font-semibold text-kenoo-ink">
-              Today&apos;s meals
-            </p>
-            <p className="text-[11px] text-kenoo-muted">1,658 kcal logged</p>
-          </div>
-          <UtensilsCrossed className="size-4 text-kenoo-muted" strokeWidth={1.5} />
+      <div
+        className={cn(
+          "absolute inset-0 overflow-hidden rounded-[28px] border border-neutral-200 bg-white",
+          "shadow-[0_24px_60px_-36px_rgba(17,17,17,0.35)]",
+        )}
+      >
+        <div className="border-b border-neutral-200 px-4 py-3">
+          <p className="text-sm font-medium tracking-tight text-neutral-900">
+            Today&apos;s meals
+          </p>
+          <p className="text-[11px] font-light text-neutral-500">
+            1,658 kcal logged
+          </p>
         </div>
-        <div className="divide-y divide-kenoo-border">
+        <div className="divide-y divide-neutral-200">
           {meals.map((meal) => (
             <div
               key={meal.name}
               className="flex items-center justify-between px-4 py-3.5"
             >
               <div>
-                <p className="text-sm font-medium text-kenoo-ink">{meal.name}</p>
-                <p className="text-[11px] text-kenoo-muted">{meal.kcal}</p>
+                <p className="text-[10px] font-medium uppercase tracking-wider text-neutral-400">
+                  {meal.type}
+                </p>
+                <p className="mt-0.5 text-sm font-medium text-neutral-900">
+                  {meal.name}
+                </p>
               </div>
-              <span className="text-[11px] tabular-nums text-kenoo-muted">
-                {meal.time}
+              <span className="text-[11px] font-light tabular-nums text-neutral-500">
+                {meal.kcal}
               </span>
             </div>
           ))}
         </div>
-        <div className="grid grid-cols-3 gap-2 border-t border-kenoo-border p-3">
+      </div>
+
+      <FloatPanel className="left-[-2%] top-[12%] w-[12.5rem] sm:left-[-6%] sm:w-[14rem]">
+        <div
+          className={cn(
+            "rounded-[28px] border border-neutral-200 bg-white px-4 py-4",
+            "shadow-[0_20px_48px_-16px_rgba(17,17,17,0.35)]",
+          )}
+        >
+          <p className="text-sm font-medium text-neutral-900">Quick log</p>
+          <p className="mt-0.5 text-[11px] font-light text-neutral-500">
+            Add what you ate
+          </p>
+          <div className="mt-3 space-y-2">
+            <div className="rounded-md border border-neutral-200 bg-white px-3 py-2">
+              <p className="text-[9px] text-neutral-400">Meal</p>
+              <p className="text-xs font-medium text-neutral-800">Lunch</p>
+            </div>
+            <div className="rounded-md border border-neutral-200 bg-white px-3 py-2">
+              <p className="text-[9px] text-neutral-400">Food / meal</p>
+              <p className="text-xs font-medium text-neutral-800">
+                Chicken salad bowl
+              </p>
+            </div>
+            <div className="grid grid-cols-4 gap-1.5">
+              {[
+                { label: "Cal", value: "650" },
+                { label: "P", value: "40" },
+                { label: "C", value: "55" },
+                { label: "F", value: "22" },
+              ].map((cell) => (
+                <div
+                  key={cell.label}
+                  className="rounded-md border border-neutral-200 px-1.5 py-1.5 text-center"
+                >
+                  <p className="text-[8px] text-neutral-400">{cell.label}</p>
+                  <p className="text-[10px] font-medium tabular-nums text-neutral-800">
+                    {cell.value}
+                  </p>
+                </div>
+              ))}
+            </div>
+            <span className="inline-flex w-full items-center justify-center gap-1 rounded-full bg-[#e2f85c] px-3 py-2 text-[11px] font-medium text-neutral-900">
+              <Plus className="h-3 w-3" strokeWidth={2} />
+              Log meal
+            </span>
+          </div>
+        </div>
+      </FloatPanel>
+    </div>
+  );
+}
+
+function HealthPulseVisual({ accent }: { accent: string }) {
+  const pulseId = useId();
+  const radius = 54;
+  const circumference = 2 * Math.PI * radius;
+  const progress = 72;
+  const offset = circumference - (progress / 100) * circumference;
+
+  return (
+    <div className="relative aspect-[5/4] w-full overflow-visible">
+      <div className="absolute inset-0 overflow-hidden rounded-[28px] bg-white p-5 shadow-[0_24px_60px_-36px_rgba(17,17,17,0.35)]">
+        <h3 className="max-w-[12rem] text-xl font-semibold tracking-[-0.04em] text-neutral-900 md:text-2xl">
+          How&apos;s your day closing in?
+        </h3>
+        <div className="relative mx-auto mt-4 flex h-[11.5rem] w-[11.5rem] items-center justify-center md:h-[13rem] md:w-[13rem]">
+          <div
+            aria-hidden
+            className="absolute inset-5 rounded-full opacity-80"
+            style={{
+              background:
+                "radial-gradient(circle, rgba(206,255,0,0.18) 0%, rgba(255,113,48,0.08) 45%, transparent 70%)",
+            }}
+          />
+          <svg
+            viewBox="0 0 140 140"
+            className="h-full w-full -rotate-90"
+            aria-hidden
+          >
+            <circle
+              cx="70"
+              cy="70"
+              r={radius}
+              fill="none"
+              stroke="#e6e6e4"
+              strokeWidth="8"
+            />
+            <circle
+              cx="70"
+              cy="70"
+              r={radius}
+              fill="none"
+              stroke={`url(#${pulseId})`}
+              strokeWidth="8"
+              strokeLinecap="round"
+              strokeDasharray={circumference}
+              strokeDashoffset={offset}
+            />
+            <defs>
+              <linearGradient id={pulseId} x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="#ceff00" />
+                <stop offset="55%" stopColor="#e2f85c" />
+                <stop offset="100%" stopColor="#ff7130" />
+              </linearGradient>
+            </defs>
+          </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+            <p className="text-[9px] font-medium uppercase tracking-[0.2em] text-neutral-400">
+              Consumed
+            </p>
+            <p className="mt-0.5 text-2xl font-semibold tabular-nums tracking-[-0.05em] text-neutral-900 md:text-3xl">
+              1,658
+            </p>
+            <p className="mt-0.5 text-[10px] font-light text-neutral-500">
+              {progress}% of target
+            </p>
+          </div>
+        </div>
+        <div className="mt-2 flex justify-between gap-4 px-1">
           {[
-            { label: "Protein", value: "96g" },
-            { label: "Carbs", value: "184g" },
-            { label: "Fat", value: "58g" },
-          ].map((m) => (
-            <div
-              key={m.label}
-              className="rounded-xl bg-[#fafafa] px-2.5 py-2 text-center"
-            >
-              <p className="text-[10px] text-kenoo-muted">{m.label}</p>
-              <p className="text-sm font-semibold tabular-nums text-kenoo-ink">
-                {m.value}
+            { label: "Remaining", value: "842 kcal" },
+            { label: "Burned", value: "1,240" },
+            { label: "Steps", value: "8,420" },
+          ].map((item) => (
+            <div key={item.label}>
+              <p className="text-[9px] font-medium uppercase tracking-[0.18em] text-neutral-400">
+                {item.label}
+              </p>
+              <p className="mt-0.5 text-xs font-medium text-neutral-800">
+                {item.value}
               </p>
             </div>
           ))}
         </div>
       </div>
 
-      <FloatPanel className="left-[-2%] top-[18%] w-[11rem] sm:left-[-5%] sm:w-[12rem]" delay={0.25}>
-        <div className="rounded-2xl bg-kenoo-ink px-4 py-4 text-white shadow-[0_20px_48px_-16px_rgba(17,17,17,0.55)]">
-          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-white/55">
-            Log meal
-          </p>
-          <p className="mt-2 font-display text-base font-semibold tracking-[-0.02em]">
-            Add lunch
+      <FloatPanel className="right-[-3%] top-[12%] w-[10.5rem] sm:right-[-5%] sm:w-[11.5rem]">
+        <div
+          className={cn(
+            "rounded-[28px] border border-white/70 bg-white/85 px-4 py-4 backdrop-blur-xl",
+            "shadow-[0_20px_48px_-16px_rgba(17,17,17,0.35),inset_0_1px_0_rgba(255,255,255,0.95)]",
+          )}
+        >
+          <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-neutral-400">
+            Goals
           </p>
           <div className="mt-3 space-y-2">
-            {["Search foods", "Quick estimate", "From photo"].map((item, i) => (
+            {[
+              "10k steps daily",
+              "Workout 3x / week",
+              "30 km per week",
+            ].map((goal, i) => (
               <div
-                key={item}
+                key={goal}
                 className={cn(
-                  "rounded-xl px-3 py-2 text-sm",
-                  i === 0 ? "bg-white/10" : "text-white/70",
+                  "rounded-full border px-3 py-1.5 text-[11px] font-light",
+                  i === 0
+                    ? "border-white/70 bg-white/90 font-medium text-neutral-800 shadow-sm"
+                    : "border-transparent bg-neutral-100/80 text-neutral-500",
                 )}
-                style={i === 0 ? { color: accent } : undefined}
               >
-                {item}
+                {i === 0 ? (
+                  <span className="mr-1.5 inline-block size-1.5 rounded-full" style={{ backgroundColor: accent }} />
+                ) : null}
+                {goal}
               </div>
             ))}
           </div>

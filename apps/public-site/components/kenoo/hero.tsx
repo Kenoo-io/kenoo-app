@@ -28,15 +28,14 @@ export function Hero() {
         }}
       />
 
-      <div className="relative mx-auto max-w-6xl px-5 pb-10 pt-16 md:px-8 md:pb-14 md:pt-24">
+      <div className="relative mx-auto max-w-6xl px-5 pb-10 pt-8 md:px-8 md:pb-14 md:pt-12">
         <motion.div
           initial={{ opacity: 0, y: 22 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
           className="mx-auto max-w-3xl text-center"
         >
-          <p className="inline-flex items-center gap-2 rounded-full border border-kenoo-border/80 bg-white/80 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-kenoo-muted shadow-[0_1px_2px_rgba(17,17,17,0.04)] backdrop-blur-sm">
-            <span className="size-1.5 rounded-full bg-kenoo-accent" />
+          <p className="inline-flex items-center rounded-full border border-white/50 bg-white/35 px-3.5 py-1.5 text-[11px] font-medium uppercase tracking-[0.16em] text-kenoo-muted shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_4px_16px_-4px_rgba(17,17,17,0.08)] backdrop-blur-md">
             AI-native business OS
           </p>
           <h1 className="mt-6 font-display text-[2.75rem] font-semibold leading-[1.02] tracking-[-0.05em] text-kenoo-ink sm:text-5xl md:text-[4.15rem]">

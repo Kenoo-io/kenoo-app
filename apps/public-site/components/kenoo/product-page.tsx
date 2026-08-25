@@ -4,7 +4,7 @@ import Link from "next/link";
 
 import { ChromeFrame } from "@/components/kenoo/chrome-frame";
 import { DashboardPreview } from "@/components/kenoo/dashboard-preview";
-import { FinalCta } from "@/components/kenoo/final-cta";
+import { ProductPricingCta } from "@/components/kenoo/product-pricing-cta";
 import { SiteShell } from "@/components/kenoo/site-shell";
 import { FEATURED_PRODUCTS } from "@/lib/featured-products";
 import { KENOO_MODULES } from "@/lib/modules";
@@ -43,14 +43,14 @@ export default function ProductPage() {
               <ChromeFrame>
                 <a
                   href={KENOO_PORTAL_URL}
-                  className="inline-flex h-12 min-w-[10.5rem] items-center justify-center rounded-[10.5px] bg-kenoo-accent px-6 text-sm font-medium text-white transition-colors hover:bg-kenoo-accent-hover"
+                  className="inline-flex h-12 min-w-[10.5rem] items-center justify-center rounded-[10.5px] bg-kenoo-ink px-6 text-sm font-medium text-white transition-colors hover:bg-black"
                 >
                   Get started
                 </a>
               </ChromeFrame>
               <Link
                 href="#featured"
-                className="inline-flex h-12 min-w-[10.5rem] items-center justify-center rounded-xl border border-kenoo-accent bg-transparent px-6 text-sm font-medium text-kenoo-accent transition-colors hover:bg-kenoo-accent/5"
+                className="inline-flex h-12 min-w-[10.5rem] items-center justify-center rounded-xl border border-kenoo-border bg-white px-6 text-sm font-medium text-kenoo-ink transition-colors hover:bg-kenoo-subtle"
               >
                 Explore apps
               </Link>
@@ -169,7 +169,7 @@ export default function ProductPage() {
         </div>
       </section>
 
-      <FinalCta />
+      <ProductPricingCta />
     </SiteShell>
   );
 }

@@ -24,8 +24,8 @@ export const KENOO_MODULES: KenooModule[] = [
   {
     id: "health",
     name: "Health",
-    headline: "Energy for the long run",
+    headline: "Stay sharp for the work that matters",
     description:
-      "Kenoo Health for meals, activities, and goals. Optional wellness tracking that stays in its own lane.",
+      "A health monitor for meals, movement, and goals - so life balance stays visible and you’re not only optimizing output.",
   },
 ];

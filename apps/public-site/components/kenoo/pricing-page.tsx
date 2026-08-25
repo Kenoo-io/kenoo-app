@@ -1,39 +1,6 @@
 import { SiteShell } from "@/components/kenoo/site-shell";
+import { PRICING_TIERS } from "@/lib/pricing";
 import { KENOO_PORTAL_URL } from "@/lib/urls";
-
-const tiers = [
-  {
-    name: "Starter",
-    price: "$49",
-    blurb: "For small teams getting started with a shared workspace.",
-    features: ["Business suite", "AI assist (core)", "Up to 5 seats"],
-  },
-  {
-    name: "Growth",
-    price: "$149",
-    blurb: "For teams that need the full platform across every angle.",
-    features: [
-      "Everything in Starter",
-      "Finance suite",
-      "Health suite",
-      "Priority support",
-      "Up to 25 seats",
-    ],
-    featured: true,
-  },
-  {
-    name: "Scale",
-    price: "Custom",
-    blurb: "For larger organizations with advanced requirements.",
-    features: [
-      "Everything in Growth",
-      "SSO & advanced roles",
-      "Dedicated success",
-      "Custom integrations",
-      "Unlimited seats",
-    ],
-  },
-];
 
 export default function PricingPage() {
   return (
@@ -54,7 +21,7 @@ export default function PricingPage() {
 
       <section className="bg-kenoo-canvas">
         <div className="mx-auto grid max-w-6xl gap-6 px-5 py-16 md:grid-cols-3 md:px-8 md:py-24">
-          {tiers.map((tier) => (
+          {PRICING_TIERS.map((tier) => (
             <div
               key={tier.name}
               className={

@@ -7,8 +7,9 @@ import Link from "next/link";
 
 import { ChromeFrame } from "@/components/kenoo/chrome-frame";
 import { DashboardPreview } from "@/components/kenoo/dashboard-preview";
-import { FinalCta } from "@/components/kenoo/final-cta";
 import { ProductCapabilityShowcase } from "@/components/kenoo/product-capability-showcase";
+import { ProductPricingCta } from "@/components/kenoo/product-pricing-cta";
+import { ProductFaq } from "@/components/kenoo/product-faq";
 import { SiteShell } from "@/components/kenoo/site-shell";
 import {
   FEATURED_PRODUCTS,
@@ -97,14 +98,14 @@ export function FeaturedProductPage({ product }: FeaturedProductPageProps) {
               <ChromeFrame>
                 <a
                   href={KENOO_PORTAL_URL}
-                  className="inline-flex h-12 min-w-[10.5rem] items-center justify-center rounded-[10.5px] bg-kenoo-accent px-6 text-sm font-medium text-white transition-colors hover:bg-kenoo-accent-hover"
+                  className="inline-flex h-12 min-w-[10.5rem] items-center justify-center rounded-[10.5px] bg-kenoo-ink px-6 text-sm font-medium text-white transition-colors hover:bg-black"
                 >
                   Get started
                 </a>
               </ChromeFrame>
               <a
                 href={product.appHref}
-                className="inline-flex h-12 min-w-[10.5rem] items-center justify-center gap-1.5 rounded-xl border border-kenoo-accent bg-transparent px-6 text-sm font-medium text-kenoo-accent transition-colors hover:bg-kenoo-accent/5"
+                className="inline-flex h-12 min-w-[10.5rem] items-center justify-center gap-1.5 rounded-xl border border-kenoo-border bg-white px-6 text-sm font-medium text-kenoo-ink transition-colors hover:bg-kenoo-subtle"
               >
                 Open {product.name}
                 <ArrowUpRight className="size-3.5 opacity-70" />
@@ -180,7 +181,9 @@ export function FeaturedProductPage({ product }: FeaturedProductPageProps) {
         </div>
       </section>
 
-      <FinalCta />
+      <ProductFaq product={product} />
+
+      <ProductPricingCta />
     </SiteShell>
   );
 }
