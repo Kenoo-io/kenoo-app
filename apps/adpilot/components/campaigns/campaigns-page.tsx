@@ -48,8 +48,9 @@ import {
   LearningBadge,
 } from "@/components/campaigns/entity-detail-shared";
 import { useResizableColumns } from "@/components/campaigns/use-resizable-columns";
+import { GoogleAdsIcon } from "@/components/settings/google-ads-icon";
 import { MetaIcon } from "@/components/settings/meta-icon";
-import { META_PROVIDER } from "@/lib/connections";
+import { GOOGLE_PROVIDER, META_PROVIDER } from "@/lib/connections";
 import { SegmentToggle } from "@/components/ui/segment-toggle";
 
 const PAGE_SIZE = 25;
@@ -144,6 +145,15 @@ function PlatformCell({ provider }: { provider: string }) {
       <span className="inline-flex items-center" title="Meta">
         <MetaIcon className="h-4 w-4 shrink-0" />
         <span className="sr-only">Meta</span>
+      </span>
+    );
+  }
+
+  if (provider === GOOGLE_PROVIDER) {
+    return (
+      <span className="inline-flex items-center" title="Google Ads">
+        <GoogleAdsIcon className="h-4 w-4 shrink-0" />
+        <span className="sr-only">Google Ads</span>
       </span>
     );
   }
@@ -767,7 +777,7 @@ export function CampaignsPage() {
                     className="py-16 text-center text-sm font-light text-neutral-400"
                   >
                     {accounts.length === 0
-                      ? "Connect Meta in Settings to sync campaigns and ads."
+                      ? "Connect Meta or Google Ads in Settings to sync campaigns and ads."
                       : `No ${ENTITY_TABS.find((tab) => tab.value === entityType)?.label.toLowerCase()} found.`}
                   </td>
                 </tr>

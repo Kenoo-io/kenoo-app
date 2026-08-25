@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { LayoutGrid, ListTodo, UserCircle, Users } from "lucide-react";
+import { FileDown, LayoutGrid, ListTodo, UserCircle, Users } from "lucide-react";
 
 import { getSupabaseClient } from "@/lib/auth";
 
@@ -94,6 +94,25 @@ export function ConsoleDashboard() {
         <MetricCard label="Jobs" value={counts?.jobs} href="/jobs" />
         <MetricCard label="Teams" value={counts?.teams} href="/teams" />
       </div>
+
+      <section className="flex flex-col gap-4 rounded-xl border border-neutral-200 bg-kenoo-white p-5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="max-w-xl">
+          <p className="text-sm font-semibold text-neutral-950">
+            Google Ads API access
+          </p>
+          <p className="mt-1 text-sm leading-6 text-neutral-500">
+            Download the AdPilot Basic Access packet for Google — company
+            answers plus Kenoo app mockups you can attach to the form.
+          </p>
+        </div>
+        <Link
+          href="/google-ads-access?download=1"
+          className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-neutral-950 px-4 py-2.5 text-sm font-medium text-white hover:bg-neutral-800"
+        >
+          <FileDown className="h-4 w-4" />
+          Download application
+        </Link>
+      </section>
 
       <div className="grid gap-3 sm:grid-cols-2">
         {shortcuts.map((item) => {

@@ -136,7 +136,7 @@ export function AppSidebar() {
 
   return (
     <>
-      <div className="fixed inset-y-0 left-0 z-40 hidden md:flex">
+      <div className="fixed inset-y-0 left-0 z-40 hidden md:flex print:hidden">
         <SidebarRail
           collapsed={isCollapsed}
           onCollapse={() => setIsCollapsed(true)}
@@ -145,7 +145,7 @@ export function AppSidebar() {
         />
       </div>
 
-      <div className="fixed inset-x-0 top-0 z-40 flex h-12 items-center justify-between border-b border-neutral-200 bg-kenoo-white px-3 md:hidden">
+      <div className="fixed inset-x-0 top-0 z-40 flex h-12 items-center justify-between border-b border-neutral-200 bg-kenoo-white px-3 print:hidden md:hidden">
         <button
           type="button"
           onClick={() => setIsMobileOpen(true)}

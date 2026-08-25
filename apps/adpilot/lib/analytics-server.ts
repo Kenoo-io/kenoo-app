@@ -1,7 +1,7 @@
 import { createClient } from "@walls/supabase/server";
 
 import { type AdDataScope, withAdScope } from "@/lib/ad-scope";
-import { META_PROVIDER } from "@/lib/connections";
+import { GOOGLE_PROVIDER, META_PROVIDER } from "@/lib/connections";
 import {
   getDaysHoursAnalytics,
 } from "@/lib/days-hours-analytics";
@@ -106,6 +106,8 @@ export type DashboardAnalytics = {
   periodLabel: string;
   syncing: boolean;
   hasData: boolean;
+  /** Providers that already have at least one synced account entity. */
+  syncedProviders: string[];
   stats: DashboardStat[];
   spendByDay: DashboardSpendDay[];
   accounts: DashboardAccountRow[];
@@ -126,11 +128,18 @@ type MetricRow = {
   roas: number | null;
 };
 
+function platformLabel(provider: string | null | undefined): string {
+  if (provider === GOOGLE_PROVIDER) return "Google Ads";
+  if (provider === META_PROVIDER) return "Meta";
+  return provider ? provider : "Ads";
+}
+
 type AccountEntity = {
   id: string;
   account_connection_id: string;
   name: string | null;
   status: string | null;
+  provider: string | null;
   provider_entity_id: string;
 };
 
@@ -352,7 +361,6 @@ async function buildTopPerformingAds(
     supabase
       .from("ad_entities")
       .select("id, name, parent_id")
-      .eq("provider", META_PROVIDER)
       .eq("entity_type", "ad"),
     scope,
   );
@@ -370,7 +378,6 @@ async function buildTopPerformingAds(
     supabase
       .from("ad_entities")
       .select("id, name, entity_type, parent_id, objective")
-      .eq("provider", META_PROVIDER)
       .eq("entity_type", "ad_group")
       .in("id", adSetIds),
     scope,
@@ -391,7 +398,6 @@ async function buildTopPerformingAds(
       supabase
         .from("ad_entities")
         .select("id, name, entity_type, parent_id, objective")
-        .eq("provider", META_PROVIDER)
         .eq("entity_type", "campaign")
         .in("id", Array.from(campaignIds)),
       scope,
@@ -574,8 +580,7 @@ export async function getDashboardAnalytics(
     withAdScope(
       supabase
         .from("ad_entities")
-        .select("id, account_connection_id, name, status, provider_entity_id")
-        .eq("provider", META_PROVIDER)
+        .select("id, account_connection_id, name, status, provider, provider_entity_id")
         .eq("entity_type", "account"),
       scope,
     ),
@@ -590,6 +595,7 @@ export async function getDashboardAnalytics(
       periodLabel,
       syncing,
       hasData: false,
+      syncedProviders: [],
       stats: [...ZERO_DASHBOARD_STATS],
       spendByDay: [],
       accounts: [],
@@ -669,7 +675,7 @@ export async function getDashboardAnalytics(
     return {
       id: entity.id,
       name: entity.name ?? entity.provider_entity_id.replace(/^act_/, "Ad account "),
-      platform: "Meta",
+      platform: platformLabel(entity.provider),
       spend: formatCurrencyFromMicros(totals.spend_micros),
       impressions: formatCompactNumber(totals.impressions),
       ctr: formatPercent(totals.ctr),
@@ -681,6 +687,13 @@ export async function getDashboardAnalytics(
     periodLabel,
     syncing,
     hasData,
+    syncedProviders: Array.from(
+      new Set(
+        entities
+          .map((entity) => entity.provider)
+          .filter((provider): provider is string => Boolean(provider)),
+      ),
+    ),
     stats: [
       {
         label: "Ad spend",

@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import {
   ChevronLeft,
+  FileDown,
   LayoutGrid,
   Package,
   Calendar,
@@ -171,6 +172,17 @@ export function AdminAppDetail({ app: initialApp }: AdminAppDetailProps) {
                   <p className="mt-1 font-mono text-xs text-zinc-500">{app.id}</p>
                 </div>
               </div>
+              {app.slug === "adpilot" ? (
+                <Button asChild className="shrink-0">
+                  <Link
+                    href="/google-ads-access?download=1"
+                    className="inline-flex items-center gap-2"
+                  >
+                    <FileDown className="h-4 w-4" />
+                    Download Google Ads access packet
+                  </Link>
+                </Button>
+              ) : null}
             </div>
           </CardHeader>
           <CardContent className="p-0">

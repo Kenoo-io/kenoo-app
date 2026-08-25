@@ -45,23 +45,46 @@ export function getGoogleAdsLoginCustomerId(): string | null {
   return raw.replace(/-/g, "");
 }
 
-export function getGoogleAdsRedirectUri(): string {
-  return `${getAdpilotBaseUrl()}/api/oauth/google/callback`;
+export function getGoogleAdsRedirectUri(origin = getAdpilotBaseUrl()): string {
+  return `${origin.replace(/\/$/, "")}/api/oauth/google/callback`;
 }
 
-export function getGoogleAdsLoginUri(): string {
-  return `${getAdpilotBaseUrl()}/api/oauth/google/login`;
+export function getGoogleAdsLoginUri(origin = getAdpilotBaseUrl()): string {
+  return `${origin.replace(/\/$/, "")}/api/oauth/google/login`;
 }
 
-export function buildGoogleAdsAuthorizeUrl(state: string): string {
+/**
+ * Keep the OAuth round-trip on the origin the user actually clicked Connect
+ * from (localhost vs production). Preview hosts still use the configured URL
+ * so Google only sees registered redirect URIs.
+ */
+export function getAdpilotOriginFromRequest(request: {
+  nextUrl: { origin: string };
+}): string {
+  const requestOrigin = request.nextUrl.origin.replace(/\/$/, "");
+  try {
+    const hostname = new URL(requestOrigin).hostname;
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
+      return requestOrigin;
+    }
+  } catch {
+    // fall through to configured production URL
+  }
+  return getAdpilotBaseUrl();
+}
+
+export function buildGoogleAdsAuthorizeUrl(
+  state: string,
+  redirectUri = getGoogleAdsRedirectUri(),
+): string {
   const params = new URLSearchParams({
     client_id: getGoogleClientId(),
-    redirect_uri: getGoogleAdsRedirectUri(),
+    redirect_uri: redirectUri,
     response_type: "code",
     scope: GOOGLE_ADS_SCOPES.join(" "),
     access_type: "offline",
-    prompt: "consent",
-    include_granted_scopes: "true",
+    prompt: "select_account consent",
+    include_granted_scopes: "false",
     state,
   });
 
@@ -79,6 +102,7 @@ export type GoogleTokenResponse = {
 
 export async function exchangeGoogleCodeForTokens(
   code: string,
+  redirectUri = getGoogleAdsRedirectUri(),
 ): Promise<GoogleTokenResponse> {
   const response = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
@@ -87,7 +111,7 @@ export async function exchangeGoogleCodeForTokens(
       code,
       client_id: getGoogleClientId(),
       client_secret: getGoogleClientSecret(),
-      redirect_uri: getGoogleAdsRedirectUri(),
+      redirect_uri: redirectUri,
       grant_type: "authorization_code",
     }),
   });
@@ -98,6 +122,25 @@ export async function exchangeGoogleCodeForTokens(
   }
 
   return response.json() as Promise<GoogleTokenResponse>;
+}
+
+/**
+ * Revokes a Google access or refresh token. Google treats this as disconnecting
+ * the entire OAuth grant for this client, so reconnecting starts a fresh consent.
+ */
+export async function revokeGoogleOAuthToken(token: string): Promise<void> {
+  const response = await fetch("https://oauth2.googleapis.com/revoke", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ token }),
+  });
+
+  if (response.ok || response.status === 400) {
+    return;
+  }
+
+  const body = await response.text();
+  console.error("[adpilot] Google token revoke failed:", response.status, body);
 }
 
 export async function refreshGoogleAccessToken(
@@ -145,16 +188,22 @@ export async function fetchGoogleUser(accessToken: string): Promise<{
   }>;
 }
 
-function googleAdsHeaders(accessToken: string): HeadersInit {
+export function googleAdsHeaders(
+  accessToken: string,
+  loginCustomerId?: string | null,
+): HeadersInit {
   const headers: Record<string, string> = {
     Authorization: `Bearer ${accessToken}`,
     "developer-token": getGoogleAdsDeveloperToken(),
     "Content-Type": "application/json",
   };
 
-  const loginCustomerId = getGoogleAdsLoginCustomerId();
-  if (loginCustomerId) {
-    headers["login-customer-id"] = loginCustomerId;
+  const loginId =
+    loginCustomerId === undefined
+      ? getGoogleAdsLoginCustomerId()
+      : loginCustomerId;
+  if (loginId) {
+    headers["login-customer-id"] = loginId;
   }
 
   return headers;
@@ -182,7 +231,7 @@ export async function listAccessibleGoogleAdsCustomers(
   if (!response.ok) {
     const body = await response.text();
     console.error("[adpilot] listAccessibleCustomers failed:", body);
-    return [];
+    throw new Error(`Google Ads listAccessibleCustomers failed: ${body}`);
   }
 
   const payload = (await response.json()) as {
@@ -248,4 +297,9 @@ export async function fetchGoogleAdsCustomers(
   );
 
   return details.filter((c): c is GoogleAdsCustomer => c != null);
+}
+
+export function googleAdsTokenHasAdwordsScope(scope: string | undefined): boolean {
+  if (!scope) return true;
+  return scope.split(/[ ,]+/).some((entry) => entry.includes("adwords"));
 }

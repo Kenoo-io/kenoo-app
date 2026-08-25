@@ -19,12 +19,24 @@ export const DASHBOARD_OBJECTIVE_BUCKETS = [
       "OUTCOME_SALES",
       "CONVERSIONS",
       "PRODUCT_CATALOG_SALES",
+      "SHOPPING",
+      "PERFORMANCE_MAX",
+      "LOCAL",
+      "LOCAL_SERVICES",
     ],
   },
   {
     value: "OUTCOME_TRAFFIC",
     label: "Traffic",
-    matchers: ["OUTCOME_TRAFFIC", "LINK_CLICKS"],
+    matchers: [
+      "OUTCOME_TRAFFIC",
+      "LINK_CLICKS",
+      "SEARCH",
+      "SEARCH_PARTNERS",
+      "DISPLAY",
+      "SMART",
+      "DEMAND_GEN",
+    ],
   },
   {
     value: "OUTCOME_AWARENESS",
@@ -34,7 +46,13 @@ export const DASHBOARD_OBJECTIVE_BUCKETS = [
   {
     value: "OUTCOME_ENGAGEMENT",
     label: "Engagement",
-    matchers: ["OUTCOME_ENGAGEMENT", "POST_ENGAGEMENT", "VIDEO_VIEWS"],
+    matchers: [
+      "OUTCOME_ENGAGEMENT",
+      "POST_ENGAGEMENT",
+      "VIDEO_VIEWS",
+      "VIDEO",
+      "DISCOVERY",
+    ],
   },
   {
     value: "OUTCOME_LEADS",
@@ -44,7 +62,11 @@ export const DASHBOARD_OBJECTIVE_BUCKETS = [
   {
     value: "OUTCOME_APP_PROMOTION",
     label: "App",
-    matchers: ["OUTCOME_APP_PROMOTION", "APP_INSTALLS"],
+    matchers: [
+      "OUTCOME_APP_PROMOTION",
+      "APP_INSTALLS",
+      "MULTI_CHANNEL",
+    ],
   },
 ] as const;
 

@@ -14,7 +14,13 @@ import {
 } from "lucide-react";
 
 import type { DashboardAnalytics } from "@/lib/analytics-server";
-import { META_PROVIDER, META_SERVICE, type SafeAccountConnection } from "@/lib/connections";
+import {
+  GOOGLE_ADS_SERVICE,
+  GOOGLE_PROVIDER,
+  META_PROVIDER,
+  META_SERVICE,
+  type SafeAccountConnection,
+} from "@/lib/connections";
 import { loadConnections } from "@/lib/connections-cache";
 import { ZERO_DASHBOARD_STATS } from "@/lib/dashboard-defaults";
 import type { TimeRangeValue } from "@/lib/time-range";
@@ -66,7 +72,7 @@ export function DashboardPage() {
   const [analytics, setAnalytics] = React.useState<DashboardAnalytics | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [timeRange, setTimeRange] = React.useState<TimeRangeValue>("30d");
-  const autoSyncStarted = React.useRef(false);
+  const autoSyncStarted = React.useRef({ meta: false, google: false });
 
   const loadDashboard = React.useCallback(async () => {
     const [nextConnections, analyticsResponse] = await Promise.all([
@@ -104,17 +110,44 @@ export function DashboardPage() {
     return () => window.clearInterval(interval);
   }, [isSyncing, loadDashboard]);
 
-  const hasLiveConnections = connections.some(
+  const hasMetaConnection = connections.some(
     (c) => c.provider === META_PROVIDER && c.service === META_SERVICE,
   );
+  const hasGoogleConnection = connections.some(
+    (c) => c.provider === GOOGLE_PROVIDER && c.service === GOOGLE_ADS_SERVICE,
+  );
+  const hasLiveConnections = hasMetaConnection || hasGoogleConnection;
+  const syncedProviders = analytics?.syncedProviders ?? [];
 
   React.useEffect(() => {
-    if (loading || autoSyncStarted.current || !hasLiveConnections || !analytics) return;
-    if (analytics.syncing || analytics.hasData) return;
+    if (loading || !analytics) return;
 
-    autoSyncStarted.current = true;
-    void fetch("/api/sync/meta", { method: "POST" }).then(() => loadDashboard());
-  }, [loading, hasLiveConnections, analytics, loadDashboard]);
+    const syncMeta =
+      hasMetaConnection &&
+      !syncedProviders.includes(META_PROVIDER) &&
+      !autoSyncStarted.current.meta;
+    const syncGoogle =
+      hasGoogleConnection &&
+      !syncedProviders.includes(GOOGLE_PROVIDER) &&
+      !autoSyncStarted.current.google;
+
+    if (!syncMeta && !syncGoogle) return;
+
+    if (syncMeta) autoSyncStarted.current.meta = true;
+    if (syncGoogle) autoSyncStarted.current.google = true;
+
+    void Promise.all([
+      syncMeta ? fetch("/api/sync/meta", { method: "POST" }) : null,
+      syncGoogle ? fetch("/api/sync/google", { method: "POST" }) : null,
+    ]).then(() => loadDashboard());
+  }, [
+    loading,
+    hasMetaConnection,
+    hasGoogleConnection,
+    syncedProviders,
+    analytics,
+    loadDashboard,
+  ]);
 
   const stats = analytics?.stats ?? [...ZERO_DASHBOARD_STATS];
   const spendByDay = analytics?.spendByDay ?? [];
@@ -155,13 +188,22 @@ export function DashboardPage() {
       <div className="flex min-h-full items-center justify-center bg-kenoo-white px-6">
         <div className="flex flex-col items-center gap-6 text-center">
           <p className="text-sm font-light text-neutral-600">No accounts connected</p>
-          <a
-            href="/api/oauth/meta/login"
-            className="inline-flex items-center gap-2 rounded-none border-0 bg-kenoo-yellow px-5 py-2.5 text-sm font-medium text-black shadow-none hover:bg-kenoo-yellow"
-          >
-            <Link2 className="h-4 w-4" strokeWidth={1.5} />
-            Connect Meta
-          </a>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <a
+              href="/api/oauth/meta/login"
+              className="inline-flex items-center gap-2 rounded-none border-0 bg-kenoo-yellow px-5 py-2.5 text-sm font-medium text-black shadow-none hover:bg-kenoo-yellow"
+            >
+              <Link2 className="h-4 w-4" strokeWidth={1.5} />
+              Connect Meta
+            </a>
+            <a
+              href="/api/oauth/google/login"
+              className="inline-flex items-center gap-2 rounded-none border border-neutral-200 bg-white px-5 py-2.5 text-sm font-medium text-black shadow-none hover:bg-neutral-50"
+            >
+              <Link2 className="h-4 w-4" strokeWidth={1.5} />
+              Connect Google Ads
+            </a>
+          </div>
         </div>
       </div>
     );

@@ -35,8 +35,9 @@ import { formatCpaFromMicros } from "@/lib/entity-daily-progress";
 
 import { AnimatedMetricValue } from "@/components/dashboard/animated-metric-value";
 import { useResizableColumns } from "@/components/campaigns/use-resizable-columns";
+import { GoogleAdsIcon } from "@/components/settings/google-ads-icon";
 import { MetaIcon } from "@/components/settings/meta-icon";
-import { META_PROVIDER } from "@/lib/connections";
+import { GOOGLE_PROVIDER, META_PROVIDER } from "@/lib/connections";
 
 const PAGE_SIZE = 25;
 const COLUMN_WIDTHS_STORAGE_KEY = "adpilot-audiences-column-widths";
@@ -104,6 +105,15 @@ function PlatformCell({ provider }: { provider: string }) {
       <span className="inline-flex items-center" title="Meta">
         <MetaIcon className="h-4 w-4 shrink-0" />
         <span className="sr-only">Meta</span>
+      </span>
+    );
+  }
+
+  if (provider === GOOGLE_PROVIDER) {
+    return (
+      <span className="inline-flex items-center" title="Google Ads">
+        <GoogleAdsIcon className="h-4 w-4 shrink-0" />
+        <span className="sr-only">Google Ads</span>
       </span>
     );
   }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { notifyCalendarSyncTeardown } from '@/lib/calendar-sync-notify';
+import { revokeStoredGoogleTokens } from '@/lib/google-oauth';
 
 export async function POST(request: Request) {
   try {
@@ -32,7 +33,7 @@ export async function POST(request: Request) {
 
     const { data: calendarConnections, error: connectionError } = await supabase
       .from('user_connections')
-      .select('id')
+      .select('id, access_token, refresh_token')
       .eq('user_id', supabaseUser.id)
       .eq('provider', 'google')
       .eq('service', 'calendar')
@@ -54,6 +55,8 @@ export async function POST(request: Request) {
     }
 
     const connectionIds = calendarConnections.map((conn) => conn.id);
+
+    await revokeStoredGoogleTokens(calendarConnections);
 
     for (const connectionId of connectionIds) {
       await notifyCalendarSyncTeardown(connectionId);
