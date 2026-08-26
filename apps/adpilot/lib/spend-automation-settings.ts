@@ -26,8 +26,78 @@ export type StopLossMetric =
   | "cost_per_in_app_action"
   | "cost_per_local_action";
 
+export const SPEND_AGGRESSIVENESS_LEVELS = [1, 2, 3, 4, 5] as const;
+export type SpendAggressivenessLevel = (typeof SPEND_AGGRESSIVENESS_LEVELS)[number];
+export const SPEND_AGGRESSIVENESS_MIN = SPEND_AGGRESSIVENESS_LEVELS[0];
+export const SPEND_AGGRESSIVENESS_MAX =
+  SPEND_AGGRESSIVENESS_LEVELS[SPEND_AGGRESSIVENESS_LEVELS.length - 1];
+
+const SPEND_AGGRESSIVENESS_LEVEL_SET = new Set<number>(SPEND_AGGRESSIVENESS_LEVELS);
+
+/**
+ * Discrete 1–5 only. Values above 5 (including the old 0–100 slider) clamp to 5.
+ */
+export function normalizeAggressiveness(raw: unknown): SpendAggressivenessLevel {
+  const n =
+    typeof raw === "number"
+      ? raw
+      : typeof raw === "string"
+        ? Number(raw)
+        : Number.NaN;
+
+  if (!Number.isFinite(n)) {
+    return 3;
+  }
+
+  if (n > SPEND_AGGRESSIVENESS_MAX) {
+    return SPEND_AGGRESSIVENESS_MAX;
+  }
+
+  const rounded = Math.round(Math.min(SPEND_AGGRESSIVENESS_MAX, Math.max(SPEND_AGGRESSIVENESS_MIN, n)));
+  return rounded as SpendAggressivenessLevel;
+}
+
+export function isSpendAggressivenessLevel(
+  value: unknown,
+): value is SpendAggressivenessLevel {
+  return typeof value === "number" && SPEND_AGGRESSIVENESS_LEVEL_SET.has(value);
+}
+
+export const SPEND_AGGRESSIVENESS_OPTIONS: Array<{
+  value: SpendAggressivenessLevel;
+  label: string;
+  hint: string;
+}> = [
+  {
+    value: 1,
+    label: "Extremely conservative",
+    hint: "Protect spend. Only tiny ramps on clear winners.",
+  },
+  {
+    value: 2,
+    label: "Quite conservative",
+    hint: "Still cautious, but will scale proven winners slowly.",
+  },
+  {
+    value: 3,
+    label: "Neutral",
+    hint: "Balanced ramp when performance holds.",
+  },
+  {
+    value: 4,
+    label: "Growth seeking",
+    hint: "Push budget up more quickly on strong performers.",
+  },
+  {
+    value: 5,
+    label: "Maximum growth",
+    hint: "Use the full daily increase cap whenever ads are winning.",
+  },
+];
+
 export type SpendAutomationSettings = {
-  aggressiveness: number;
+  /** Discrete strategy 1–5. Not a 0–100 slider. */
+  aggressiveness: SpendAggressivenessLevel;
   maxDailyIncreasePct: number;
   maxDailyDecreasePct: number;
   roasFloor: number | null;
@@ -67,7 +137,7 @@ export const CONTRIBUTION_MARGIN_PRESETS = [
 ] as const;
 
 export const DEFAULT_SPEND_AUTOMATION_SETTINGS: SpendAutomationSettings = {
-  aggressiveness: 62,
+  aggressiveness: 3,
   maxDailyIncreasePct: 18,
   maxDailyDecreasePct: 12,
   roasFloor: 2.4,
@@ -502,6 +572,10 @@ export function validateAutomationSettings(
     }
   }
 
+  if (!isSpendAggressivenessLevel(settings.aggressiveness)) {
+    return "Spend aggressiveness must be 1, 2, 3, 4, or 5.";
+  }
+
   return null;
 }
 
@@ -576,7 +650,11 @@ export function mergeAutomationSettings(
   base: SpendAutomationSettings,
   override: Partial<SpendAutomationSettings>,
 ): SpendAutomationSettings {
-  return { ...base, ...override };
+  const merged = { ...base, ...override };
+  return {
+    ...merged,
+    aggressiveness: normalizeAggressiveness(merged.aggressiveness),
+  };
 }
 
 /** True when every spend-automation field matches (used for preset vs custom UI). */
@@ -620,6 +698,7 @@ export function parseAutomationSettings(
   );
   return syncRoasFloorSettings({
     ...parsed,
+    aggressiveness: normalizeAggressiveness(parsed.aggressiveness),
     roasFloorActions: normalizeRoasFloorActions(parsed.roasFloorActions),
     cooldownHours: normalizeCooldownHours(parsed.cooldownHours),
     roasFloorInputMode: parsed.roasFloorInputMode ?? "direct",
@@ -657,9 +736,24 @@ export function normalizeCooldownHours(hours: number | null | undefined): number
 }
 
 export function getAggressivenessLabel(value: number) {
-  if (value < 34) return "Conservative";
-  if (value < 67) return "Balanced";
-  return "Aggressive";
+  const level = normalizeAggressiveness(value);
+  return (
+    SPEND_AGGRESSIVENESS_OPTIONS.find((option) => option.value === level)?.label ??
+    "Neutral"
+  );
+}
+
+export function getAggressivenessHint(value: number) {
+  const level = normalizeAggressiveness(value);
+  return (
+    SPEND_AGGRESSIVENESS_OPTIONS.find((option) => option.value === level)?.hint ??
+    ""
+  );
+}
+
+/** Share of max daily increase used when scaling winners (`level / 5`). */
+export function aggressivenessScaleFactor(value: number) {
+  return normalizeAggressiveness(value) / 5;
 }
 
 /** Composite 0–100 risk from aggressiveness, max daily growth, ROAS floor, and floor actions. */
@@ -674,7 +768,7 @@ export function getRiskScore(
     | "roasFloorActions"
   >,
 ): number {
-  const aggressiveness = Math.min(100, Math.max(0, settings.aggressiveness));
+  const aggressiveness = normalizeAggressiveness(settings.aggressiveness);
   const maxDailyIncreasePct = Math.min(
     50,
     Math.max(5, settings.maxDailyIncreasePct),
@@ -686,7 +780,7 @@ export function getRiskScore(
       : effectiveFloor;
 
   // Caps: aggressiveness ~42, growth ~24, weak/missing floor ~22, soft actions ~12.
-  const aggressivenessRisk = (aggressiveness / 100) * 42;
+  const aggressivenessRisk = aggressivenessScaleFactor(aggressiveness) * 42;
   const growthRisk = ((maxDailyIncreasePct - 5) / 45) * 24;
   // 0/null floor stays fully risky; stronger floors decay quickly.
   const floorRisk = 22 * Math.exp(-floorValue / 1.6);
@@ -714,6 +808,8 @@ export function getProjectedWeeklyUplift(
   aggressiveness: number,
   maxDailyIncreasePct: number,
 ) {
-  const pct = Math.round(aggressiveness * 0.12 + maxDailyIncreasePct * 0.85);
+  const pct = Math.round(
+    aggressivenessScaleFactor(aggressiveness) * 12 + maxDailyIncreasePct * 0.85,
+  );
   return `+${Math.min(48, pct)}%`;
 }

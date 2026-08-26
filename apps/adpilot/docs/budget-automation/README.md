@@ -82,7 +82,7 @@ Resolved as **preset settings + entity overrides**:
 
 | Field | Role in the algorithm |
 | --- | --- |
-| `aggressiveness` (0–100) | How hard we ramp winners |
+| `aggressiveness` (1–5) | Discrete spend strategy. Scale factor is `level / 5`. |
 | `maxDailyIncreasePct` | Cap on % **increase** in one 24h window |
 | `maxDailyDecreasePct` | Cap on % **decrease** in one 24h window |
 | `roasFloor` | Minimum acceptable ROAS (the "low-end stopper") |
@@ -189,13 +189,20 @@ These are non-negotiable and run before/after the agent:
 ### 5.2 Scale-up ("the ad is killing it")
 
 If performance is strong and no guardrail blocks it, increase toward
-`maxDailyIncreasePct`. `aggressiveness` scales how much of that headroom we use:
+`maxDailyIncreasePct`. `aggressiveness` is a **1–5 strategy** only (values
+above 5 are rejected / clamped to 5) and scales how much of that headroom we use:
+
+| Level | Strategy | Scale factor |
+| --- | --- | --- |
+| 1 | Extremely conservative | 0.2 |
+| 2 | Quite conservative | 0.4 |
+| 3 | Neutral | 0.6 |
+| 4 | Growth seeking | 0.8 |
+| 5 | Maximum growth | 1.0 |
 
 ```
-proposed_increase_pct = f(aggressiveness) * maxDailyIncreasePct
+proposed_increase_pct = (aggressiveness / 5) * maxDailyIncreasePct
 ```
-
-**(TBD: exact shape of `f`. Simplest: linear, aggressiveness/100.)**
 
 ### 5.3 Scale-down ("the ROAS is dying")
 

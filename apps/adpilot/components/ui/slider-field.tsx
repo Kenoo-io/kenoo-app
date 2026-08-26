@@ -19,6 +19,8 @@ type SliderFieldProps = {
   max: number;
   step: number;
   suffix?: string;
+  /** Override the large value text (e.g. a named strategy instead of the raw number). */
+  valueLabel?: string;
   onChange: (value: number) => void;
   endLabels?: SliderEndLabels;
   showMarks?: boolean;
@@ -53,13 +55,14 @@ export function SliderField({
   max,
   step,
   suffix,
+  valueLabel,
   onChange,
   endLabels,
   showMarks = true,
 }: SliderFieldProps) {
   const marks = React.useMemo(() => buildMarks(min, max, step), [min, max, step]);
   const activeMark = closestMark(marks, value);
-  const valueLabel = `${value}${suffix ?? ""}`;
+  const displayValue = valueLabel ?? `${value}${suffix ?? ""}`;
 
   return (
     <div>
@@ -68,7 +71,7 @@ export function SliderField({
           {label}
         </p>
         <p className="text-xl font-light tracking-tight text-neutral-900 transition-opacity duration-200 sm:text-2xl">
-          {valueLabel}
+          {displayValue}
         </p>
         {hint ? (
           <p className="text-xs font-light text-neutral-500">{hint}</p>

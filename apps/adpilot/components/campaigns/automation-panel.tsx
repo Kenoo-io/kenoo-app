@@ -52,6 +52,7 @@ import {
   type SpendAutomationSettings,
 } from "@/lib/spend-automation-settings";
 
+import { AggressivenessField } from "@/components/ui/aggressiveness-field";
 import { SliderField } from "@/components/ui/slider-field";
 import { RoasFloorField } from "@/components/ui/roas-floor-field";
 import { RoasFloorActionsField } from "@/components/ui/roas-floor-actions-field";
@@ -844,19 +845,9 @@ export function EntityAutomationSection({
 
           <div className={rulesPanelClass}>
             <div className="space-y-6">
-              <SliderField
-                label="Spend aggressiveness"
-                hint="How quickly AdPilot ramps budget on strong performers"
+              <AggressivenessField
                 value={settings.aggressiveness}
-                min={0}
-                max={100}
-                step={1}
                 onChange={(value) => updateSetting("aggressiveness", value)}
-                endLabels={{
-                  left: "Conservative",
-                  center: "Balanced",
-                  right: "Aggressive",
-                }}
               />
 
               <div className="grid gap-5 sm:grid-cols-2">

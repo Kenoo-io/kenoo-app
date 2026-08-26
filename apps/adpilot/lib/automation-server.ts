@@ -106,7 +106,8 @@ function sanitizeProfileSettings(
   settings: SpendAutomationSettings,
   optimizationGoal: OptimizationGoal,
 ): SpendAutomationSettings {
-  const sanitized = sanitizeBreakEvenRoasSettings(settings, {
+  const parsed = parseAutomationSettings(settings);
+  const sanitized = sanitizeBreakEvenRoasSettings(parsed, {
     optimizationGoal,
   });
   const validationError = validateAutomationSettings(sanitized, {
@@ -333,13 +334,13 @@ function mapEntityAutomation(
     profileId: (row?.profile_id as string | null) ?? profile?.id ?? null,
     settingsOverride,
     cooldownHours,
-    effectiveSettings: {
+    effectiveSettings: parseAutomationSettings({
       ...baseSettings,
       ...settingsOverride,
       cooldownHours: normalizeCooldownHours(
         cooldownHours ?? baseSettings.cooldownHours,
       ),
-    },
+    }),
     minDailyBudgetMicros:
       (row?.min_daily_budget_micros as number | null) ?? null,
     maxDailyBudgetMicros:
