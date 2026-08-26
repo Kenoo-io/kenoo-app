@@ -14,6 +14,7 @@ import { useAuth } from "@/app/auth/AuthContext";
 import { useRouter } from "next/navigation";
 import { ChevronDown, Plus, Search } from "lucide-react";
 import { FallbackEmailAvatar } from "@/components/agentMail/ui/fallback-email-avatar";
+import { fetchMailboxSenders, type MailSender } from "@/lib/agentMail/mail-senders";
 
 export interface SenderSearchProps {
   value: string;
@@ -25,13 +26,7 @@ export interface SenderSearchProps {
   disabled?: boolean;
 }
 
-interface Sender {
-  id: string;
-  displayName: string;
-  email: string;
-  avatarUrl: string | null;
-  hasGmail: boolean;
-}
+type Sender = MailSender;
 
 function SenderAvatar({
   name,
@@ -80,34 +75,9 @@ export function SenderSearch({
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [canViewTeammateInboxes, setCanViewTeammateInboxes] = useState(false);
   const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
   const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    const fetchIsAdmin = async () => {
-      if (!user?.id) {
-        setIsAdmin(false);
-        return;
-      }
-
-      try {
-        const supabase = getSupabaseClient();
-        const { data: currentUserData } = await supabase
-          .from("users")
-          .select("is_admin")
-          .eq("id", user.id)
-          .maybeSingle();
-
-        setIsAdmin(currentUserData?.is_admin === true);
-      } catch (e) {
-        console.error("[sender-search] fetchIsAdmin error:", e);
-        setIsAdmin(false);
-      }
-    };
-
-    fetchIsAdmin();
-  }, [user?.id]);
 
   useEffect(() => {
     const MIN_SKELETON_MS = 400;
@@ -116,67 +86,8 @@ export function SenderSearch({
     const fetchSenders = async () => {
       try {
         const supabase = getSupabaseClient();
-
-        const { data: teamData, error: teamError } = await supabase
-          .from("team")
-          .select("user_id")
-          .not("user_id", "is", null);
-
-        if (teamError) {
-          throw teamError;
-        }
-
-        if (!teamData || teamData.length === 0) {
-          setSenders([]);
-          return;
-        }
-
-        const uniqueUserIds = new Set(teamData.map((t) => t.user_id).filter(Boolean));
-        const userIds = Array.from(uniqueUserIds) as string[];
-
-        if (userIds.length === 0) {
-          setSenders([]);
-          return;
-        }
-
-        const { data: gmailConnections, error: connectionsError } = await supabase
-          .from("user_connections")
-          .select("user_id")
-          .in("user_id", userIds)
-          .eq("provider", "google")
-          .eq("service", "gmail")
-          .is("revoked_at", null);
-
-        if (connectionsError) {
-          console.error("Error fetching Gmail connections:", connectionsError);
-        }
-
-        const usersWithGmail = new Set(
-          (gmailConnections || []).map((c) => c.user_id).filter(Boolean)
-        );
-
-        const { data: usersData, error: usersError } = await supabase
-          .from("users")
-          .select("id, first_name, last_name, avatar_url, email")
-          .in("id", userIds);
-
-        if (usersError) {
-          throw usersError;
-        }
-
-        const sendersData: Sender[] = (usersData || []).map((row) => {
-          const firstName = row.first_name || "";
-          const lastName = row.last_name || "";
-          const displayName = `${firstName} ${lastName}`.trim() || row.email || "Unknown";
-
-          return {
-            id: row.id,
-            displayName,
-            email: row.email || "",
-            avatarUrl: row.avatar_url,
-            hasGmail: usersWithGmail.has(row.id),
-          };
-        });
+        const { senders: sendersData, canViewTeammateInboxes: canView } =
+          await fetchMailboxSenders(supabase, user?.id);
 
         const currentUserEmail = user?.email;
         sendersData.sort((a, b) => {
@@ -185,6 +96,7 @@ export function SenderSearch({
           return a.displayName.localeCompare(b.displayName);
         });
 
+        setCanViewTeammateInboxes(canView);
         setSenders(sendersData);
         setFilteredSenders(sendersData);
       } catch (error) {
@@ -199,7 +111,7 @@ export function SenderSearch({
     };
 
     fetchSenders();
-  }, [user?.email]);
+  }, [user?.id, user?.email]);
 
   useEffect(() => {
     if (!searchQuery.trim()) {
@@ -225,7 +137,7 @@ export function SenderSearch({
 
   const canSelectSender = (sender: Sender) => {
     if (!sender.hasGmail) return false;
-    if (isAdmin) return true;
+    if (canViewTeammateInboxes) return true;
     return isCurrentUserSender(sender);
   };
 
