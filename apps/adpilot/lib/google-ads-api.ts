@@ -21,8 +21,24 @@ export type GoogleAdsSearchRow = Record<string, unknown>;
 type GoogleAdsSearchResponse = {
   results?: GoogleAdsSearchRow[];
   nextPageToken?: string;
-  error?: { message?: string; status?: string };
+  error?: {
+    message?: string;
+    status?: string;
+    details?: Array<{
+      errors?: Array<{ message?: string }>;
+    }>;
+  };
 };
+
+function googleAdsErrorMessage(payload: GoogleAdsSearchResponse): string {
+  const detail = payload.error?.details
+    ?.flatMap((entry) => entry.errors ?? [])
+    .map((entry) => entry.message)
+    .filter(Boolean)
+    .join("; ");
+  const top = payload.error?.message ?? JSON.stringify(payload).slice(0, 800);
+  return detail ? `${top} (${detail})` : top;
+}
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
@@ -76,7 +92,6 @@ async function searchOnce(
       headers: googleAdsHeaders(accessToken, loginCustomerId),
       body: JSON.stringify({
         query,
-        pageSize: 1000,
         ...(pageToken ? { pageToken } : {}),
       }),
     },
@@ -84,9 +99,9 @@ async function searchOnce(
 
   const payload = (await response.json()) as GoogleAdsSearchResponse;
   if (!response.ok) {
-    const message =
-      payload.error?.message ?? JSON.stringify(payload).slice(0, 800);
-    throw new Error(`Google Ads search failed (${response.status}): ${message}`);
+    throw new Error(
+      `Google Ads search failed (${response.status}): ${googleAdsErrorMessage(payload)}`,
+    );
   }
 
   return payload;

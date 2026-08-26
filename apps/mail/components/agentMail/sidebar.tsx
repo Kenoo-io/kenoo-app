@@ -25,6 +25,7 @@ import { formatDetailedDate } from '@/utils/format-utils';
 import { SenderSearch } from "@/components/ui/searches/senderSearch/sender-search";
 import { getSupabaseClient } from "@/app/auth/supabaseClient";
 import { useAuth } from "@/app/auth/AuthContext";
+import { fetchMailboxSenders } from "@/lib/agentMail/mail-senders";
 
 interface SidebarProps {
   currentMailbox: MailboxType;
@@ -217,89 +218,31 @@ export default function Sidebar({
   useEffect(() => {
     const fetchSenders = async () => {
       try {
+        if (!user?.id) {
+          setSenders([]);
+          return;
+        }
         const supabase = getSupabaseClient();
-        
-        // Fetch all team records to get user_ids
-        const { data: teamData, error: teamError } = await supabase
-          .from('team')
-          .select('user_id')
-          .not('user_id', 'is', null);
-        
-        if (teamError) {
-          throw teamError;
-        }
-        
-        if (!teamData || teamData.length === 0) {
-          setSenders([]);
-          return;
-        }
-        
-        // Get all unique user_ids from team
-        const uniqueUserIds = new Set(teamData
-          .map(t => t.user_id)
-          .filter(Boolean));
-        const userIds = Array.from(uniqueUserIds) as string[];
-        
-        if (userIds.length === 0) {
-          setSenders([]);
-          return;
-        }
-        
-        // Fetch Gmail connections for these users
-        const { data: gmailConnections, error: connectionsError } = await supabase
-          .from('user_connections')
-          .select('user_id')
-          .in('user_id', userIds)
-          .eq('provider', 'google')
-          .eq('service', 'gmail')
-          .is('revoked_at', null);
-        
-        if (connectionsError) {
-          console.error("Error fetching Gmail connections:", connectionsError);
-        }
-        
-        // Get unique user IDs that have Gmail connections
-        const usersWithGmail = new Set(
-          (gmailConnections || []).map(c => c.user_id).filter(Boolean)
-        );
-        
-        // Fetch all users data
-        const { data: usersData, error: usersError } = await supabase
-          .from('users')
-          .select('id, first_name, last_name, avatar_url, email')
-          .in('id', userIds);
-        
-        if (usersError) {
-          throw usersError;
-        }
-        
-        // Map to sender format - only include users with Gmail
-        const sendersData = (usersData || [])
-          .filter(user => usersWithGmail.has(user.id))
-          .map((user) => {
-            const firstName = user.first_name || '';
-            const lastName = user.last_name || '';
-            const displayName = `${firstName} ${lastName}`.trim() || user.email || 'Unknown';
-            
-            return {
-              id: user.id,
-              displayName,
-              email: user.email || "",
-              avatarUrl: user.avatar_url,
-            };
-          });
-        
-        // Sort senders: current user first, then alphabetically
+        const { senders: loaded } = await fetchMailboxSenders(supabase, user.id);
+
+        const sendersData = loaded
+          .filter((sender) => sender.hasGmail)
+          .map(({ id, displayName, email, avatarUrl }) => ({
+            id,
+            displayName,
+            email,
+            avatarUrl,
+          }));
+
         const currentUserEmail = user?.email;
         sendersData.sort((a, b) => {
           if (a.email === currentUserEmail && b.email !== currentUserEmail) return -1;
           if (b.email === currentUserEmail && a.email !== currentUserEmail) return 1;
           return a.displayName.localeCompare(b.displayName);
         });
-        
+
         setSenders(sendersData);
-        
-        // Set selected sender based on currentAccount
+
         const matchingSender = sendersData.find(s => s.email === currentAccount);
         if (matchingSender) {
           setSelectedSenderId(matchingSender.id);
@@ -310,7 +253,7 @@ export default function Sidebar({
     };
 
     fetchSenders();
-  }, [currentAccount, user?.email]);
+  }, [currentAccount, user?.id, user?.email]);
 
   // Update selected sender when currentAccount changes
   useEffect(() => {
