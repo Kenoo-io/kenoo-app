@@ -241,13 +241,11 @@ export function AggressivenessField({
         </div>
 
         <div className="relative mx-1.5 mt-3 h-4 text-[10px] font-normal uppercase tracking-[0.14em] text-neutral-400">
-          <span className="absolute left-3 -translate-x-1/2">Protect</span>
+          <span className="absolute left-0">Protect</span>
           <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 text-center">
             Neutral
           </span>
-          <span className="absolute right-3 translate-x-1/2 text-right">
-            Max growth
-          </span>
+          <span className="absolute right-0 text-right">Max growth</span>
         </div>
       </div>
     </div>
