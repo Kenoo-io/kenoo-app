@@ -237,7 +237,7 @@ export function EntityDetailTabs<T extends string>({
       role="tablist"
       aria-label={ariaLabel}
       className={cn(
-        "flex gap-0.5 overflow-x-auto border-b border-neutral-200/80 scrollbar-hide",
+        "flex flex-wrap gap-0.5 border-b border-neutral-200/80",
         className,
       )}
     >
