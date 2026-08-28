@@ -3,7 +3,7 @@
 import * as React from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { AlertTriangle, Info, Loader2, Pencil } from "lucide-react";
+import { AlertTriangle, ChevronLeft, ChevronRight, Info, Loader2, Pencil } from "lucide-react";
 
 import { cn } from "@walls/utils";
 
@@ -159,21 +159,45 @@ function WarningsHover({ warnings }: { warnings: BudgetChangeWarning[] }) {
                 {current.body}
               </p>
               {items.length > 1 ? (
-                <div className="mt-2 flex items-center justify-center gap-1">
-                  {items.map((item, itemIndex) => (
-                    <button
-                      key={item.title}
-                      type="button"
-                      aria-label={`Warning ${itemIndex + 1}`}
-                      onClick={() => setIndex(itemIndex)}
-                      className={cn(
-                        "h-1 rounded-full transition-all",
-                        itemIndex === currentIndex
-                          ? "w-3 bg-neutral-700"
-                          : "w-1 bg-neutral-300 hover:bg-neutral-400",
-                      )}
-                    />
-                  ))}
+                <div className="mt-2 flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setIndex(
+                        (currentIndex - 1 + items.length) % items.length,
+                      )
+                    }
+                    className="inline-flex h-5 w-5 items-center justify-center rounded-full text-neutral-400 transition hover:bg-neutral-100 hover:text-neutral-800"
+                    aria-label="Previous warning"
+                  >
+                    <ChevronLeft className="h-3.5 w-3.5" strokeWidth={1.75} />
+                  </button>
+                  <div className="flex flex-1 items-center justify-center gap-1">
+                    {items.map((item, itemIndex) => (
+                      <button
+                        key={item.title}
+                        type="button"
+                        aria-label={`Warning ${itemIndex + 1}`}
+                        onClick={() => setIndex(itemIndex)}
+                        className={cn(
+                          "h-1 rounded-full transition-all",
+                          itemIndex === currentIndex
+                            ? "w-3 bg-neutral-700"
+                            : "w-1 bg-neutral-300 hover:bg-neutral-400",
+                        )}
+                      />
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setIndex((currentIndex + 1) % items.length)
+                    }
+                    className="inline-flex h-5 w-5 items-center justify-center rounded-full text-neutral-400 transition hover:bg-neutral-100 hover:text-neutral-800"
+                    aria-label="Next warning"
+                  >
+                    <ChevronRight className="h-3.5 w-3.5" strokeWidth={1.75} />
+                  </button>
                 </div>
               ) : null}
             </div>
