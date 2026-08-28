@@ -8,13 +8,13 @@ import {
   withAdScope,
 } from "@/lib/ad-scope";
 import {
+  applyProviderDailyBudget,
+  applyProviderDeliveryStatus,
+} from "@/lib/ad-provider-write";
+import {
   getEntityAutomation,
   type BudgetAdjustmentRow,
 } from "@/lib/automation-server";
-import {
-  updateMetaEntityDailyBudget,
-  updateMetaEntityStatus,
-} from "@/lib/meta-graph";
 import type { AutomationStatus } from "@/lib/spend-automation-settings";
 
 export type ApplyAdPilotResult = {
@@ -86,7 +86,7 @@ export async function applyAdPilotPreview(input: {
     supabase
       .from("ad_entities")
       .select(
-        "id, entity_type, provider_entity_id, account_connection_id, daily_budget_micros",
+        "id, entity_type, provider, provider_entity_id, parent_id, account_connection_id, daily_budget_micros",
       )
       .eq("id", input.entityId),
     input.scope,
@@ -107,21 +107,6 @@ export async function applyAdPilotPreview(input: {
     throw new Error("Enable AdPilot for this entity before applying changes.");
   }
 
-  const { data: connection, error: connectionError } = await admin
-    .from("account_connections")
-    .select("access_token")
-    .eq("id", entity.account_connection_id)
-    .eq("account_id", input.scope.accountId)
-    .is("revoked_at", null)
-    .maybeSingle();
-
-  if (connectionError) throw connectionError;
-
-  const accessToken = connection?.access_token as string | undefined;
-  if (!accessToken) {
-    throw new Error("Meta connection is not available for this ad account.");
-  }
-
   const providerEntityId = entity.provider_entity_id as string;
   const previousMicros =
     input.preview.decision.budget.previousMicros ??
@@ -135,19 +120,26 @@ export async function applyAdPilotPreview(input: {
   let nextDailyBudgetMicros =
     (entity.daily_budget_micros as number | null) ?? previousMicros;
 
+  const writeInput = {
+    accountId: input.scope.accountId,
+    connectionId: entity.account_connection_id as string,
+    provider: (entity.provider as string | null) ?? null,
+    entityType: entity.entity_type as string,
+    providerEntityId,
+    parentId: (entity.parent_id as string | null) ?? null,
+  };
+
   if (input.preview.decision.action === "deactivate") {
-    providerResponse = await updateMetaEntityStatus(
-      providerEntityId,
-      accessToken,
-      "PAUSED",
-    );
+    providerResponse = await applyProviderDeliveryStatus({
+      ...writeInput,
+      status: "PAUSED",
+    });
     providerApplied = true;
   } else if (finalMicros != null) {
-    providerResponse = await updateMetaEntityDailyBudget(
-      providerEntityId,
-      accessToken,
-      finalMicros,
-    );
+    providerResponse = await applyProviderDailyBudget({
+      ...writeInput,
+      dailyBudgetMicros: finalMicros,
+    });
     providerApplied = true;
     nextDailyBudgetMicros = finalMicros;
   }

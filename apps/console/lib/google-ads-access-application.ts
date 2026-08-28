@@ -23,6 +23,7 @@ Inside AdPilot, users can:
 • View a reporting dashboard of spend, impressions, clicks, conversions, and ROAS over selectable time periods
 • Browse campaigns, ad groups, and ads synced from Google Ads
 • Review audiences, automation presets, and spend guardrails
+• Preview AdPilot budget decisions, then apply authorized daily-budget changes or pause campaigns and ad groups in Google Ads
 • Trigger a sync that refreshes campaign structure and performance into our database (also intended to run on a recurring hourly schedule)
 
 We may share exported summaries with partners outside Kenoo, but those partners cannot access the tool directly unless they are invited into the workspace.`,
@@ -36,7 +37,7 @@ On Google Ads connect, on demand from the dashboard, and on a recurring sync job
 • Campaigns, budgets, ad groups, and ads
 • Daily performance metrics (impressions, clicks, cost, conversions, CTR, CPC, CPM, conversion value)
 
-Spend-automation and ROAS guardrail screens live in the same product so operators can preview rules before anything is applied. The Google Ads path implemented for this access request is read/sync via GoogleAdsService search, not bulk unattended mutation of other advertisers’ accounts.`,
+Spend-automation and ROAS guardrail screens live in the same product so operators can preview rules before anything is applied. After a user authorizes a decision, AdPilot writes to the connected Google Ads account: campaignBudgets:mutate for daily budget changes, and campaigns:mutate or adGroups:mutate to pause delivery. Budget applies on an ad group update the parent campaign budget. AdPilot does not create new Google Ads campaigns or ads.`,
   },
   {
     label: "API Services Called",
@@ -52,6 +53,15 @@ GoogleAdsService (googleAds:search)
 • AdGroup — ad group structure and status
 • AdGroupAd — ads in each ad group (id, name/type, status, final URLs) and ad-level performance reports
 
-Metrics requested on Customer, Campaign, AdGroup, and AdGroupAd include impressions, clicks, cost_micros, conversions, conversions_value, ctr, average_cpc, and average_cpm, segmented by date.`,
+Metrics requested on Customer, Campaign, AdGroup, and AdGroupAd include impressions, clicks, cost_micros, conversions, conversions_value, ctr, average_cpc, and average_cpm, segmented by date.
+
+CampaignBudgetService (campaignBudgets:mutate)
+• Update campaign daily budget amount_micros when the user applies an AdPilot spend decision
+
+CampaignService (campaigns:mutate)
+• Update campaign.status to PAUSED when the user (or authorized automation) pauses a campaign
+
+AdGroupService (adGroups:mutate)
+• Update ad_group.status to PAUSED when the user (or authorized automation) pauses an ad group`,
   },
 ] as const;

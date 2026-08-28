@@ -2,7 +2,7 @@ import { createAdminClient } from "@walls/supabase/admin";
 import { createClient } from "@walls/supabase/server";
 
 import { type AdDataScope, withAdScope } from "@/lib/ad-scope";
-import { updateMetaEntityStatus } from "@/lib/meta-graph";
+import { applyProviderDeliveryStatus } from "@/lib/ad-provider-write";
 
 export type DeliveryStatus = "ACTIVE" | "PAUSED";
 
@@ -19,7 +19,9 @@ export async function updateEntityDeliveryStatus(input: {
   const { data: entity, error: entityError } = await withAdScope(
     supabase
       .from("ad_entities")
-      .select("id, entity_type, provider_entity_id, account_connection_id")
+      .select(
+        "id, entity_type, provider, provider_entity_id, parent_id, account_connection_id",
+      )
       .eq("id", input.entityId),
     input.scope,
   ).maybeSingle();
@@ -31,26 +33,15 @@ export async function updateEntityDeliveryStatus(input: {
     throw new Error("Only campaigns and ad sets support status changes.");
   }
 
-  const { data: connection, error: connectionError } = await admin
-    .from("account_connections")
-    .select("access_token")
-    .eq("id", entity.account_connection_id)
-    .eq("account_id", input.scope.accountId)
-    .is("revoked_at", null)
-    .maybeSingle();
-
-  if (connectionError) throw connectionError;
-
-  const accessToken = connection?.access_token as string | undefined;
-  if (!accessToken) {
-    throw new Error("Meta connection is not available for this ad account.");
-  }
-
-  await updateMetaEntityStatus(
-    entity.provider_entity_id as string,
-    accessToken,
-    input.status,
-  );
+  await applyProviderDeliveryStatus({
+    accountId: input.scope.accountId,
+    connectionId: entity.account_connection_id as string,
+    provider: (entity.provider as string | null) ?? null,
+    entityType: entity.entity_type as string,
+    providerEntityId: entity.provider_entity_id as string,
+    parentId: (entity.parent_id as string | null) ?? null,
+    status: input.status,
+  });
 
   const localStatus = input.status === "ACTIVE" ? "active" : "paused";
   const now = new Date().toISOString();
