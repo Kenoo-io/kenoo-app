@@ -3,8 +3,8 @@ import { createAdminClient } from "@walls/supabase/admin";
 import { type AdDataScope, adScopeFields } from "@/lib/ad-scope";
 import { GOOGLE_PROVIDER, type GoogleAdsConnectionRecord } from "@/lib/connections";
 import {
+  ensureGoogleAdsAccessToken,
   listGoogleAdsConnectionsWithTokens,
-  updateGoogleAdsConnectionTokens,
 } from "@/lib/connections-server";
 import {
   digitsOnly,
@@ -21,7 +21,6 @@ import {
   type GoogleAdsClientAccount,
   type GoogleAdsDailyMetrics,
 } from "@/lib/google-ads-api";
-import { refreshGoogleAccessToken } from "@/lib/google-ads-oauth";
 
 type EntityType = "account" | "campaign" | "ad_group" | "ad";
 type BudgetOptimization = "cbo" | "abo";
@@ -167,33 +166,7 @@ async function upsertDailyMetrics(input: {
 async function ensureGoogleAccessToken(
   connection: GoogleAdsConnectionRecord,
 ): Promise<string> {
-  const expiryMs = connection.token_expiry
-    ? new Date(connection.token_expiry).getTime()
-    : 0;
-  const stillFresh = expiryMs - Date.now() > 60_000;
-  if (stillFresh && connection.access_token) {
-    return connection.access_token;
-  }
-
-  if (!connection.refresh_token) {
-    throw new Error("Google Ads connection is missing a refresh token.");
-  }
-
-  const tokens = await refreshGoogleAccessToken(connection.refresh_token);
-  if (!tokens.access_token) {
-    throw new Error("Google token refresh did not return an access token.");
-  }
-
-  const expiresIn = tokens.expires_in ?? 3600;
-  const tokenExpiry = new Date(Date.now() + expiresIn * 1000).toISOString();
-  await updateGoogleAdsConnectionTokens({
-    connectionId: connection.id,
-    accessToken: tokens.access_token,
-    tokenExpiry,
-  });
-  connection.access_token = tokens.access_token;
-  connection.token_expiry = tokenExpiry;
-  return tokens.access_token;
+  return ensureGoogleAdsAccessToken(connection);
 }
 
 async function upsertMetricsForQuery(input: {
@@ -275,6 +248,7 @@ async function syncGoogleAdsCustomer(input: {
       campaign.primary_status,
       campaign.advertising_channel_type,
       campaign.bidding_strategy_type,
+      campaign_budget.resource_name,
       campaign_budget.amount_micros,
       campaign_budget.period
      FROM campaign`,

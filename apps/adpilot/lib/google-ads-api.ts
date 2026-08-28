@@ -114,6 +114,272 @@ function shouldRetryWithLoginCustomer(error: unknown): boolean {
   );
 }
 
+type GoogleAdsMutateResponse = {
+  results?: Array<Record<string, unknown>>;
+  error?: GoogleAdsSearchResponse["error"];
+};
+
+function loginCustomerCandidates(
+  customerId: string,
+  loginCustomerId?: string | null,
+): Array<string | null> {
+  const cid = digitsOnly(customerId);
+  if (loginCustomerId !== undefined) {
+    return [loginCustomerId ? digitsOnly(loginCustomerId) : null];
+  }
+  const candidates: Array<string | null> = [null];
+  const envLogin = getGoogleAdsLoginCustomerId();
+  if (envLogin && envLogin !== cid) candidates.push(envLogin);
+  return candidates;
+}
+
+async function mutateOnce(
+  customerId: string,
+  accessToken: string,
+  collection: "campaigns" | "adGroups" | "campaignBudgets",
+  operations: Array<Record<string, unknown>>,
+  loginCustomerId: string | null,
+): Promise<GoogleAdsMutateResponse> {
+  const cid = digitsOnly(customerId);
+  const response = await fetch(
+    `https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}/customers/${cid}/${collection}:mutate`,
+    {
+      method: "POST",
+      headers: googleAdsHeaders(accessToken, loginCustomerId),
+      body: JSON.stringify({ operations }),
+    },
+  );
+  const payload = (await response.json()) as GoogleAdsMutateResponse;
+  if (!response.ok) {
+    throw new Error(
+      `Google Ads mutate failed (${response.status}): ${googleAdsErrorMessage(payload)}`,
+    );
+  }
+  return payload;
+}
+
+async function mutateGoogleAds(
+  customerId: string,
+  accessToken: string,
+  collection: "campaigns" | "adGroups" | "campaignBudgets",
+  operations: Array<Record<string, unknown>>,
+  loginCustomerId?: string | null,
+): Promise<Record<string, unknown>> {
+  const cid = digitsOnly(customerId);
+  let lastError: unknown = null;
+  for (const candidate of loginCustomerCandidates(cid, loginCustomerId)) {
+    try {
+      return await mutateOnce(
+        cid,
+        accessToken,
+        collection,
+        operations,
+        candidate,
+      );
+    } catch (error) {
+      lastError = error;
+      if (!shouldRetryWithLoginCustomer(error)) throw error;
+    }
+  }
+  throw lastError instanceof Error
+    ? lastError
+    : new Error("Google Ads mutate failed");
+}
+
+export type GoogleAdsDeliveryStatus = "ACTIVE" | "PAUSED";
+
+function googleAdsApiStatus(status: GoogleAdsDeliveryStatus): "ENABLED" | "PAUSED" {
+  return status === "ACTIVE" ? "ENABLED" : "PAUSED";
+}
+
+async function fetchGoogleCampaignBudget(
+  customerId: string,
+  campaignId: string,
+  accessToken: string,
+): Promise<{ resourceName: string; period: string | null }> {
+  const cid = digitsOnly(customerId);
+  const id = digitsOnly(campaignId);
+  const rows = await searchGoogleAds(
+    cid,
+    accessToken,
+    `SELECT
+      campaign.id,
+      campaign_budget.resource_name,
+      campaign_budget.period
+     FROM campaign
+     WHERE campaign.id = ${id}
+     LIMIT 1`,
+  );
+  const row = rows[0];
+  const resourceName =
+    googleString(row ?? {}, "campaignBudget.resourceName") ??
+    googleString(row ?? {}, "campaignBudget.resource_name");
+  if (!resourceName) {
+    throw new Error(
+      `Google Ads campaign ${id} has no campaign budget resource to update.`,
+    );
+  }
+  const period = googleString(row ?? {}, "campaignBudget.period");
+  return { resourceName, period };
+}
+
+async function fetchGoogleAdGroupCampaignId(
+  customerId: string,
+  adGroupId: string,
+  accessToken: string,
+): Promise<string> {
+  const cid = digitsOnly(customerId);
+  const id = digitsOnly(adGroupId);
+  const rows = await searchGoogleAds(
+    cid,
+    accessToken,
+    `SELECT ad_group.id, campaign.id, ad_group.campaign
+     FROM ad_group
+     WHERE ad_group.id = ${id}
+     LIMIT 1`,
+  );
+  const row = rows[0] ?? {};
+  const campaignId =
+    digitsOnly(googleString(row, "campaign.id")) ||
+    digitsOnly(resourceId(googleString(row, "adGroup.campaign")));
+  if (!campaignId) {
+    throw new Error(
+      `Google Ads ad group ${id} is missing a parent campaign.`,
+    );
+  }
+  return campaignId;
+}
+
+export async function updateGoogleCampaignStatus(
+  customerId: string,
+  campaignId: string,
+  accessToken: string,
+  status: GoogleAdsDeliveryStatus,
+): Promise<Record<string, unknown>> {
+  const cid = digitsOnly(customerId);
+  const id = digitsOnly(campaignId);
+  return mutateGoogleAds(cid, accessToken, "campaigns", [
+    {
+      update: {
+        resourceName: `customers/${cid}/campaigns/${id}`,
+        status: googleAdsApiStatus(status),
+      },
+      updateMask: "status",
+    },
+  ]);
+}
+
+export async function updateGoogleAdGroupStatus(
+  customerId: string,
+  adGroupId: string,
+  accessToken: string,
+  status: GoogleAdsDeliveryStatus,
+): Promise<Record<string, unknown>> {
+  const cid = digitsOnly(customerId);
+  const id = digitsOnly(adGroupId);
+  return mutateGoogleAds(cid, accessToken, "adGroups", [
+    {
+      update: {
+        resourceName: `customers/${cid}/adGroups/${id}`,
+        status: googleAdsApiStatus(status),
+      },
+      updateMask: "status",
+    },
+  ]);
+}
+
+export async function updateGoogleCampaignDailyBudget(
+  customerId: string,
+  campaignId: string,
+  accessToken: string,
+  dailyBudgetMicros: number,
+): Promise<Record<string, unknown>> {
+  const cid = digitsOnly(customerId);
+  const { resourceName, period } = await fetchGoogleCampaignBudget(
+    cid,
+    campaignId,
+    accessToken,
+  );
+  if (period && period.toUpperCase() !== "DAILY") {
+    throw new Error(
+      "This Google Ads campaign uses a non-daily budget, so AdPilot cannot change the daily amount.",
+    );
+  }
+  const amount = Math.round(dailyBudgetMicros);
+  if (amount <= 0) {
+    throw new Error("Google Ads daily budget must be greater than zero.");
+  }
+  return mutateGoogleAds(cid, accessToken, "campaignBudgets", [
+    {
+      update: {
+        resourceName,
+        amountMicros: String(amount),
+      },
+      updateMask: "amountMicros",
+    },
+  ]);
+}
+
+export async function updateGoogleEntityStatus(
+  input: {
+    customerId: string;
+    entityType: string;
+    providerEntityId: string;
+    accessToken: string;
+    status: GoogleAdsDeliveryStatus;
+  },
+): Promise<Record<string, unknown>> {
+  if (input.entityType === "campaign") {
+    return updateGoogleCampaignStatus(
+      input.customerId,
+      input.providerEntityId,
+      input.accessToken,
+      input.status,
+    );
+  }
+  if (input.entityType === "ad_group") {
+    return updateGoogleAdGroupStatus(
+      input.customerId,
+      input.providerEntityId,
+      input.accessToken,
+      input.status,
+    );
+  }
+  throw new Error("Only Google Ads campaigns and ad groups support status changes.");
+}
+
+export async function updateGoogleEntityDailyBudget(
+  input: {
+    customerId: string;
+    entityType: string;
+    providerEntityId: string;
+    accessToken: string;
+    dailyBudgetMicros: number;
+    parentCampaignProviderId?: string | null;
+  },
+): Promise<Record<string, unknown>> {
+  let campaignId = digitsOnly(input.providerEntityId);
+  if (input.entityType === "ad_group") {
+    campaignId = input.parentCampaignProviderId
+      ? digitsOnly(input.parentCampaignProviderId)
+      : await fetchGoogleAdGroupCampaignId(
+          input.customerId,
+          input.providerEntityId,
+          input.accessToken,
+        );
+  } else if (input.entityType !== "campaign") {
+    throw new Error(
+      "Only Google Ads campaigns and ad groups support budget automation.",
+    );
+  }
+  return updateGoogleCampaignDailyBudget(
+    input.customerId,
+    campaignId,
+    input.accessToken,
+    input.dailyBudgetMicros,
+  );
+}
+
 /**
  * Run a GAQL search, paging through every result. Tries without
  * `login-customer-id` first (direct accounts), then retries with the Kenoo MCC

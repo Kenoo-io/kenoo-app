@@ -14,6 +14,7 @@ import {
   type SafeAccountConnection,
 } from "@/lib/connections";
 import {
+  refreshGoogleAccessToken,
   revokeGoogleOAuthToken,
   type GoogleAdsCustomer,
 } from "@/lib/google-ads-oauth";
@@ -332,6 +333,59 @@ export async function listGoogleAdsConnectionsWithTokens(
   }
 
   return (data ?? []) as GoogleAdsConnectionRecord[];
+}
+
+export async function getGoogleAdsConnectionById(
+  connectionId: string,
+  accountId: string,
+): Promise<GoogleAdsConnectionRecord | null> {
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("account_connections")
+    .select(
+      "id, account_id, provider_account_id, access_token, refresh_token, token_expiry, token_payload",
+    )
+    .eq("id", connectionId)
+    .eq("account_id", accountId)
+    .eq("provider", GOOGLE_PROVIDER)
+    .eq("service", GOOGLE_ADS_SERVICE)
+    .is("revoked_at", null)
+    .maybeSingle();
+
+  if (error) throw error;
+  return (data as GoogleAdsConnectionRecord | null) ?? null;
+}
+
+export async function ensureGoogleAdsAccessToken(
+  connection: GoogleAdsConnectionRecord,
+): Promise<string> {
+  const expiryMs = connection.token_expiry
+    ? new Date(connection.token_expiry).getTime()
+    : 0;
+  const stillFresh = expiryMs - Date.now() > 60_000;
+  if (stillFresh && connection.access_token) {
+    return connection.access_token;
+  }
+
+  if (!connection.refresh_token) {
+    throw new Error("Google Ads connection is missing a refresh token.");
+  }
+
+  const tokens = await refreshGoogleAccessToken(connection.refresh_token);
+  if (!tokens.access_token) {
+    throw new Error("Google token refresh did not return an access token.");
+  }
+
+  const expiresIn = tokens.expires_in ?? 3600;
+  const tokenExpiry = new Date(Date.now() + expiresIn * 1000).toISOString();
+  await updateGoogleAdsConnectionTokens({
+    connectionId: connection.id,
+    accessToken: tokens.access_token,
+    tokenExpiry,
+  });
+  connection.access_token = tokens.access_token;
+  connection.token_expiry = tokenExpiry;
+  return tokens.access_token;
 }
 
 export async function updateGoogleAdsConnectionTokens(input: {
