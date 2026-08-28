@@ -30,7 +30,7 @@ export async function updateEntityDeliveryStatus(input: {
   if (!entity) throw new Error("Entity not found");
 
   if (!STATUSABLE_ENTITY_TYPES.has(entity.entity_type as string)) {
-    throw new Error("Only campaigns and ad sets support status changes.");
+    throw new Error("Only campaigns, ad sets, and ad groups support status changes.");
   }
 
   await applyProviderDeliveryStatus({

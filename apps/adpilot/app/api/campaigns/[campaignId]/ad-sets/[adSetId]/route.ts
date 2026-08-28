@@ -18,12 +18,15 @@ export async function GET(_request: Request, context: RouteContext) {
   try {
     const detail = await getAdSetDetail({ scope, campaignId, adSetId });
     if (!detail) {
-      return NextResponse.json({ error: "Ad set not found" }, { status: 404 });
+      return NextResponse.json({ error: "Ad set or ad group not found" }, { status: 404 });
     }
 
     return NextResponse.json(detail);
   } catch (error) {
     console.error("[adpilot] ad set detail:", error);
-    return NextResponse.json({ error: "Failed to load ad set" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to load ad set or ad group" },
+      { status: 500 },
+    );
   }
 }

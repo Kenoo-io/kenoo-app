@@ -550,33 +550,17 @@ export function normalizeGoogleAdsStatus(
   status: string | null | undefined,
 ): string | null {
   if (!status) return null;
+  const normalized = status.trim().toUpperCase();
+  if (normalized === "ENABLED" || normalized === "ELIGIBLE") return "active";
+  if (normalized === "PAUSED" || normalized === "ENDED") return "paused";
+  if (normalized === "REMOVED") return "removed";
   return status.toLowerCase();
 }
 
-/** Map Google advertising_channel_type onto Meta-style dashboard buckets. */
+/** Persist Google advertising_channel_type; dashboard buckets match via resolveObjectiveBucket. */
 export function googleChannelToObjective(
   channelType: string | null | undefined,
 ): string | null {
-  if (!channelType) return null;
-  const channel = channelType.toUpperCase();
-  switch (channel) {
-    case "SHOPPING":
-    case "PERFORMANCE_MAX":
-    case "LOCAL":
-    case "LOCAL_SERVICES":
-      return "OUTCOME_SALES";
-    case "SEARCH":
-    case "SEARCH_PARTNERS":
-    case "DISPLAY":
-    case "SMART":
-    case "DEMAND_GEN":
-      return "OUTCOME_TRAFFIC";
-    case "VIDEO":
-    case "DISCOVERY":
-      return "OUTCOME_ENGAGEMENT";
-    case "MULTI_CHANNEL":
-      return "OUTCOME_APP_PROMOTION";
-    default:
-      return channel;
-  }
+  if (!channelType?.trim()) return null;
+  return channelType.trim().toUpperCase();
 }
