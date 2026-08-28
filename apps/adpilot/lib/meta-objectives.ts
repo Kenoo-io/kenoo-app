@@ -6,6 +6,10 @@ export function isSalesObjective(objective: string | null | undefined): boolean 
     normalized === "OUTCOME_SALES" ||
     normalized === "CONVERSIONS" ||
     normalized === "PRODUCT_CATALOG_SALES" ||
+    normalized === "SHOPPING" ||
+    normalized === "PERFORMANCE_MAX" ||
+    normalized === "LOCAL" ||
+    normalized === "LOCAL_SERVICES" ||
     normalized.includes("SALES")
   );
 }
@@ -215,9 +219,21 @@ const OBJECTIVE_LABELS: Record<string, string> = {
   APP_INSTALLS: "App installs",
   STORE_VISITS: "Store visits",
   PRODUCT_CATALOG_SALES: "Catalog sales",
+  SEARCH: "Search",
+  SEARCH_PARTNERS: "Search partners",
+  DISPLAY: "Display",
+  SHOPPING: "Shopping",
+  VIDEO: "Video",
+  PERFORMANCE_MAX: "Performance Max",
+  DEMAND_GEN: "Demand Gen",
+  SMART: "Smart",
+  DISCOVERY: "Discovery",
+  LOCAL: "Local",
+  LOCAL_SERVICES: "Local services",
+  MULTI_CHANNEL: "App campaigns",
 };
 
-/** Human-readable label for Meta campaign objective API values. */
+/** Human-readable label for Meta objectives and Google advertising channels. */
 export function formatObjectiveLabel(
   objective: string | null | undefined,
 ): string {

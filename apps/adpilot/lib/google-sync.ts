@@ -270,10 +270,7 @@ async function syncGoogleAdsCustomer(input: {
       providerEntityId: campaignId,
       parentId: accountEntityId,
       name: googleString(row, "campaign.name"),
-      status: normalizeGoogleAdsStatus(
-        googleString(row, "campaign.primaryStatus") ??
-          googleString(row, "campaign.status"),
-      ),
+      status: normalizeGoogleAdsStatus(googleString(row, "campaign.status")),
       objective: googleChannelToObjective(
         googleString(row, "campaign.advertisingChannelType"),
       ),

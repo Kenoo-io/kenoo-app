@@ -49,6 +49,13 @@ export type EntityDetailMetrics = {
   conversionValueMicros: number;
 };
 
+export type RecentWindowMetrics = {
+  spendMicros: number;
+  conversionValueMicros: number;
+  roas: number | null;
+  daysWithSpend: number;
+};
+
 /** Lifetime unique reach vs Meta estimated audience size (Ads Manager band). */
 export type ReachSaturation = {
   lifetimeReach: number | null;
@@ -69,6 +76,7 @@ export type CampaignAdSetSummary = {
   roas: number | null;
   websitePurchases: number | null;
   dailyBudgetMicros: number | null;
+  dailyBudgetInherited: boolean;
   adpilotEnabled: boolean;
   automationStatus: AutomationStatus | null;
   learningStatus: string | null;
@@ -85,8 +93,11 @@ export type EntityDetailResult = {
   parentId: string | null;
   parentName: string | null;
   dailyBudgetMicros: number | null;
+  dailyBudgetInherited: boolean;
   canAutomate: boolean;
+  learningStatus: string | null;
   metrics: EntityDetailMetrics;
+  recent7d: RecentWindowMetrics;
   reachSaturation: ReachSaturation;
   automation: EntityAutomationState;
   profiles: AutomationProfile[];
@@ -124,6 +135,7 @@ export type AdSetDetailResult = EntityDetailResult & {
 };
 
 type MetricRow = {
+  metric_date?: string | null;
   spend_micros: number | null;
   impressions: number | null;
   clicks: number | null;
@@ -169,6 +181,30 @@ function metricsStartDateIso() {
   const currentStart = new Date();
   currentStart.setDate(currentStart.getDate() - 30);
   return currentStart.toISOString().slice(0, 10);
+}
+
+function lastNDaysIso(days: number) {
+  const start = new Date();
+  start.setDate(start.getDate() - days);
+  return start.toISOString().slice(0, 10);
+}
+
+function recentWindowFromRows(rows: MetricRow[], days: number): RecentWindowMetrics {
+  const start = lastNDaysIso(days);
+  const recent = rows.filter((row) => (row.metric_date ?? "") >= start);
+  const aggregated = aggregateMetricRows(recent);
+  const daysWithSpend = new Set(
+    recent
+      .filter((row) => (row.spend_micros ?? 0) > 0 && row.metric_date)
+      .map((row) => row.metric_date as string),
+  ).size;
+
+  return {
+    spendMicros: aggregated.spendMicros,
+    conversionValueMicros: aggregated.conversionValueMicros,
+    roas: aggregated.roas,
+    daysWithSpend,
+  };
 }
 
 function adPerformanceScore(ad: AdSetAdSummary): number {
@@ -286,7 +322,7 @@ function withChildAudienceFallback(
 }
 
 const ENTITY_DETAIL_SELECT =
-  "id, entity_type, name, provider, status, objective, parent_id, account_connection_id, daily_budget_micros, lifetime_reach, lifetime_spend_micros, estimated_audience_lower, estimated_audience_upper, audience_estimate_ready";
+  "id, entity_type, name, provider, status, objective, parent_id, account_connection_id, daily_budget_micros, learning_status, lifetime_reach, lifetime_spend_micros, estimated_audience_lower, estimated_audience_upper, audience_estimate_ready";
 
 async function buildEntityDetail(input: {
   scope: AdDataScope;
@@ -300,6 +336,7 @@ async function buildEntityDetail(input: {
     parent_id: string | null;
     account_connection_id: string;
     daily_budget_micros: number | null;
+    learning_status?: string | null;
     lifetime_reach?: number | null;
     lifetime_spend_micros?: number | null;
     estimated_audience_lower?: number | null;
@@ -332,14 +369,14 @@ async function buildEntityDetail(input: {
     entity.parent_id
       ? supabase
           .from("ad_entities")
-          .select("name, objective")
+          .select("name, objective, daily_budget_micros")
           .eq("id", entity.parent_id)
           .maybeSingle()
       : Promise.resolve({ data: null }),
     supabase
       .from("ad_metrics_daily")
       .select(
-        "spend_micros, impressions, clicks, conversion_value_micros, website_purchases",
+        "metric_date, spend_micros, impressions, clicks, conversion_value_micros, website_purchases",
       )
       .eq("entity_id", entityId)
       .gte("metric_date", metricsStartDateIso()),
@@ -356,6 +393,7 @@ async function buildEntityDetail(input: {
   ]);
 
   const aggregated = aggregateMetricRows(metricsResult.data ?? []);
+  const recent7d = recentWindowFromRows(metricsResult.data ?? [], 7);
 
   let campaignObjective = entity.objective;
   if (entityType === "ad_group" && parentResult.data?.objective) {
@@ -379,6 +417,19 @@ async function buildEntityDetail(input: {
 
   const tracksWebsitePurchases = isSalesObjective(campaignObjective);
 
+  const ownBudget = entity.daily_budget_micros;
+  let dailyBudgetMicros = ownBudget != null && ownBudget > 0 ? ownBudget : null;
+  let dailyBudgetInherited = false;
+  if (dailyBudgetMicros == null && entityType === "ad_group") {
+    const parentBudget =
+      (parentResult.data?.daily_budget_micros as number | null | undefined) ??
+      null;
+    if (parentBudget != null && parentBudget > 0) {
+      dailyBudgetMicros = parentBudget;
+      dailyBudgetInherited = true;
+    }
+  }
+
   return {
     id: entityId,
     entityType,
@@ -389,8 +440,10 @@ async function buildEntityDetail(input: {
     accountName: (connection?.name as string) ?? "Ad account",
     parentId: entity.parent_id,
     parentName: (parentResult.data?.name as string | null) ?? null,
-    dailyBudgetMicros: entity.daily_budget_micros,
+    dailyBudgetMicros,
+    dailyBudgetInherited,
     canAutomate,
+    learningStatus: (entity.learning_status as string | null | undefined) ?? null,
     metrics: {
       spendMicros: aggregated.spendMicros,
       impressions: aggregated.impressions,
@@ -400,6 +453,7 @@ async function buildEntityDetail(input: {
       websitePurchases: tracksWebsitePurchases ? aggregated.websitePurchases : null,
       conversionValueMicros: aggregated.conversionValueMicros,
     },
+    recent7d,
     reachSaturation: toReachSaturation(entity),
     automation,
     profiles,
@@ -511,6 +565,10 @@ export async function getCampaignDetail(input: {
     const totals = aggregateMetricRows(metricsByEntity.get(adSet.id as string) ?? []);
     const automation = automationByEntity.get(adSet.id as string);
     const ownBudget = adSet.daily_budget_micros as number | null;
+    const inherited =
+      (ownBudget == null || ownBudget <= 0) &&
+      campaignBudget != null &&
+      campaignBudget > 0;
     const dailyBudgetMicros =
       ownBudget != null && ownBudget > 0 ? ownBudget : campaignBudget;
 
@@ -525,6 +583,7 @@ export async function getCampaignDetail(input: {
       roas: totals.roas,
       websitePurchases: tracksWebsitePurchases ? totals.websitePurchases : null,
       dailyBudgetMicros,
+      dailyBudgetInherited: inherited,
       adpilotEnabled: automation?.enabled ?? false,
       automationStatus: automation?.status ?? null,
       learningStatus: (adSet.learning_status as string | null) ?? null,

@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { ArrowLeft, Loader2 } from "lucide-react";
 
+import { DailyBudgetEditor } from "@/components/campaigns/daily-budget-editor";
 import { EntityAutomationSection, ADPILOT_MENU_ITEMS, isAutomationPanel } from "@/components/campaigns/automation-panel";
 import { AdSetCreativesSection } from "@/components/campaigns/ad-set-creatives-section";
 import { EntityDailyProgressSection } from "@/components/campaigns/entity-daily-progress-section";
@@ -16,8 +17,11 @@ import {
   EntityStatusBadge,
 } from "@/components/campaigns/entity-detail-shared";
 import type { AdSetDetailResult } from "@/lib/entity-detail-server";
-import { formatCurrencyFromMicros } from "@/lib/format-analytics";
 import { getBreakEvenRoas } from "@/lib/spend-automation-settings";
+import { midLevelEntityLabel, isGoogleAdsProvider } from "@/lib/entity-labels";
+import { GoogleAdsIcon } from "@/components/settings/google-ads-icon";
+import { MetaIcon } from "@/components/settings/meta-icon";
+import { GOOGLE_PROVIDER, META_PROVIDER } from "@/lib/connections";
 
 type AdSetDetailTab =
   | "stats"
@@ -43,7 +47,11 @@ export function AdSetDetailPage() {
 
     const response = await fetch(`/api/campaigns/${campaignId}/ad-sets/${adSetId}`);
     if (!response.ok) {
-      setError(response.status === 404 ? "Ad set not found." : "Failed to load ad set.");
+      setError(
+        response.status === 404
+          ? "This ad set or ad group was not found."
+          : "Failed to load this ad set or ad group.",
+      );
       setDetail(null);
       setLoading(false);
       return;
@@ -77,12 +85,16 @@ export function AdSetDetailPage() {
           <ArrowLeft className="h-4 w-4" />
           Back to campaign
         </button>
-        <p className="text-sm font-light text-neutral-500">{error ?? "Ad set not found."}</p>
+        <p className="text-sm font-light text-neutral-500">
+          {error ?? "This ad set or ad group was not found."}
+        </p>
       </div>
     );
   }
 
   const campaignName = detail.parentName ?? "Campaign";
+  const midLevelLabel = midLevelEntityLabel(detail.provider);
+  const midLevelNoun = midLevelEntityLabel(detail.provider, { lowercase: true });
   const hasConfiguredBreakEvenRoas =
     detail.automation.profileId != null ||
     detail.automation.settingsOverride.contributionMarginPct != null ||
@@ -123,8 +135,13 @@ export function AdSetDetailPage() {
       >
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-light uppercase tracking-wider text-neutral-400">
-              Ad set · {detail.accountName}
+            <p className="flex items-center gap-2 text-xs font-light uppercase tracking-wider text-neutral-400">
+              {detail.provider === META_PROVIDER ? (
+                <MetaIcon className="h-3.5 w-3.5 shrink-0" />
+              ) : detail.provider === GOOGLE_PROVIDER ? (
+                <GoogleAdsIcon className="h-3.5 w-3.5 shrink-0" />
+              ) : null}
+              {midLevelLabel} · {detail.accountName}
             </p>
             <h1 className="mt-2 text-4xl font-black tracking-tight text-neutral-900">
               {detail.name}
@@ -139,9 +156,37 @@ export function AdSetDetailPage() {
                 }
               />
               {detail.dailyBudgetMicros != null && detail.dailyBudgetMicros > 0 ? (
-                <span>
-                  Daily budget: {formatCurrencyFromMicros(detail.dailyBudgetMicros)}
-                </span>
+                <DailyBudgetEditor
+                  entityId={detail.id}
+                  label={
+                    detail.dailyBudgetInherited
+                      ? "Campaign daily budget"
+                      : "Daily budget"
+                  }
+                  dailyBudgetMicros={detail.dailyBudgetMicros}
+                  inherited={detail.dailyBudgetInherited}
+                  provider={detail.provider}
+                  reachSaturation={
+                    isGoogleAdsProvider(detail.provider)
+                      ? null
+                      : detail.reachSaturation
+                  }
+                  recent7d={detail.recent7d}
+                  trailingMetrics={detail.metrics}
+                  learningStatus={detail.learningStatus}
+                  breakEvenRoas={breakEvenRoas}
+                  onBudgetChange={({ dailyBudgetMicros, dailyBudgetInherited }) =>
+                    setDetail((prev) =>
+                      prev
+                        ? {
+                            ...prev,
+                            dailyBudgetMicros,
+                            dailyBudgetInherited,
+                          }
+                        : prev,
+                    )
+                  }
+                />
               ) : null}
             </div>
           </div>
@@ -167,20 +212,23 @@ export function AdSetDetailPage() {
         tabs={tabs}
         value={activeTab}
         onValueChange={setActiveTab}
-        aria-label="Ad set sections"
+        aria-label={`${midLevelLabel} sections`}
         className="mb-8"
       />
 
       {activeTab === "stats" ? (
         <EntityMetricsGrid
           metrics={detail.metrics}
-          reachSaturation={detail.reachSaturation}
+          reachSaturation={
+            isGoogleAdsProvider(detail.provider) ? null : detail.reachSaturation
+          }
           dailyBudgetMicros={detail.dailyBudgetMicros}
           breakEvenRoas={breakEvenRoas}
           afterFooter={
             <EntityDailyProgressSection
               progress={detail.dailyProgress}
               breakEvenRoas={breakEvenRoas}
+              entityLabel={midLevelNoun}
               embedded
             />
           }
@@ -191,6 +239,7 @@ export function AdSetDetailPage() {
         <AdSetCreativesSection
           ads={detail.ads}
           objectiveBucket={detail.objectiveBucket}
+          entityLabel={midLevelNoun}
           hideHeader
         />
       ) : null}
@@ -198,7 +247,7 @@ export function AdSetDetailPage() {
       {detail.canAutomate && isAutomationPanel(activeTab) ? (
         <EntityAutomationSection
           entityId={detail.id}
-          entityLabel="ad set"
+          entityLabel={midLevelNoun}
           detail={detail}
           panel={activeTab}
           onAutomationUpdated={(automation) =>

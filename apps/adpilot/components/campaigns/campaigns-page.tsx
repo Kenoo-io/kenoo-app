@@ -51,6 +51,7 @@ import { useResizableColumns } from "@/components/campaigns/use-resizable-column
 import { GoogleAdsIcon } from "@/components/settings/google-ads-icon";
 import { MetaIcon } from "@/components/settings/meta-icon";
 import { GOOGLE_PROVIDER, META_PROVIDER } from "@/lib/connections";
+import { MID_LEVEL_LIST_TAB_LABEL } from "@/lib/entity-labels";
 import { SegmentToggle } from "@/components/ui/segment-toggle";
 
 const PAGE_SIZE = 25;
@@ -106,7 +107,7 @@ const ENTITY_TABS: Array<{
   icon: LucideIcon;
 }> = [
   { value: "campaign", label: "Campaigns", icon: Megaphone },
-  { value: "ad_group", label: "Ad sets", icon: Layers },
+  { value: "ad_group", label: MID_LEVEL_LIST_TAB_LABEL, icon: Layers },
   { value: "ad", label: "Ads", icon: Shapes },
 ];
 
@@ -427,7 +428,6 @@ export function CampaignsPage() {
       <div className="flex min-h-0 flex-1 flex-col px-6 pt-8 pb-6 md:px-10 md:pt-10">
         <div className="mb-6 shrink-0">
           <SegmentToggle
-            equalWidth
             aria-label="Campaign entity type"
             value={entityType}
             onChange={setEntityType}
@@ -880,6 +880,11 @@ export function CampaignsPage() {
                             : "-"
                         }
                       />
+                      {row.dailyBudgetInherited ? (
+                        <span className="mt-0.5 block text-[10px] font-light tracking-wide text-neutral-400 uppercase">
+                          Campaign
+                        </span>
+                      ) : null}
                     </td>
                     <td className="py-4 pr-4 pl-3 text-xs font-medium whitespace-nowrap text-neutral-800 tabular-nums">
                       <AnimatedMetricValue

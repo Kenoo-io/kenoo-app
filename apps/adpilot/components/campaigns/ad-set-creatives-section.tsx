@@ -28,6 +28,7 @@ type AdSetCreativesSectionProps = {
   hideHeader?: boolean;
   collapsible?: boolean;
   defaultOpen?: boolean;
+  entityLabel?: string;
 };
 
 function primaryMetricForAd(
@@ -124,6 +125,7 @@ export function AdSetCreativesSection({
   hideHeader = false,
   collapsible = true,
   defaultOpen = false,
+  entityLabel = "ad set",
 }: AdSetCreativesSectionProps) {
   const [creativePreview, setCreativePreview] = React.useState<{
     adName: string;
@@ -141,7 +143,7 @@ export function AdSetCreativesSection({
       >
         {ads.length === 0 ? (
           <p className="text-sm font-light text-neutral-500">
-            No ads synced for this ad set yet.
+            No ads synced for this {entityLabel} yet.
           </p>
         ) : (
           <div className="divide-y divide-neutral-100">

@@ -171,12 +171,14 @@ type EntityDailyProgressSectionProps = {
    * HeroStatsBar below the saturation section.
    */
   embedded?: boolean;
+  entityLabel?: string;
 };
 
 export function EntityDailyProgressSection({
   progress,
   breakEvenRoas,
   embedded = false,
+  entityLabel = "ad set",
 }: EntityDailyProgressSectionProps) {
   const hasLiveData = progress.days.some((day) => day.spendMicros > 0);
   const chartData = progress.days.map((day) => ({
@@ -238,8 +240,8 @@ export function EntityDailyProgressSection({
 
       {!hasLiveData ? (
         <p className="text-sm font-light text-neutral-400">
-          Daily metrics will appear here once this ad set has synced performance
-          data from Meta.
+          Daily metrics will appear here once this {entityLabel} has synced
+          performance data.
         </p>
       ) : (
         <>

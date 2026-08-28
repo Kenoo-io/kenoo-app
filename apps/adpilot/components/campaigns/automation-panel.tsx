@@ -41,6 +41,7 @@ import {
 } from "@/lib/agent-instructions";
 import type { EntityDetailResult } from "@/lib/entity-detail-server";
 import { formatCurrencyFromMicros } from "@/lib/format-analytics";
+import { isGoogleAdsProvider } from "@/lib/entity-labels";
 import {
   COOLDOWN_OPTIONS,
   getStopLossMetricLabel,
@@ -519,6 +520,10 @@ export function EntityAutomationSection({
                 AdPilot is off for this {entityLabel}. Turn it on with the AdPilot
                 toggle at the top of the page to let the worker adjust the daily
                 budget within the guardrails below.
+                {isGoogleAdsProvider(detail.provider) &&
+                detail.entityType === "ad_group"
+                  ? " Google Ads budgets live on the campaign, so those changes apply to the parent campaign daily budget."
+                  : ""}
               </p>
             </div>
           ) : null}
@@ -816,6 +821,10 @@ export function EntityAutomationSection({
             <p className="text-sm font-medium text-foreground">Budget bounds</p>
             <p className="mt-1 text-xs font-light text-neutral-500">
               Hard min/max daily budget (USD) the algorithm may not exceed.
+              {isGoogleAdsProvider(detail.provider) &&
+              detail.entityType === "ad_group"
+                ? " On Google Ads this bound applies to the parent campaign budget."
+                : ""}
             </p>
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
               <FloatingLabelInput
@@ -983,6 +992,8 @@ export function EntityAutomationSection({
       {panel === "preview" ? (
         <AdPilotPreviewCard
           entityId={entityId}
+          entityLabel={entityLabel}
+          provider={detail.provider}
           standalone
           onApplied={(adjustment) =>
             setAdjustments((current) => [adjustment, ...current].slice(0, 10))

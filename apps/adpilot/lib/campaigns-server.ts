@@ -38,6 +38,8 @@ export type EntityPerformanceRow = {
   websitePurchases: number | null;
   conversionValueMicros: number;
   dailyBudgetMicros: number | null;
+  /** True when the shown daily budget comes from a parent campaign (Google ad groups). */
+  dailyBudgetInherited: boolean;
   adpilotEnabled: boolean;
   automationStatus: AutomationStatus | null;
   ctr: number;
@@ -230,7 +232,13 @@ function resolveTracksWebsitePurchases(
 function statusRank(status: string | null): number {
   const normalized = (status ?? "").toLowerCase();
 
-  if (normalized === "active") return 0;
+  if (
+    normalized === "active" ||
+    normalized === "enabled" ||
+    normalized === "eligible"
+  ) {
+    return 0;
+  }
   if (normalized === "learning" || normalized === "in_process") return 1;
   if (normalized === "pending_review" || normalized === "pending") return 2;
   if (normalized === "paused") return 3;
@@ -582,6 +590,12 @@ export async function listCampaignPerformance(input: {
       adGroupToCampaignId,
     );
     const objectiveBucket = resolveObjectiveBucket(campaignObjective);
+    const dailyBudgetMicros = resolveDailyBudgetMicros(
+      entity,
+      budgetByEntityId,
+      adGroupToCampaignId,
+    );
+    const ownBudget = entity.daily_budget_micros;
 
     return {
       id: entity.id,
@@ -608,11 +622,9 @@ export async function listCampaignPerformance(input: {
       clicks: totals.clicks,
       websitePurchases: tracksWebsitePurchases ? totals.website_purchases : null,
       conversionValueMicros: totals.conversion_value_micros,
-      dailyBudgetMicros: resolveDailyBudgetMicros(
-        entity,
-        budgetByEntityId,
-        adGroupToCampaignId,
-      ),
+      dailyBudgetMicros,
+      dailyBudgetInherited:
+        (ownBudget == null || ownBudget <= 0) && dailyBudgetMicros != null,
       adpilotEnabled: automation?.enabled ?? false,
       automationStatus: automation?.status ?? null,
       ctr: totals.ctr,

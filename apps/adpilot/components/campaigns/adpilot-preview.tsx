@@ -29,6 +29,7 @@ import {
   type AdPilotTrendDirection,
 } from "@/lib/adpilot-preview";
 import { formatCurrencyFromMicros, formatRoas } from "@/lib/format-analytics";
+import { adsPlatformLabel, midLevelEntityLabel } from "@/lib/entity-labels";
 
 const LOADING_STEPS = [
   "Reading live metrics…",
@@ -100,10 +101,18 @@ function canApplyPreview(preview: AdPilotPreview): boolean {
 type PreviewResultProps = {
   entityId: string;
   preview: AdPilotPreview;
+  entityLabel?: string;
+  provider?: string | null;
   onApplied?: (adjustment: BudgetAdjustmentRow) => void;
 };
 
-function PreviewResult({ entityId, preview, onApplied }: PreviewResultProps) {
+function PreviewResult({
+  entityId,
+  preview,
+  entityLabel,
+  provider,
+  onApplied,
+}: PreviewResultProps) {
   const { decision, trend, allowedRange } = preview;
   const trendUi = trendTheme(trend.direction);
   const { Icon: TrendIcon } = trendUi;
@@ -116,6 +125,12 @@ function PreviewResult({ entityId, preview, onApplied }: PreviewResultProps) {
   const final = decision.budget.finalMicros;
   const changePct = decision.budget.changePct;
   const showApply = canApplyPreview(preview);
+  const platformName = adsPlatformLabel(provider);
+  const midLevelNoun =
+    entityLabel ??
+    (preview.entity.type === "ad_group"
+      ? midLevelEntityLabel(provider, { lowercase: true })
+      : "campaign");
 
   const handleApply = async () => {
     setApplying(true);
@@ -169,8 +184,7 @@ function PreviewResult({ entityId, preview, onApplied }: PreviewResultProps) {
             </div>
           ) : decision.action === "deactivate" ? (
             <p className="text-2xl font-semibold tracking-tight text-rose-600">
-              Would pause this{" "}
-              {preview.entity.type === "ad_group" ? "ad set" : "campaign"}
+              Would pause this {midLevelNoun}
             </p>
           ) : (
             <p className="text-2xl font-semibold tracking-tight text-neutral-900">
@@ -200,14 +214,14 @@ function PreviewResult({ entityId, preview, onApplied }: PreviewResultProps) {
               ) : applied ? (
                 <>
                   <Check className="h-4 w-4" />
-                  Applied to Meta
+                  Applied to {platformName}
                 </>
               ) : (
                 "Apply changes now"
               )}
             </Button>
             <p className="max-w-[220px] text-xs font-light text-neutral-500 sm:text-right">
-              Updates Meta immediately and logs this in budget history.
+              Updates {platformName} immediately and logs this in budget history.
             </p>
           </div>
         ) : null}
@@ -497,6 +511,8 @@ function AdPilotGenerateButton({
 
 type AdPilotPreviewCardProps = {
   entityId: string;
+  entityLabel?: string;
+  provider?: string | null;
   onApplied?: (adjustment: BudgetAdjustmentRow) => void;
   /** Tab layout: always show content area with generate control up top. */
   standalone?: boolean;
@@ -504,6 +520,8 @@ type AdPilotPreviewCardProps = {
 
 export function AdPilotPreviewCard({
   entityId,
+  entityLabel,
+  provider,
   onApplied,
   standalone = false,
 }: AdPilotPreviewCardProps) {
@@ -645,6 +663,8 @@ export function AdPilotPreviewCard({
                 <PreviewResult
                   entityId={entityId}
                   preview={preview}
+                  entityLabel={entityLabel}
+                  provider={provider}
                   onApplied={onApplied}
                 />
               </div>
@@ -682,6 +702,8 @@ export function AdPilotPreviewCard({
         <PreviewResult
           entityId={entityId}
           preview={preview}
+          entityLabel={entityLabel}
+          provider={provider}
           onApplied={onApplied}
         />
       ) : null}

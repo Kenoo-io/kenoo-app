@@ -380,6 +380,8 @@ export function detailSelectableClass(isSelected: boolean, extra?: string) {
 
 export function formatStatus(status: string | null) {
   if (!status) return "-";
+  const normalized = status.toLowerCase();
+  if (normalized === "enabled" || normalized === "eligible") return "Active";
   return status
     .split("_")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
@@ -388,7 +390,12 @@ export function formatStatus(status: string | null) {
 
 export function isActiveStatus(status: string | null) {
   const normalized = (status ?? "").toLowerCase();
-  return normalized === "active" || normalized === "learning";
+  return (
+    normalized === "active" ||
+    normalized === "enabled" ||
+    normalized === "eligible" ||
+    normalized === "learning"
+  );
 }
 
 const DELIVERY_STATUS_OPTIONS = [
@@ -433,7 +440,7 @@ export function EntityStatusBadge({
     if (!entityId) return;
 
     const nextIsActive = next.value === "ACTIVE";
-    if (nextIsActive === active && (status === "active" || status === "paused")) {
+    if (nextIsActive === active && (status === "active" || status === "enabled" || status === "paused")) {
       setOpen(false);
       return;
     }

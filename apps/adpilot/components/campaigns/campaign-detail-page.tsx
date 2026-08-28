@@ -15,6 +15,7 @@ import {
 import { cn } from "@walls/utils";
 
 import { EntityAutomationSection, ADPILOT_MENU_ITEMS, isAutomationPanel } from "@/components/campaigns/automation-panel";
+import { DailyBudgetEditor } from "@/components/campaigns/daily-budget-editor";
 import {
   AdPilotEnableToggle,
   AdPilotRowBadge,
@@ -37,6 +38,10 @@ import {
 } from "@/lib/format-analytics";
 import { formatObjectiveLabel } from "@/lib/meta-objectives";
 import { getBreakEvenRoas } from "@/lib/spend-automation-settings";
+import { midLevelEntityLabel, isGoogleAdsProvider } from "@/lib/entity-labels";
+import { GoogleAdsIcon } from "@/components/settings/google-ads-icon";
+import { MetaIcon } from "@/components/settings/meta-icon";
+import { GOOGLE_PROVIDER, META_PROVIDER } from "@/lib/connections";
 
 const AD_SET_COLUMNS = [
   { id: "name", label: "Name" },
@@ -183,9 +188,26 @@ export function CampaignDetailPage() {
     );
   }
 
+  const hasConfiguredBreakEvenRoas =
+    detail.automation.profileId != null ||
+    detail.automation.settingsOverride.contributionMarginPct != null ||
+    detail.automation.settingsOverride.roasFloor != null;
+  const breakEvenRoas =
+    detail.metrics.websitePurchases != null && hasConfiguredBreakEvenRoas
+      ? getBreakEvenRoas(detail.automation.effectiveSettings)
+      : null;
+  const midLevelPlural = midLevelEntityLabel(detail.provider, { plural: true });
+  const midLevelSingularLower = midLevelEntityLabel(detail.provider, {
+    lowercase: true,
+  });
+  const adSetCount = detail.adSets.length;
   const tabs = [
     { id: "stats" as const, label: "Stats" },
-    { id: "adsets" as const, label: "Ad sets" },
+    {
+      id: "adsets" as const,
+      label:
+        adSetCount > 0 ? `(${adSetCount}) ${midLevelPlural}` : midLevelPlural,
+    },
     ...(detail.canAutomate
       ? [
           {
@@ -197,14 +219,6 @@ export function CampaignDetailPage() {
         ]
       : []),
   ];
-  const hasConfiguredBreakEvenRoas =
-    detail.automation.profileId != null ||
-    detail.automation.settingsOverride.contributionMarginPct != null ||
-    detail.automation.settingsOverride.roasFloor != null;
-  const breakEvenRoas =
-    detail.metrics.websitePurchases != null && hasConfiguredBreakEvenRoas
-      ? getBreakEvenRoas(detail.automation.effectiveSettings)
-      : null;
 
   return (
     <div className="mx-auto w-full max-w-6xl px-6 pt-4 pb-10 md:px-10 md:pt-5">
@@ -222,7 +236,12 @@ export function CampaignDetailPage() {
       >
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-light uppercase tracking-wider text-neutral-400">
+            <p className="flex items-center gap-2 text-xs font-light uppercase tracking-wider text-neutral-400">
+              {detail.provider === META_PROVIDER ? (
+                <MetaIcon className="h-3.5 w-3.5 shrink-0" />
+              ) : detail.provider === GOOGLE_PROVIDER ? (
+                <GoogleAdsIcon className="h-3.5 w-3.5 shrink-0" />
+              ) : null}
               Campaign · {detail.accountName}
             </p>
             <h1 className="mt-2 text-4xl font-black tracking-tight text-neutral-900">
@@ -241,11 +260,36 @@ export function CampaignDetailPage() {
                 }
               />
               {detail.dailyBudgetMicros != null && detail.dailyBudgetMicros > 0 ? (
-                <span>
-                  Daily budget: {formatCurrencyFromMicros(detail.dailyBudgetMicros)}
-                </span>
+                <DailyBudgetEditor
+                  entityId={detail.id}
+                  dailyBudgetMicros={detail.dailyBudgetMicros}
+                  provider={detail.provider}
+                  reachSaturation={
+                    isGoogleAdsProvider(detail.provider)
+                      ? null
+                      : detail.reachSaturation
+                  }
+                  recent7d={detail.recent7d}
+                  trailingMetrics={detail.metrics}
+                  learningStatus={detail.learningStatus}
+                  breakEvenRoas={breakEvenRoas}
+                  onBudgetChange={({ dailyBudgetMicros }) =>
+                    setDetail((prev) =>
+                      prev
+                        ? {
+                            ...prev,
+                            dailyBudgetMicros,
+                            adSets: prev.adSets.map((row) =>
+                              row.dailyBudgetInherited
+                                ? { ...row, dailyBudgetMicros }
+                                : row,
+                            ),
+                          }
+                        : prev,
+                    )
+                  }
+                />
               ) : null}
-              <span>{detail.adSets.length} ad sets</span>
             </div>
           </div>
 
@@ -277,7 +321,9 @@ export function CampaignDetailPage() {
       {activeTab === "stats" ? (
         <EntityMetricsGrid
           metrics={detail.metrics}
-          reachSaturation={detail.reachSaturation}
+          reachSaturation={
+            isGoogleAdsProvider(detail.provider) ? null : detail.reachSaturation
+          }
           dailyBudgetMicros={detail.dailyBudgetMicros}
           breakEvenRoas={breakEvenRoas}
         />
@@ -285,14 +331,18 @@ export function CampaignDetailPage() {
 
       {activeTab === "adsets" ? (
         <DetailSection
-          title="Ad sets"
-          description="Performance for the last 30 days. Open an ad set to configure AdPilot for that specific budget."
+          title={midLevelPlural}
+          description={
+            detail.provider === GOOGLE_PROVIDER
+              ? "Performance for the last 30 days. Google Ads daily budget lives on the campaign; AdPilot on an ad group updates that campaign budget."
+              : "Performance for the last 30 days. Open an ad set to configure AdPilot for that specific budget."
+          }
           hideHeader
           collapsible={false}
         >
           {detail.adSets.length === 0 ? (
             <p className="py-8 text-center text-sm font-light text-neutral-400">
-              No ad sets synced for this campaign yet.
+              No {midLevelSingularLower}s synced for this campaign yet.
             </p>
           ) : (
             <div className="overflow-x-auto scrollbar-hide">
@@ -390,6 +440,11 @@ export function CampaignDetailPage() {
                               : "-"
                           }
                         />
+                        {adSet.dailyBudgetInherited ? (
+                          <span className="mt-0.5 block text-[10px] font-light tracking-wide text-neutral-400 uppercase">
+                            Campaign
+                          </span>
+                        ) : null}
                       </td>
                       <td className="py-4 pr-4 text-xs font-medium whitespace-nowrap text-neutral-800 tabular-nums">
                         <AnimatedMetricValue

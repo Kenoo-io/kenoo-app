@@ -12,7 +12,7 @@ const wallieMobileWebUrl = process.env.NEXT_PUBLIC_WALLIE_MOBILE_WEB_URL ?? "";
 
 module.exports = {
   expo: {
-    name: "Wallie",
+    name: "Kenoo",
     slug: "wallie-mobile",
     owner: "walls-entertainment-group-inc",
     version: "1.0.0",
@@ -39,11 +39,11 @@ module.exports = {
         NSLocalNetworkUsageDescription:
           "Expo Dev Launcher uses the local network to discover and connect to development servers running on your computer.",
         NSMicrophoneUsageDescription:
-          "Wallie uses the microphone so you can talk to your AI assistant.",
+          "Kenoo uses the microphone so you can talk to your AI assistant.",
         NSHealthShareUsageDescription:
-          "Wallie reads your Apple Health data so it can track steps, workouts, sleep, heart rate, and other metrics in your Kenoo health profile.",
+          "Kenoo reads your Apple Health data so it can track steps, workouts, sleep, heart rate, and other metrics in your Kenoo health profile.",
         NSHealthUpdateUsageDescription:
-          "Wallie does not write data to Apple Health.",
+          "Kenoo does not write data to Apple Health.",
       },
       entitlements: {
         "com.apple.developer.healthkit": true,
@@ -67,9 +67,9 @@ module.exports = {
         "@kingstinct/react-native-healthkit",
         {
           NSHealthShareUsageDescription:
-            "Wallie reads your Apple Health data so it can track steps, workouts, sleep, heart rate, and other metrics in your Kenoo health profile.",
+            "Kenoo reads your Apple Health data so it can track steps, workouts, sleep, heart rate, and other metrics in your Kenoo health profile.",
           NSHealthUpdateUsageDescription:
-            "Wallie does not write data to Apple Health.",
+            "Kenoo does not write data to Apple Health.",
           background: true,
         },
       ],
