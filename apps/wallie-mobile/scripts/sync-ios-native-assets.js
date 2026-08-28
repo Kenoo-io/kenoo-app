@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 /**
- * Copies assets/icon.png into the generated ios/ Images.xcassets.
+ * Copies app icons + splash into the generated ios/ Images.xcassets.
  * expo run:ios does NOT refresh these when only the PNG changes — this script does.
  */
 const fs = require("fs");
 const path = require("path");
+
+const { syncIosAppIcons } = require("../plugins/sync-ios-app-icons");
 
 const appRoot = path.resolve(__dirname, "..");
 const iconSource = path.join(appRoot, "assets", "icon.png");
@@ -51,11 +53,13 @@ function main() {
   }
 
   const xcassets = path.join(projectDir, "Images.xcassets");
-
-  copyFile(
-    iconSource,
-    path.join(xcassets, "AppIcon.appiconset", "App-Icon-1024x1024@1x.png"),
+  const { copied } = syncIosAppIcons(
+    appRoot,
+    path.join(xcassets, "AppIcon.appiconset"),
   );
+  for (const name of copied) {
+    console.log(`[sync-ios-native-assets] AppIcon ← assets/${name}`);
+  }
 
   const splashDir = path.join(xcassets, "SplashScreenLogo.imageset");
   for (const name of ["image.png", "image@2x.png", "image@3x.png"]) {

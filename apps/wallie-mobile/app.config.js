@@ -52,7 +52,7 @@ module.exports = {
     },
     android: {
       adaptiveIcon: {
-        foregroundImage: "./assets/icon.png",
+        foregroundImage: "./assets/adaptive-icon.png",
         backgroundColor: "#e2f85c",
       },
       package: "com.wallsentertainment.wallie",

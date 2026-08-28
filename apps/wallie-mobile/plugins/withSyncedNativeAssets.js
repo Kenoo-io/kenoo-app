@@ -2,7 +2,9 @@ const fs = require("fs");
 const path = require("path");
 const { withDangerousMod } = require("@expo/config-plugins");
 
-/** Keep ios AppIcon + splash in sync with assets/icon.png on every prebuild. */
+const { syncIosAppIcons } = require("./sync-ios-app-icons");
+
+/** Keep ios AppIcon (light/dark/tinted) + splash in sync with assets on every prebuild. */
 function withSyncedNativeAssets(config) {
   return withDangerousMod(config, [
     "ios",
@@ -18,14 +20,10 @@ function withSyncedNativeAssets(config) {
 
       const xcassets = path.join(platformRoot, projectName, "Images.xcassets");
 
-      const appIconTarget = path.join(
-        xcassets,
-        "AppIcon.appiconset",
-        "App-Icon-1024x1024@1x.png",
+      syncIosAppIcons(
+        projectRoot,
+        path.join(xcassets, "AppIcon.appiconset"),
       );
-      if (fs.existsSync(path.dirname(appIconTarget))) {
-        fs.copyFileSync(iconSource, appIconTarget);
-      }
 
       const splashDir = path.join(xcassets, "SplashScreenLogo.imageset");
       if (fs.existsSync(splashDir)) {
