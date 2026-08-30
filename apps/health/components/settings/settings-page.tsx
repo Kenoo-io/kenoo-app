@@ -5,8 +5,9 @@ import { Check, Loader2, RefreshCw, Save } from "lucide-react";
 
 import { Button } from "@walls/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@walls/ui/card";
-import { Input } from "@walls/ui/input";
 
+import { FloatingLabelInput } from "@/components/ui/floating-label-input";
+import { FloatingLabelSelect } from "@/components/ui/floating-label-select";
 import type { HealthProfile } from "@/lib/profile-server";
 import type { SafeUserConnection } from "@/lib/connections";
 import { formatCalories } from "@/lib/format-health";
@@ -218,98 +219,90 @@ export function SettingsPage() {
           <CardContent>
             <form onSubmit={handleSave} className="space-y-6">
               <div className="grid gap-4 md:grid-cols-2">
-                <Field label="Height (cm)">
-                  <Input
-                    type="number"
-                    value={heightCm}
-                    onChange={(e) => setHeightCm(e.target.value)}
-                    placeholder="175"
-                  />
-                </Field>
-                <Field label="Weight (kg)">
-                  <Input
-                    type="number"
-                    value={weightKg}
-                    onChange={(e) => setWeightKg(e.target.value)}
-                    placeholder="78"
-                  />
-                </Field>
-                <Field label="Sex">
-                  <select
-                    value={sex}
-                    onChange={(e) => setSex(e.target.value)}
-                    className="h-10 w-full rounded-md border border-neutral-200 bg-white px-3 text-sm"
-                  >
-                    <option value="male">Male</option>
-                    <option value="female">Female</option>
-                    <option value="other">Other</option>
-                  </select>
-                </Field>
-                <Field label="Activity level">
-                  <select
-                    value={activityLevel}
-                    onChange={(e) => setActivityLevel(e.target.value)}
-                    className="h-10 w-full rounded-md border border-neutral-200 bg-white px-3 text-sm"
-                  >
-                    <option value="sedentary">Sedentary</option>
-                    <option value="light">Light</option>
-                    <option value="moderate">Moderate</option>
-                    <option value="active">Active</option>
-                    <option value="very_active">Very active</option>
-                  </select>
-                </Field>
-                <Field label="Goal">
-                  <select
-                    value={goalType}
-                    onChange={(e) => setGoalType(e.target.value)}
-                    className="h-10 w-full rounded-md border border-neutral-200 bg-white px-3 text-sm"
-                  >
-                    <option value="lose_weight">Lose weight</option>
-                    <option value="maintain">Maintain</option>
-                    <option value="gain_muscle">Gain muscle</option>
-                    <option value="recomposition">Recomposition</option>
-                  </select>
-                </Field>
+                <FloatingLabelInput
+                  type="number"
+                  label="Height (cm)"
+                  value={heightCm}
+                  onChange={(e) => setHeightCm(e.target.value)}
+                />
+                <FloatingLabelInput
+                  type="number"
+                  label="Weight (kg)"
+                  value={weightKg}
+                  onChange={(e) => setWeightKg(e.target.value)}
+                />
+                <FloatingLabelSelect
+                  label="Sex"
+                  value={sex}
+                  onChange={setSex}
+                  options={[
+                    { value: "male", label: "Male" },
+                    { value: "female", label: "Female" },
+                    { value: "other", label: "Other" },
+                  ]}
+                />
+                <FloatingLabelSelect
+                  label="Activity level"
+                  value={activityLevel}
+                  onChange={setActivityLevel}
+                  options={[
+                    { value: "sedentary", label: "Sedentary" },
+                    { value: "light", label: "Light" },
+                    { value: "moderate", label: "Moderate" },
+                    { value: "active", label: "Active" },
+                    { value: "very_active", label: "Very active" },
+                  ]}
+                />
+                <FloatingLabelSelect
+                  label="Goal"
+                  value={goalType}
+                  onChange={setGoalType}
+                  options={[
+                    { value: "lose_weight", label: "Lose weight" },
+                    { value: "maintain", label: "Maintain" },
+                    { value: "gain_muscle", label: "Gain muscle" },
+                    { value: "recomposition", label: "Recomposition" },
+                  ]}
+                />
               </div>
 
-              <Field label="Daily calorie target">
-                <Input
+              <div>
+                <FloatingLabelInput
                   type="number"
+                  label="Daily calorie target"
                   value={calorieTarget}
                   onChange={(e) => setCalorieTarget(e.target.value)}
-                  placeholder="Leave blank to use your TDEE"
                 />
-              </Field>
+                <p className="mt-1.5 px-1 text-xs font-light text-neutral-400">
+                  Leave blank to use your TDEE.
+                </p>
+              </div>
 
               <div className="grid gap-4 md:grid-cols-2">
-                <Field label="Protein target (g)">
-                  <Input
-                    type="number"
-                    value={proteinTarget}
-                    onChange={(e) => setProteinTarget(e.target.value)}
-                  />
-                </Field>
-                <Field label="Carbs target (g)">
-                  <Input
-                    type="number"
-                    value={carbsTarget}
-                    onChange={(e) => setCarbsTarget(e.target.value)}
-                  />
-                </Field>
-                <Field label="Fat target (g)">
-                  <Input
-                    type="number"
-                    value={fatTarget}
-                    onChange={(e) => setFatTarget(e.target.value)}
-                  />
-                </Field>
-                <Field label="Sugar limit (g)">
-                  <Input
-                    type="number"
-                    value={sugarLimit}
-                    onChange={(e) => setSugarLimit(e.target.value)}
-                  />
-                </Field>
+                <FloatingLabelInput
+                  type="number"
+                  label="Protein target (g)"
+                  value={proteinTarget}
+                  onChange={(e) => setProteinTarget(e.target.value)}
+                />
+                <FloatingLabelInput
+                  type="number"
+                  label="Carbs target (g)"
+                  value={carbsTarget}
+                  onChange={(e) => setCarbsTarget(e.target.value)}
+                />
+                <FloatingLabelInput
+                  type="number"
+                  label="Fat target (g)"
+                  value={fatTarget}
+                  onChange={(e) => setFatTarget(e.target.value)}
+                />
+                <FloatingLabelInput
+                  type="number"
+                  label="Sugar limit (g)"
+                  value={sugarLimit}
+                  onChange={(e) => setSugarLimit(e.target.value)}
+                />
               </div>
 
               {profile?.bmr_calories || profile?.tdee_calories || profile?.calorie_target_daily ? (
@@ -428,17 +421,3 @@ export function SettingsPage() {
   );
 }
 
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="space-y-2">
-      <label className="text-sm font-medium text-neutral-700">{label}</label>
-      {children}
-    </div>
-  );
-}

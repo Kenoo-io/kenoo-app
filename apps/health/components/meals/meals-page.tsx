@@ -5,8 +5,9 @@ import { Loader2, Plus, Trash2 } from "lucide-react";
 
 import { Button } from "@walls/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@walls/ui/card";
-import { Input } from "@walls/ui/input";
 
+import { FloatingLabelInput } from "@/components/ui/floating-label-input";
+import { FloatingLabelSelect } from "@/components/ui/floating-label-select";
 import type { MealWithItems } from "@/lib/meals-server";
 import { formatCalories, mealTypeLabel } from "@/lib/format-health";
 import type { MealType } from "@/lib/meals-server";
@@ -114,85 +115,47 @@ export function MealsPage() {
           <CardContent>
             <form onSubmit={handleLogMeal} className="space-y-4">
               <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <label htmlFor="meal-type" className="text-sm font-medium text-neutral-700">
-                    Meal
-                  </label>
-                  <select
-                    id="meal-type"
-                    value={mealType}
-                    onChange={(e) => setMealType(e.target.value as MealType)}
-                    className="h-10 w-full rounded-md border border-neutral-200 bg-white px-3 text-sm"
-                  >
-                    {MEAL_TYPES.map((type) => (
-                      <option key={type} value={type}>
-                        {mealTypeLabel(type)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <label htmlFor="item-name" className="text-sm font-medium text-neutral-700">
-                    Food / meal
-                  </label>
-                  <Input
-                    id="item-name"
-                    value={itemName}
-                    onChange={(e) => setItemName(e.target.value)}
-                    placeholder="Chicken salad bowl"
-                  />
-                </div>
+                <FloatingLabelSelect
+                  label="Meal"
+                  value={mealType}
+                  onChange={(value) => setMealType(value as MealType)}
+                  options={MEAL_TYPES.map((type) => ({
+                    value: type,
+                    label: mealTypeLabel(type),
+                  }))}
+                />
+                <FloatingLabelInput
+                  label="Food / meal"
+                  value={itemName}
+                  onChange={(e) => setItemName(e.target.value)}
+                />
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
-                <div className="space-y-2">
-                  <label htmlFor="calories" className="text-sm font-medium text-neutral-700">
-                    Calories
-                  </label>
-                  <Input
-                    id="calories"
-                    type="number"
-                    value={calories}
-                    onChange={(e) => setCalories(e.target.value)}
-                    placeholder="650"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label htmlFor="protein" className="text-sm font-medium text-neutral-700">
-                    Protein (g)
-                  </label>
-                  <Input
-                    id="protein"
-                    type="number"
-                    value={protein}
-                    onChange={(e) => setProtein(e.target.value)}
-                    placeholder="40"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label htmlFor="carbs" className="text-sm font-medium text-neutral-700">
-                    Carbs (g)
-                  </label>
-                  <Input
-                    id="carbs"
-                    type="number"
-                    value={carbs}
-                    onChange={(e) => setCarbs(e.target.value)}
-                    placeholder="55"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label htmlFor="fat" className="text-sm font-medium text-neutral-700">
-                    Fat (g)
-                  </label>
-                  <Input
-                    id="fat"
-                    type="number"
-                    value={fat}
-                    onChange={(e) => setFat(e.target.value)}
-                    placeholder="22"
-                  />
-                </div>
+                <FloatingLabelInput
+                  type="number"
+                  label="Calories"
+                  value={calories}
+                  onChange={(e) => setCalories(e.target.value)}
+                />
+                <FloatingLabelInput
+                  type="number"
+                  label="Protein (g)"
+                  value={protein}
+                  onChange={(e) => setProtein(e.target.value)}
+                />
+                <FloatingLabelInput
+                  type="number"
+                  label="Carbs (g)"
+                  value={carbs}
+                  onChange={(e) => setCarbs(e.target.value)}
+                />
+                <FloatingLabelInput
+                  type="number"
+                  label="Fat (g)"
+                  value={fat}
+                  onChange={(e) => setFat(e.target.value)}
+                />
               </div>
 
               <Button

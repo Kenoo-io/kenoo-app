@@ -6,6 +6,7 @@ import { StatusBar } from "expo-status-bar";
 import { StyleSheet } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
+import { AppleHealthProvider } from "@/context/AppleHealthContext";
 import { AuthProvider } from "@/context/AuthContext";
 import { ThemeProvider, useTheme } from "@/context/ThemeContext";
 
@@ -31,9 +32,11 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.root}>
       <AuthProvider>
-        <ThemeProvider>
-          <RootNavigation />
-        </ThemeProvider>
+        <AppleHealthProvider>
+          <ThemeProvider>
+            <RootNavigation />
+          </ThemeProvider>
+        </AppleHealthProvider>
       </AuthProvider>
     </GestureHandlerRootView>
   );
