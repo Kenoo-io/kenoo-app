@@ -18,43 +18,25 @@ import type {
   AdpilotAlertType,
   MemberAlertSubscription,
 } from "@/lib/alert-subscriptions-server";
-import {
-  KENOO_PRIVACY_URL,
-  KENOO_SMS_DISCLOSURE,
-  KENOO_TERMS_URL,
-} from "@walls/utils";
 
 type ChannelState = {
   notifyEmail: boolean;
-  notifySms: boolean;
 };
 
 function subscriptionKey(userId: string, alertKey: string) {
   return `${userId}::${alertKey}`;
 }
 
-function channelLabel(state: ChannelState, hasPhone: boolean) {
-  const parts: string[] = [];
-  if (state.notifyEmail) parts.push("Email");
-  if (state.notifySms && hasPhone) parts.push("Text");
-  if (parts.length === 0) return "None";
-  return parts.join(" · ");
-}
-
 function MemberChannelSelect({
-  member,
   state,
   saving,
   onChange,
 }: {
-  member: AccountMember;
   state: ChannelState;
   saving: boolean;
   onChange: (patch: Partial<ChannelState>) => void;
 }) {
   const [open, setOpen] = React.useState(false);
-  const hasPhone = Boolean(member.phoneNumber?.trim());
-  const canUseSms = member.hasSmsConsent;
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
@@ -70,7 +52,7 @@ function MemberChannelSelect({
           )}
         >
           <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
-            {saving ? "Saving…" : channelLabel(state, canUseSms)}
+            {saving ? "Saving…" : state.notifyEmail ? "Email" : "None"}
           </span>
           <ChevronDown
             className={cn(
@@ -113,44 +95,6 @@ function MemberChannelSelect({
             ) : null}
           </div>
         </DropdownMenuItem>
-        <DropdownMenuItem
-          disabled={!canUseSms}
-          onSelect={(event) => {
-            event.preventDefault();
-            if (!canUseSms) return;
-            onChange({ notifySms: !state.notifySms });
-          }}
-          className={cn(
-            "cursor-pointer rounded-xl px-3 py-2 focus:bg-transparent",
-            !canUseSms && "cursor-not-allowed opacity-50",
-            state.notifySms && canUseSms ? "bg-neutral-100" : "hover:bg-neutral-50",
-          )}
-        >
-          <div className="flex w-full items-center gap-2">
-            <span className="min-w-0 flex-1">
-              <span
-                className={cn(
-                  "block text-sm text-foreground",
-                  state.notifySms && canUseSms ? "font-semibold" : "font-medium",
-                )}
-              >
-                Text
-              </span>
-              {!hasPhone ? (
-                <span className="mt-0.5 block text-xs text-neutral-400">
-                  No phone on file
-                </span>
-              ) : !canUseSms ? (
-                <span className="mt-0.5 block text-xs text-neutral-400">
-                  Not opted in to SMS
-                </span>
-              ) : null}
-            </span>
-            {state.notifySms && canUseSms ? (
-              <Check className="h-4 w-4 shrink-0 text-[var(--kenoo-sky)]" strokeWidth={2.75} />
-            ) : null}
-          </div>
-        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -189,18 +133,14 @@ export function AlertsPage() {
         for (const type of nextTypes) {
           nextChannels[subscriptionKey(member.userId, type.key)] = {
             notifyEmail: false,
-            notifySms: false,
           };
         }
       }
 
       for (const sub of payload.subscriptions ?? []) {
         if (!sub.enabled) continue;
-        const member = nextMembers.find((row) => row.userId === sub.userId);
         nextChannels[subscriptionKey(sub.userId, sub.alertKey)] = {
           notifyEmail: sub.notifyEmail,
-          // Never show Text as on unless the member still has active SMS consent.
-          notifySms: Boolean(sub.notifySms && member?.hasSmsConsent),
         };
       }
 
@@ -224,10 +164,9 @@ export function AlertsPage() {
     patch: Partial<ChannelState>,
   ) => {
     const key = subscriptionKey(member.userId, alertKey);
-    const current = channels[key] ?? { notifyEmail: false, notifySms: false };
+    const current = channels[key] ?? { notifyEmail: false };
     const next: ChannelState = {
       notifyEmail: patch.notifyEmail ?? current.notifyEmail,
-      notifySms: patch.notifySms ?? current.notifySms,
     };
 
     setChannels((prev) => ({ ...prev, [key]: next }));
@@ -242,7 +181,6 @@ export function AlertsPage() {
           userId: member.userId,
           alertKey,
           notifyEmail: next.notifyEmail,
-          notifySms: next.notifySms,
         }),
       });
 
@@ -278,43 +216,8 @@ export function AlertsPage() {
               Alerts
             </h1>
             <p className="mt-2 max-w-xl text-sm font-light leading-6 text-neutral-500">
-              Choose which organization members receive AdPilot alerts by email or
-              text when automation events fire. Text requires each member to opt
-              in to SMS in{" "}
-              <a
-                href={
-                  process.env.NEXT_PUBLIC_SETTINGS_URL
-                    ? `${process.env.NEXT_PUBLIC_SETTINGS_URL.replace(/\/$/, "")}/`
-                    : "https://settings.kenoo.io/"
-                }
-                className="underline underline-offset-2 hover:text-neutral-800"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Kenoo Settings
-              </a>
-              .
-            </p>
-            <p className="mt-3 max-w-xl text-xs font-light leading-5 text-neutral-500">
-              {KENOO_SMS_DISCLOSURE}{" "}
-              <a
-                href={KENOO_TERMS_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline underline-offset-2 hover:text-neutral-800"
-              >
-                Terms of Service
-              </a>
-              {" · "}
-              <a
-                href={KENOO_PRIVACY_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline underline-offset-2 hover:text-neutral-800"
-              >
-                Privacy Policy
-              </a>
-              .
+              Choose which organization members receive AdPilot alerts by email
+              when automation events fire.
             </p>
           </header>
         </div>
@@ -362,12 +265,7 @@ export function AlertsPage() {
               <div className="space-y-2">
                 {members.map((member) => {
                   const key = subscriptionKey(member.userId, alertType.key);
-                  const state = channels[key] ?? {
-                    notifyEmail: false,
-                    notifySms: false,
-                  };
-                  const hasPhone = Boolean(member.phoneNumber?.trim());
-                  const canUseSms = member.hasSmsConsent;
+                  const state = channels[key] ?? { notifyEmail: false };
 
                   return (
                     <div
@@ -384,13 +282,10 @@ export function AlertsPage() {
                         <p className="mt-0.5 truncate text-xs font-light text-neutral-500">
                           {member.email}
                           {member.role ? ` · ${member.role}` : ""}
-                          {hasPhone ? ` · ${member.phoneNumber}` : ""}
-                          {hasPhone && !canUseSms ? " · SMS off" : ""}
                         </p>
                       </div>
 
                       <MemberChannelSelect
-                        member={member}
                         state={state}
                         saving={savingKey === key}
                         onChange={(patch) =>

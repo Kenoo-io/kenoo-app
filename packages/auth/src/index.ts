@@ -26,6 +26,9 @@ export {
 export {
   consoleAppSlug,
   isConsoleAppSlug,
+  isLauncherHiddenAppSlug,
+  isPlatformAppSlug,
+  platformAppSlug,
   userIsConsoleOperator,
 } from "./console-operator";
 export {

@@ -1,0 +1,13 @@
+services:
+  people-enrichment:
+    build:
+      context: ../..
+      dockerfile: systems/infra/Dockerfile
+    env_file:
+      - path: ../../.env.local
+        required: false
+      - path: ../../.env
+        required: false
+    environment:
+      POLL_INTERVAL_SECONDS: "10"
+    restart: unless-stopped

@@ -3,6 +3,29 @@ import { formatUsdFromCents } from "@/lib/money";
 
 import type { CatalogProduct } from "./product-catalog";
 
+function docsExample(apiBase: string, slug: string): string {
+  if (slug === "web-search") {
+    return `curl -X POST ${apiBase}/web-search \\
+  -H "Authorization: Bearer knp_live_YOUR_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"query":"kenoo platform"}'`;
+  }
+
+  if (slug === "people-enrichment") {
+    return `curl -X POST ${apiBase}/people-enrichment \\
+  -H "Authorization: Bearer knp_live_YOUR_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"name":"Jane Doe","email":"jane@acme.com","location":{"city":"Austin","state":"TX"}}'
+
+# Poll until status is completed or failed (research can take several minutes)
+curl ${apiBase}/people-enrichment/jobs/JOB_ID \\
+  -H "Authorization: Bearer knp_live_YOUR_KEY"`;
+  }
+
+  return `curl -X GET ${apiBase}/${slug} \\
+  -H "Authorization: Bearer knp_live_YOUR_KEY"`;
+}
+
 export function DocsContent({
   products,
   slug,
@@ -44,16 +67,12 @@ export function DocsContent({
           <p className="mt-3 text-sm text-neutral-600">
             {formatUsdFromCents(selected.unit_amount_cents)} per request
             {selected.is_live ? "" : " · not live yet"}
+            {selected.slug === "people-enrichment"
+              ? " · billed when the job is accepted, even if research later fails"
+              : ""}
           </p>
-      <pre className="mt-4 overflow-x-auto rounded-xl bg-neutral-950 p-4 text-xs leading-6 text-neutral-100">
-{`curl -X ${selected.slug === "web-search" ? "POST" : "GET"} ${apiBase}/${selected.slug} \\
-  -H "Authorization: Bearer knp_live_YOUR_KEY"${
-    selected.slug === "web-search"
-      ? ` \\
-  -H "Content-Type: application/json" \\
-  -d '{"query":"kenoo platform"}'`
-      : ""
-  }`}
+          <pre className="mt-4 overflow-x-auto rounded-xl bg-neutral-950 p-4 text-xs leading-6 text-neutral-100">
+            {docsExample(apiBase, selected.slug)}
           </pre>
         </section>
       ) : (

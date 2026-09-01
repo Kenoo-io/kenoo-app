@@ -22,6 +22,7 @@ import { COMMON_TIMEZONES, TimezoneGroup } from "@/types/timezone.types";
 import { SquareImageCrop } from "@/components/ui/square-image-crop";
 import { FloatingLabelInput } from "@/components/ui/floating-label-input";
 import { getSupabaseClient } from "@/lib/auth";
+import { KENOO_SMS_CONSENT_VERSION } from "@walls/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { ProfileProgressIndicator } from "@/components/settings/talentSettings/profile-progress-indicator";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,8 +30,6 @@ import {
   UserSchedulesSection,
   type UserSchedulesHandle,
 } from "@/components/settings/user-schedules-section";
-import { SmsNotificationsSection } from "@/components/settings/sms-notifications-section";
-import { KENOO_SMS_CONSENT_VERSION } from "@walls/utils";
 
 const fieldClass =
   "border-0 border-b border-neutral-200 rounded-none px-0 py-2 font-light focus:outline-none focus-visible:outline-none focus-visible:ring-0 focus:ring-0 focus:border-b-[var(--kenoo-sky)] bg-transparent w-full placeholder:text-neutral-300";
@@ -328,12 +327,7 @@ const AgentSettingsPage = () => {
 
       setExistingPhoneNumber(phoneNumber);
 
-      wallsToast.success(
-        "Success",
-        smsWasEnabled
-          ? "Phone updated. SMS was turned off — re-enable SMS to consent for the new number."
-          : "Phone number updated successfully",
-      );
+      wallsToast.success("Success", "Phone number updated successfully");
 
       return true;
     } catch (error) {
@@ -748,12 +742,6 @@ const AgentSettingsPage = () => {
                   />
                 </div>
               </div>
-
-              <SmsNotificationsSection
-                userId={userId}
-                phoneNumber={phoneNumber}
-                existingPhoneNumber={existingPhoneNumber}
-              />
 
               {/* Timezone & Schedules Divider */}
               <div className="flex items-center mb-8 mt-8">
