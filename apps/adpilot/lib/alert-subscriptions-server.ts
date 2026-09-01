@@ -3,8 +3,6 @@ import { createClient } from "@walls/supabase/server";
 import type { AdDataScope } from "@/lib/ad-scope";
 import { ADPILOT_APP_SLUG } from "@/lib/account-context";
 import { ADPILOT_ROAS_FLOOR_ALERT_KEY } from "@/lib/spend-automation-settings";
-import { hasActiveSmsConsent } from "@walls/utils";
-
 export type AlertSubscription = {
   id: string;
   accountId: string;
@@ -28,11 +26,6 @@ export type AccountMember = {
   email: string;
   firstName: string | null;
   lastName: string | null;
-  phoneNumber: string | null;
-  smsNotificationsEnabled: boolean;
-  smsConsentPhone: string | null;
-  /** True when the member has opted in for their current phone number. */
-  hasSmsConsent: boolean;
   role: string;
   displayName: string;
 };
@@ -110,9 +103,7 @@ export async function listAccountMembers(
 
   const { data: users, error: usersError } = await supabase
     .from("users")
-    .select(
-      "id, email, first_name, last_name, phone_number, sms_notifications_enabled, sms_consent_phone",
-    )
+    .select("id, email, first_name, last_name")
     .in("id", userIds);
 
   if (usersError) throw usersError;
@@ -123,22 +114,11 @@ export async function listAccountMembers(
 
   return (users ?? [])
     .map((user) => {
-      const phoneNumber = (user.phone_number as string | null) ?? null;
-      const smsNotificationsEnabled = Boolean(user.sms_notifications_enabled);
-      const smsConsentPhone = (user.sms_consent_phone as string | null) ?? null;
       const member: AccountMember = {
         userId: user.id as string,
         email: (user.email as string) ?? "",
         firstName: (user.first_name as string | null) ?? null,
         lastName: (user.last_name as string | null) ?? null,
-        phoneNumber,
-        smsNotificationsEnabled,
-        smsConsentPhone,
-        hasSmsConsent: hasActiveSmsConsent({
-          smsNotificationsEnabled,
-          smsConsentPhone,
-          phoneNumber,
-        }),
         role: roleByUserId.get(user.id as string) ?? "member",
         displayName: "",
       };
@@ -199,7 +179,6 @@ export type UpsertMemberAlertInput = {
   userId: string;
   alertKey: string;
   notifyEmail: boolean;
-  notifySms: boolean;
 };
 
 /**
@@ -209,7 +188,7 @@ export type UpsertMemberAlertInput = {
 export async function upsertMemberAlertSubscription(
   input: UpsertMemberAlertInput,
 ): Promise<AlertSubscription> {
-  const { scope, userId, alertKey, notifyEmail, notifySms } = input;
+  const { scope, userId, alertKey, notifyEmail } = input;
 
   if (!ADPILOT_ALERT_TYPES.some((type) => type.key === alertKey)) {
     throw new Error("Unsupported alert key");
@@ -220,14 +199,7 @@ export async function upsertMemberAlertSubscription(
     throw new Error("User is not a member of this account");
   }
 
-  const member = members.find((row) => row.userId === userId)!;
-  if (notifySms && !member.hasSmsConsent) {
-    throw new Error(
-      "This member has not opted in to SMS notifications in Kenoo Settings",
-    );
-  }
-
-  const enabled = notifyEmail || notifySms;
+  const enabled = notifyEmail;
   const supabase = await createClient();
 
   const { data: rows, error: listError } = await supabase
@@ -248,7 +220,7 @@ export async function upsertMemberAlertSubscription(
       .from("alert_subscriptions")
       .update({
         notify_email: notifyEmail,
-        notify_sms: notifySms,
+        notify_sms: false,
         enabled,
         updated_at: now,
       })
@@ -268,7 +240,7 @@ export async function upsertMemberAlertSubscription(
       alert_key: alertKey,
       app_slug: ADPILOT_APP_SLUG,
       notify_email: notifyEmail,
-      notify_sms: notifySms,
+      notify_sms: false,
       enabled,
       scope: {},
     })
@@ -291,6 +263,5 @@ export async function ensureRoasFloorEmailSubscription(
     userId: scope.userId,
     alertKey: ADPILOT_ROAS_FLOOR_ALERT_KEY,
     notifyEmail: true,
-    notifySms: false,
   });
 }

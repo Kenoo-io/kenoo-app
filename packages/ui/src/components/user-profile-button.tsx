@@ -3,6 +3,7 @@
 import {
   useAuth,
   getSupabaseClient,
+  isLauncherHiddenAppSlug,
   logoutToPortal,
   resolveAppHref,
   readActiveAccountIdFromDocumentCookie,
@@ -67,8 +68,9 @@ function isAdminProfileApp(app: UserProfileApp): boolean {
 }
 
 function partitionProfileApps(apps: UserProfileApp[]) {
-  const adminApp = apps.find(isAdminProfileApp) ?? null;
-  const regularApps = apps.filter((app) => !isAdminProfileApp(app));
+  const visible = apps.filter((app) => !isLauncherHiddenAppSlug(app.slug));
+  const adminApp = visible.find(isAdminProfileApp) ?? null;
+  const regularApps = visible.filter((app) => !isAdminProfileApp(app));
   return { adminApp, regularApps };
 }
 

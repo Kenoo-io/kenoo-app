@@ -28,7 +28,6 @@ type UpsertBody = {
   userId?: string;
   alertKey?: string;
   notifyEmail?: boolean;
-  notifySms?: boolean;
 };
 
 export async function POST(request: Request) {
@@ -56,7 +55,6 @@ export async function POST(request: Request) {
       userId,
       alertKey: body.alertKey,
       notifyEmail: Boolean(body.notifyEmail),
-      notifySms: Boolean(body.notifySms),
     });
     return NextResponse.json({ subscription });
   } catch (error) {
@@ -65,9 +63,7 @@ export async function POST(request: Request) {
     console.error("[adpilot] upsert alert subscription:", error);
     const status =
       message === "Unsupported alert key" ||
-      message === "User is not a member of this account" ||
-      message ===
-        "This member has not opted in to SMS notifications in Kenoo Settings"
+      message === "User is not a member of this account"
         ? 400
         : 500;
     return NextResponse.json({ error: message }, { status });

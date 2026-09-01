@@ -8,6 +8,19 @@ export function isConsoleAppSlug(appSlug: string): boolean {
   return appSlug === consoleAppSlug();
 }
 
+export function platformAppSlug(): string {
+  return process.env.NEXT_PUBLIC_PLATFORM_APP_SLUG || "platform";
+}
+
+export function isPlatformAppSlug(appSlug: string): boolean {
+  return appSlug === platformAppSlug();
+}
+
+/** Internal Kenoo surfaces — not product tiles in launchers or profile menus. */
+export function isLauncherHiddenAppSlug(appSlug: string): boolean {
+  return isConsoleAppSlug(appSlug) || isPlatformAppSlug(appSlug);
+}
+
 /**
  * True when the signed-in user is on the Console super-admin allowlist
  * (`public.console_operators` / `is_console_operator()`).

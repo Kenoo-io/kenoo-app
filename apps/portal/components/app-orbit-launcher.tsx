@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Image from "next/image";
 
+import { isLauncherHiddenAppSlug } from "@walls/auth";
 import { cn } from "@walls/ui/utils";
 import type { PortalLauncherApp } from "@/lib/user-apps";
 import {
@@ -240,9 +241,10 @@ function AppSlider({ apps }: { apps: PortalLauncherApp[] }) {
 const ADMIN_APP_SLUG = process.env.NEXT_PUBLIC_ADMIN_APP_SLUG || "admin";
 
 function partitionLauncherApps(apps: PortalLauncherApp[]) {
+  const visible = apps.filter((app) => !isLauncherHiddenAppSlug(app.slug));
   const adminApp =
-    apps.find((app) => app.slug === ADMIN_APP_SLUG) ?? null;
-  const regularApps = apps.filter((app) => app.slug !== ADMIN_APP_SLUG);
+    visible.find((app) => app.slug === ADMIN_APP_SLUG) ?? null;
+  const regularApps = visible.filter((app) => app.slug !== ADMIN_APP_SLUG);
   return { adminApp, regularApps };
 }
 

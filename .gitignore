@@ -30,6 +30,13 @@ yarn-error.log*
 # vercel
 .vercel
 
+# python systems workers
+systems/.venv
+systems/**/__pycache__/
+systems/**/*.pyc
+*.egg-info/
+.pytest_cache/
+
 # typescript
 next-env.d.ts
 client_secret_*.apps.googleusercontent.com.json

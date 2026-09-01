@@ -18,9 +18,14 @@ export type PublicApp = {
 
 const ADMIN_APP_SLUG = process.env.NEXT_PUBLIC_ADMIN_APP_SLUG ?? "admin";
 const CONSOLE_APP_SLUG = process.env.NEXT_PUBLIC_CONSOLE_APP_SLUG ?? "console";
+const PLATFORM_APP_SLUG = process.env.NEXT_PUBLIC_PLATFORM_APP_SLUG ?? "platform";
 const ROOT_DOMAIN = process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? "kenoo.io";
 
-const HIDDEN_SLUGS = new Set([ADMIN_APP_SLUG, CONSOLE_APP_SLUG]);
+const HIDDEN_SLUGS = new Set([
+  ADMIN_APP_SLUG,
+  CONSOLE_APP_SLUG,
+  PLATFORM_APP_SLUG,
+]);
 const FEATURED_SLUG_SET = new Set<string>(FEATURED_PRODUCT_SLUGS);
 
 type AppsRow = {

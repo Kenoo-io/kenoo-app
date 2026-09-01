@@ -1,10 +1,8 @@
 import {
-  consoleAppSlug,
   getSupabaseClient,
-  isConsoleAppSlug,
+  isLauncherHiddenAppSlug,
   readActiveAccountIdFromDocumentCookie,
   resolveAppHref,
-  userIsConsoleOperator,
   writeActiveAccountIdToDocumentCookie,
 } from "@walls/auth";
 
@@ -49,7 +47,7 @@ function pushApp(
   }
 
   const slug = String(a.slug);
-  if (isConsoleAppSlug(slug)) return;
+  if (isLauncherHiddenAppSlug(slug)) return;
   const name =
     slug === ADMIN_APP_SLUG ? "Admin console" : String(a.name);
   const urlRedirect =
@@ -236,71 +234,11 @@ export async function fetchUserLauncherApps(
         pushApp(appList, seenAppIds, row.app_id, row.apps);
       }
     }
-    await appendOpenAccessLauncherApps(supabase, appList, seenAppIds);
-    await appendConsoleLauncherApp(supabase, userId, appList, seenAppIds);
     return appList;
   }
 
   for (const row of legacyAccessRows) {
     pushApp(appList, seenAppIds, row.app_id, row.apps);
   }
-  await appendOpenAccessLauncherApps(supabase, appList, seenAppIds);
-  await appendConsoleLauncherApp(supabase, userId, appList, seenAppIds);
   return appList;
-}
-
-async function appendOpenAccessLauncherApps(
-  supabase: ReturnType<typeof getSupabaseClient>,
-  appList: PortalLauncherApp[],
-  seenAppIds: Set<string>,
-) {
-  const { data } = await supabase
-    .from("apps")
-    .select("id, slug, name, icon_url, url_redirect, subdomain")
-    .eq("is_active", true)
-    .eq("slug", process.env.NEXT_PUBLIC_PLATFORM_APP_SLUG || "platform");
-
-  for (const app of data ?? []) {
-    pushApp(appList, seenAppIds, app.id as string, app);
-  }
-}
-
-async function appendConsoleLauncherApp(
-  supabase: ReturnType<typeof getSupabaseClient>,
-  userId: string,
-  appList: PortalLauncherApp[],
-  seenAppIds: Set<string>,
-) {
-  if (!(await userIsConsoleOperator(supabase, userId))) return;
-
-  const { data } = await supabase
-    .from("apps")
-    .select("id, slug, name, icon_url, url_redirect, subdomain")
-    .eq("is_active", true)
-    .eq("slug", consoleAppSlug());
-
-  for (const app of data ?? []) {
-    if (seenAppIds.has(app.id as string)) continue;
-    const slug = String(app.slug);
-    const urlRedirect =
-      app.url_redirect != null ? String(app.url_redirect) : null;
-    const subdomain = app.subdomain != null ? String(app.subdomain) : null;
-    const iconUrl = app.icon_url
-      ? String(app.icon_url)
-      : `https://assets.wallsentertainment.com/walls-app-icons/${slug}.svg`;
-    seenAppIds.add(app.id as string);
-    appList.push({
-      app_id: app.id as string,
-      name: String(app.name),
-      slug,
-      icon: iconUrl,
-      subdomain,
-      href: resolveAppHref({
-        slug,
-        subdomain,
-        urlRedirect,
-        platformBase: "",
-      }),
-    });
-  }
 }

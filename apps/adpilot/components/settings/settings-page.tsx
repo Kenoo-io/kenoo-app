@@ -144,7 +144,7 @@ export function SettingsPage() {
           <SectionLabel title="Alerts" />
           <SettingsActionPanel
             title="Manage alerts"
-            description="Add recipients for ROAS floor breaches and other automation alerts across email and text."
+            description="Add recipients for ROAS floor breaches and other automation alerts by email."
             href="/alerts"
             actionLabel="Manage alerts"
           />

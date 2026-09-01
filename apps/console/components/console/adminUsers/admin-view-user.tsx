@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { AppAccessPopout } from "@/components/console/adminApps/app-access-popout";
+import { isLauncherHiddenAppSlug } from "@walls/auth";
 import { getSupabaseClient } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
@@ -74,7 +75,12 @@ function AppAccessPopoutContent({
       .order("name", { ascending: true })
       .then(({ data, error: e }) => {
         if (e) setError(e.message);
-        else setApps((data ?? []) as AppForAccess[]);
+        else
+          setApps(
+            ((data ?? []) as AppForAccess[]).filter(
+              (app) => !isLauncherHiddenAppSlug(app.slug),
+            ),
+          );
         setLoading(false);
       });
   }, []);

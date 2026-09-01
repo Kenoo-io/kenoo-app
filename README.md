@@ -18,6 +18,10 @@ pnpm + Turborepo monorepo for the WALLS Entertainment ecosystem.
 
 Future apps will live under `apps/`.
 
+## Systems
+
+Long-running Python workers live under [`systems/`](systems/README.md) (not Turbo/pnpm). People enrichment is first: Platform enqueues `systems_jobs`, the worker researches a person and writes JSON back.
+
 ## Packages
 
 
