@@ -42,30 +42,11 @@ function asInteger(value: unknown): number | null {
   return parsed == null ? null : Math.round(parsed);
 }
 
-export async function listDailySummariesInRange(
-  scope: HealthDataScope,
-  startDate: string,
-  endDate: string,
-): Promise<HealthDailySummary[]> {
-  const supabase = await createClient();
-  const { data, error } = await withHealthScope(
-    supabase
-      .from("health_daily_summaries")
-      .select(
-        "summary_date, steps, distance_walking_meters, flights_climbed, active_energy_kcal, basal_energy_kcal, exercise_minutes, stand_minutes, stand_hours, resting_heart_rate, avg_heart_rate, walking_heart_rate_avg, hrv_sdnn_ms, respiratory_rate, oxygen_saturation, body_temperature_c, blood_glucose_mg_dl, vo2_max, mindfulness_minutes, sleep_asleep_minutes, sleep_in_bed_minutes, sleep_deep_minutes, sleep_rem_minutes, sleep_core_minutes, sleep_awake_minutes, apple_health_synced_at",
-      )
-      .gte("summary_date", startDate)
-      .lte("summary_date", endDate)
-      .order("summary_date", { ascending: true }),
-    scope,
-  );
+const DAILY_SUMMARY_COLUMNS =
+  "summary_date, steps, distance_walking_meters, flights_climbed, active_energy_kcal, basal_energy_kcal, exercise_minutes, stand_minutes, stand_hours, resting_heart_rate, avg_heart_rate, walking_heart_rate_avg, hrv_sdnn_ms, respiratory_rate, oxygen_saturation, body_temperature_c, blood_glucose_mg_dl, vo2_max, mindfulness_minutes, sleep_asleep_minutes, sleep_in_bed_minutes, sleep_deep_minutes, sleep_rem_minutes, sleep_core_minutes, sleep_awake_minutes, apple_health_synced_at";
 
-  if (error) {
-    console.error("[health] list daily summaries:", error);
-    return [];
-  }
-
-  return ((data ?? []) as Record<string, unknown>[]).map((row) => ({
+function mapDailySummaryRow(row: Record<string, unknown>): HealthDailySummary {
+  return {
     summary_date: String(row.summary_date),
     steps: asInteger(row.steps),
     distance_walking_meters: asNumber(row.distance_walking_meters),
@@ -95,5 +76,53 @@ export async function listDailySummariesInRange(
       row.apple_health_synced_at != null
         ? String(row.apple_health_synced_at)
         : null,
-  }));
+  };
+}
+
+export async function listDailySummariesInRange(
+  scope: HealthDataScope,
+  startDate: string,
+  endDate: string,
+): Promise<HealthDailySummary[]> {
+  const supabase = await createClient();
+  const { data, error } = await withHealthScope(
+    supabase
+      .from("health_daily_summaries")
+      .select(DAILY_SUMMARY_COLUMNS)
+      .gte("summary_date", startDate)
+      .lte("summary_date", endDate)
+      .order("summary_date", { ascending: true }),
+    scope,
+  );
+
+  if (error) {
+    console.error("[health] list daily summaries:", error);
+    return [];
+  }
+
+  return ((data ?? []) as Record<string, unknown>[]).map(mapDailySummaryRow);
+}
+
+/** Most recent day with resting or average heart rate, even outside the chart range. */
+export async function getLatestDailySummaryWithHeartRate(
+  scope: HealthDataScope,
+): Promise<HealthDailySummary | null> {
+  const supabase = await createClient();
+  const { data, error } = await withHealthScope(
+    supabase
+      .from("health_daily_summaries")
+      .select(DAILY_SUMMARY_COLUMNS)
+      .or("resting_heart_rate.not.is.null,avg_heart_rate.not.is.null")
+      .order("summary_date", { ascending: false })
+      .limit(1),
+    scope,
+  ).maybeSingle();
+
+  if (error) {
+    console.error("[health] latest heart-rate summary:", error);
+    return null;
+  }
+
+  if (!data) return null;
+  return mapDailySummaryRow(data as Record<string, unknown>);
 }
