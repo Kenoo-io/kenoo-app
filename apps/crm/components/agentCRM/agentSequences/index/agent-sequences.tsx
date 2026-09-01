@@ -691,8 +691,8 @@ function AgentSequencesContent({ analyticsData }: AgentSequencesProps) {
         </div>
       </div>
 
-      <div className="flex h-screen overflow-hidden">
-      <div className="flex-1 w-full flex flex-col">
+      <div className="flex h-full min-h-0 flex-1 overflow-hidden">
+      <div className="flex min-h-0 w-full flex-1 flex-col">
         <SequencesTableToolbar
           filters={filters}
           onFilterChange={handleFilterChange}
@@ -700,9 +700,9 @@ function AgentSequencesContent({ analyticsData }: AgentSequencesProps) {
           onCreateClick={() => setIsCreateSheetOpen(true)}
         />
 
-        <div className="app-sidebar-pad flex-1 overflow-y-auto overscroll-none pr-0">
+        <div className="app-sidebar-pad min-h-0 flex-1 overflow-y-auto overscroll-none pr-0">
           <TooltipPrimitive.Provider delayDuration={200}>
-          <div ref={tableWrapperRef} className="flex flex-col gap-0 min-h-full">
+          <div ref={tableWrapperRef} className="flex min-h-full flex-col gap-0">
             {/* Header Row - Always visible */}
             <SequencesTableHeader
               headerScrollRef={headerScrollRef}
@@ -749,17 +749,17 @@ function AgentSequencesContent({ analyticsData }: AgentSequencesProps) {
               </>
             )}
             </div>
-
-            {/* Pagination - Always visible */}
-            <CRMPagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={handlePageChange}
-              buttonVariant="scouter"
-              className="bg-kenoo-white shadow-none backdrop-blur-none border-t-0"
-            />
           </div>
           </TooltipPrimitive.Provider>
+        </div>
+        <div className="app-sidebar-pad shrink-0 pr-0">
+          <CRMPagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+            buttonVariant="scouter"
+            className="static border-t-0 bg-kenoo-white shadow-none backdrop-blur-none"
+          />
         </div>
         </div>
       </div>
