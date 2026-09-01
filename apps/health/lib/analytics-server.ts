@@ -2,6 +2,7 @@ import { createClient } from "@walls/supabase/server";
 
 import { listActivitiesInRange } from "@/lib/activities-server";
 import {
+  getLatestDailySummaryWithHeartRate,
   listDailySummariesInRange,
   type HealthDailySummary,
 } from "@/lib/daily-summaries-server";
@@ -219,15 +220,36 @@ function resolveBurnedForDay(
   return Math.max(activityBurned, appleActive);
 }
 
+function pickLatestMetric(
+  today: HealthDailySummary | undefined,
+  latest: HealthDailySummary | null,
+  pick: (summary: HealthDailySummary) => number | null,
+): { value: number; date: string } | null {
+  if (today) {
+    const value = pick(today);
+    if (value != null) return { value, date: today.summary_date };
+  }
+  if (latest) {
+    const value = pick(latest);
+    if (value != null) return { value, date: latest.summary_date };
+  }
+  return null;
+}
+
+function vitalsDetail(date: string, todayKey: string, sameDayLabel: string) {
+  if (date === todayKey) return sameDayLabel;
+  return `Last reading ${labelForDateKey(date)}`;
+}
+
 function buildAppleHealthCards(
   today: HealthDailySummary | undefined,
+  latestHeartRate: HealthDailySummary | null,
+  todayKey: string,
   stepsTarget: number,
   unitSystem: "metric" | "imperial",
 ): DashboardStat[] {
-  if (!today) return [];
-
   const cards: DashboardStat[] = [];
-  const steps = today.steps ?? 0;
+  const steps = today?.steps ?? 0;
 
   cards.push({
     label: "Steps",
@@ -239,7 +261,10 @@ function buildAppleHealthCards(
     positive: stepsTarget <= 0 || steps >= stepsTarget * 0.85,
   });
 
-  if (today.distance_walking_meters != null && today.distance_walking_meters > 0) {
+  if (
+    today?.distance_walking_meters != null &&
+    today.distance_walking_meters > 0
+  ) {
     cards.push({
       label: "Distance",
       value: formatDistanceMeters(today.distance_walking_meters, unitSystem),
@@ -248,7 +273,7 @@ function buildAppleHealthCards(
     });
   }
 
-  if (today.flights_climbed != null && today.flights_climbed > 0) {
+  if (today?.flights_climbed != null && today.flights_climbed > 0) {
     cards.push({
       label: "Flights",
       value: new Intl.NumberFormat("en-US", {
@@ -259,7 +284,7 @@ function buildAppleHealthCards(
     });
   }
 
-  if (today.exercise_minutes != null && today.exercise_minutes > 0) {
+  if (today?.exercise_minutes != null && today.exercise_minutes > 0) {
     cards.push({
       label: "Exercise",
       value: formatDurationMinutes(today.exercise_minutes),
@@ -268,7 +293,7 @@ function buildAppleHealthCards(
     });
   }
 
-  if (today.stand_hours != null && today.stand_hours > 0) {
+  if (today?.stand_hours != null && today.stand_hours > 0) {
     cards.push({
       label: "Stand hours",
       value: `${today.stand_hours}`,
@@ -279,26 +304,35 @@ function buildAppleHealthCards(
     });
   }
 
-  if (today.resting_heart_rate != null) {
+  const restingHr = pickLatestMetric(
+    today,
+    latestHeartRate,
+    (summary) => summary.resting_heart_rate,
+  );
+  if (restingHr) {
     cards.push({
       label: "Resting HR",
-      value: formatHeartRate(today.resting_heart_rate),
-      change:
-        today.avg_heart_rate != null
-          ? `Avg ${formatHeartRate(today.avg_heart_rate)}`
-          : "Today",
-      positive: true,
-    });
-  } else if (today.avg_heart_rate != null) {
-    cards.push({
-      label: "Avg HR",
-      value: formatHeartRate(today.avg_heart_rate),
-      change: "Today",
+      value: formatHeartRate(restingHr.value),
+      change: vitalsDetail(restingHr.date, todayKey, "Today"),
       positive: true,
     });
   }
 
-  if (today.hrv_sdnn_ms != null && today.hrv_sdnn_ms > 0) {
+  const avgHr = pickLatestMetric(
+    today,
+    latestHeartRate,
+    (summary) => summary.avg_heart_rate,
+  );
+  if (avgHr) {
+    cards.push({
+      label: "Avg HR",
+      value: formatHeartRate(avgHr.value),
+      change: vitalsDetail(avgHr.date, todayKey, "Today"),
+      positive: true,
+    });
+  }
+
+  if (today?.hrv_sdnn_ms != null && today.hrv_sdnn_ms > 0) {
     cards.push({
       label: "HRV",
       value: `${Math.round(today.hrv_sdnn_ms)} ms`,
@@ -307,7 +341,7 @@ function buildAppleHealthCards(
     });
   }
 
-  if (today.oxygen_saturation != null && today.oxygen_saturation > 0) {
+  if (today?.oxygen_saturation != null && today.oxygen_saturation > 0) {
     const pct =
       today.oxygen_saturation <= 1
         ? today.oxygen_saturation * 100
@@ -322,7 +356,7 @@ function buildAppleHealthCards(
     });
   }
 
-  if (today.sleep_asleep_minutes != null && today.sleep_asleep_minutes > 0) {
+  if (today?.sleep_asleep_minutes != null && today.sleep_asleep_minutes > 0) {
     const stages = [
       today.sleep_deep_minutes != null && today.sleep_deep_minutes > 0
         ? `${formatDurationMinutes(today.sleep_deep_minutes)} deep`
@@ -342,7 +376,7 @@ function buildAppleHealthCards(
     });
   }
 
-  if (today.mindfulness_minutes != null && today.mindfulness_minutes > 0) {
+  if (today?.mindfulness_minutes != null && today.mindfulness_minutes > 0) {
     cards.push({
       label: "Mindfulness",
       value: formatDurationMinutes(today.mindfulness_minutes),
@@ -376,7 +410,7 @@ export async function getDashboardAnalytics(
   );
   const rangeEndInclusiveUtc = new Date(rangeEndExclusiveUtc.getTime() - 1);
 
-  const [meals, activities, summaries] = await Promise.all([
+  const [meals, activities, summaries, latestHeartRate] = await Promise.all([
     listMealsInRange(scope, startKey, endKey),
     listActivitiesInRange(
       scope,
@@ -384,6 +418,7 @@ export async function getDashboardAnalytics(
       rangeEndInclusiveUtc.toISOString(),
     ),
     listDailySummariesInRange(scope, startKey, endKey),
+    getLatestDailySummaryWithHeartRate(scope),
   ]);
 
   const summariesByDate = new Map<string, HealthDailySummary>();
@@ -460,12 +495,14 @@ export async function getDashboardAnalytics(
   const todaySteps = todaySummary?.steps ?? 0;
   const unitSystem = profile.unit_system === "metric" ? "metric" : "imperial";
 
-  const hasAppleHealth = summaries.some(
-    (summary) =>
-      summary.apple_health_synced_at != null ||
-      (summary.steps != null && summary.steps > 0) ||
-      (summary.active_energy_kcal != null && summary.active_energy_kcal > 0),
-  );
+  const hasAppleHealth =
+    latestHeartRate != null ||
+    summaries.some(
+      (summary) =>
+        summary.apple_health_synced_at != null ||
+        (summary.steps != null && summary.steps > 0) ||
+        (summary.active_energy_kcal != null && summary.active_energy_kcal > 0),
+    );
 
   const hasData =
     meals.length > 0 ||
@@ -475,7 +512,10 @@ export async function getDashboardAnalytics(
 
   const appleHealth: DashboardAppleHealth = {
     hasAppleHealth,
-    syncedAt: todaySummary?.apple_health_synced_at ?? null,
+    syncedAt:
+      todaySummary?.apple_health_synced_at ??
+      latestHeartRate?.apple_health_synced_at ??
+      null,
     steps: todaySteps,
     stepsTarget,
     stepsProgress:
@@ -488,8 +528,12 @@ export async function getDashboardAnalytics(
     basalEnergyKcal: todaySummary?.basal_energy_kcal ?? null,
     exerciseMinutes: todaySummary?.exercise_minutes ?? null,
     standHours: todaySummary?.stand_hours ?? null,
-    restingHeartRate: todaySummary?.resting_heart_rate ?? null,
-    avgHeartRate: todaySummary?.avg_heart_rate ?? null,
+    restingHeartRate:
+      todaySummary?.resting_heart_rate ??
+      latestHeartRate?.resting_heart_rate ??
+      null,
+    avgHeartRate:
+      todaySummary?.avg_heart_rate ?? latestHeartRate?.avg_heart_rate ?? null,
     hrvSdnnMs: todaySummary?.hrv_sdnn_ms ?? null,
     oxygenSaturation: todaySummary?.oxygen_saturation ?? null,
     sleepAsleepMinutes: todaySummary?.sleep_asleep_minutes ?? null,
@@ -497,7 +541,13 @@ export async function getDashboardAnalytics(
     sleepRemMinutes: todaySummary?.sleep_rem_minutes ?? null,
     mindfulnessMinutes: todaySummary?.mindfulness_minutes ?? null,
     unitSystem,
-    cards: buildAppleHealthCards(todaySummary, stepsTarget, unitSystem),
+    cards: buildAppleHealthCards(
+      todaySummary,
+      latestHeartRate,
+      todayKey,
+      stepsTarget,
+      unitSystem,
+    ),
   };
 
   const stats: DashboardStat[] = [

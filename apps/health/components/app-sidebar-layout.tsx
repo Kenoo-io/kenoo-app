@@ -20,7 +20,7 @@ function AppSidebarContent({ children, className }: AppSidebarLayoutProps) {
 
   return (
     <>
-      <AppSidebar headerVisible={headerVisible} />
+      <AppSidebar />
       <div
         className={cn(
           "flex h-screen min-w-0 flex-col overflow-hidden bg-kenoo-white transition-[margin-left,padding-top] duration-300",
