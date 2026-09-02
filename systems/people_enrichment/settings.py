@@ -15,6 +15,7 @@ class PeopleEnrichmentSettings:
     serper_api_key: str
     openai_api_key: str
     poll_interval_seconds: float
+    sqs_queue_url: str | None
 
 
 def load_settings() -> PeopleEnrichmentSettings:
@@ -40,4 +41,5 @@ def load_settings() -> PeopleEnrichmentSettings:
         serper_api_key=serper_api_key,  # type: ignore[arg-type]
         openai_api_key=openai_api_key,  # type: ignore[arg-type]
         poll_interval_seconds=float(os.getenv("POLL_INTERVAL_SECONDS", "10")),
+        sqs_queue_url=os.getenv("SQS_QUEUE_URL") or None,
     )

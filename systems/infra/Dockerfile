@@ -17,4 +17,7 @@ COPY systems/${SYSTEM_NAME} /app/${SYSTEM_NAME}
 RUN pip install --no-cache-dir -e .
 
 ENV PYTHONUNBUFFERED=1
-CMD python -m ${SYSTEM_NAME}
+# `exec` replaces the shell with the python process (making it PID 1) so ECS's
+# SIGTERM on scale-down reaches the worker's signal handler directly, instead
+# of being swallowed by an intermediate shell process.
+CMD ["sh", "-c", "exec python -m $SYSTEM_NAME"]

@@ -13,3 +13,11 @@ output "ecs_service_name" {
 output "secret_arn" {
   value = local.has_secrets ? aws_secretsmanager_secret.this[0].arn : null
 }
+
+output "queue_url" {
+  value = aws_sqs_queue.wake.url
+}
+
+output "queue_arn" {
+  value = aws_sqs_queue.wake.arn
+}
