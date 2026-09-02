@@ -18,9 +18,9 @@ ENRICHMENT_LLM_REASONING_EFFORT = (
 ENRICHMENT_LLM_TIMEOUT_SECONDS = 180.0
 MAX_SERPER_QUERIES = 8
 MAX_SALARY_RESEARCH_QUERIES = 3
-MAX_FIRECRAWL_URLS = 6
+MAX_SCRAPE_URLS = 6
 MAX_MARKDOWN_CHARS_PER_PAGE = 4500
-FIRECRAWL_SCRAPE_TIMEOUT_MS = 55_000
+SCRAPE_TIMEOUT_SECONDS = 20.0
 MAX_PAYPAL_HTTP_PER_ENRICH = 14
 MAX_TX_METADATA_ROWS = 40
 PREFERRED_TX_STATUSES = frozenset({"completed", "succeeded", "paid"})
@@ -112,7 +112,7 @@ IDENTITY_ADDRESS_MIN_CONFIDENCE = 0.8
 
 # Prefer scraping pages from identifier-anchored searches over unanchored
 # name/net-worth hits (which are usually the most famous namesake).
-FIRECRAWL_ANCHORED_SEARCH_LABELS = frozenset(
+ANCHORED_SEARCH_LABELS = frozenset(
     {
         "email",
         "name_email",
@@ -127,8 +127,8 @@ FIRECRAWL_ANCHORED_SEARCH_LABELS = frozenset(
 )
 
 
-def firecrawl_url_sort_key(search_label: str, position: int, url: str) -> tuple[int, int, str]:
-    anchored = 0 if search_label in FIRECRAWL_ANCHORED_SEARCH_LABELS else 1
+def scrape_url_sort_key(search_label: str, position: int, url: str) -> tuple[int, int, str]:
+    anchored = 0 if search_label in ANCHORED_SEARCH_LABELS else 1
     return (anchored, position, url)
 
 
@@ -463,7 +463,7 @@ class OrganicUrlCandidate:
 
 
 @dataclass
-class FirecrawlPageResult:
+class ScrapedPageResult:
     url: str
     title: str
     snippet: str
@@ -490,7 +490,7 @@ class EnrichmentResult:
     identity: str | None = None
     person: dict[str, Any] = field(default_factory=dict)
     searches_run: list[str] = field(default_factory=list)
-    firecrawl_pages_ok: int = 0
+    pages_scraped_ok: int = 0
     errors: int = 0
     error_messages: list[str] = field(default_factory=list)
 
@@ -512,7 +512,7 @@ class EnrichmentResult:
             "identity": self.identity,
             "person": self.person,
             "searches_run": self.searches_run,
-            "firecrawl_pages_ok": self.firecrawl_pages_ok,
+            "pages_scraped_ok": self.pages_scraped_ok,
             "errors": self.errors,
             "error_messages": self.error_messages,
         }

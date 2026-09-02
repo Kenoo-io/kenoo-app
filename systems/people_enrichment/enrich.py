@@ -5,15 +5,10 @@ from typing import Any
 
 import httpx
 
-from .firecrawl import (
-    format_page_scrape_synthesis_for_prompt,
-    scrape_firecrawl_pages,
-)
-from .llm import analyze_financials, analyze_identity, generate_overview, synthesize_firecrawl_pages
+from .llm import analyze_financials, analyze_identity, generate_overview, synthesize_scraped_pages
 from .models import (
     AGE_BRACKET_ALIASES,
     AGE_BRACKET_VALUES,
-    EnrichmentResult,
     GENDER_ALIASES,
     GENDER_SOURCE_VALUES,
     GENDER_VALUES,
@@ -26,6 +21,7 @@ from .models import (
     MARITAL_STATUS_ALIASES,
     MARITAL_STATUS_VALUES,
     MAX_ENRICHMENT_SOURCES,
+    EnrichmentResult,
     PeopleLocationFields,
     PeopleSignalFields,
     PeopleWorkFields,
@@ -37,6 +33,7 @@ from .people import (
     merge_people_location_fields,
     merge_people_work_fields,
 )
+from .scrape import format_page_scrape_synthesis_for_prompt, scrape_pages
 from .search_queries import (
     build_salary_research_queries,
     build_search_queries,
@@ -44,7 +41,7 @@ from .search_queries import (
 )
 from .serper import (
     format_search_results,
-    pick_organic_urls_for_firecrawl,
+    pick_organic_urls_for_scrape,
     pick_property_listing_url,
     run_serper_searches,
 )
@@ -149,7 +146,6 @@ def run_people_enrichment(
     *,
     serper_api_key: str,
     openai_api_key: str,
-    firecrawl_api_key: str | None,
     payload: dict[str, Any] | None,
 ) -> EnrichmentResult:
     subject = parse_person_subject(payload)
@@ -191,16 +187,16 @@ def run_people_enrichment(
     successful_searches = [item for item in search_results if item.data is not None]
     result.searches_run = [item.label for item in successful_searches]
 
-    firecrawl_candidates = pick_organic_urls_for_firecrawl(search_results)
-    firecrawl_pages = scrape_firecrawl_pages(http, firecrawl_api_key, firecrawl_candidates)
-    result.firecrawl_pages_ok = len([page for page in firecrawl_pages if page.markdown])
+    scrape_candidates = pick_organic_urls_for_scrape(search_results)
+    scraped_pages = scrape_pages(http, scrape_candidates)
+    result.pages_scraped_ok = len([page for page in scraped_pages if page.markdown])
 
-    page_scrape_synthesis = synthesize_firecrawl_pages(
+    page_scrape_synthesis = synthesize_scraped_pages(
         http,
         openai_api_key,
         person_context,
         formatted_searches,
-        firecrawl_pages,
+        scraped_pages,
     )
     page_scrape_context = format_page_scrape_synthesis_for_prompt(page_scrape_synthesis)
 

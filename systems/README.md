@@ -14,7 +14,7 @@ Future workers (email, sync, scrapers) become siblings next to `people_enrichmen
 
 ## People enrichment
 
-Research loop: Serper search → Firecrawl scrape → identity LLM → salary comps → financials + overview.
+Research loop: Serper search → self-hosted page scrape → identity LLM → salary comps → financials + overview.
 
 Input is a **person subject** (name and/or email, optional location, organization, notes). The worker returns a JSON profile. It does **not** write Kenoo CRM rows.
 
@@ -49,15 +49,21 @@ Required env (root `.env.local`):
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `OPENAI_API_KEY`
 - `SERPER_API_KEY`
-- `FIRECRAWL_API_KEY` (optional; scrapes skip if missing)
 
 ```bash
 cd systems && python -m unittest discover -s tests -v
 ```
 
-## Deploy recipe (later)
+## Deploy recipe
 
-1. Build `systems/infra/Dockerfile` (context = monorepo root).
-2. Push the image to ECR (or any registry).
-3. Run as an ECS service with min tasks `0`, or `docker compose` on Hetzner.
-4. Worker polls `systems_jobs` where `type = people-enrichment` and `status = pending`.
+Infra is Terraform, under `systems/infra/terraform/`. Each system is an ECS
+Fargate service — one shared cluster (`kenoo-systems`), one ECR repo and one
+Secrets Manager entry per system. See `systems/infra/terraform/README.md` for
+the one-time setup and how to add system #2.
+
+Routine deploys are automatic: push to `main` touching `systems/**` and
+[`.github/workflows/deploy-systems.yml`](../.github/workflows/deploy-systems.yml)
+builds the image, pushes it to that system's ECR repo, and force-deploys the
+ECS service — no Terraform run needed for ordinary code changes.
+
+Worker polls `systems_jobs` where `type = people-enrichment` and `status = pending`.
