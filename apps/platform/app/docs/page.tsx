@@ -8,6 +8,8 @@ export default async function DocsPage() {
   return (
     <PageShell
       title="Documentation"
+      backHref="/"
+      backLabel="Dashboard"
     >
       <DocsContent products={products} />
     </PageShell>

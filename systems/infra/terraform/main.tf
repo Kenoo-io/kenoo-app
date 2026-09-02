@@ -103,6 +103,32 @@ resource "aws_iam_role_policy" "github_actions_deploy" {
 }
 
 // ---------------------------------------------------------------------------
+// The platform app (apps/platform, on Vercel) needs to send one SQS message
+// per job it enqueues, to wake up a scaled-to-zero worker. Deliberately a
+// separate IAM identity from the SES-sending credential already used
+// elsewhere — reusing that one for a second, unrelated purpose is exactly
+// the kind of mix-up that cost real debugging time earlier on this project.
+// Scoped to sqs:SendMessage on these queues, nothing else.
+// ---------------------------------------------------------------------------
+
+resource "aws_iam_user" "platform_queue_publisher" {
+  name = "kenoo-platform-queue-publisher"
+}
+
+data "aws_iam_policy_document" "platform_queue_publisher" {
+  statement {
+    actions   = ["sqs:SendMessage"]
+    resources = [for s in module.worker : s.queue_arn]
+  }
+}
+
+resource "aws_iam_user_policy" "platform_queue_publisher" {
+  name   = "send-wake-messages"
+  user   = aws_iam_user.platform_queue_publisher.name
+  policy = data.aws_iam_policy_document.platform_queue_publisher.json
+}
+
+// ---------------------------------------------------------------------------
 // Systems — add a new one here, `terraform apply`, done.
 // ---------------------------------------------------------------------------
 
@@ -131,6 +157,7 @@ module "worker" {
 
   name              = each.key
   cluster_id        = aws_ecs_cluster.kenoo.id
+  cluster_name      = aws_ecs_cluster.kenoo.name
   aws_region        = var.aws_region
   subnet_ids        = data.aws_subnets.default.ids
   security_group_id = aws_security_group.workers.id

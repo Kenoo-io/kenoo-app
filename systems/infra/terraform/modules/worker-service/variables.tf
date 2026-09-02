@@ -7,6 +7,11 @@ variable "cluster_id" {
   type = string
 }
 
+variable "cluster_name" {
+  description = "Needed (in addition to cluster_id) because Application Auto Scaling addresses ECS services by cluster name, not ARN"
+  type        = string
+}
+
 variable "aws_region" {
   type = string
 }
@@ -32,9 +37,27 @@ variable "memory" {
 }
 
 variable "desired_count" {
-  description = "How many copies of this worker run at once. 0 pauses it without destroying infra."
+  description = "Starting task count at creation only — Application Auto Scaling owns it after that (see ignore_changes on aws_ecs_service)."
   type        = number
   default     = 1
+}
+
+variable "min_capacity" {
+  description = "Floor for Application Auto Scaling. 0 = true scale-to-zero when idle."
+  type        = number
+  default     = 0
+}
+
+variable "max_capacity" {
+  description = "Ceiling for Application Auto Scaling."
+  type        = number
+  default     = 1
+}
+
+variable "queue_visibility_timeout_seconds" {
+  description = "How long a received wake message stays invisible before SQS assumes the receiver died and redelivers it. Must comfortably exceed the worst-case time to drain a full backlog of jobs, since the worker holds the message for that whole span (see systems/shared/queue.py) rather than deleting it on receipt."
+  type        = number
+  default     = 1800 # 30 minutes
 }
 
 variable "environment" {

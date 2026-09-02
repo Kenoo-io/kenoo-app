@@ -46,7 +46,6 @@
   ],
   "globalPassThroughEnv": [
     "SERPER_API_KEY",
-    "FIRECRAWL_API_KEY",
     "PEOPLE_ENRICHMENT_LLM_MODEL",
     "POLL_INTERVAL_SECONDS",
     "STRIPE_SECRET_KEY",

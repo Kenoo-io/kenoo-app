@@ -4,17 +4,12 @@
 from __future__ import annotations
 
 import logging
-import time
 from typing import Any
 
 import httpx
-from shared.jobs import (
-    claim_next_job,
-    complete_job,
-    parse_job_input,
-    reclaim_stale_processing_jobs,
-)
+from shared.jobs import complete_job, parse_job_input
 from shared.logging_setup import configure_logging, log_error
+from shared.worker_loop import run_polling_worker_loop
 from supabase import create_client
 
 from .enrich import run_people_enrichment
@@ -57,31 +52,15 @@ def run_loop() -> None:
     settings = load_settings()
     supabase = create_client(settings.supabase_url, settings.supabase_service_role_key)
 
-    logger.info(
-        "People enrichment worker started (job type: %s, poll every %ss)",
-        JOB_TYPE,
-        settings.poll_interval_seconds,
-    )
-
     with httpx.Client(timeout=120.0) as http:
-        while True:
-            try:
-                reclaim_stale_processing_jobs(supabase, JOB_TYPE)
-                job = claim_next_job(supabase, JOB_TYPE)
-                if job:
-                    process_job(supabase, http, job, settings)
-                    continue
-                time.sleep(settings.poll_interval_seconds)
-            except KeyboardInterrupt:
-                logger.info("People enrichment worker shutting down")
-                break
-            except Exception as exc:  # noqa: BLE001
-                log_error(
-                    logger,
-                    "Unexpected error in worker loop — %s. Retrying.",
-                    exc,
-                )
-                time.sleep(settings.poll_interval_seconds)
+        run_polling_worker_loop(
+            job_type=JOB_TYPE,
+            supabase=supabase,
+            process_job=lambda job: process_job(supabase, http, job, settings),
+            poll_interval_seconds=settings.poll_interval_seconds,
+            sqs_queue_url=settings.sqs_queue_url,
+            logger=logger,
+        )
 
 
 if __name__ == "__main__":

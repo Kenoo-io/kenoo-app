@@ -18,6 +18,8 @@ export default async function ProductDocsPage({
         product?.description ??
         "This product is not published yet, or the Platform catalog has not been migrated."
       }
+      backHref="/docs"
+      backLabel="Documentation"
     >
       <DocsContent products={products} slug={slug} />
     </PageShell>

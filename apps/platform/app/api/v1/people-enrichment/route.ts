@@ -7,6 +7,7 @@ import {
   parsePeopleEnrichmentInput,
   type PeopleEnrichmentBody,
 } from "@/lib/people-enrichment";
+import { notifySystemQueue } from "@/lib/systems-queue";
 
 export async function POST(request: Request) {
   const body = (await request.json().catch(() => ({}))) as PeopleEnrichmentBody;
@@ -33,6 +34,8 @@ export async function POST(request: Request) {
     if (error || !data) {
       throw new Error(error?.message || "Failed to enqueue people enrichment");
     }
+
+    await notifySystemQueue(process.env.PEOPLE_ENRICHMENT_SQS_QUEUE_URL, data.id);
 
     return {
       job_id: data.id,
