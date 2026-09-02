@@ -39,7 +39,6 @@ def process_job(
             http,
             serper_api_key=settings.serper_api_key,
             openai_api_key=settings.openai_api_key,
-            firecrawl_api_key=settings.firecrawl_api_key,
             payload=payload,
         )
         complete_job(supabase, job_id, success=True, result=results.to_dict())

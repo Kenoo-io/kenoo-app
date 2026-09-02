@@ -1,0 +1,63 @@
+name: Deploy systems
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "systems/**"
+      - ".github/workflows/deploy-systems.yml"
+
+permissions:
+  id-token: write # required for AWS OIDC
+  contents: read
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: set-matrix
+        run: echo "matrix=$(jq -c '.systems' systems/infra/systems.json)" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    needs: discover
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include: ${{ fromJson(needs.discover.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: us-east-2
+
+      - name: Log in to ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push image
+        env:
+          REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          REPOSITORY: kenoo-${{ matrix.ecs_service }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build \
+            --build-arg SYSTEM_NAME=${{ matrix.package }} \
+            -f systems/infra/Dockerfile \
+            -t "$REGISTRY/$REPOSITORY:$IMAGE_TAG" \
+            -t "$REGISTRY/$REPOSITORY:latest" \
+            .
+          docker push "$REGISTRY/$REPOSITORY:$IMAGE_TAG"
+          docker push "$REGISTRY/$REPOSITORY:latest"
+
+      - name: Force new ECS deployment
+        run: |
+          aws ecs update-service \
+            --cluster kenoo-systems \
+            --service ${{ matrix.ecs_service }} \
+            --force-new-deployment

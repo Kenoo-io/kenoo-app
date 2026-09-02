@@ -40,3 +40,11 @@ systems/**/*.pyc
 # typescript
 next-env.d.ts
 client_secret_*.apps.googleusercontent.com.json
+
+# terraform (remote state lives in S3 — see systems/infra/terraform/bootstrap)
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log

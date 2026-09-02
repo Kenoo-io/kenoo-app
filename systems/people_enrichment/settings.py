@@ -14,7 +14,6 @@ class PeopleEnrichmentSettings:
     supabase_service_role_key: str
     serper_api_key: str
     openai_api_key: str
-    firecrawl_api_key: str | None
     poll_interval_seconds: float
 
 
@@ -40,6 +39,5 @@ def load_settings() -> PeopleEnrichmentSettings:
         supabase_service_role_key=supabase.service_role_key,
         serper_api_key=serper_api_key,  # type: ignore[arg-type]
         openai_api_key=openai_api_key,  # type: ignore[arg-type]
-        firecrawl_api_key=os.getenv("FIRECRAWL_API_KEY") or None,
         poll_interval_seconds=float(os.getenv("POLL_INTERVAL_SECONDS", "10")),
     )

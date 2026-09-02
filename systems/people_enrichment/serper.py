@@ -7,10 +7,10 @@ from urllib.parse import urlparse
 import httpx
 
 from .models import (
-    MAX_FIRECRAWL_URLS,
+    MAX_SCRAPE_URLS,
     OrganicUrlCandidate,
     SearchResult,
-    firecrawl_url_sort_key,
+    scrape_url_sort_key,
 )
 from .utils import hostname_looks_unscrapable, normalize_url_for_dedup, sanitize_property_listing_url
 
@@ -104,9 +104,9 @@ def pick_property_listing_url(search_results: list[SearchResult]) -> str | None:
     return None
 
 
-def pick_organic_urls_for_firecrawl(
+def pick_organic_urls_for_scrape(
     search_results: list[SearchResult],
-    max_urls: int = MAX_FIRECRAWL_URLS,
+    max_urls: int = MAX_SCRAPE_URLS,
 ) -> list[OrganicUrlCandidate]:
     rows: list[OrganicUrlCandidate] = []
     for search_result in search_results:
@@ -135,7 +135,7 @@ def pick_organic_urls_for_firecrawl(
                 )
             )
 
-    rows.sort(key=lambda row: firecrawl_url_sort_key(row.search_label, row.position, row.url))
+    rows.sort(key=lambda row: scrape_url_sort_key(row.search_label, row.position, row.url))
     seen: set[str] = set()
     out: list[OrganicUrlCandidate] = []
     for row in rows:

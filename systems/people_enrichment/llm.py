@@ -6,17 +6,16 @@ from typing import Any
 
 import httpx
 
-from .firecrawl import (
-    format_firecrawl_pages_for_synthesis_prompt,
-    format_page_scrape_synthesis_for_prompt,
-    parse_page_scrape_synthesis,
-)
 from .models import (
     ENRICHMENT_LLM_MODEL,
     ENRICHMENT_LLM_REASONING_EFFORT,
     ENRICHMENT_LLM_TIMEOUT_SECONDS,
-    FirecrawlPageResult,
     PageScrapeSynthesis,
+    ScrapedPageResult,
+)
+from .scrape import (
+    format_scraped_pages_for_synthesis_prompt,
+    parse_page_scrape_synthesis,
 )
 from .utils import format_enrichment_research_as_of, truncate_for_prompt
 
@@ -180,12 +179,12 @@ def openai_chat(
         return None
 
 
-def synthesize_firecrawl_pages(
+def synthesize_scraped_pages(
     http: httpx.Client,
     api_key: str,
     donor_context: str,
     formatted_searches: str,
-    pages: list[FirecrawlPageResult],
+    pages: list[ScrapedPageResult],
 ) -> PageScrapeSynthesis | None:
     ok_pages = [page for page in pages if page.markdown and page.markdown.strip()]
     if not ok_pages:
@@ -209,13 +208,13 @@ def synthesize_firecrawl_pages(
                 "role": "user",
                 "content": (
                     "You are given (1) person facts, (2) Google search snippets we already "
-                    "used, and (3) full-page markdown from Firecrawl for a few of those "
+                    "used, and (3) full-page markdown scraped from a few of those "
                     "result URLs.\n\n"
                     f"PERSON FACTS:\n{donor_context}\n\n"
                     f"SEARCH SNIPPETS (Serper — for context):\n"
                     f"{truncate_for_prompt(formatted_searches, 12_000)}\n\n"
-                    f"FULL-PAGE MARKDOWN (Firecrawl):\n"
-                    f"{format_firecrawl_pages_for_synthesis_prompt(pages)}\n\n"
+                    f"FULL-PAGE MARKDOWN (scraped):\n"
+                    f"{format_scraped_pages_for_synthesis_prompt(pages)}\n\n"
                     "Return JSON:\n"
                     "{\n"
                     '  "summary": "2–5 sentences...",\n'
@@ -260,7 +259,7 @@ def analyze_identity(
                     "Analyze these web search results to identify who this person most likely is.\n\n"
                     f"PERSON DATA:\n{donor_context}\n\n"
                     f"WEB SEARCH RESULTS:\n{formatted_searches}\n\n"
-                    "FULL-PAGE SCRAPE SYNTHESIS (Firecrawl markdown → model summary; "
+                    "FULL-PAGE SCRAPE SYNTHESIS (scraped markdown → model summary; "
                     "use together with snippets above):\n"
                     f"{page_scrape_context}\n\n"
                     "Return JSON with fields: most_likely_identity, profession, employer, "

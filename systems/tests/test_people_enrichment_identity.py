@@ -1,22 +1,21 @@
 from __future__ import annotations
 
+import sys
 import unittest
 from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import Mock
 
-import sys
-
 SYSTEMS_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SYSTEMS_ROOT))
 
-from people_enrichment.firecrawl import reset_firecrawl_skip_for_tests, scrape_firecrawl_pages
 from people_enrichment.models import OrganicUrlCandidate, PeopleLocationFields, PeopleWorkFields
 from people_enrichment.payload import parse_person_subject
 from people_enrichment.people import (
     apply_public_figure_notability_guard,
     merge_people_work_fields,
 )
+from people_enrichment.scrape import scrape_pages
 from people_enrichment.search_queries import (
     build_salary_research_queries,
     build_search_queries,
@@ -215,9 +214,8 @@ class PublicFigureNotabilityGuardTests(unittest.TestCase):
         self.assertEqual(apply_public_figure_notability_guard(payload), payload)
 
 
-class FirecrawlCreditSkipTests(unittest.TestCase):
+class ScrapePagesTests(unittest.TestCase):
     def setUp(self) -> None:
-        reset_firecrawl_skip_for_tests()
         self.candidate = OrganicUrlCandidate(
             url="https://example.com/a",
             title="A",
@@ -226,23 +224,34 @@ class FirecrawlCreditSkipTests(unittest.TestCase):
             search_label="name_email",
         )
 
-    def tearDown(self) -> None:
-        reset_firecrawl_skip_for_tests()
+    def test_extracts_markdown_from_a_successful_response(self) -> None:
+        response = Mock()
+        response.is_success = True
+        response.text = (
+            "<html><body><article><h1>Jane Doe</h1>"
+            "<p>Jane Doe is a director of sales at Acme Corp in Austin, Texas. "
+            "She has worked in the software industry for over a decade and is "
+            "active on several professional boards in the area.</p></article>"
+            "</body></html>"
+        )
+        http = Mock()
+        http.get.return_value = response
 
-    def test_payment_error_skips_later_jobs(self) -> None:
+        pages = scrape_pages(http, [self.candidate])
+        self.assertEqual(len(pages), 1)
+        self.assertIsNone(pages[0].scrape_error)
+        self.assertIn("Jane Doe", pages[0].markdown or "")
+
+    def test_http_error_status_is_reported_as_scrape_error(self) -> None:
         response = Mock()
         response.is_success = False
-        response.status_code = 402
-        response.reason_phrase = "Payment Required"
-        response.json.return_value = {"success": False, "error": "Insufficient credits"}
+        response.status_code = 404
         http = Mock()
-        http.post.return_value = response
+        http.get.return_value = response
 
-        first = scrape_firecrawl_pages(http, "fc-key", [self.candidate])
-        self.assertEqual(first[0].scrape_error, "FIRECRAWL credits exhausted")
-        second = scrape_firecrawl_pages(http, "fc-key", [self.candidate])
-        self.assertEqual(second[0].scrape_error, "FIRECRAWL credits exhausted")
-        self.assertEqual(http.post.call_count, 1)
+        pages = scrape_pages(http, [self.candidate])
+        self.assertIsNone(pages[0].markdown)
+        self.assertEqual(pages[0].scrape_error, "http_404")
 
 
 class PersonSubjectParseTests(unittest.TestCase):

@@ -102,7 +102,7 @@ def build_search_queries(
     queries: list[SearchQuery] = []
     location_str = ", ".join(part for part in [donor.get("city"), donor.get("state")] if part)
 
-    # Identifier-anchored queries first so Serper/Firecrawl see local people,
+    # Identifier-anchored queries first so search/scrape results surface local people,
     # not only the most famous namesake.
     if full_name and email:
         queries.append(SearchQuery(label="name_email", query=f'"{full_name}" "{email}"'))

@@ -1,0 +1,8 @@
+{
+  "systems": [
+    {
+      "package": "people_enrichment",
+      "ecs_service": "people-enrichment"
+    }
+  ]
+}

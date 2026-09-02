@@ -3,6 +3,8 @@ services:
     build:
       context: ../..
       dockerfile: systems/infra/Dockerfile
+      args:
+        SYSTEM_NAME: people_enrichment
     env_file:
       - path: ../../.env.local
         required: false
