@@ -87,12 +87,17 @@ After the first apply:
   never need inbound. A NAT gateway is ~$32/mo *per system* for something
   these workers don't use — skip it unless a system needs a stable outbound
   IP or the account's security posture changes.
-- **No scale-to-zero yet.** `people_enrichment` polls Supabase directly
-  rather than consuming from a queue, so there's no queue-depth signal to
-  scale on. `desired_count` is a flat 1 (~$7-10/mo per small worker). If a
-  future system is bursty enough to matter, revisit with SQS +
-  Application Auto Scaling (or an EventBridge-scheduled Lambda that flips
-  `desired_count`) — resist adding that complexity before it's needed.
+- **Scale-to-zero via a wake queue.** Each system gets a companion SQS queue
+  (`kenoo-<name>-wake`) that carries no job payload — the job data lives in
+  Supabase's `systems_jobs` table, which stays the source of truth. Enqueuing
+  a job also sends a bare SQS message purely so Application Auto Scaling sees
+  queue depth > 0 and scales `desired_count` 0 → N; see
+  `systems/shared/queue.py` and `worker_loop.py` for why the worker holds the
+  message open (received, not deleted) until its DB backlog is drained.
+  `claim_next_job` (`systems/shared/jobs.py`) uses a conditional
+  `UPDATE ... WHERE status = 'pending'`, so it's safe for multiple tasks to
+  claim from the same table concurrently — set `max_capacity` per system in
+  `locals.systems` (default 1) to let it actually scale out under load.
 - **`:latest` tag, not immutable digests.** Keeps CI simple (build, push,
   force-new-deployment) at the cost of the task definition not recording
   exactly which image is running — `aws ecs describe-tasks` will tell you

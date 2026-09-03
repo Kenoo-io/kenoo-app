@@ -138,6 +138,7 @@ locals {
       cpu           = 256
       memory        = 512
       desired_count = 1
+      max_capacity  = 25
       environment = {
         SUPABASE_URL          = "https://oehqusxpbwtbeenzixjh.supabase.co"
         POLL_INTERVAL_SECONDS = "10"
@@ -164,6 +165,7 @@ module "worker" {
   cpu               = each.value.cpu
   memory            = each.value.memory
   desired_count     = each.value.desired_count
+  max_capacity      = try(each.value.max_capacity, 1)
   environment       = each.value.environment
   secret_keys       = each.value.secret_keys
 }
