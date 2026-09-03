@@ -201,7 +201,11 @@ resource "aws_appautoscaling_policy" "queue_depth" {
   scalable_dimension = aws_appautoscaling_target.this.scalable_dimension
 
   target_tracking_scaling_policy_configuration {
-    target_value       = 1
+    // AWS turns this into a strict-greater-than alarm threshold, not >=. A
+    // single queued job produces backlog=1 — target_value=1 would need
+    // backlog>1 (i.e. 2+ simultaneous jobs) to ever scale out, so a single
+    // job would never wake the service. 0.5 makes any backlog >=1 breach it.
+    target_value       = 0.5
     scale_in_cooldown  = 300
     scale_out_cooldown = 0
 
