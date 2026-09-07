@@ -15,7 +15,7 @@ import {
   subMonths,
 } from "date-fns";
 import { ChevronLeft, ChevronRight, PanelTopClose, PanelTopOpen } from "lucide-react";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 const WEEKDAYS = ["S", "M", "T", "W", "T", "F", "S"] as const;
@@ -42,6 +42,33 @@ export function MiniCalendar({
     () => startOfMonth(selected ?? new Date())
   );
   const [isCollapsed, setIsCollapsed] = React.useState(false);
+  const [isHeaderCollapsed, setIsHeaderCollapsed] = React.useState(false);
+  const collapseTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  React.useEffect(() => {
+    return () => {
+      if (collapseTimerRef.current) clearTimeout(collapseTimerRef.current);
+    };
+  }, []);
+
+  const handleCollapseToggle = () => {
+    if (collapseTimerRef.current) clearTimeout(collapseTimerRef.current);
+
+    if (isCollapsed) {
+      // Restore the header first, then expand the calendar grid.
+      setIsHeaderCollapsed(false);
+      collapseTimerRef.current = setTimeout(() => {
+        setIsCollapsed(false);
+      }, 320);
+      return;
+    }
+
+    // Collapse the calendar grid first, then hide and reposition the header controls.
+    setIsCollapsed(true);
+    collapseTimerRef.current = setTimeout(() => {
+      setIsHeaderCollapsed(true);
+    }, 340);
+  };
 
   React.useEffect(() => {
     if (selected) {
@@ -61,34 +88,61 @@ export function MiniCalendar({
   return (
     <div className={cn("w-full select-none", className)}>
       {showHeader && (
-        <div className="mb-1 flex items-center justify-between">
-          <h2 className="text-[13px] font-medium tracking-tight text-kenoo-ink">
-            {format(displayMonth, "MMMM yyyy")}
-          </h2>
-          <div className="flex items-center">
-            <button
-              type="button"
-              aria-label="Previous month"
-              onClick={() => setDisplayMonth((m) => subMonths(m, 1))}
-              className="flex h-6 w-6 items-center justify-center rounded-full text-kenoo-muted transition-colors hover:bg-kenoo-subtle hover:text-kenoo-ink"
-            >
-              <ChevronLeft className="h-3.5 w-3.5" />
-            </button>
-            <button
-              type="button"
-              aria-label="Next month"
-              onClick={() => setDisplayMonth((m) => addMonths(m, 1))}
-              className="flex h-6 w-6 items-center justify-center rounded-full text-kenoo-muted transition-colors hover:bg-kenoo-subtle hover:text-kenoo-ink"
-            >
-              <ChevronRight className="h-3.5 w-3.5" />
-            </button>
+        <motion.div layout className="mb-1 flex items-center">
+          <AnimatePresence initial={false}>
+            {!isHeaderCollapsed && (
+              <motion.h2
+                initial={{ opacity: 0, width: 0 }}
+                animate={{ opacity: 1, width: "auto" }}
+                exit={{ opacity: 0, width: 0 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+                className="overflow-hidden whitespace-nowrap text-[13px] font-medium tracking-tight text-kenoo-ink"
+              >
+                {format(displayMonth, "MMMM yyyy")}
+              </motion.h2>
+            )}
+          </AnimatePresence>
+
+          <motion.div
+            layout
+            className={cn("flex items-center", !isHeaderCollapsed && "ml-auto")}
+          >
+            <AnimatePresence initial={false}>
+              {!isHeaderCollapsed && (
+                <motion.div
+                  initial={{ opacity: 0, width: 0 }}
+                  animate={{ opacity: 1, width: "auto" }}
+                  exit={{ opacity: 0, width: 0 }}
+                  transition={{ duration: 0.2, ease: "easeOut" }}
+                  className="flex items-center overflow-hidden"
+                >
+                  <button
+                    type="button"
+                    aria-label="Previous month"
+                    onClick={() => setDisplayMonth((m) => subMonths(m, 1))}
+                    className="flex h-6 w-6 items-center justify-center rounded-full text-kenoo-muted transition-colors hover:bg-kenoo-subtle hover:text-kenoo-ink"
+                  >
+                    <ChevronLeft className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Next month"
+                    onClick={() => setDisplayMonth((m) => addMonths(m, 1))}
+                    className="flex h-6 w-6 items-center justify-center rounded-full text-kenoo-muted transition-colors hover:bg-kenoo-subtle hover:text-kenoo-ink"
+                  >
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             {collapsible && (
               <button
                 type="button"
                 aria-label={isCollapsed ? "Expand mini calendar" : "Minimize mini calendar"}
                 title={isCollapsed ? "Expand mini calendar" : "Minimize mini calendar"}
                 aria-expanded={!isCollapsed}
-                onClick={() => setIsCollapsed((collapsed) => !collapsed)}
+                onClick={handleCollapseToggle}
                 className="ml-0.5 flex h-6 w-6 items-center justify-center rounded-full text-kenoo-muted transition-colors hover:bg-kenoo-subtle hover:text-kenoo-ink"
               >
                 {isCollapsed ? (
@@ -98,8 +152,8 @@ export function MiniCalendar({
                 )}
               </button>
             )}
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
 
       <motion.div

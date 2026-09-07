@@ -392,7 +392,8 @@ export function CalendarDaySidebar({
                       "rounded-xl px-2.5 py-3",
                       sidebarEventCardClass,
                       isCompleted && "opacity-70",
-                      isCardClickable && "cursor-pointer hover:bg-neutral-200/70"
+                      isCardClickable &&
+                        "cursor-pointer hover:bg-neutral-100 has-[a:hover]:bg-transparent"
                     )}
                   >
                     <div className="mb-2 flex items-center justify-between gap-2">
@@ -454,12 +455,18 @@ export function CalendarDaySidebar({
                     )}
 
                     {hasMeetingLink && (
-                      <a
+                      <motion.a
                         href={event.meetingLink}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="group/link mt-2 flex items-center gap-1.5 rounded-xl border border-white/50 bg-kenoo-white/45 px-2.5 py-1.5 transition-colors hover:bg-kenoo-white/70"
+                        className="group/link mt-2 flex items-center gap-1.5 rounded-xl border border-white/50 bg-kenoo-white/45 px-2.5 py-1.5 transition-colors hover:bg-neutral-100"
                         onClick={(e) => e.stopPropagation()}
+                        initial="rest"
+                        whileHover="hover"
+                        variants={{
+                          rest: {},
+                          hover: {},
+                        }}
                       >
                         {isGoogleMeet && (
                           <Image
@@ -470,15 +477,20 @@ export function CalendarDaySidebar({
                             className="shrink-0"
                           />
                         )}
-                        <span
+                        <motion.span
                           className={cn(
                             "text-kenoo-ink group-hover/link:text-kenoo-ink",
                             isGoogleMeet ? "text-sm" : "text-xs"
                           )}
+                          variants={{
+                            rest: { x: 0 },
+                            hover: { x: 3 },
+                          }}
+                          transition={{ duration: 0.18, ease: "easeOut" }}
                         >
                           Join meeting
-                        </span>
-                      </a>
+                        </motion.span>
+                      </motion.a>
                     )}
 
                     {showMarkComplete && (
