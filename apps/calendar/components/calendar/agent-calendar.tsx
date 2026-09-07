@@ -646,6 +646,90 @@ function AgentCalendarContent({
     }
   };
 
+  const handleTaskDrop = async (
+    taskId: string,
+    startTime: Date,
+    scheduleId?: string
+  ) => {
+    if (!scheduleId) {
+      const existing = scheduledTasks.find((task) => task.taskId === taskId);
+      if (!existing) return;
+
+      const durationMs =
+        new Date(existing.endTime).getTime() - new Date(existing.startTime).getTime();
+      setScheduledTasks((prev) =>
+        prev.map((task) =>
+          task.taskId === taskId
+            ? {
+                ...task,
+                startTime,
+                endTime: new Date(startTime.getTime() + durationMs),
+              }
+            : task
+        )
+      );
+      return;
+    }
+
+    const projectTask = projectTasks.find((task) => task.id === taskId);
+    const schedule = projectTask?.schedules?.find((row) => row.id === scheduleId);
+    if (!projectTask || !schedule) return;
+
+    const durationMs = Math.max(
+      15 * 60 * 1000,
+      new Date(schedule.end_time).getTime() - new Date(schedule.start_time).getTime()
+    );
+    const nextStart = startTime.toISOString();
+    const nextEnd = new Date(startTime.getTime() + durationMs).toISOString();
+
+    setProjectTasks((prev) =>
+      prev.map((task) =>
+        task.id === taskId
+          ? {
+              ...task,
+              schedules: task.schedules?.map((row) =>
+                row.id === scheduleId
+                  ? { ...row, start_time: nextStart, end_time: nextEnd }
+                  : row
+              ),
+            }
+          : task
+      )
+    );
+
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from('project_task_schedules')
+      .update({ start_time: nextStart, end_time: nextEnd })
+      .eq('id', scheduleId)
+      .eq('task_id', taskId)
+      .select('id')
+      .maybeSingle();
+
+    if (error || !data) {
+      setProjectTasks((prev) =>
+        prev.map((task) =>
+          task.id === taskId
+            ? {
+                ...task,
+                schedules: task.schedules?.map((row) =>
+                  row.id === scheduleId ? schedule : row
+                ),
+              }
+            : task
+        )
+      );
+      console.error('Error rescheduling project task:', error);
+      wallsToast.negative(
+        'Task Not Rescheduled',
+        'The new time could not be saved. Please try again.'
+      );
+      return;
+    }
+
+    wallsToast.success('Task Rescheduled', projectTask.title);
+  };
+
   const handleCreateTask = () => {
     setEditProjectTask(null);
     setTaskFormOpen(true);
@@ -774,7 +858,7 @@ function AgentCalendarContent({
                   selectedDate={selectedDate}
                   onDateSelect={setSelectedDate}
                   allEvents={allEvents}
-                  onTaskDrop={() => {}}
+                  onTaskDrop={handleTaskDrop}
                   onEventDeleted={handleEventDeleted}
                   onEventUpdated={handleEventUpdated}
                   onProjectTaskClick={handleProjectTaskClick}

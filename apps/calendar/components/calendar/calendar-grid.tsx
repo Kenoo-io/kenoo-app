@@ -196,7 +196,11 @@ interface CalendarGridProps {
   selectedDate: Date;
   onDateSelect?: (date: Date) => void;
   allEvents: Event[];
-  onTaskDrop: (taskId: string, startTime: Date) => void;
+  onTaskDrop: (
+    taskId: string,
+    startTime: Date,
+    scheduleId?: string
+  ) => void | Promise<void>;
   onEventDeleted?: (eventId: string) => void;
   onEventUpdated?: (eventId: string, updatedData: any) => void;
   onProjectTaskClick?: (taskId: string) => void;
@@ -241,6 +245,8 @@ function TimedEventBlock({
   startTime,
   endTime,
   onClick,
+  onDragStart,
+  onDragEnd,
 }: {
   event: Event;
   left: string;
@@ -251,6 +257,8 @@ function TimedEventBlock({
   startTime: DateTime;
   endTime: DateTime;
   onClick: () => void;
+  onDragStart?: (event: React.DragEvent<HTMLDivElement>) => void;
+  onDragEnd?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [coords, setCoords] = useState<{
@@ -259,6 +267,7 @@ function TimedEventBlock({
     placeBelow: boolean;
   } | null>(null);
   const anchorRef = useRef<HTMLDivElement>(null);
+  const didDragRef = useRef(false);
 
   useEffect(() => {
     if (!open) return;
@@ -306,7 +315,8 @@ function TimedEventBlock({
     <div
       ref={anchorRef}
       className={cn(
-        'absolute cursor-pointer group hover:z-20',
+        'absolute group hover:z-20',
+        onDragStart ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer',
         theme.container,
         isCompleted && 'opacity-60'
       )}
@@ -316,7 +326,24 @@ function TimedEventBlock({
         width,
         height: `${height}px`,
       }}
-      onClick={onClick}
+      draggable={Boolean(onDragStart)}
+      onDragStart={(dragEvent) => {
+        didDragRef.current = true;
+        setOpen(false);
+        onDragStart?.(dragEvent);
+      }}
+      onDragEnd={() => {
+        onDragEnd?.();
+        // Browsers can emit a click immediately after dragend. Keep this flag
+        // set through that click, then restore normal click behavior.
+        window.setTimeout(() => {
+          didDragRef.current = false;
+        }, 0);
+      }}
+      onClick={() => {
+        if (didDragRef.current) return;
+        onClick();
+      }}
       onMouseEnter={() => setOpen(true)}
       onMouseLeave={() => setOpen(false)}
     >
@@ -719,10 +746,52 @@ export function CalendarGrid({ selectedDate, onDateSelect, allEvents, onTaskDrop
     title: string;
     eventType: string;
   } | null>(null);
+  const activeDragRef = useRef<{
+    id: string;
+    title: string;
+    eventType: string;
+    duration: string;
+    scheduleId?: string;
+  } | null>(null);
 
   // Add state for regular events popup
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [isViewPopupOpen, setIsViewPopupOpen] = useState(false);
+
+  const createDropDate = (dayIndex: number, hour: number, minute: number) => {
+    const calendarDay = addDays(startOfCurrentWeek, dayIndex);
+    return DateTime.fromObject(
+      {
+        year: calendarDay.getFullYear(),
+        month: calendarDay.getMonth() + 1,
+        day: calendarDay.getDate(),
+        hour,
+        minute,
+        second: 0,
+        millisecond: 0,
+      },
+      { zone: viewerZone }
+    ).toJSDate();
+  };
+
+  const getDraggedTaskData = (dataTransfer: DataTransfer) => {
+    let taskData: {
+      id: string;
+      title: string;
+      eventType: string;
+      duration: string;
+      scheduleId?: string;
+    } | null = null;
+
+    try {
+      const jsonData = dataTransfer.getData('application/json');
+      if (jsonData) taskData = JSON.parse(jsonData);
+    } catch (err) {
+      console.error('Error parsing task drag data:', err);
+    }
+
+    return taskData ?? activeDragRef.current;
+  };
   
   // Handle event click
   const handleEventClick = (event: Event) => {
@@ -754,7 +823,8 @@ export function CalendarGrid({ selectedDate, onDateSelect, allEvents, onTaskDrop
   // Handle drag over to show preview
   const handleDragOver = (e: React.DragEvent, dayIndex: number, hour: number, minute: number = 0) => {
     e.preventDefault();
-    const taskId = e.dataTransfer.getData('text/plain');
+    const taskData = getDraggedTaskData(e.dataTransfer);
+    const taskId = e.dataTransfer.getData('text/plain') || taskData?.id;
     
     if (!taskId) return;
     
@@ -762,20 +832,9 @@ export function CalendarGrid({ selectedDate, onDateSelect, allEvents, onTaskDrop
     const roundedMinute = Math.round(minute / GRID_SNAP) * GRID_SNAP;
     
     // Create the time at the drop location
-    const dropDate = addDays(startOfCurrentWeek, dayIndex);
-    dropDate.setHours(hour, roundedMinute, 0, 0);
+    const dropDate = createDropDate(dayIndex, hour, roundedMinute);
     
     // Try to get additional task data from dataTransfer
-    let taskData: { id: string; title: string; eventType: string; duration: string } | null = null;
-    try {
-      const jsonData = e.dataTransfer.getData('application/json');
-      if (jsonData) {
-        taskData = JSON.parse(jsonData);
-      }
-    } catch (err) {
-      console.error('Error parsing task data:', err);
-    }
-    
     if (taskData) {
       // Use the task data to create a preview
       let duration = 30; // Default 30 minutes
@@ -841,18 +900,17 @@ export function CalendarGrid({ selectedDate, onDateSelect, allEvents, onTaskDrop
     e.preventDefault();
     
     // Get the task ID from the drag data
-    const taskId = e.dataTransfer.getData('text/plain');
+    const taskData = getDraggedTaskData(e.dataTransfer);
+    const taskId = e.dataTransfer.getData('text/plain') || taskData?.id;
     if (!taskId) return;
     
     // Round to nearest 15-minute interval
     const roundedMinute = Math.round(minute / GRID_SNAP) * GRID_SNAP;
     
     // Calculate the drop time based on day, hour, and rounded minute
-    const dropDate = addDays(startOfCurrentWeek, dayIndex);
-    dropDate.setHours(hour, roundedMinute, 0, 0);
-    
+    const dropDate = createDropDate(dayIndex, hour, roundedMinute);
     // Call the parent component's onTaskDrop method
-    onTaskDrop(taskId, dropDate);
+    void onTaskDrop(taskId, dropDate, taskData?.scheduleId);
     
     // Hide preview
     setDragPreview(null);
@@ -864,6 +922,36 @@ export function CalendarGrid({ selectedDate, onDateSelect, allEvents, onTaskDrop
     if (!e.currentTarget.contains(e.relatedTarget as Node)) {
       setDragPreview(null);
     }
+  };
+
+  const getGridDropPosition = (e: React.DragEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const dayWidth = rect.width / numDays;
+    const dayIndex = Math.min(
+      numDays - 1,
+      Math.max(0, Math.floor((e.clientX - rect.left) / dayWidth))
+    );
+    const rawMinutes = (e.clientY - rect.top) / pixelsPerMinute;
+    const snappedMinutes = Math.min(
+      MINUTES_PER_HOUR * 24 - GRID_SNAP,
+      Math.max(0, roundToNearestInterval(rawMinutes, GRID_SNAP))
+    );
+
+    return {
+      dayIndex,
+      hour: Math.floor(snappedMinutes / MINUTES_PER_HOUR),
+      minute: snappedMinutes % MINUTES_PER_HOUR,
+    };
+  };
+
+  const handleGridDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    const { dayIndex, hour, minute } = getGridDropPosition(e);
+    handleDragOver(e, dayIndex, hour, minute);
+  };
+
+  const handleGridDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    const { dayIndex, hour, minute } = getGridDropPosition(e);
+    handleDrop(e, dayIndex, hour, minute);
   };
 
   React.useEffect(() => {
@@ -1035,7 +1123,11 @@ export function CalendarGrid({ selectedDate, onDateSelect, allEvents, onTaskDrop
             </div>
 
             {/* Events grid */}
-            <div className="absolute left-12 right-0 top-0 h-full">
+            <div
+              className="absolute left-12 right-0 top-0 h-full"
+              onDragOver={handleGridDragOver}
+              onDrop={handleGridDrop}
+            >
               {/* Current time indicator */}
               <TimeIndicator
                 weekDates={weekDates}
@@ -1061,8 +1153,6 @@ export function CalendarGrid({ selectedDate, onDateSelect, allEvents, onTaskDrop
                               height: `${GRID_SNAP * pixelsPerMinute}px`,
                               opacity: minute === 0 ? 0 : 0.5 // Make the non-hour lines lighter
                             }}
-                            onDragOver={(e) => handleDragOver(e, dayIndex, hour, minute)}
-                            onDrop={(e) => handleDrop(e, dayIndex, hour, minute)}
                           ></div>
                         ))}
                       </div>
@@ -1079,7 +1169,7 @@ export function CalendarGrid({ selectedDate, onDateSelect, allEvents, onTaskDrop
                   )}
                   style={{
                     left: `${(dragPreview.dayIndex * (100 / numDays))}%`,
-                    top: `${(dragPreview.time.getHours() * 60 + dragPreview.time.getMinutes()) * pixelsPerMinute}px`,
+                    top: `${(toEventDateTime(dragPreview.time, viewerZone).hour * 60 + toEventDateTime(dragPreview.time, viewerZone).minute) * pixelsPerMinute}px`,
                     width: `${100 / numDays - 1}%`,
                     height: `${dragPreview.height * pixelsPerMinute}px`,
                     zIndex: 5,
@@ -1090,7 +1180,7 @@ export function CalendarGrid({ selectedDate, onDateSelect, allEvents, onTaskDrop
                     <div className="min-w-0 flex-1 p-2 pl-2">
                       <div className="text-xs font-normal truncate">{dragPreview.title}</div>
                       <div className="text-[10px] text-muted-foreground mt-0.5">
-                        {format(dragPreview.time, 'h:mm a')}
+                        {formatEventTime(toEventDateTime(dragPreview.time, viewerZone))}
                       </div>
                     </div>
                   </div>
@@ -1114,6 +1204,32 @@ export function CalendarGrid({ selectedDate, onDateSelect, allEvents, onTaskDrop
                 const width = `calc(${columnWidthPct}% - 2px)`;
                 const top = topMinutes * pixelsPerMinute;
                 const height = durationMinutes * pixelsPerMinute;
+                const isDraggableTask =
+                  event.type === 'scheduled-task' ||
+                  event.type === 'project-task-schedule';
+
+                const handleTaskDragStart = isDraggableTask
+                  ? (dragEvent: React.DragEvent<HTMLDivElement>) => {
+                      const taskId = event.projectTaskId ??
+                        ('legacyTaskId' in event && typeof event.legacyTaskId === 'string'
+                          ? event.legacyTaskId
+                          : event.id.replace('scheduled-', ''));
+                      const dragData = {
+                        id: taskId,
+                        title: event.title,
+                        eventType: event.eventType || 'task',
+                        duration: String(durationMinutes),
+                        scheduleId: event.scheduleId,
+                      };
+                      activeDragRef.current = dragData;
+                      dragEvent.dataTransfer.setData('text/plain', taskId);
+                      dragEvent.dataTransfer.setData(
+                        'application/json',
+                        JSON.stringify(dragData)
+                      );
+                      dragEvent.dataTransfer.effectAllowed = 'move';
+                    }
+                  : undefined;
 
                 return (
                   <TimedEventBlock
@@ -1127,6 +1243,11 @@ export function CalendarGrid({ selectedDate, onDateSelect, allEvents, onTaskDrop
                     startTime={startTime}
                     endTime={endTime}
                     onClick={() => handleEventClick(event)}
+                    onDragStart={handleTaskDragStart}
+                    onDragEnd={() => {
+                      activeDragRef.current = null;
+                      setDragPreview(null);
+                    }}
                   />
                 );
               })}
