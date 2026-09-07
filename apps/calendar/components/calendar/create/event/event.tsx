@@ -300,7 +300,7 @@ export function Event({ onDataChange }: EventProps) {
         {/* Right column - Form inputs */}
         <div className="flex-1 grid gap-6">
           <div className="relative -top-px flex items-center border-0 border-b border-gray-200 pt-1">
-            <div className="flex gap-1 py-[2px]">
+            <div className="flex gap-1 pt-[4.5px] pb-[5px]">
               {/* Date Picker */}
               <Popover>
                 <PopoverTrigger asChild>
