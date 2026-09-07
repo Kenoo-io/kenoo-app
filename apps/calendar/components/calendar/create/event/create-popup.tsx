@@ -2,7 +2,7 @@
 
 
 import { wallsToast } from "@/components/ui/walls-toast";
-import React, { useState, ReactNode } from 'react';
+import React, { useEffect, useState, ReactNode } from 'react';
 import {
   Dialog,
   DialogContent as DialogContentPrimitive,
@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Cross2Icon } from "@radix-ui/react-icons";
 import { Clock } from "lucide-react";
+import { motion, useReducedMotion } from "framer-motion";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { cn } from "@/lib/utils";
 import { Event } from './event';
@@ -31,7 +32,7 @@ const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border-0 bg-kenoo-white p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-3xl",
+        "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border-0 outline-none bg-kenoo-white p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-3xl",
         className
       )}
       {...props}
@@ -77,6 +78,19 @@ export function CreatePopup({
   const [selectedType, setSelectedType] = useState<EventType>(initialType);
   const [eventData, setEventData] = useState<any>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const prefersReducedMotion = useReducedMotion();
+  const tabIndicatorId = React.useId();
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    // The dialog remains mounted after it closes, so start every creation flow
+    // from the type (and blank form state) selected by the launcher.
+    setSelectedType(initialType);
+    setTitle(initialTitle);
+    setEventData({});
+    setIsSubmitting(false);
+  }, [isOpen, initialType, initialTitle]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -153,7 +167,7 @@ export function CreatePopup({
   };
   
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent
         className="sm:max-w-[600px] min-h-[500px]"
         onInteractOutside={preventDialogDismissOutside}
@@ -167,48 +181,87 @@ export function CreatePopup({
 
             {/* Right column - Main content */}
             <div className="flex-1 grid gap-4 py-4">
-              <div className="grid gap-2">
+              <div>
                 <Input
                   id="title"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="Add title"
                   required
-                  className="border-0 border-b-2 border-blue-500 rounded-none bg-transparent focus:ring-0 focus-visible:ring-0 focus:border-blue-600 px-0"
+                  className="border-0 border-b-2 rounded-none bg-transparent shadow-none focus:ring-0 focus-visible:ring-0 px-0 border-b-[var(--kenoo-sky)] focus:border-b-[var(--kenoo-sky)] placeholder:text-neutral-300"
                 />
-                <div className="flex gap-4 mt-2 text-sm">
+                <div className="flex gap-1 mt-2 text-sm" role="tablist" aria-label="Create calendar item">
                   <button
                     type="button"
                     onClick={() => setSelectedType('event')}
-                    className={`px-4 py-2 rounded-[15px] transition-all duration-200 ${
-                      selectedType === 'event' 
-                        ? 'text-gray-600 bg-kenoo-light/30 font-medium'
-                        : 'text-gray-600'
+                    role="tab"
+                    aria-selected={selectedType === 'event'}
+                    className={`relative px-4 py-2 rounded-[15px] font-medium ${
+                      selectedType === 'event' ? 'text-gray-600' : 'text-gray-600'
                     }`}
                   >
-                    Event
+                    {selectedType === 'event' && (
+                      <motion.span
+                        layoutId={tabIndicatorId}
+                        aria-hidden="true"
+                        className="absolute inset-0 -z-0 rounded-[15px] bg-kenoo-light/30 shadow-sm"
+                        initial={false}
+                        transition={
+                          prefersReducedMotion
+                            ? { duration: 0 }
+                            : { type: 'spring', stiffness: 460, damping: 30, mass: 0.55 }
+                        }
+                      />
+                    )}
+                    <span className="relative z-10">Event</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setSelectedType('outOfOffice')}
-                    className={`px-4 py-2 rounded-[15px] transition-all duration-200 ${
-                      selectedType === 'outOfOffice' 
-                        ? 'text-gray-600 bg-kenoo-light/30 font-medium'
-                        : 'text-gray-600'
+                    role="tab"
+                    aria-selected={selectedType === 'outOfOffice'}
+                    className={`relative px-4 py-2 rounded-[15px] font-medium ${
+                      selectedType === 'outOfOffice' ? 'text-gray-600' : 'text-gray-600'
                     }`}
                   >
-                    Out of Office
+                    {selectedType === 'outOfOffice' && (
+                      <motion.span
+                        layoutId={tabIndicatorId}
+                        aria-hidden="true"
+                        className="absolute inset-0 -z-0 rounded-[15px] bg-kenoo-light/30 shadow-sm"
+                        initial={false}
+                        transition={
+                          prefersReducedMotion
+                            ? { duration: 0 }
+                            : { type: 'spring', stiffness: 460, damping: 30, mass: 0.55 }
+                        }
+                      />
+                    )}
+                    <span className="relative z-10">Out of Office</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setSelectedType('appointmentSchedule')}
-                    className={`px-4 py-2 rounded-[13px] transition-all duration-200 ${
-                      selectedType === 'appointmentSchedule' 
-                        ? 'text-gray-600 bg-kenoo-light/30 font-medium'
-                        : 'text-gray-600'
+                    role="tab"
+                    aria-selected={selectedType === 'appointmentSchedule'}
+                    className={`relative px-4 py-2 rounded-[15px] font-medium ${
+                      selectedType === 'appointmentSchedule' ? 'text-gray-600' : 'text-gray-600'
                     }`}
                   >
-                    Appointment Schedule
+                    {selectedType === 'appointmentSchedule' && (
+                      <motion.span
+                        layoutId={tabIndicatorId}
+                        aria-hidden="true"
+                        className="absolute inset-0 -z-0 rounded-[15px] bg-kenoo-light/30 shadow-sm"
+                        initial={false}
+                        transition={
+                          prefersReducedMotion
+                            ? { duration: 0 }
+                            : { type: 'spring', stiffness: 460, damping: 30, mass: 0.55 }
+                        }
+                      />
+                    )}
+                    <span className="relative z-10">Appointment Schedule</span>
                   </button>
                 </div>
               </div>

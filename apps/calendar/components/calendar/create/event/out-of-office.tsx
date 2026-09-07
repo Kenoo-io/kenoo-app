@@ -204,7 +204,7 @@ export function OutOfOffice({ onDataChange }: OutOfOfficeProps) {
             </div>
           </div>
           
-          <div className={`flex items-center justify-between border-0 border-b ${focusedField === 'decline-meetings' ? 'border-blue-500' : 'border-gray-200'} py-[2px] mt-0 transition-colors duration-200`}>
+          <div className={`flex items-center justify-between border-0 border-b ${focusedField === 'decline-meetings' ? 'border-[var(--kenoo-blue)]' : 'border-gray-200'} py-[2px] mt-0 transition-colors duration-200`}>
             <span className="text-sm font-normal text-gray-500">Automatically decline meetings</span>
             <Switch
               id="decline-meetings"
@@ -219,4 +219,4 @@ export function OutOfOffice({ onDataChange }: OutOfOfficeProps) {
       </div>
     </div>
   );
-} 
+}

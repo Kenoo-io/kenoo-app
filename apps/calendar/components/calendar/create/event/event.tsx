@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { format, addMinutes, parse } from "date-fns";
 import { EventType } from './create-popup';
 import { Switch } from "@/components/ui/switch";
-import { VideoIcon, Users, MapPin, AlignLeft, Clock } from "lucide-react";
+import { Users, MapPin, AlignLeft, Clock } from "lucide-react";
 import { GuestTag } from './guest-tag';
 import { GuestSearch } from './guest-search';
 import { validateEmail } from "@/lib/utils";
@@ -24,6 +24,8 @@ import { Button } from "@/components/ui/button";
 import { MiniCalendar } from "@/components/ui/mini-calendar";
 import { Toaster } from "@/components/ui/toaster";
 import { GoogleCalendarEvent } from '@/lib/services/googleCalendar';
+import Image from "next/image";
+import { GOOGLE_MEET_ICON_URL } from "../../calendar-event-theme";
 
 interface GuestTag {
   email: string;
@@ -276,7 +278,13 @@ export function Event({ onDataChange }: EventProps) {
             </div>
             
             <div className="flex items-center justify-center w-8 h-8 rounded-full bg-kenoo-white">
-              <VideoIcon className="w-4 h-4 text-gray-600" />
+              <Image
+                src={GOOGLE_MEET_ICON_URL}
+                alt="Google Meet"
+                width={18}
+                height={18}
+                className="shrink-0"
+              />
             </div>
             
             <div className="flex items-center justify-center w-8 h-8 rounded-full bg-kenoo-white">
@@ -430,7 +438,7 @@ export function Event({ onDataChange }: EventProps) {
           </div>
           
           <div className="relative flex items-center mt-0">
-            <div className={`flex flex-wrap items-center gap-2 border-0 border-b ${focusedField === 'guests' ? 'border-blue-500' : 'border-gray-200'} py-[2px] px-0 w-full transition-colors duration-200`}>
+            <div className={`flex flex-wrap items-center gap-2 border-0 border-b ${focusedField === 'guests' ? 'border-[var(--kenoo-blue)]' : 'border-gray-200'} py-[2px] px-0 w-full transition-colors duration-200`}>
               {guestTags.map(tag => (
                 <GuestTag
                   key={tag.id}
@@ -460,7 +468,7 @@ export function Event({ onDataChange }: EventProps) {
             />
           </div>
           
-          <div className={`flex items-center justify-between border-0 border-b ${focusedField === 'google-meet' ? 'border-blue-500' : 'border-gray-200'} py-[2px] mt-0 transition-colors duration-200`}>
+          <div className={`flex items-center justify-between border-0 border-b ${focusedField === 'google-meet' ? 'border-[var(--kenoo-blue)]' : 'border-gray-200'} py-[2px] mt-0 transition-colors duration-200`}>
             <span className="text-sm font-normal text-gray-500">Add Google Meet video conferencing</span>
             <Switch
               id="google-meet"
@@ -478,7 +486,7 @@ export function Event({ onDataChange }: EventProps) {
               value={eventData.location}
               onChange={(e) => setEventData({ ...eventData, location: e.target.value })}
               placeholder="Add location"
-              className={`border-0 border-b ${focusedField === 'location' ? 'border-blue-500' : 'border-gray-200'} rounded-none bg-transparent focus:ring-0 focus-visible:ring-0 focus-visible:outline-none px-0 py-[2px] h-7 w-full transition-colors duration-200`}
+              className={`border-0 border-b ${focusedField === 'location' ? 'border-[var(--kenoo-blue)]' : 'border-gray-200'} rounded-none bg-transparent shadow-none focus:ring-0 focus-visible:ring-0 focus-visible:outline-none px-0 py-[2px] h-7 w-full transition-colors duration-200`}
               onFocus={() => setFocusedField('location')}
               onBlur={() => setFocusedField(null)}
             />
@@ -488,7 +496,7 @@ export function Event({ onDataChange }: EventProps) {
             <div
               ref={descriptionRef}
               contentEditable
-              className={`min-h-[36px] max-h-none border-0 border-b ${focusedField === 'description' ? 'border-blue-500' : 'border-gray-200'} rounded-none bg-transparent outline-none px-0 py-0 w-full overflow-hidden transition-colors duration-200 empty:before:content-['Add_description'] empty:before:text-gray-500 empty:before:pointer-events-none text-sm font-normal`}
+              className={`min-h-[36px] max-h-none border-0 border-b ${focusedField === 'description' ? 'border-[var(--kenoo-blue)]' : 'border-gray-200'} rounded-none bg-transparent outline-none px-0 py-0 w-full overflow-hidden transition-colors duration-200 empty:before:content-['Add_description'] empty:before:text-gray-500 empty:before:pointer-events-none text-sm font-normal`}
               onFocus={() => setFocusedField('description')}
               onBlur={(e) => {
                 setFocusedField(null);
@@ -508,4 +516,4 @@ export function Event({ onDataChange }: EventProps) {
       <Toaster />
     </div>
   );
-} 
+}

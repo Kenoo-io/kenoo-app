@@ -47,7 +47,7 @@ export function CreateDropdown({ onEventTypeSelect }: CreateDropdownProps) {
         <DropdownMenuTrigger asChild>
           <Button 
             variant="outline" 
-            className="w-[70%] h-[60px] mb-4 rounded-[20px] bg-kenoo-white/80 hover:bg-kenoo-white shadow-[0_2px_8px_0_rgba(0,0,0,0.1)] hover:shadow-[0_4px_12px_0_rgba(0,0,0,0.15)] border-2 transition-all duration-200 text-gray-600"
+            className="w-[70%] h-[60px] mb-4 rounded-[20px] bg-kenoo-white/80 hover:bg-kenoo-white shadow-[0_2px_8px_0_rgba(0,0,0,0.1)] hover:shadow-[0_4px_12px_0_rgba(0,0,0,0.15)] border-2 transition-all duration-200 text-gray-600 focus:outline-none focus:ring-0 focus-visible:ring-0"
           >
             <Plus className="mr-2 h-4 w-4 text-gray-600" />
             Create

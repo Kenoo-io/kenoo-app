@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { createClient } from "@walls/supabase/client";
 import { useAuth } from "@walls/auth";
 import {
@@ -303,6 +303,12 @@ export function CreateTasksPopup({
   const [error, setError] = useState<string | null>(null);
   const [assigneeDisplayName, setAssigneeDisplayName] = useState<string | null>(null);
   const [assigneePopoverOpen, setAssigneePopoverOpen] = useState(false);
+  const [projectSelectOpen, setProjectSelectOpen] = useState(false);
+  const [statusSelectOpen, setStatusSelectOpen] = useState(false);
+  const [prioritySelectOpen, setPrioritySelectOpen] = useState(false);
+  const [blockDialogDismiss, setBlockDialogDismiss] = useState(false);
+  const blockDialogDismissRef = useRef(false);
+  const blockDialogDismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const projectNameRef = useRef<HTMLSpanElement | null>(null);
   const [isProjectNameTruncated, setIsProjectNameTruncated] = useState(false);
   const [duePopoverOpen, setDuePopoverOpen] = useState(false);
@@ -310,6 +316,57 @@ export function CreateTasksPopup({
   const [loadingProjectMembers, setLoadingProjectMembers] = useState(false);
   const [accessibleProjects, setAccessibleProjects] = useState<Project[]>([]);
   const [loadingAccessibleProjects, setLoadingAccessibleProjects] = useState(false);
+
+  const armDialogDismissBlock = useCallback(() => {
+    if (blockDialogDismissTimerRef.current) {
+      clearTimeout(blockDialogDismissTimerRef.current);
+      blockDialogDismissTimerRef.current = null;
+    }
+    blockDialogDismissRef.current = true;
+    setBlockDialogDismiss(true);
+  }, []);
+
+  const releaseDialogDismissBlock = useCallback(() => {
+    if (blockDialogDismissTimerRef.current) {
+      clearTimeout(blockDialogDismissTimerRef.current);
+    }
+    // Keep the guard armed briefly so the pointer event that closes a
+    // portaled dropdown cannot also dismiss the parent dialog.
+    blockDialogDismissRef.current = true;
+    setBlockDialogDismiss(true);
+    blockDialogDismissTimerRef.current = setTimeout(() => {
+      blockDialogDismissRef.current = false;
+      setBlockDialogDismiss(false);
+      blockDialogDismissTimerRef.current = null;
+    }, 250);
+  }, []);
+
+  const handleNestedLayerOpenChange = useCallback(
+    (next: boolean) => {
+      if (next) {
+        armDialogDismissBlock();
+      } else {
+        releaseDialogDismissBlock();
+      }
+    },
+    [armDialogDismissBlock, releaseDialogDismissBlock],
+  );
+
+  const setNestedLayerOpen = useCallback(
+    (setter: React.Dispatch<React.SetStateAction<boolean>>) => (next: boolean) => {
+      setter(next);
+      handleNestedLayerOpenChange(next);
+    },
+    [handleNestedLayerOpenChange],
+  );
+
+  useEffect(() => {
+    return () => {
+      if (blockDialogDismissTimerRef.current) {
+        clearTimeout(blockDialogDismissTimerRef.current);
+      }
+    };
+  }, []);
 
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   useEffect(() => {
@@ -1007,10 +1064,24 @@ export function CreateTasksPopup({
   const hasSchedule = schedules.length > 0;
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next && blockDialogDismissRef.current) return;
+        if (!next) onClose();
+      }}
+    >
       <DialogContent
         className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto [&>button]:focus:outline-none [&>button]:focus:ring-0 [&>button]:focus-visible:ring-0 [&>button]:ring-0"
+        overlayClassName={blockDialogDismiss ? "pointer-events-none" : undefined}
         onOpenAutoFocus={(e) => e.preventDefault()}
+        onPointerDownOutside={(event) => {
+          if (blockDialogDismissRef.current) event.preventDefault();
+        }}
+        onInteractOutside={(event) => {
+          if (blockDialogDismissRef.current) event.preventDefault();
+        }}
+        onFocusOutside={(event) => event.preventDefault()}
       >
         <DialogHeader />
 
@@ -1052,6 +1123,8 @@ export function CreateTasksPopup({
                   <Select
                     value={form.project_id}
                     onValueChange={(v) => setForm((f) => ({ ...f, project_id: v }))}
+                    open={projectSelectOpen}
+                    onOpenChange={setNestedLayerOpen(setProjectSelectOpen)}
                     disabled={saving || (loadingAccessibleProjects && projectOptions.length === 0)}
                   >
                     <TooltipProvider delayDuration={180}>
@@ -1132,6 +1205,7 @@ export function CreateTasksPopup({
                     onOpenChange={(next) => {
                       if (next && !form.project_id) return;
                       setAssigneePopoverOpen(next);
+                      handleNestedLayerOpenChange(next);
                     }}
                   >
                     <PopoverTrigger asChild>
@@ -1174,6 +1248,7 @@ export function CreateTasksPopup({
                           onSelect={(agentId) => {
                             setForm((f) => ({ ...f, assignee_id: agentId }));
                             setAssigneePopoverOpen(false);
+                            handleNestedLayerOpenChange(false);
                           }}
                         />
                       )}
@@ -1183,6 +1258,8 @@ export function CreateTasksPopup({
                   <Select
                     value={form.status}
                     onValueChange={(v) => setForm((f) => ({ ...f, status: v as TaskStatus }))}
+                    open={statusSelectOpen}
+                    onOpenChange={setNestedLayerOpen(setStatusSelectOpen)}
                     disabled={saving}
                   >
                     <SelectTrigger className="border-0 rounded-full bg-transparent hover:bg-gray-100 focus:ring-0 focus-visible:ring-0 px-4 [&>svg]:hidden">
@@ -1205,6 +1282,8 @@ export function CreateTasksPopup({
                   <Select
                     value={form.priority}
                     onValueChange={(v) => setForm((f) => ({ ...f, priority: v }))}
+                    open={prioritySelectOpen}
+                    onOpenChange={setNestedLayerOpen(setPrioritySelectOpen)}
                     disabled={saving}
                   >
                     <SelectTrigger className="border-0 rounded-full bg-transparent hover:bg-gray-100 focus:ring-0 focus-visible:ring-0 px-4 [&>svg]:hidden">
@@ -1224,7 +1303,13 @@ export function CreateTasksPopup({
                     </SelectContent>
                   </Select>
 
-                  <Popover open={duePopoverOpen} onOpenChange={setDuePopoverOpen}>
+                  <Popover
+                    open={duePopoverOpen}
+                    onOpenChange={(next) => {
+                      setDuePopoverOpen(next);
+                      handleNestedLayerOpenChange(next);
+                    }}
+                  >
                     <PopoverTrigger asChild>
                       <button
                         type="button"
@@ -1252,6 +1337,7 @@ export function CreateTasksPopup({
                             due_date: date ? format(date, "yyyy-MM-dd") : "",
                           }));
                           setDuePopoverOpen(false);
+                          handleNestedLayerOpenChange(false);
                         }}
                         initialFocus
                       />
@@ -1362,6 +1448,7 @@ export function CreateTasksPopup({
                         <Select
                           value={selectedUserScheduleId || undefined}
                           onValueChange={setSelectedUserScheduleId}
+                          onOpenChange={handleNestedLayerOpenChange}
                           disabled={
                             saving ||
                             autoScheduling ||
@@ -1407,6 +1494,7 @@ export function CreateTasksPopup({
                         <Select
                           value={String(autoDurationMinutes)}
                           onValueChange={(v) => setAutoDurationMinutes(Number(v))}
+                          onOpenChange={handleNestedLayerOpenChange}
                           disabled={saving || autoScheduling}
                         >
                           <SelectTrigger className="border-0 rounded-full bg-transparent hover:bg-gray-100 focus:ring-0 focus-visible:ring-0 px-4 [&>svg]:hidden">
@@ -1447,6 +1535,7 @@ export function CreateTasksPopup({
                           <Select
                             value={String(minBlockMinutes)}
                             onValueChange={(v) => setMinBlockMinutes(Number(v))}
+                            onOpenChange={handleNestedLayerOpenChange}
                             disabled={saving || autoScheduling}
                           >
                             <SelectTrigger className="border-0 rounded-full bg-transparent hover:bg-gray-100 focus:ring-0 focus-visible:ring-0 px-4 [&>svg]:hidden">
@@ -1556,9 +1645,10 @@ export function CreateTasksPopup({
                                   <div className="flex items-center gap-1">
                                     <Popover
                                       open={scheduleDatePopoverKey === draft.key}
-                                      onOpenChange={(next) =>
-                                        setScheduleDatePopoverKey(next ? draft.key : null)
-                                      }
+                                      onOpenChange={(next) => {
+                                        setScheduleDatePopoverKey(next ? draft.key : null);
+                                        handleNestedLayerOpenChange(next);
+                                      }}
                                     >
                                       <PopoverTrigger asChild>
                                         <button
@@ -1590,6 +1680,7 @@ export function CreateTasksPopup({
                                               )
                                             );
                                             setScheduleDatePopoverKey(null);
+                                            handleNestedLayerOpenChange(false);
                                           }}
                                           initialFocus
                                         />
@@ -1611,7 +1702,7 @@ export function CreateTasksPopup({
                                   </div>
 
                                   <div className="flex items-center gap-1 text-[13px] font-light text-neutral-700">
-                                    <Popover>
+                                    <Popover onOpenChange={handleNestedLayerOpenChange}>
                                       <PopoverTrigger asChild>
                                         <button
                                           type="button"
@@ -1657,7 +1748,7 @@ export function CreateTasksPopup({
 
                                     <span className="text-neutral-400">–</span>
 
-                                    <Popover>
+                                    <Popover onOpenChange={handleNestedLayerOpenChange}>
                                       <PopoverTrigger asChild>
                                         <button
                                           type="button"

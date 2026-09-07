@@ -7,13 +7,15 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Clock, MapPin, Users, VideoIcon, AlignLeft } from "lucide-react";
+import { Clock, MapPin, Users, AlignLeft } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { MiniCalendar } from "@/components/ui/mini-calendar";
 import { GuestTag } from '../guest-tag';
 import { validateEmail } from "@/lib/utils";
+import Image from "next/image";
+import { GOOGLE_MEET_ICON_URL } from "../../../calendar-event-theme";
 
 interface ViewEventProps {
   eventData: {
@@ -304,7 +306,13 @@ export function ViewEvent({ eventData, isEditing = true, onDataChange }: ViewEve
           {/* Google Meet icon */}
           {isGoogleMeet && (
             <div className="flex items-center justify-center w-8 h-8 rounded-full bg-kenoo-white mb-6">
-              <VideoIcon className="w-4 h-4 text-gray-600" />
+              <Image
+                src={GOOGLE_MEET_ICON_URL}
+                alt="Google Meet"
+                width={18}
+                height={18}
+                className="shrink-0"
+              />
             </div>
           )}
           
@@ -513,4 +521,4 @@ export function ViewEvent({ eventData, isEditing = true, onDataChange }: ViewEve
       </div>
     </div>
   );
-} 
+}
