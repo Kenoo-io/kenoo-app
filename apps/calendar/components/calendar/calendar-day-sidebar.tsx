@@ -409,8 +409,13 @@ export function CalendarDaySidebar({
                           <span
                             className={cn(
                               "h-2 w-2 shrink-0 rounded-full",
-                              theme.dotColor
+                              !event.projectColor && theme.dotColor
                             )}
+                            style={
+                              event.projectColor
+                                ? { backgroundColor: event.projectColor }
+                                : undefined
+                            }
                           />
                         )}
                         <span
