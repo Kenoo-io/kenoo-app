@@ -59,7 +59,7 @@ export function MiniCalendar({
       setIsHeaderCollapsed(false);
       collapseTimerRef.current = setTimeout(() => {
         setIsCollapsed(false);
-      }, 320);
+      }, 360);
       return;
     }
 
