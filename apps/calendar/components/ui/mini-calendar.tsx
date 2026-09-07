@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { motion, useReducedMotion } from "framer-motion";
 import { DayPicker, type DayPickerSingleProps } from "react-day-picker";
 import { cn } from "@/lib/utils";
 import { isSameDay } from "date-fns";
@@ -32,14 +33,42 @@ function MiniCalendar({
   onSelect,
   ...props
 }: MiniCalendarProps) {
+  const calendarId = React.useId();
+  const prefersReducedMotion = useReducedMotion();
+
   const renderDayContent = (day: Date) => {
     const hasDeal = dealDates.some(dealDate => isSameDay(dealDate, day));
+    const isSelected = hasSelectedDate(selected) && isSameDay(selected, day);
 
     return (
       <div className="relative flex items-center justify-center h-full w-full">
-        <span className="font-light">{day.getDate()}</span>
+        {isSelected && (
+          <motion.span
+            layoutId={`mini-calendar-selected-date-${calendarId}`}
+            aria-hidden="true"
+            className="absolute inset-0 z-0 rounded-full bg-kenoo-yellow shadow-sm"
+            initial={prefersReducedMotion ? false : { scale: 0.82, borderRadius: "44%" }}
+            animate={
+              prefersReducedMotion
+                ? { scale: 1, borderRadius: "50%" }
+                : {
+                    scale: [0.92, 1.08, 0.97, 1],
+                    borderRadius: ["44%", "50%", "46%", "50%"],
+                  }
+            }
+            transition={{
+              layout: prefersReducedMotion
+                ? { duration: 0 }
+                : { type: "spring", stiffness: 460, damping: 28, mass: 0.55 },
+              default: prefersReducedMotion
+                ? { duration: 0 }
+                : { duration: 0.42, ease: [0.22, 1, 0.36, 1] },
+            }}
+          />
+        )}
+        <span className="relative z-10 font-light">{day.getDate()}</span>
         {hasDeal && (
-          <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-kenoo-red shadow-[0_0_4px_rgba(255,0,0,0.4)]" />
+          <span className="absolute bottom-0.5 left-1/2 z-10 -translate-x-1/2 w-1 h-1 rounded-full bg-kenoo-red shadow-[0_0_4px_rgba(255,0,0,0.4)]" />
         )}
       </div>
     );
@@ -78,13 +107,12 @@ function MiniCalendar({
           "h-8 w-8 text-center text-xs p-0 relative",
           "[&:has([aria-selected].day-range-end)]:rounded-r-full",
           "[&:has([aria-selected].day-outside)]:bg-kenoo-yellow/10",
-          "[&:has([aria-selected])]:bg-kenoo-yellow/15",
           "first:[&:has([aria-selected])]:rounded-l-full",
           "last:[&:has([aria-selected])]:rounded-r-full",
           "focus-within:relative focus-within:z-20"
         ),
         day: cn(
-          "h-8 w-8 p-0 font-light text-xs rounded-full",
+          "relative h-8 w-8 p-0 font-light text-xs rounded-full",
           "transition-all duration-200 ease-in-out",
           "hover:bg-neutral-100 hover:shadow-[inset_0_1px_3px_rgba(0,0,0,0.08)] hover:scale-95",
           "aria-selected:opacity-100 flex items-center justify-center cursor-pointer",
@@ -92,7 +120,7 @@ function MiniCalendar({
         ),
         day_range_end: "day-range-end",
         day_selected:
-          "bg-kenoo-yellow text-neutral-900 font-light shadow-sm hover:bg-kenoo-yellow hover:text-neutral-900 hover:scale-95 focus:bg-kenoo-yellow focus:text-neutral-900 rounded-full",
+          "text-neutral-900 font-light hover:bg-transparent hover:text-neutral-900 hover:scale-95 focus:bg-transparent focus:text-neutral-900 rounded-full",
         day_today:
           "font-light text-neutral-800 rounded-full border border-[#4285F4] [&:not([aria-selected])]:bg-transparent",
         day_outside:

@@ -15,7 +15,7 @@ import {
   subMonths,
 } from "date-fns";
 import { ChevronLeft, ChevronRight, PanelTopClose, PanelTopOpen } from "lucide-react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 const WEEKDAYS = ["S", "M", "T", "W", "T", "F", "S"] as const;
@@ -38,6 +38,8 @@ export function MiniCalendar({
   showHeader = true,
   collapsible = false,
 }: MiniCalendarProps) {
+  const calendarId = React.useId();
+  const prefersReducedMotion = useReducedMotion();
   const [displayMonth, setDisplayMonth] = React.useState(
     () => startOfMonth(selected ?? new Date())
   );
@@ -198,14 +200,38 @@ export function MiniCalendar({
                     !selectedDay &&
                     "font-medium text-kenoo-ink ring-1 ring-inset ring-[#4285F4]/70",
                   selectedDay &&
-                    "bg-[#4285F4] font-medium text-white hover:bg-[#4285F4]"
+                    "font-medium text-white hover:bg-transparent"
                 )}
               >
-                {format(day, "d")}
+                {selectedDay && (
+                  <motion.span
+                    layoutId={`mini-calendar-selected-date-${calendarId}`}
+                    aria-hidden="true"
+                    className="absolute inset-0 z-0 rounded-full bg-[#4285F4]"
+                    initial={prefersReducedMotion ? false : { scale: 0.82, borderRadius: "44%" }}
+                    animate={
+                      prefersReducedMotion
+                        ? { scale: 1, borderRadius: "50%" }
+                        : {
+                            scale: [0.92, 1.08, 0.97, 1],
+                            borderRadius: ["44%", "50%", "46%", "50%"],
+                          }
+                    }
+                    transition={{
+                      layout: prefersReducedMotion
+                        ? { duration: 0 }
+                        : { type: "spring", stiffness: 460, damping: 28, mass: 0.55 },
+                      default: prefersReducedMotion
+                        ? { duration: 0 }
+                        : { duration: 0.42, ease: [0.22, 1, 0.36, 1] },
+                    }}
+                  />
+                )}
+                <span className="relative z-10">{format(day, "d")}</span>
                 {hasDeal && (
                   <span
                     className={cn(
-                      "absolute bottom-0 left-1/2 h-0.5 w-0.5 -translate-x-1/2 rounded-full",
+                      "absolute bottom-0 left-1/2 z-20 h-0.5 w-0.5 -translate-x-1/2 rounded-full",
                       selectedDay ? "bg-kenoo-white" : "bg-kenoo-red"
                     )}
                   />
