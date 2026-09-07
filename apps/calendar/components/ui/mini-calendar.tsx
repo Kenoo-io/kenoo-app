@@ -86,11 +86,11 @@ function MiniCalendar({
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-300 focus-visible:ring-offset-1"
           ),
           selected:
-            "[&>button]:bg-neutral-900 [&>button]:text-white [&>button]:font-light [&>button]:shadow-sm [&>button]:hover:bg-neutral-900 [&>button]:hover:text-white [&>button]:hover:scale-95 [&>button]:rounded-full",
+            "[&>button]:bg-[#4285F4] [&>button]:text-white [&>button]:font-light [&>button]:shadow-sm [&>button]:hover:bg-[#4285F4] [&>button]:hover:text-white [&>button]:hover:scale-95 [&>button]:rounded-full",
           today:
-            "[&>button]:font-light [&>button]:text-neutral-800 [&>button]:rounded-full [&>button]:border [&>button]:border-neutral-300 [&:not([aria-selected])>button]:bg-transparent",
+            "[&>button]:font-light [&>button]:text-kenoo-ink [&>button]:rounded-full [&>button]:border [&>button]:border-[#4285F4]/70 [&:not([aria-selected])>button]:bg-transparent",
           outside:
-            "[&>button]:text-neutral-300 [&>button]:opacity-50 aria-selected:[&>button]:bg-neutral-900/10 aria-selected:[&>button]:text-neutral-400 aria-selected:[&>button]:opacity-40",
+            "[&>button]:text-neutral-300 [&>button]:opacity-50 aria-selected:[&>button]:bg-[#4285F4]/10 aria-selected:[&>button]:text-neutral-400 aria-selected:[&>button]:opacity-40",
           disabled:
             "[&>button]:text-neutral-300 [&>button]:opacity-40 [&>button]:cursor-not-allowed [&>button]:hover:bg-transparent [&>button]:hover:scale-100 [&>button]:hover:shadow-none",
           hidden: "invisible",
