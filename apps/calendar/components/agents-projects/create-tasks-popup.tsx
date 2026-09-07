@@ -50,6 +50,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { MiniCalendar } from "@/components/ui/mini-calendar";
+import { MiniDatePicker } from "@/components/ui/mini-date-picker";
 import { SequenceSwitch as Switch } from "@/components/ui/sequence-switch";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -1306,46 +1307,26 @@ export function CreateTasksPopup({
                     </SelectContent>
                   </Select>
 
-                  <Popover
+                  <MiniDatePicker
+                    label="Due:"
+                    value={dueDate}
+                    onChange={(date) => {
+                      setForm((f) => ({
+                        ...f,
+                        due_date: date ? format(date, "yyyy-MM-dd") : "",
+                      }));
+                    }}
+                    showClearButton
+                    disabled={saving}
                     open={duePopoverOpen}
                     onOpenChange={(next) => {
                       setDuePopoverOpen(next);
                       handleNestedLayerOpenChange(next);
                     }}
-                  >
-                    <PopoverTrigger asChild>
-                      <button
-                        type="button"
-                        disabled={saving}
-                        className="w-full h-10 flex items-center gap-2 rounded-full px-4 hover:bg-gray-100 focus:outline-none text-left disabled:opacity-50"
-                      >
-                        <span className={cn("shrink-0", fieldLabelClass)}>Due:</span>
-                        <span
-                          className={cn(
-                            fieldValueClass,
-                            !dueDate && fieldPlaceholderClass
-                          )}
-                        >
-                          {dueDate ? format(dueDate, "MMM d, yyyy") : "Select date"}
-                        </span>
-                      </button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0 border-0 rounded-3xl shadow-[0_14px_32px_rgba(0,0,0,0.18)]" align="start">
-                      <MiniCalendar
-                        showClearButton
-                        selected={dueDate ?? undefined}
-                        onSelect={(date) => {
-                          setForm((f) => ({
-                            ...f,
-                            due_date: date ? format(date, "yyyy-MM-dd") : "",
-                          }));
-                          setDuePopoverOpen(false);
-                          handleNestedLayerOpenChange(false);
-                        }}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
+                    labelClassName={fieldLabelClass}
+                    valueClassName={fieldValueClass}
+                    placeholderClassName={fieldPlaceholderClass}
+                  />
 
                   <div className="flex h-10 items-center gap-2.5 rounded-full px-4 hover:bg-gray-100">
                     <span className={fieldLabelClass}>Public:</span>
