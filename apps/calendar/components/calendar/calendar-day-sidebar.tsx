@@ -31,6 +31,7 @@ import { CreatePopup, EventType } from "./create/event/create-popup";
 import { Event } from "./create/event/event";
 import { OutOfOffice } from "./create/event/out-of-office";
 import { AppointmentSchedule } from "./create/event/appointment-schedule";
+import { ViewPopup } from "./create/event/view/view-popup";
 import {
   getCalendarEventTheme,
   GOOGLE_MEET_ICON_URL,
@@ -42,6 +43,7 @@ import { parseCalendarToJsDate } from "@/lib/calendar-recurring";
 export interface CalendarSidebarEvent {
   id: string;
   title: string;
+  description?: string;
   startTime: Date | { seconds: number } | string;
   endTime: Date | { seconds: number } | string;
   type?: "regular-event" | "scheduled-task" | "project-task" | "project-task-schedule";
@@ -49,6 +51,9 @@ export interface CalendarSidebarEvent {
   projectName?: string;
   projectColor?: string | null;
   meetingLink?: string;
+  googleEventId?: string;
+  googleEventDetails?: any;
+  colorId?: string;
   attendees?: Array<{ email: string }>;
   location?: string;
   status?: string;
@@ -58,7 +63,7 @@ export interface CalendarSidebarEvent {
 }
 
 const sidebarEventCardClass =
-  "border-b border-[#e4e9f0] bg-transparent transition-colors hover:bg-kenoo-white/55";
+  "bg-transparent transition-colors";
 
 const sidebarCardVariants = {
   rest: {},
@@ -146,6 +151,8 @@ interface CalendarDaySidebarProps {
   onProjectTaskCompleted?: (taskId: string) => void;
   onLegacyTaskCompleted?: (taskId: string) => void;
   onProjectTaskClick?: (taskId: string) => void;
+  onEventDeleted?: (eventId: string) => void;
+  onEventUpdated?: (eventId: string, updatedData: any) => void;
 }
 
 export function CalendarDaySidebar({
@@ -156,11 +163,14 @@ export function CalendarDaySidebar({
   onProjectTaskCompleted,
   onLegacyTaskCompleted,
   onProjectTaskClick,
+  onEventDeleted,
+  onEventUpdated,
 }: CalendarDaySidebarProps) {
   const { user } = useAuth();
   const [completingTaskKey, setCompletingTaskKey] = useState<string | null>(null);
   const [selectedEventType, setSelectedEventType] = useState<EventType>("event");
   const [isEventPopupOpen, setIsEventPopupOpen] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<CalendarSidebarEvent | null>(null);
 
   const handleEventTypeSelect = (type: EventType) => {
     setSelectedEventType(type);
@@ -306,6 +316,7 @@ export function CalendarDaySidebar({
           <MiniCalendar
             selected={selectedDate}
             onSelect={(date) => date && onDateSelect(date)}
+            collapsible
           />
         </div>
 
@@ -334,6 +345,9 @@ export function CalendarDaySidebar({
                   (event.type === "project-task" ||
                     event.type === "project-task-schedule") &&
                   !!event.projectTaskId;
+                const isEventClickable = event.type === "regular-event";
+                const isCardClickable =
+                  isEventClickable || (isProjectTask && !!onProjectTaskClick);
 
                 const CardWrapper = showMarkComplete ? motion.div : "div";
 
@@ -347,30 +361,38 @@ export function CalendarDaySidebar({
                           whileHover: "hover",
                         }
                       : {})}
-                    role={isProjectTask && onProjectTaskClick ? "button" : undefined}
-                    tabIndex={isProjectTask && onProjectTaskClick ? 0 : undefined}
+                    role={isCardClickable ? "button" : undefined}
+                    tabIndex={isCardClickable ? 0 : undefined}
                     onClick={
-                      isProjectTask && onProjectTaskClick
-                        ? () => onProjectTaskClick(event.projectTaskId!)
+                      isEventClickable
+                        ? () => {
+                            setSelectedEvent(event);
+                            setIsEventPopupOpen(true);
+                          }
+                        : isProjectTask && onProjectTaskClick
+                          ? () => onProjectTaskClick(event.projectTaskId!)
                         : undefined
                     }
                     onKeyDown={
-                      isProjectTask && onProjectTaskClick
+                      isCardClickable
                         ? (e) => {
                             if (e.key === "Enter" || e.key === " ") {
                               e.preventDefault();
-                              onProjectTaskClick(event.projectTaskId!);
+                              if (isEventClickable) {
+                                setSelectedEvent(event);
+                                setIsEventPopupOpen(true);
+                              } else if (onProjectTaskClick) {
+                                onProjectTaskClick(event.projectTaskId!);
+                              }
                             }
                           }
                         : undefined
                     }
                     className={cn(
-                      "rounded-none px-2.5 py-3",
+                      "rounded-xl px-2.5 py-3",
                       sidebarEventCardClass,
                       isCompleted && "opacity-70",
-                      isProjectTask &&
-                        onProjectTaskClick &&
-                        "cursor-pointer hover:bg-kenoo-white/80"
+                      isCardClickable && "cursor-pointer hover:bg-neutral-200/70"
                     )}
                   >
                     <div className="mb-2 flex items-center justify-between gap-2">
@@ -518,6 +540,16 @@ export function CalendarDaySidebar({
         outOfOfficeComponent={<OutOfOffice />}
         appointmentScheduleComponent={<AppointmentSchedule />}
       />
+
+      {selectedEvent && (
+        <ViewPopup
+          isOpen={isEventPopupOpen}
+          onClose={() => setIsEventPopupOpen(false)}
+          event={selectedEvent}
+          onEventDeleted={onEventDeleted}
+          onEventUpdated={onEventUpdated}
+        />
+      )}
     </>
   );
 }

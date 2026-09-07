@@ -704,6 +704,8 @@ function AgentCalendarContent({
     onProjectTaskCompleted: handleProjectTaskCompleted,
     onLegacyTaskCompleted: handleLegacyTaskCompleted,
     onProjectTaskClick: handleProjectTaskClick,
+    onEventDeleted: handleEventDeleted,
+    onEventUpdated: handleEventUpdated,
   };
 
   if (error) {
