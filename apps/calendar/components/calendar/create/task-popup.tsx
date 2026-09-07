@@ -2,7 +2,7 @@
 
 
 import { wallsToast } from "@/components/ui/walls-toast";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Dialog,
   DialogHeader,
@@ -44,7 +44,7 @@ const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-gray-50 p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-3xl",
+        "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-kenoo-white p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-3xl",
         className
       )}
       {...props}
@@ -96,6 +96,7 @@ interface FirestoreTaskData {
 export function TaskPopup({ isOpen, onClose, onSubmit, events, initialTask, isEditing, scheduledTasks }: TaskPopupProps) {
   const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const nestedDropdownOpenRef = useRef(false);
   const [users, setUsers] = useState<any[]>([]);
   const [taskData, setTaskData] = useState<TaskData>({
     name: '',
@@ -350,9 +351,38 @@ export function TaskPopup({ isOpen, onClose, onSubmit, events, initialTask, isEd
     }
   };
 
+  const handleTaskPopupInteractOutside = (event: {
+    target: EventTarget | null;
+    preventDefault: () => void;
+  }) => {
+    const target = event.target;
+    if (nestedDropdownOpenRef.current) {
+      event.preventDefault();
+      return;
+    }
+
+    if (
+      target instanceof Element &&
+      (target.closest("[data-radix-select-content]") ||
+        target.closest("[data-radix-popper-content-wrapper]") ||
+        target.closest("[data-radix-menu-content]"))
+    ) {
+      event.preventDefault();
+    }
+  };
+
+  const handleNestedDropdownOpenChange = (open: boolean) => {
+    nestedDropdownOpenRef.current = open;
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[900px]" onInteractOutside={(e) => e.preventDefault()}>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent
+        className="sm:max-w-[900px]"
+        onInteractOutside={handleTaskPopupInteractOutside}
+        onPointerDownOutside={handleTaskPopupInteractOutside}
+        onFocusOutside={(event) => event.preventDefault()}
+      >
         <DialogHeader>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
@@ -403,6 +433,7 @@ export function TaskPopup({ isOpen, onClose, onSubmit, events, initialTask, isEd
               <div className="space-y-2">
                 <Select 
                   value={taskData.project}
+                  onOpenChange={handleNestedDropdownOpenChange}
                   onValueChange={(value) => setTaskData({ ...taskData, project: value })}
                 >
                   <SelectTrigger className="border-0 rounded-full bg-transparent hover:bg-gray-100 focus:ring-0 focus-visible:ring-0 px-4 [&>svg]:hidden">
@@ -422,6 +453,7 @@ export function TaskPopup({ isOpen, onClose, onSubmit, events, initialTask, isEd
               <div className="space-y-2">
                 <Select 
                   value={taskData.assignee}
+                  onOpenChange={handleNestedDropdownOpenChange}
                   onValueChange={(value) => setTaskData({ ...taskData, assignee: value })}
                 >
                   <SelectTrigger className="border-0 rounded-full bg-transparent hover:bg-gray-100 focus:ring-0 focus-visible:ring-0 px-4 [&>svg]:hidden">
@@ -442,7 +474,7 @@ export function TaskPopup({ isOpen, onClose, onSubmit, events, initialTask, isEd
                               className="h-6 w-6 rounded-full"
                             />
                           ) : (
-                            <div className="h-6 w-6 rounded-full bg-gray-200 flex items-center justify-center">
+                            <div className="h-6 w-6 rounded-full bg-kenoo-white flex items-center justify-center">
                               {userItem.displayName?.charAt(0)}
                             </div>
                           )}
@@ -458,6 +490,7 @@ export function TaskPopup({ isOpen, onClose, onSubmit, events, initialTask, isEd
                 <div>
                   <Select 
                     value={taskData.status}
+                    onOpenChange={handleNestedDropdownOpenChange}
                     onValueChange={(value: TaskStatus) => setTaskData({ ...taskData, status: value })}
                   >
                     <SelectTrigger className="border-0 rounded-full bg-transparent hover:bg-gray-100 focus:ring-0 focus-visible:ring-0 px-4 [&>svg]:hidden">
@@ -478,6 +511,7 @@ export function TaskPopup({ isOpen, onClose, onSubmit, events, initialTask, isEd
                 <div>
                   <Select 
                     value={taskData.priority}
+                    onOpenChange={handleNestedDropdownOpenChange}
                     onValueChange={(value: TaskPriority) => setTaskData({ ...taskData, priority: value })}
                   >
                     <SelectTrigger className="border-0 rounded-full bg-transparent hover:bg-gray-100 focus:ring-0 focus-visible:ring-0 px-4 [&>svg]:hidden">
@@ -498,6 +532,7 @@ export function TaskPopup({ isOpen, onClose, onSubmit, events, initialTask, isEd
               <div className="space-y-2">
                 <Select 
                   value={taskData.duration}
+                  onOpenChange={handleNestedDropdownOpenChange}
                   onValueChange={(value) => setTaskData({ ...taskData, duration: value })}
                 >
                   <SelectTrigger className="border-0 rounded-full bg-transparent hover:bg-gray-100 focus:ring-0 focus-visible:ring-0 px-4 [&>svg]:hidden">
@@ -554,6 +589,7 @@ export function TaskPopup({ isOpen, onClose, onSubmit, events, initialTask, isEd
               <div className="space-y-2">
                 <Select 
                   value={taskData.schedule}
+                  onOpenChange={handleNestedDropdownOpenChange}
                   onValueChange={(value) => setTaskData({ ...taskData, schedule: value })}
                 >
                   <SelectTrigger className="border-0 rounded-full bg-transparent hover:bg-gray-100 focus:ring-0 focus-visible:ring-0 px-4 [&>svg]:hidden">
@@ -578,7 +614,7 @@ export function TaskPopup({ isOpen, onClose, onSubmit, events, initialTask, isEd
               type="button" 
               onClick={onClose} 
               variant="ghost"
-              className="bg-gray-50 hover:bg-gray-100 text-black"
+              className="bg-kenoo-white hover:bg-gray-100 text-black"
               disabled={isSubmitting}
             >
               Cancel
@@ -586,7 +622,7 @@ export function TaskPopup({ isOpen, onClose, onSubmit, events, initialTask, isEd
             <Button 
               type="submit" 
               variant="ghost"
-              className="bg-gray-50 hover:bg-gray-100 text-black border border-gray-200"
+              className="bg-kenoo-white hover:bg-gray-100 text-black border border-gray-200"
               disabled={isSubmitting}
             >
               {isSubmitting ? "Saving..." : isEditing ? "Update Task" : "Save Task"}

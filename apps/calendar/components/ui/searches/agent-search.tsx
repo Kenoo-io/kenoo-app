@@ -283,8 +283,8 @@ export function AgentSearch({
   };
 
   return (
-    <div className="flex max-h-[400px] flex-col overflow-hidden bg-white/80 backdrop-blur-xl">
-      <div className="sticky top-0 z-10 shrink-0 border-b border-neutral-200/60 bg-white/80 px-3 py-2 backdrop-blur-xl">
+    <div className="flex max-h-[400px] flex-col overflow-hidden bg-kenoo-white/80 backdrop-blur-xl">
+      <div className="sticky top-0 z-10 shrink-0 border-b border-neutral-200/60 bg-kenoo-white/80 px-3 py-2 backdrop-blur-xl">
         <div className="relative w-full">
           <Search className="pointer-events-none absolute left-0 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
           <input
@@ -309,7 +309,7 @@ export function AgentSearch({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto bg-white/80 backdrop-blur-xl">
+      <div className="flex-1 overflow-y-auto bg-kenoo-white/80 backdrop-blur-xl">
         {loading ? (
           <AgentListSkeleton />
         ) : filteredAgents.length === 0 ? (
@@ -332,8 +332,8 @@ export function AgentSearch({
                   e.stopPropagation();
                 }}
                 className={cn(
-                  "relative flex cursor-pointer items-center rounded-none px-4 py-2 pr-16 hover:bg-neutral-100/60 focus:bg-neutral-100/60",
-                  isSelected && "bg-neutral-100/60"
+                  "relative flex cursor-pointer items-center rounded-none px-4 py-2 pr-16 hover:bg-neutral-100/60 focus:bg-kenoo-white/60",
+                  isSelected && "bg-kenoo-white/60"
                 )}
               >
                 <div className="flex min-w-0 w-full items-center space-x-3">

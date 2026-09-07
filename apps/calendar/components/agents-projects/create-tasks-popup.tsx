@@ -1,16 +1,12 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { createClient } from "@walls/supabase/client";
 import { useAuth } from "@walls/auth";
 import {
-  CalendarClock,
-  ChevronLeft,
   Clock,
   Plus,
-  Save,
   Sparkles,
-  Trash2,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -51,6 +47,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { MiniCalendar } from "@/components/ui/mini-calendar";
+import { MiniDatePicker } from "@/components/ui/mini-date-picker";
+import { ChromeFrame } from "@/components/ui/chrome-frame";
 import { SequenceSwitch as Switch } from "@/components/ui/sequence-switch";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -81,6 +79,7 @@ interface ScheduleDraft {
 }
 
 type SchedulePanelMode = "choose" | "auto" | "manual";
+type TaskPanelTab = "basics" | "schedule" | "settings";
 
 const AUTO_DURATION_OPTIONS = [
   { label: "15 min", value: 15 },
@@ -199,11 +198,24 @@ function clearDraftIso(draft: ScheduleDraft): ScheduleDraft {
   return rest;
 }
 
+function centerSelectedTime(container: HTMLElement, value: string) {
+  requestAnimationFrame(() => {
+    const option = container.querySelector<HTMLElement>(
+      `[data-time-value="${value}"]`
+    );
+    if (!option) return;
+    container.scrollTop =
+      option.offsetTop - container.clientHeight / 2 + option.clientHeight / 2;
+  });
+}
+
 /* ─── Form config ────────────────────────────────────────────────────────── */
-const popupButtonOuterClass =
-  "w-10 h-10 p-0 text-slate-600 hover:bg-transparent flex items-center justify-center shadow-none relative group flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed";
-const popupButtonInnerClass =
-  "relative z-10 p-3 rounded-full transition-all duration-300 ease-in-out group-hover:bg-gray-50 group-hover:border group-hover:border-neutral-200 group-hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] group-hover:scale-95";
+const modalSecondaryButtonClass =
+  "inline-flex h-10 cursor-pointer items-center justify-center rounded-lg bg-neutral-100 px-4 text-sm font-medium text-neutral-950 transition-colors hover:bg-neutral-200 disabled:cursor-not-allowed disabled:opacity-50";
+const modalPrimaryButtonClass =
+  "inline-flex h-10 cursor-pointer items-center justify-center rounded-lg bg-neutral-950 px-4 text-sm font-medium text-white transition-colors hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-50";
+const modalDeleteButtonClass =
+  "inline-flex h-10 cursor-pointer items-center justify-center rounded-lg bg-red-100 px-4 text-sm font-medium text-red-700 transition-colors hover:bg-red-200 disabled:cursor-not-allowed disabled:opacity-50";
 const fieldLabelClass =
   "text-[11px] font-normal uppercase tracking-[0.16em] text-neutral-500";
 const fieldValueClass = "truncate text-[15px] font-light text-neutral-900";
@@ -288,7 +300,7 @@ export function CreateTasksPopup({
   const { user: authUser } = useAuth();
   const [form, setForm] = useState<TaskFormState>(EMPTY_TASK_FORM);
   const [schedules, setSchedules] = useState<ScheduleDraft[]>([]);
-  const [schedulePanelOpen, setSchedulePanelOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<TaskPanelTab>("basics");
   const [scheduleMode, setScheduleMode] = useState<SchedulePanelMode>("choose");
   const [autoDurationMinutes, setAutoDurationMinutes] = useState(60);
   const [allowSplitBlocks, setAllowSplitBlocks] = useState(false);
@@ -299,10 +311,17 @@ export function CreateTasksPopup({
   const [blockCalendar, setBlockCalendar] = useState(false);
   const [autoScheduling, setAutoScheduling] = useState(false);
   const [scheduleDatePopoverKey, setScheduleDatePopoverKey] = useState<string | null>(null);
+  const [scheduleTimePopoverKey, setScheduleTimePopoverKey] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [assigneeDisplayName, setAssigneeDisplayName] = useState<string | null>(null);
   const [assigneePopoverOpen, setAssigneePopoverOpen] = useState(false);
+  const [projectSelectOpen, setProjectSelectOpen] = useState(false);
+  const [statusSelectOpen, setStatusSelectOpen] = useState(false);
+  const [prioritySelectOpen, setPrioritySelectOpen] = useState(false);
+  const [blockDialogDismiss, setBlockDialogDismiss] = useState(false);
+  const blockDialogDismissRef = useRef(false);
+  const blockDialogDismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const projectNameRef = useRef<HTMLSpanElement | null>(null);
   const [isProjectNameTruncated, setIsProjectNameTruncated] = useState(false);
   const [duePopoverOpen, setDuePopoverOpen] = useState(false);
@@ -310,6 +329,57 @@ export function CreateTasksPopup({
   const [loadingProjectMembers, setLoadingProjectMembers] = useState(false);
   const [accessibleProjects, setAccessibleProjects] = useState<Project[]>([]);
   const [loadingAccessibleProjects, setLoadingAccessibleProjects] = useState(false);
+
+  const armDialogDismissBlock = useCallback(() => {
+    if (blockDialogDismissTimerRef.current) {
+      clearTimeout(blockDialogDismissTimerRef.current);
+      blockDialogDismissTimerRef.current = null;
+    }
+    blockDialogDismissRef.current = true;
+    setBlockDialogDismiss(true);
+  }, []);
+
+  const releaseDialogDismissBlock = useCallback(() => {
+    if (blockDialogDismissTimerRef.current) {
+      clearTimeout(blockDialogDismissTimerRef.current);
+    }
+    // Keep the guard armed briefly so the pointer event that closes a
+    // portaled dropdown cannot also dismiss the parent dialog.
+    blockDialogDismissRef.current = true;
+    setBlockDialogDismiss(true);
+    blockDialogDismissTimerRef.current = setTimeout(() => {
+      blockDialogDismissRef.current = false;
+      setBlockDialogDismiss(false);
+      blockDialogDismissTimerRef.current = null;
+    }, 250);
+  }, []);
+
+  const handleNestedLayerOpenChange = useCallback(
+    (next: boolean) => {
+      if (next) {
+        armDialogDismissBlock();
+      } else {
+        releaseDialogDismissBlock();
+      }
+    },
+    [armDialogDismissBlock, releaseDialogDismissBlock],
+  );
+
+  const setNestedLayerOpen = useCallback(
+    (setter: React.Dispatch<React.SetStateAction<boolean>>) => (next: boolean) => {
+      setter(next);
+      handleNestedLayerOpenChange(next);
+    },
+    [handleNestedLayerOpenChange],
+  );
+
+  useEffect(() => {
+    return () => {
+      if (blockDialogDismissTimerRef.current) {
+        clearTimeout(blockDialogDismissTimerRef.current);
+      }
+    };
+  }, []);
 
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   useEffect(() => {
@@ -463,8 +533,9 @@ export function CreateTasksPopup({
     if (!open) {
       setForm(EMPTY_TASK_FORM);
       setSchedules([]);
-      setSchedulePanelOpen(false);
+      setActiveTab("basics");
       setScheduleMode("choose");
+      setScheduleTimePopoverKey(null);
       setAutoDurationMinutes(60);
       setAllowSplitBlocks(false);
       setMinBlockMinutes(30);
@@ -484,7 +555,7 @@ export function CreateTasksPopup({
     if (!open) return;
     if (!justOpened && !existingChanged) return;
 
-    setSchedulePanelOpen(false);
+    setActiveTab("basics");
     setScheduleMode("choose");
 
     if (existing) {
@@ -787,12 +858,7 @@ export function CreateTasksPopup({
 
   const openSchedulePanel = () => {
     setScheduleMode(schedules.length > 0 ? "manual" : "choose");
-    setSchedulePanelOpen(true);
-  };
-
-  const closeSchedulePanel = () => {
-    setSchedulePanelOpen(false);
-    setScheduleMode(schedules.length > 0 ? "manual" : "choose");
+    setActiveTab("schedule");
   };
 
   const applyBlockCalendar = (next: boolean) => {
@@ -1004,13 +1070,28 @@ export function CreateTasksPopup({
 
   const parsedDueDate = form.due_date ? parseISO(form.due_date) : null;
   const dueDate = parsedDueDate && isValid(parsedDueDate) ? parsedDueDate : null;
+  const canSchedule = dueDate !== null;
   const hasSchedule = schedules.length > 0;
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next && blockDialogDismissRef.current) return;
+        if (!next) onClose();
+      }}
+    >
       <DialogContent
         className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto [&>button]:focus:outline-none [&>button]:focus:ring-0 [&>button]:focus-visible:ring-0 [&>button]:ring-0"
+        overlayClassName={blockDialogDismiss ? "pointer-events-none" : undefined}
         onOpenAutoFocus={(e) => e.preventDefault()}
+        onPointerDownOutside={(event) => {
+          if (blockDialogDismissRef.current) event.preventDefault();
+        }}
+        onInteractOutside={(event) => {
+          if (blockDialogDismissRef.current) event.preventDefault();
+        }}
+        onFocusOutside={(event) => event.preventDefault()}
       >
         <DialogHeader />
 
@@ -1040,10 +1121,77 @@ export function CreateTasksPopup({
             />
           </div>
 
-          {/* Right Column — details ↔ schedule */}
+          {/* Right Column — task tabs */}
           <div className="relative min-w-0 pl-6 max-h-[min(70vh,640px)] overflow-y-auto">
+            <TooltipProvider delayDuration={180}>
+              <div
+                role="tablist"
+                aria-label="Task details"
+                className="mb-3 flex items-center gap-1 rounded-full bg-neutral-100/80 p-1"
+              >
+                {(["basics", "schedule", "settings"] as const).map((tab) => {
+                  const isScheduleDisabled = tab === "schedule" && !canSchedule;
+                  const tabButton = (
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={activeTab === tab}
+                      aria-disabled={isScheduleDisabled}
+                      disabled={saving || isScheduleDisabled}
+                      onClick={() => {
+                        if (isScheduleDisabled) return;
+                        if (tab === "schedule") {
+                          openSchedulePanel();
+                        } else {
+                          setActiveTab(tab);
+                        }
+                      }}
+                      className={cn(
+                        "w-full flex-1 rounded-full px-3 py-1.5 text-[12px] font-medium capitalize transition-colors",
+                        activeTab === tab
+                          ? "bg-white text-neutral-900 shadow-sm"
+                          : "text-neutral-500 hover:bg-white/60 hover:text-neutral-800",
+                        (saving || isScheduleDisabled) &&
+                          "cursor-not-allowed opacity-40"
+                      )}
+                    >
+                      {tab}
+                    </button>
+                  );
+
+                  if (!isScheduleDisabled) {
+                    return <React.Fragment key={tab}>{tabButton}</React.Fragment>;
+                  }
+
+                  return (
+                    <Tooltip key={tab}>
+                      <TooltipTrigger asChild>
+                        <span className="flex-1" tabIndex={0}>
+                          {tabButton}
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent
+                        side="top"
+                        align="center"
+                        className="rounded-lg px-3 py-1.5 text-xs"
+                      >
+                        <motion.span
+                          initial={{ opacity: 0, y: 2 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.18, ease: "easeOut" }}
+                          className="block"
+                        >
+                          Select a due date to enable scheduling.
+                        </motion.span>
+                      </TooltipContent>
+                    </Tooltip>
+                  );
+                })}
+              </div>
+            </TooltipProvider>
+
             <AnimatePresence mode="wait" initial={false}>
-              {!schedulePanelOpen ? (
+              {activeTab === "basics" ? (
                 <motion.div
                   key="task-fields"
                   {...panelMotion}
@@ -1052,6 +1200,8 @@ export function CreateTasksPopup({
                   <Select
                     value={form.project_id}
                     onValueChange={(v) => setForm((f) => ({ ...f, project_id: v }))}
+                    open={projectSelectOpen}
+                    onOpenChange={setNestedLayerOpen(setProjectSelectOpen)}
                     disabled={saving || (loadingAccessibleProjects && projectOptions.length === 0)}
                   >
                     <TooltipProvider delayDuration={180}>
@@ -1132,6 +1282,7 @@ export function CreateTasksPopup({
                     onOpenChange={(next) => {
                       if (next && !form.project_id) return;
                       setAssigneePopoverOpen(next);
+                      handleNestedLayerOpenChange(next);
                     }}
                   >
                     <PopoverTrigger asChild>
@@ -1157,7 +1308,7 @@ export function CreateTasksPopup({
                       </button>
                     </PopoverTrigger>
                     <PopoverContent
-                      className="w-[320px] p-0 overflow-hidden rounded-2xl border border-neutral-200/60 shadow-xl bg-white/80 backdrop-blur-xl"
+                      className="w-[320px] p-0 overflow-hidden rounded-2xl border border-neutral-200/60 shadow-xl bg-kenoo-white/80 backdrop-blur-xl"
                       align="start"
                       onOpenAutoFocus={(e) => e.preventDefault()}
                     >
@@ -1174,6 +1325,7 @@ export function CreateTasksPopup({
                           onSelect={(agentId) => {
                             setForm((f) => ({ ...f, assignee_id: agentId }));
                             setAssigneePopoverOpen(false);
+                            handleNestedLayerOpenChange(false);
                           }}
                         />
                       )}
@@ -1183,6 +1335,8 @@ export function CreateTasksPopup({
                   <Select
                     value={form.status}
                     onValueChange={(v) => setForm((f) => ({ ...f, status: v as TaskStatus }))}
+                    open={statusSelectOpen}
+                    onOpenChange={setNestedLayerOpen(setStatusSelectOpen)}
                     disabled={saving}
                   >
                     <SelectTrigger className="border-0 rounded-full bg-transparent hover:bg-gray-100 focus:ring-0 focus-visible:ring-0 px-4 [&>svg]:hidden">
@@ -1205,6 +1359,8 @@ export function CreateTasksPopup({
                   <Select
                     value={form.priority}
                     onValueChange={(v) => setForm((f) => ({ ...f, priority: v }))}
+                    open={prioritySelectOpen}
+                    onOpenChange={setNestedLayerOpen(setPrioritySelectOpen)}
                     disabled={saving}
                   >
                     <SelectTrigger className="border-0 rounded-full bg-transparent hover:bg-gray-100 focus:ring-0 focus-visible:ring-0 px-4 [&>svg]:hidden">
@@ -1224,62 +1380,55 @@ export function CreateTasksPopup({
                     </SelectContent>
                   </Select>
 
-                  <Popover open={duePopoverOpen} onOpenChange={setDuePopoverOpen}>
-                    <PopoverTrigger asChild>
-                      <button
-                        type="button"
+                  <MiniDatePicker
+                    label="Due:"
+                    value={dueDate}
+                    onChange={(date) => {
+                      setForm((f) => ({
+                        ...f,
+                        due_date: date ? format(date, "yyyy-MM-dd") : "",
+                      }));
+                      if (!date) setActiveTab("basics");
+                    }}
+                    showClearButton
+                    disabled={saving}
+                    open={duePopoverOpen}
+                    onOpenChange={(next) => {
+                      setDuePopoverOpen(next);
+                      handleNestedLayerOpenChange(next);
+                    }}
+                    labelClassName={fieldLabelClass}
+                    valueClassName={fieldValueClass}
+                    placeholderClassName={fieldPlaceholderClass}
+                  />
+
+                </motion.div>
+              ) : activeTab === "settings" ? (
+                <motion.div
+                  key="task-settings"
+                  {...panelMotion}
+                  className="flex min-h-full flex-col space-y-3"
+                >
+                  <div className="rounded-2xl border border-neutral-200/80 bg-kenoo-white/70 px-4 py-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className={fieldValueClass}>Visibility</p>
+                        <p className="mt-0.5 text-[11px] font-light text-neutral-500">
+                          Choose who can see this task.
+                        </p>
+                      </div>
+                      <Switch
+                        checked={form.is_public}
+                        onCheckedChange={(checked) =>
+                          setForm((f) => ({ ...f, is_public: checked }))
+                        }
                         disabled={saving}
-                        className="w-full h-10 flex items-center gap-2 rounded-full px-4 hover:bg-gray-100 focus:outline-none text-left disabled:opacity-50"
-                      >
-                        <span className={cn("shrink-0", fieldLabelClass)}>Due:</span>
-                        <span
-                          className={cn(
-                            fieldValueClass,
-                            !dueDate && fieldPlaceholderClass
-                          )}
-                        >
-                          {dueDate ? format(dueDate, "MMM d, yyyy") : "Select date"}
-                        </span>
-                      </button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0 border-0 rounded-3xl shadow-[0_14px_32px_rgba(0,0,0,0.18)]" align="start">
-                      <MiniCalendar
-                        showClearButton
-                        selected={dueDate ?? undefined}
-                        onSelect={(date) => {
-                          setForm((f) => ({
-                            ...f,
-                            due_date: date ? format(date, "yyyy-MM-dd") : "",
-                          }));
-                          setDuePopoverOpen(false);
-                        }}
-                        initialFocus
+                        aria-label="Make task public"
                       />
-                    </PopoverContent>
-                  </Popover>
-
-                  <div className="flex h-10 items-center gap-2.5 rounded-full px-4 hover:bg-gray-100">
-                    <span className={fieldLabelClass}>Public:</span>
-                    <Switch
-                      checked={form.is_public}
-                      onCheckedChange={(checked) =>
-                        setForm((f) => ({ ...f, is_public: checked }))
-                      }
-                      disabled={saving}
-                      aria-label="Make task public"
-                    />
-                  </div>
-
-                  <div className="mt-auto pt-3">
-                    <button
-                      type="button"
-                      disabled={saving}
-                      onClick={openSchedulePanel}
-                      className="inline-flex w-full items-center justify-center gap-2 rounded-full px-4 py-2 text-[13px] font-light text-neutral-600 transition-colors hover:bg-gray-100 disabled:opacity-50"
-                    >
-                      <CalendarClock className="h-4 w-4 stroke-[1.5]" />
-                      {hasSchedule ? "Edit schedule" : "Add to schedule"}
-                    </button>
+                    </div>
+                    <p className="mt-3 text-[12px] font-light text-neutral-600">
+                      {form.is_public ? "Public task" : "Private task"}
+                    </p>
                   </div>
                 </motion.div>
               ) : (
@@ -1288,17 +1437,8 @@ export function CreateTasksPopup({
                   {...panelMotion}
                   className="flex min-h-full flex-col space-y-3"
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <button
-                      type="button"
-                      disabled={saving}
-                      onClick={closeSchedulePanel}
-                      className="inline-flex items-center gap-1 rounded-full px-2 py-1.5 text-[12px] font-light text-neutral-600 hover:bg-gray-100 disabled:opacity-50"
-                    >
-                      <ChevronLeft className="h-3.5 w-3.5 stroke-[1.5]" />
-                      Details
-                    </button>
-                    {hasSchedule ? (
+                  {hasSchedule ? (
+                    <div className="flex justify-end">
                       <button
                         type="button"
                         disabled={saving}
@@ -1307,8 +1447,8 @@ export function CreateTasksPopup({
                       >
                         Clear
                       </button>
-                    ) : null}
-                  </div>
+                    </div>
+                  ) : null}
 
                   <AnimatePresence mode="wait" initial={false}>
                     {scheduleMode === "choose" ? (
@@ -1321,7 +1461,7 @@ export function CreateTasksPopup({
                           type="button"
                           disabled={saving || autoScheduling}
                           onClick={() => setScheduleMode("auto")}
-                          className="flex w-full flex-col items-start gap-1.5 rounded-2xl border border-neutral-200/80 bg-white/70 px-3 py-3 text-left transition-colors hover:bg-gray-50 disabled:opacity-50"
+                          className="flex w-full flex-col items-start gap-1.5 rounded-2xl border border-neutral-200/80 bg-kenoo-white/70 px-3 py-3 text-left transition-colors hover:bg-gray-50 disabled:opacity-50"
                         >
                           <div className="flex items-center gap-2">
                             <Sparkles className="h-3.5 w-3.5 stroke-[1.5] text-neutral-500" />
@@ -1340,7 +1480,7 @@ export function CreateTasksPopup({
                             setScheduleMode("manual");
                             if (schedules.length === 0) addManualBlock();
                           }}
-                          className="flex w-full flex-col items-start gap-1.5 rounded-2xl border border-neutral-200/80 bg-white/70 px-3 py-3 text-left transition-colors hover:bg-gray-50 disabled:opacity-50"
+                          className="flex w-full flex-col items-start gap-1.5 rounded-2xl border border-neutral-200/80 bg-kenoo-white/70 px-3 py-3 text-left transition-colors hover:bg-gray-50 disabled:opacity-50"
                         >
                           <div className="flex items-center gap-2">
                             <Clock className="h-3.5 w-3.5 stroke-[1.5] text-neutral-500" />
@@ -1362,6 +1502,7 @@ export function CreateTasksPopup({
                         <Select
                           value={selectedUserScheduleId || undefined}
                           onValueChange={setSelectedUserScheduleId}
+                          onOpenChange={handleNestedLayerOpenChange}
                           disabled={
                             saving ||
                             autoScheduling ||
@@ -1407,6 +1548,7 @@ export function CreateTasksPopup({
                         <Select
                           value={String(autoDurationMinutes)}
                           onValueChange={(v) => setAutoDurationMinutes(Number(v))}
+                          onOpenChange={handleNestedLayerOpenChange}
                           disabled={saving || autoScheduling}
                         >
                           <SelectTrigger className="border-0 rounded-full bg-transparent hover:bg-gray-100 focus:ring-0 focus-visible:ring-0 px-4 [&>svg]:hidden">
@@ -1447,6 +1589,7 @@ export function CreateTasksPopup({
                           <Select
                             value={String(minBlockMinutes)}
                             onValueChange={(v) => setMinBlockMinutes(Number(v))}
+                            onOpenChange={handleNestedLayerOpenChange}
                             disabled={saving || autoScheduling}
                           >
                             <SelectTrigger className="border-0 rounded-full bg-transparent hover:bg-gray-100 focus:ring-0 focus-visible:ring-0 px-4 [&>svg]:hidden">
@@ -1479,19 +1622,24 @@ export function CreateTasksPopup({
                           </Select>
                         ) : null}
 
-                        <button
-                          type="button"
-                          disabled={
-                            saving ||
-                            autoScheduling ||
-                            (!selectedUserScheduleId && userSchedules.length > 0)
-                          }
-                          onClick={handleAutoSchedule}
-                          className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-neutral-900 px-3 py-2 text-[12px] font-light text-white hover:bg-neutral-800 disabled:opacity-50"
+                        <ChromeFrame
+                          className="w-full rounded-full"
+                          contentClassName="rounded-full"
                         >
-                          <Sparkles className="h-3.5 w-3.5 stroke-[1.5]" />
-                          {autoScheduling ? "Finding…" : "Find a slot"}
-                        </button>
+                          <button
+                            type="button"
+                            disabled={
+                              saving ||
+                              autoScheduling ||
+                              (!selectedUserScheduleId && userSchedules.length > 0)
+                            }
+                            onClick={handleAutoSchedule}
+                            className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-neutral-900 px-3 py-2 text-[12px] font-light text-white transition-[background-color,transform,opacity] hover:bg-neutral-800 active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100"
+                          >
+                            <Sparkles className="h-3.5 w-3.5 stroke-[1.5]" />
+                            {autoScheduling ? "Finding…" : "Find a slot"}
+                          </button>
+                        </ChromeFrame>
 
                         <button
                           type="button"
@@ -1551,14 +1699,15 @@ export function CreateTasksPopup({
                               return (
                                 <div
                                   key={draft.key}
-                                  className="rounded-2xl border border-neutral-200/70 bg-white/60 px-3 py-2 space-y-1.5"
+                                  className="rounded-2xl border border-neutral-200/70 bg-kenoo-white/60 px-3 py-2 space-y-1.5"
                                 >
                                   <div className="flex items-center gap-1">
                                     <Popover
                                       open={scheduleDatePopoverKey === draft.key}
-                                      onOpenChange={(next) =>
-                                        setScheduleDatePopoverKey(next ? draft.key : null)
-                                      }
+                                      onOpenChange={(next) => {
+                                        setScheduleDatePopoverKey(next ? draft.key : null);
+                                        handleNestedLayerOpenChange(next);
+                                      }}
                                     >
                                       <PopoverTrigger asChild>
                                         <button
@@ -1590,6 +1739,7 @@ export function CreateTasksPopup({
                                               )
                                             );
                                             setScheduleDatePopoverKey(null);
+                                            handleNestedLayerOpenChange(false);
                                           }}
                                           initialFocus
                                         />
@@ -1611,26 +1761,42 @@ export function CreateTasksPopup({
                                   </div>
 
                                   <div className="flex items-center gap-1 text-[13px] font-light text-neutral-700">
-                                    <Popover>
+                                    <Popover
+                                      modal
+                                      open={scheduleTimePopoverKey === `${draft.key}:start`}
+                                      onOpenChange={(next) => {
+                                        setScheduleTimePopoverKey(
+                                          next ? `${draft.key}:start` : null
+                                        );
+                                        handleNestedLayerOpenChange(next);
+                                      }}
+                                    >
                                       <PopoverTrigger asChild>
                                         <button
                                           type="button"
                                           disabled={saving}
-                                          className="rounded-full px-2 py-0.5 hover:bg-neutral-100 disabled:opacity-50"
+                                          className="rounded-full px-2 py-0.5 hover:bg-neutral-100 focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0 disabled:opacity-50"
                                         >
                                           {startLabel}
                                         </button>
                                       </PopoverTrigger>
                                       <PopoverContent
-                                        className="w-36 max-h-56 overflow-y-auto py-2"
+                                        className="scrollbar-hide h-56 w-36 max-h-[calc(100vh-2rem)] overflow-y-scroll overscroll-contain touch-pan-y border-0 py-2 outline-none"
                                         align="start"
+                                        onOpenAutoFocus={(event) => {
+                                          event.preventDefault();
+                                          if (event.currentTarget instanceof HTMLElement) {
+                                            centerSelectedTime(event.currentTarget, draft.start);
+                                          }
+                                        }}
                                       >
                                         <div className="flex flex-col">
                                           {TIME_OPTIONS.map((option) => (
                                             <button
                                               key={`start-${draft.key}-${option.value}`}
                                               type="button"
-                                              className="px-2 py-1 text-left text-sm text-neutral-700 hover:bg-gray-100"
+                                              data-time-value={option.value}
+                                              className="mx-1 rounded-lg px-2 py-1 text-left text-sm text-neutral-700 hover:bg-gray-100 focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0"
                                               onClick={() => {
                                                 setSchedules((prev) =>
                                                   prev.map((s) => {
@@ -1646,6 +1812,8 @@ export function CreateTasksPopup({
                                                     });
                                                   })
                                                 );
+                                                setScheduleTimePopoverKey(null);
+                                                handleNestedLayerOpenChange(false);
                                               }}
                                             >
                                               {option.label}
@@ -1657,19 +1825,34 @@ export function CreateTasksPopup({
 
                                     <span className="text-neutral-400">–</span>
 
-                                    <Popover>
+                                    <Popover
+                                      modal
+                                      open={scheduleTimePopoverKey === `${draft.key}:end`}
+                                      onOpenChange={(next) => {
+                                        setScheduleTimePopoverKey(
+                                          next ? `${draft.key}:end` : null
+                                        );
+                                        handleNestedLayerOpenChange(next);
+                                      }}
+                                    >
                                       <PopoverTrigger asChild>
                                         <button
                                           type="button"
                                           disabled={saving}
-                                          className="rounded-full px-2 py-0.5 hover:bg-neutral-100 disabled:opacity-50"
+                                          className="rounded-full px-2 py-0.5 hover:bg-neutral-100 focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0 disabled:opacity-50"
                                         >
                                           {endLabel}
                                         </button>
                                       </PopoverTrigger>
                                       <PopoverContent
-                                        className="w-36 max-h-56 overflow-y-auto py-2"
+                                        className="scrollbar-hide h-56 w-36 max-h-[calc(100vh-2rem)] overflow-y-scroll overscroll-contain touch-pan-y border-0 py-2 outline-none"
                                         align="start"
+                                        onOpenAutoFocus={(event) => {
+                                          event.preventDefault();
+                                          if (event.currentTarget instanceof HTMLElement) {
+                                            centerSelectedTime(event.currentTarget, draft.end);
+                                          }
+                                        }}
                                       >
                                         <div className="flex flex-col">
                                           {TIME_OPTIONS.filter(
@@ -1678,7 +1861,8 @@ export function CreateTasksPopup({
                                             <button
                                               key={`end-${draft.key}-${option.value}`}
                                               type="button"
-                                              className="px-2 py-1 text-left text-sm text-neutral-700 hover:bg-gray-100"
+                                              data-time-value={option.value}
+                                              className="mx-1 rounded-lg px-2 py-1 text-left text-sm text-neutral-700 hover:bg-gray-100 focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0"
                                               onClick={() => {
                                                 setSchedules((prev) =>
                                                   prev.map((s) =>
@@ -1690,6 +1874,8 @@ export function CreateTasksPopup({
                                                       : s
                                                   )
                                                 );
+                                                setScheduleTimePopoverKey(null);
+                                                handleNestedLayerOpenChange(false);
                                               }}
                                             >
                                               {option.label}
@@ -1732,26 +1918,26 @@ export function CreateTasksPopup({
                 type="button"
                 onClick={handleDelete}
                 disabled={saving}
-                className={popupButtonOuterClass}
+                className={modalDeleteButtonClass}
               >
-                <div className={popupButtonInnerClass}>
-                  <Trash2 className="h-[18px] w-[18px] stroke-[1.5] text-neutral-500" />
-                </div>
+                Delete
               </button>
             )}
             <button
               type="button"
+              onClick={onClose}
+              disabled={saving}
+              className={modalSecondaryButtonClass}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
               onClick={handleSave}
               disabled={saving || !form.title.trim() || !form.project_id}
-              className={popupButtonOuterClass}
+              className={modalPrimaryButtonClass}
             >
-              <div className={popupButtonInnerClass}>
-                {saving ? (
-                  <div className="h-[18px] w-[18px] border-2 border-neutral-500 border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <Save className="h-[18px] w-[18px] stroke-[1.5] text-neutral-500" />
-                )}
-              </div>
+              {saving ? "Saving…" : "Save"}
             </button>
           </div>
         </DialogFooter>

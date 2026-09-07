@@ -59,15 +59,15 @@ export function OutOfOffice({ onDataChange }: OutOfOfficeProps) {
       <div className="flex gap-4">
         {/* Left column - Icons */}
         <div>
-          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 mb-6">
+          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-kenoo-white mb-6 mt-1">
             <Clock className="w-4 h-4 text-gray-600" />
           </div>
         </div>
         
         {/* Right column - Form inputs */}
         <div className="flex-1 grid gap-6">
-          <div className="flex items-center border-0 border-b border-gray-200">
-            <div className="flex gap-1 py-[2px]">
+          <div className="relative -top-px flex items-center border-0 border-b border-gray-200 pt-1">
+            <div className="flex gap-1 pt-[5.5px] pb-[5.5px]">
               {/* Date Picker */}
               <Popover>
                 <PopoverTrigger asChild>
@@ -204,7 +204,7 @@ export function OutOfOffice({ onDataChange }: OutOfOfficeProps) {
             </div>
           </div>
           
-          <div className={`flex items-center justify-between border-0 border-b ${focusedField === 'decline-meetings' ? 'border-blue-500' : 'border-gray-200'} py-[2px] mt-0 transition-colors duration-200`}>
+          <div className={`flex items-center justify-between border-0 border-b ${focusedField === 'decline-meetings' ? 'border-[var(--kenoo-blue)]' : 'border-gray-200'} py-[2px] mt-0 transition-colors duration-200`}>
             <span className="text-sm font-normal text-gray-500">Automatically decline meetings</span>
             <Switch
               id="decline-meetings"
@@ -219,4 +219,4 @@ export function OutOfOffice({ onDataChange }: OutOfOfficeProps) {
       </div>
     </div>
   );
-} 
+}

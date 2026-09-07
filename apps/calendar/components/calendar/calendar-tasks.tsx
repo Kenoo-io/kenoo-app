@@ -258,7 +258,7 @@ export function CalendarTasks({
       <div className={`text-xs px-2 py-1 rounded-full ${
         isTaskScheduled(task.id!)
           ? 'bg-black/70 text-kenoo-lime'
-          : 'bg-gray-100 text-gray-600'
+          : 'bg-kenoo-white text-gray-600'
       } group-hover:hidden`}>
         {isTaskScheduled(task.id!) ? "Scheduled" : task.status}
       </div>
@@ -301,7 +301,7 @@ export function CalendarTasks({
   };
 
   return (
-    <div className="w-80 border p-4 bg-slate-50 rounded-[30px] shadow-sm">
+    <div className="w-80 border p-4 bg-kenoo-white rounded-[30px] shadow-sm">
       <Button
         variant="ghost"
         className="w-full h-12 flex items-center justify-start px-4 text-muted-foreground hover:text-foreground rounded-full"

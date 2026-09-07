@@ -56,14 +56,14 @@ export function AppointmentSchedule({ onDataChange }: AppointmentScheduleProps) 
       <div className="flex gap-4">
         {/* Left column - Icons */}
         <div>
-          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 mt-1">
+          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-kenoo-white mt-1">
             <Clock className="w-4 h-4 text-gray-600" />
           </div>
         </div>
         
         {/* Right column - Form inputs */}
         <div className="flex-1 grid gap-6">
-          <div className="flex items-center border-0 border-b border-gray-200">
+          <div className="relative -top-px flex items-center border-0 border-b border-gray-200 pt-1">
             <div className="flex gap-1 py-[2px]">
               {/* Date Picker */}
               <Popover>
@@ -204,4 +204,4 @@ export function AppointmentSchedule({ onDataChange }: AppointmentScheduleProps) 
       </div>
     </div>
   );
-} 
+}

@@ -79,7 +79,7 @@ export function CalendarSidebar({
   }, [tasks, scheduledTasks]);
 
   return (
-    <div className="w-64 border p-4 bg-slate-50 rounded-[30px] shadow">
+    <div className="w-64 border p-4 bg-kenoo-white rounded-[30px] shadow">
       <CreateDropdown onEventTypeSelect={(type) => {
         console.log('Selected event type:', type);
       }} />

@@ -3,7 +3,17 @@
 import { useCallback, useMemo, useState } from "react";
 import { format } from "date-fns";
 import { motion, type Variants } from "framer-motion";
-import { CalendarDays, Check, ChevronDown, MapPin, Plus, Users } from "lucide-react";
+import {
+  CalendarClock,
+  CalendarDays,
+  CalendarOff,
+  Check,
+  ChevronDown,
+  ListTodo,
+  MapPin,
+  Plus,
+  Users,
+} from "lucide-react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { wallsToast } from "@/components/ui/walls-toast";
@@ -11,7 +21,6 @@ import { showTaskCompleteToast } from "@/components/agents-projects/ui/show-task
 import { createClient } from "@walls/supabase/client";
 import { useAuth } from "@walls/auth";
 import { MiniCalendar } from "@/components/calendar/mini-calendar";
-import { ChromeFrame } from "@/components/ui/chrome-frame";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,6 +31,7 @@ import { CreatePopup, EventType } from "./create/event/create-popup";
 import { Event } from "./create/event/event";
 import { OutOfOffice } from "./create/event/out-of-office";
 import { AppointmentSchedule } from "./create/event/appointment-schedule";
+import { ViewPopup } from "./create/event/view/view-popup";
 import {
   getCalendarEventTheme,
   GOOGLE_MEET_ICON_URL,
@@ -33,6 +43,7 @@ import { parseCalendarToJsDate } from "@/lib/calendar-recurring";
 export interface CalendarSidebarEvent {
   id: string;
   title: string;
+  description?: string;
   startTime: Date | { seconds: number } | string;
   endTime: Date | { seconds: number } | string;
   type?: "regular-event" | "scheduled-task" | "project-task" | "project-task-schedule";
@@ -40,6 +51,9 @@ export interface CalendarSidebarEvent {
   projectName?: string;
   projectColor?: string | null;
   meetingLink?: string;
+  googleEventId?: string;
+  googleEventDetails?: any;
+  colorId?: string;
   attendees?: Array<{ email: string }>;
   location?: string;
   status?: string;
@@ -48,11 +62,8 @@ export interface CalendarSidebarEvent {
   legacyTaskId?: string;
 }
 
-const sidebarEventShadowRest =
-  "shadow-[0_6px_20px_-8px_rgba(0,0,0,0.06),0_2px_8px_-2px_rgba(0,0,0,0.12)]";
-const sidebarEventShadowHover =
-  "hover:shadow-[0_8px_24px_-8px_rgba(0,0,0,0.07),0_3px_10px_-2px_rgba(0,0,0,0.14)]";
-const sidebarEventCardClass = `bg-white/60 backdrop-blur-sm backdrop-saturate-150 ${sidebarEventShadowRest} ${sidebarEventShadowHover} transition-shadow`;
+const sidebarEventCardClass =
+  "bg-transparent transition-colors";
 
 const sidebarCardVariants = {
   rest: {},
@@ -140,6 +151,8 @@ interface CalendarDaySidebarProps {
   onProjectTaskCompleted?: (taskId: string) => void;
   onLegacyTaskCompleted?: (taskId: string) => void;
   onProjectTaskClick?: (taskId: string) => void;
+  onEventDeleted?: (eventId: string) => void;
+  onEventUpdated?: (eventId: string, updatedData: any) => void;
 }
 
 export function CalendarDaySidebar({
@@ -150,14 +163,20 @@ export function CalendarDaySidebar({
   onProjectTaskCompleted,
   onLegacyTaskCompleted,
   onProjectTaskClick,
+  onEventDeleted,
+  onEventUpdated,
 }: CalendarDaySidebarProps) {
   const { user } = useAuth();
   const [completingTaskKey, setCompletingTaskKey] = useState<string | null>(null);
   const [selectedEventType, setSelectedEventType] = useState<EventType>("event");
   const [isEventPopupOpen, setIsEventPopupOpen] = useState(false);
+  const [createPopupSession, setCreatePopupSession] = useState(0);
+  const [selectedEvent, setSelectedEvent] = useState<CalendarSidebarEvent | null>(null);
 
   const handleEventTypeSelect = (type: EventType) => {
     setSelectedEventType(type);
+    setCreatePopupSession((session) => session + 1);
+    setSelectedEvent(null);
     setIsEventPopupOpen(true);
   };
 
@@ -248,71 +267,72 @@ export function CalendarDaySidebar({
 
   return (
     <>
-      <aside className="kenoo-glass-chrome flex h-full min-h-0 w-[19rem] shrink-0 flex-col self-stretch rounded-[1.75rem] border border-white/40 overscroll-none">
-        <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-[1.75rem]">
+      <aside className="flex h-full min-h-0 w-[19rem] shrink-0 flex-col self-stretch overflow-hidden bg-kenoo-white overscroll-none">
+        <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
           <div className="shrink-0 space-y-4 px-4 pb-3 pt-4">
-          <ChromeFrame className="w-full" contentClassName="w-full">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  className="inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-[10.5px] bg-kenoo-white px-4 text-base font-medium text-kenoo-ink transition-colors hover:bg-kenoo-subtle"
-                >
-                  <Plus className="h-4 w-4" />
-                  Create
-                  <ChevronDown className="h-3.5 w-3.5 text-kenoo-muted" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                align="start"
-                className="w-[180px] rounded-xl border-kenoo-border bg-kenoo-surface"
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="mx-auto inline-flex h-14 w-[88%] items-center justify-center gap-1.5 rounded-2xl bg-white/80 px-4 text-base font-medium text-kenoo-ink shadow-[0_8px_28px_rgba(15,23,42,0.07),inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-xl transition-all duration-200 hover:bg-white/95 hover:shadow-[0_10px_32px_rgba(15,23,42,0.1),inset_0_1px_0_rgba(255,255,255,0.95)] active:scale-[0.99]"
               >
-                <DropdownMenuItem
-                  onClick={() => handleEventTypeSelect("event")}
-                  className="cursor-pointer py-2.5 text-sm text-kenoo-ink"
-                >
-                  Event
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={onCreateTask}
-                  className="cursor-pointer py-2.5 text-sm text-kenoo-ink"
-                >
-                  Task
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => handleEventTypeSelect("outOfOffice")}
-                  className="cursor-pointer py-2.5 text-sm text-kenoo-ink"
-                >
-                  Out of Office
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => handleEventTypeSelect("appointmentSchedule")}
-                  className="cursor-pointer py-2.5 text-sm text-kenoo-ink"
-                >
-                  Appointment Schedule
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </ChromeFrame>
+                <Plus className="h-4 w-4" />
+                Create
+                <ChevronDown className="h-3.5 w-3.5 text-kenoo-muted" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="start"
+              className="w-max min-w-[180px] rounded-xl border-kenoo-border bg-kenoo-surface"
+            >
+              <DropdownMenuItem
+                onClick={() => handleEventTypeSelect("event")}
+                className="cursor-pointer whitespace-nowrap py-2.5 text-sm text-kenoo-ink"
+              >
+                <CalendarDays className="mr-2 h-4 w-4 text-kenoo-muted" />
+                Event
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={onCreateTask}
+                className="cursor-pointer whitespace-nowrap py-2.5 text-sm text-kenoo-ink"
+              >
+                <ListTodo className="mr-2 h-4 w-4 text-kenoo-muted" />
+                Task
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => handleEventTypeSelect("outOfOffice")}
+                className="cursor-pointer whitespace-nowrap py-2.5 text-sm text-kenoo-ink"
+              >
+                <CalendarOff className="mr-2 h-4 w-4 text-kenoo-muted" />
+                Out of Office
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => handleEventTypeSelect("appointmentSchedule")}
+                className="cursor-pointer whitespace-nowrap py-2.5 text-sm text-kenoo-ink"
+              >
+                <CalendarClock className="mr-2 h-4 w-4 text-kenoo-muted" />
+                Appointment Schedule
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           <MiniCalendar
             selected={selectedDate}
             onSelect={(date) => date && onDateSelect(date)}
+            collapsible
           />
         </div>
-
-        <div className="mx-4 border-t border-white/50" />
 
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-4 pb-4 pt-4">
           <div className="mb-3 shrink-0">
             <h3 className="font-display text-base font-semibold tracking-[-0.03em] text-kenoo-ink">
               {format(selectedDate, "EEEE, MMM d")}
             </h3>
-            <p className="mt-0.5 text-xs text-kenoo-muted">
-              {selectedEvents.length > 0
-                ? `${selectedEvents.length} item${selectedEvents.length !== 1 ? "s" : ""} scheduled`
-                : "Nothing scheduled"}
-            </p>
+            {selectedEvents.length > 0 && (
+              <p className="mt-0.5 text-xs text-kenoo-muted">
+                {`${selectedEvents.length} item${selectedEvents.length !== 1 ? "s" : ""} scheduled`}
+              </p>
+            )}
           </div>
 
           <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain px-0.5 py-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
@@ -328,6 +348,9 @@ export function CalendarDaySidebar({
                   (event.type === "project-task" ||
                     event.type === "project-task-schedule") &&
                   !!event.projectTaskId;
+                const isEventClickable = event.type === "regular-event";
+                const isCardClickable =
+                  isEventClickable || (isProjectTask && !!onProjectTaskClick);
 
                 const CardWrapper = showMarkComplete ? motion.div : "div";
 
@@ -341,30 +364,39 @@ export function CalendarDaySidebar({
                           whileHover: "hover",
                         }
                       : {})}
-                    role={isProjectTask && onProjectTaskClick ? "button" : undefined}
-                    tabIndex={isProjectTask && onProjectTaskClick ? 0 : undefined}
+                    role={isCardClickable ? "button" : undefined}
+                    tabIndex={isCardClickable ? 0 : undefined}
                     onClick={
-                      isProjectTask && onProjectTaskClick
-                        ? () => onProjectTaskClick(event.projectTaskId!)
+                      isEventClickable
+                        ? () => {
+                            setSelectedEvent(event);
+                            setIsEventPopupOpen(true);
+                          }
+                        : isProjectTask && onProjectTaskClick
+                          ? () => onProjectTaskClick(event.projectTaskId!)
                         : undefined
                     }
                     onKeyDown={
-                      isProjectTask && onProjectTaskClick
+                      isCardClickable
                         ? (e) => {
                             if (e.key === "Enter" || e.key === " ") {
                               e.preventDefault();
-                              onProjectTaskClick(event.projectTaskId!);
+                              if (isEventClickable) {
+                                setSelectedEvent(event);
+                                setIsEventPopupOpen(true);
+                              } else if (onProjectTaskClick) {
+                                onProjectTaskClick(event.projectTaskId!);
+                              }
                             }
                           }
                         : undefined
                     }
                     className={cn(
-                      "rounded-2xl p-3.5",
+                      "rounded-xl px-2.5 py-3",
                       sidebarEventCardClass,
                       isCompleted && "opacity-70",
-                      isProjectTask &&
-                        onProjectTaskClick &&
-                        "cursor-pointer hover:bg-white/80"
+                      isCardClickable &&
+                        "cursor-pointer hover:bg-neutral-100 has-[a:hover]:bg-transparent"
                     )}
                   >
                     <div className="mb-2 flex items-center justify-between gap-2">
@@ -426,12 +458,18 @@ export function CalendarDaySidebar({
                     )}
 
                     {hasMeetingLink && (
-                      <a
+                      <motion.a
                         href={event.meetingLink}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="group/link mt-2 flex items-center gap-1.5 rounded-xl border border-white/50 bg-white/45 px-2.5 py-1.5 transition-colors hover:bg-white/70"
+                        className="group/link mt-2 flex items-center gap-1.5 rounded-xl border border-white/50 bg-kenoo-white/45 px-2.5 py-1.5 transition-colors hover:bg-neutral-100"
                         onClick={(e) => e.stopPropagation()}
+                        initial="rest"
+                        whileHover="hover"
+                        variants={{
+                          rest: {},
+                          hover: {},
+                        }}
                       >
                         {isGoogleMeet && (
                           <Image
@@ -442,15 +480,20 @@ export function CalendarDaySidebar({
                             className="shrink-0"
                           />
                         )}
-                        <span
+                        <motion.span
                           className={cn(
                             "text-kenoo-ink group-hover/link:text-kenoo-ink",
                             isGoogleMeet ? "text-sm" : "text-xs"
                           )}
+                          variants={{
+                            rest: { x: 0 },
+                            hover: { x: 3 },
+                          }}
+                          transition={{ duration: 0.18, ease: "easeOut" }}
                         >
                           Join meeting
-                        </span>
-                      </a>
+                        </motion.span>
+                      </motion.a>
                     )}
 
                     {showMarkComplete && (
@@ -475,30 +518,12 @@ export function CalendarDaySidebar({
                     )}
 
                     {attendees.length > 0 && (
-                      <div className="mt-2">
-                        <div className="mb-1 flex items-center gap-1">
-                          <Users className="h-3 w-3 shrink-0 text-kenoo-muted" />
-                          <span className="text-[10px] text-kenoo-muted">
-                            {attendees.length} attendee
-                            {attendees.length !== 1 ? "s" : ""}
-                          </span>
-                        </div>
-                        <div className="flex flex-wrap gap-1">
-                          {attendees.slice(0, 3).map((attendee, i) => (
-                            <span
-                              key={i}
-                              className="max-w-[120px] truncate rounded-full bg-kenoo-yellow/30 px-2 py-0.5 text-[9px] text-kenoo-ink"
-                              title={attendee.email}
-                            >
-                              {attendee.email}
-                            </span>
-                          ))}
-                          {attendees.length > 3 && (
-                            <span className="px-1 py-0.5 text-[9px] text-kenoo-muted">
-                              +{attendees.length - 3} more
-                            </span>
-                          )}
-                        </div>
+                      <div className="mt-2 flex items-center gap-1">
+                        <Users className="h-3 w-3 shrink-0 text-kenoo-muted" />
+                        <span className="text-[10px] text-kenoo-muted">
+                          {attendees.length} attendee
+                          {attendees.length !== 1 ? "s" : ""}
+                        </span>
                       </div>
                     )}
                   </CardWrapper>
@@ -521,6 +546,7 @@ export function CalendarDaySidebar({
       </aside>
 
       <CreatePopup
+        key={createPopupSession}
         isOpen={isEventPopupOpen}
         onClose={() => setIsEventPopupOpen(false)}
         initialType={selectedEventType}
@@ -530,6 +556,16 @@ export function CalendarDaySidebar({
         outOfOfficeComponent={<OutOfOffice />}
         appointmentScheduleComponent={<AppointmentSchedule />}
       />
+
+      {selectedEvent && (
+        <ViewPopup
+          isOpen={isEventPopupOpen}
+          onClose={() => setIsEventPopupOpen(false)}
+          event={selectedEvent}
+          onEventDeleted={onEventDeleted}
+          onEventUpdated={onEventUpdated}
+        />
+      )}
     </>
   );
 }

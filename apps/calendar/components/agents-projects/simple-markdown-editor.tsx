@@ -253,7 +253,7 @@ export function SimpleMarkdownEditor({
                   type="button"
                   onMouseDown={(e) => e.preventDefault()}
                   disabled={disabled}
-                  className="inline-flex items-center gap-1.5 text-xs font-normal px-3 py-1.5 rounded-lg border border-neutral-200 bg-neutral-50/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_4px_12px_rgba(0,0,0,0.06)] transition-colors duration-200 hover:text-neutral-700 disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 text-xs font-normal px-3 py-1.5 rounded-lg border border-neutral-200 bg-kenoo-white/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_4px_12px_rgba(0,0,0,0.06)] transition-colors duration-200 hover:text-neutral-700 disabled:opacity-50"
                   aria-label="Generate scope with AI"
                 >
                   {aiGenerating
@@ -266,7 +266,7 @@ export function SimpleMarkdownEditor({
                 side="bottom"
                 sideOffset={8}
                 align="start"
-                className="w-[380px] max-w-[calc(100vw-2rem)] p-4 bg-white/80 backdrop-blur-xl border border-white/30 shadow-2xl z-[200] rounded-[2rem]"
+                className="w-[380px] max-w-[calc(100vw-2rem)] p-4 bg-kenoo-white/80 backdrop-blur-xl border border-white/30 shadow-2xl z-[200] rounded-[2rem]"
                 onOpenAutoFocus={(e) => e.preventDefault()}
               >
                 <form
@@ -276,7 +276,7 @@ export function SimpleMarkdownEditor({
                   }}
                   className="space-y-4"
                 >
-                  <div className="rounded-full bg-neutral-100 backdrop-blur-md shadow-inner border border-neutral-200/50 pr-4 pl-4 py-2">
+                  <div className="rounded-full bg-kenoo-white backdrop-blur-md shadow-inner border border-neutral-200/50 pr-4 pl-4 py-2">
                     <input
                       value={aiPrompt}
                       onChange={(e) => setAiPrompt(e.target.value)}
@@ -341,12 +341,12 @@ export function SimpleMarkdownEditor({
 
           {/* Right: Edit / Preview toggle and collapse button */}
           <div className="flex items-center gap-1.5">
-            <div className="relative inline-flex items-center rounded-xl border border-neutral-200 bg-neutral-50/90 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_4px_12px_rgba(0,0,0,0.06)]">
+            <div className="relative inline-flex items-center rounded-xl border border-neutral-200 bg-kenoo-white/90 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_4px_12px_rgba(0,0,0,0.06)]">
               <motion.div
                 layout
                 layoutId="markdown-editor-mode-pill"
                 className={cn(
-                  "absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-lg bg-white shadow-[0_4px_10px_rgba(0,0,0,0.10)]",
+                  "absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-lg bg-kenoo-white shadow-[0_4px_10px_rgba(0,0,0,0.10)]",
                   mode === "edit" ? "left-1" : "left-[calc(50%+3px)]"
                 )}
                 transition={{ type: "spring", stiffness: 420, damping: 32, mass: 0.9 }}

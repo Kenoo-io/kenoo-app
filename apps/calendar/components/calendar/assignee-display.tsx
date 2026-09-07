@@ -71,7 +71,7 @@ export function AssigneeDisplay({
           className="h-6 w-6 rounded-full"
         />
       ) : (
-        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-200">
+        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-kenoo-white">
           {userData.displayName.charAt(0)}
         </div>
       )}

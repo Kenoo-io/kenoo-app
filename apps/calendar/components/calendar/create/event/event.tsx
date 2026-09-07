@@ -8,8 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { format, addMinutes, parse } from "date-fns";
 import { EventType } from './create-popup';
-import { Switch } from "@/components/ui/switch";
-import { VideoIcon, Users, MapPin, AlignLeft, Clock } from "lucide-react";
+import { Users, MapPin, AlignLeft, ChevronDown, Clock, Copy, X } from "lucide-react";
 import { GuestTag } from './guest-tag';
 import { GuestSearch } from './guest-search';
 import { validateEmail } from "@/lib/utils";
@@ -24,6 +23,8 @@ import { Button } from "@/components/ui/button";
 import { MiniCalendar } from "@/components/ui/mini-calendar";
 import { Toaster } from "@/components/ui/toaster";
 import { GoogleCalendarEvent } from '@/lib/services/googleCalendar';
+import Image from "next/image";
+import { GOOGLE_MEET_ICON_URL } from "../../calendar-event-theme";
 
 interface GuestTag {
   email: string;
@@ -99,6 +100,7 @@ export function Event({ onDataChange }: EventProps) {
   const [guestTags, setGuestTags] = useState<GuestTag[]>([]);
   const [currentGuest, setCurrentGuest] = useState('');
   const [focusedField, setFocusedField] = useState<string | null>(null);
+  const [areGoogleMeetDetailsVisible, setAreGoogleMeetDetailsVisible] = useState(true);
 
   // Handle adding a guest from input field
   const handleGuestAdd = (email: string) => {
@@ -266,24 +268,30 @@ export function Event({ onDataChange }: EventProps) {
       <div className="flex gap-4">
         {/* Left column - Icons */}
         <div>
-          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 mb-6">
+          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-kenoo-white mb-6 mt-1">
             <Clock className="w-4 h-4 text-gray-600" />
           </div>
           
           <div className="space-y-6 mt-[2px]">
-            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-100">
+            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-kenoo-white">
               <Users className="w-4 h-4 text-gray-600" />
             </div>
             
-            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-100">
-              <VideoIcon className="w-4 h-4 text-gray-600" />
+            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-kenoo-white">
+              <Image
+                src={GOOGLE_MEET_ICON_URL}
+                alt="Google Meet"
+                width={18}
+                height={18}
+                className="shrink-0"
+              />
             </div>
             
-            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-100">
+            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-kenoo-white">
               <MapPin className="w-4 h-4 text-gray-600" />
             </div>
             
-            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-100">
+            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-kenoo-white">
               <AlignLeft className="w-4 h-4 text-gray-600" />
             </div>
           </div>
@@ -291,8 +299,8 @@ export function Event({ onDataChange }: EventProps) {
         
         {/* Right column - Form inputs */}
         <div className="flex-1 grid gap-6">
-          <div className="flex items-center border-0 border-b border-gray-200">
-            <div className="flex gap-1 py-[2px]">
+          <div className="relative -top-px flex items-center border-0 border-b border-gray-200 pt-1">
+            <div className="flex gap-1 pt-[4.5px] pb-[5px]">
               {/* Date Picker */}
               <Popover>
                 <PopoverTrigger asChild>
@@ -430,7 +438,7 @@ export function Event({ onDataChange }: EventProps) {
           </div>
           
           <div className="relative flex items-center mt-0">
-            <div className={`flex flex-wrap items-center gap-2 border-0 border-b ${focusedField === 'guests' ? 'border-blue-500' : 'border-gray-200'} py-[2px] px-0 w-full transition-colors duration-200`}>
+            <div className={`flex flex-wrap items-center gap-2 border-0 border-b ${focusedField === 'guests' ? 'border-[var(--kenoo-blue)]' : 'border-gray-200'} py-[2px] px-0 w-full transition-colors duration-200`}>
               {guestTags.map(tag => (
                 <GuestTag
                   key={tag.id}
@@ -460,17 +468,68 @@ export function Event({ onDataChange }: EventProps) {
             />
           </div>
           
-          <div className={`flex items-center justify-between border-0 border-b ${focusedField === 'google-meet' ? 'border-blue-500' : 'border-gray-200'} py-[2px] mt-0 transition-colors duration-200`}>
-            <span className="text-sm font-normal text-gray-500">Add Google Meet video conferencing</span>
-            <Switch
+          {eventData.useGoogleMeet ? (
+            <div
+              className="-mx-2 flex min-h-11 items-center gap-2 rounded-xl bg-[#eef3fd] px-2 py-1.5"
+              role="group"
+              aria-label="Google Meet video conferencing"
+            >
+              <div className="min-w-0 flex-1 leading-tight">
+                <p className="truncate text-sm font-medium text-[#0b57d0]">
+                  Join with Google Meet
+                </p>
+                {areGoogleMeetDetailsVisible && (
+                  <p className="truncate text-xs font-normal text-neutral-600">
+                    Meeting link created when the event is saved
+                  </p>
+                )}
+              </div>
+
+              <button
+                type="button"
+                disabled
+                aria-label="Copy Google Meet link (available after saving)"
+                title="The meeting link will be available after saving"
+                className="inline-flex size-8 shrink-0 items-center justify-center rounded-full text-neutral-500 opacity-45"
+              >
+                <Copy className="size-[18px]" />
+              </button>
+              <button
+                type="button"
+                aria-label={areGoogleMeetDetailsVisible ? "Hide meeting details" : "Show meeting details"}
+                aria-expanded={areGoogleMeetDetailsVisible}
+                onClick={() => setAreGoogleMeetDetailsVisible((visible) => !visible)}
+                className="inline-flex size-8 shrink-0 items-center justify-center rounded-full text-neutral-600 transition-colors hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--kenoo-sky)]"
+              >
+                <ChevronDown
+                  className={cn(
+                    "size-5 transition-transform",
+                    !areGoogleMeetDetailsVisible && "-rotate-90"
+                  )}
+                />
+              </button>
+              <button
+                type="button"
+                aria-label="Remove Google Meet"
+                onClick={() => setEventData({ ...eventData, useGoogleMeet: false })}
+                className="inline-flex size-8 shrink-0 items-center justify-center rounded-full text-neutral-600 transition-colors hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--kenoo-sky)]"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+          ) : (
+            <button
               id="google-meet"
-              checked={eventData.useGoogleMeet}
-              onCheckedChange={(checked) => setEventData({ ...eventData, useGoogleMeet: checked })}
-              onFocus={() => setFocusedField('google-meet')}
-              onBlur={() => setFocusedField(null)}
-              className="data-[state=checked]:bg-kenoo-light"
-            />
-          </div>
+              type="button"
+              onClick={() => {
+                setAreGoogleMeetDetailsVisible(true);
+                setEventData({ ...eventData, useGoogleMeet: true });
+              }}
+              className="-mx-2 flex min-h-8 w-[calc(100%+1rem)] items-center rounded-lg px-2 text-left text-sm font-normal text-gray-500 transition-colors hover:bg-neutral-100 hover:text-neutral-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--kenoo-sky)]"
+            >
+              Add Google Meet video conferencing
+            </button>
+          )}
           
           <div className="flex items-center mt-0">
             <Input
@@ -478,7 +537,7 @@ export function Event({ onDataChange }: EventProps) {
               value={eventData.location}
               onChange={(e) => setEventData({ ...eventData, location: e.target.value })}
               placeholder="Add location"
-              className={`border-0 border-b ${focusedField === 'location' ? 'border-blue-500' : 'border-gray-200'} rounded-none bg-transparent focus:ring-0 focus-visible:ring-0 focus-visible:outline-none px-0 py-[2px] h-7 w-full transition-colors duration-200`}
+              className={`border-0 border-b ${focusedField === 'location' ? 'border-[var(--kenoo-blue)]' : 'border-gray-200'} rounded-none bg-transparent shadow-none focus:ring-0 focus-visible:ring-0 focus-visible:outline-none px-0 py-[2px] h-7 w-full transition-colors duration-200`}
               onFocus={() => setFocusedField('location')}
               onBlur={() => setFocusedField(null)}
             />
@@ -488,7 +547,7 @@ export function Event({ onDataChange }: EventProps) {
             <div
               ref={descriptionRef}
               contentEditable
-              className={`min-h-[36px] max-h-none border-0 border-b ${focusedField === 'description' ? 'border-blue-500' : 'border-gray-200'} rounded-none bg-transparent outline-none px-0 py-0 w-full overflow-hidden transition-colors duration-200 empty:before:content-['Add_description'] empty:before:text-gray-500 empty:before:pointer-events-none text-sm font-normal`}
+              className={`min-h-[36px] max-h-none border-0 border-b ${focusedField === 'description' ? 'border-[var(--kenoo-blue)]' : 'border-gray-200'} rounded-none bg-transparent outline-none px-0 py-0 w-full overflow-hidden transition-colors duration-200 empty:before:content-['Add_description'] empty:before:text-gray-500 empty:before:pointer-events-none text-sm font-normal`}
               onFocus={() => setFocusedField('description')}
               onBlur={(e) => {
                 setFocusedField(null);
@@ -508,4 +567,4 @@ export function Event({ onDataChange }: EventProps) {
       <Toaster />
     </div>
   );
-} 
+}

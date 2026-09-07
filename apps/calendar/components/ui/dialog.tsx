@@ -14,6 +14,23 @@ const DialogPortal = DialogPrimitive.Portal
 
 const DialogClose = DialogPrimitive.Close
 
+/** Keep the dialog open while interacting with Radix controls rendered in a portal. */
+const preventDialogDismissOutside: React.ComponentPropsWithoutRef<
+  typeof DialogPrimitive.Content
+>["onInteractOutside"] = (event) => {
+  const target = event.target
+  if (
+    target instanceof Element &&
+    (target.closest("[data-radix-select-content]") ||
+      target.closest("[data-radix-popper-content-wrapper]") ||
+      target.closest("[data-radix-menu-content]"))
+  ) {
+    return
+  }
+
+  event.preventDefault()
+}
+
 const DialogOverlay = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Overlay>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Overlay>
@@ -22,7 +39,7 @@ const DialogOverlay = React.forwardRef<
     ref={ref}
     forceMount
     className={cn(
-      "fixed inset-0 z-50 bg-transparent data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      "fixed inset-0 z-50 bg-transparent data-[state=closed]:pointer-events-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
       className
     )}
     {...props}
@@ -43,7 +60,7 @@ const DialogContent = React.forwardRef<
       ref={ref}
       forceMount
       className={cn(
-        "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 p-6 duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] rounded-[2rem] bg-white/80 backdrop-blur-xl border border-white/30 shadow-2xl",
+        "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 p-6 duration-200 data-[state=closed]:pointer-events-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] rounded-[2rem] bg-kenoo-white/80 backdrop-blur-xl border border-white/30 shadow-2xl",
         className
       )}
       {...props}
@@ -121,6 +138,7 @@ export {
   DialogOverlay,
   DialogTrigger,
   DialogClose,
+  preventDialogDismissOutside,
   DialogContent,
   DialogHeader,
   DialogFooter,
