@@ -11,6 +11,7 @@ import {
   DialogContent as DialogContentPrimitive,
   DialogTitle,
   DialogDescription,
+  preventDialogDismissOutside,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -352,7 +353,10 @@ export function TaskPopup({ isOpen, onClose, onSubmit, events, initialTask, isEd
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[900px]" onInteractOutside={(e) => e.preventDefault()}>
+      <DialogContent
+        className="sm:max-w-[900px]"
+        onInteractOutside={preventDialogDismissOutside}
+      >
         <DialogHeader>
         </DialogHeader>
         <form onSubmit={handleSubmit}>

@@ -14,6 +14,23 @@ const DialogPortal = DialogPrimitive.Portal
 
 const DialogClose = DialogPrimitive.Close
 
+/** Keep the dialog open while interacting with Radix controls rendered in a portal. */
+const preventDialogDismissOutside: React.ComponentPropsWithoutRef<
+  typeof DialogPrimitive.Content
+>["onInteractOutside"] = (event) => {
+  const target = event.target
+  if (
+    target instanceof Element &&
+    (target.closest("[data-radix-select-content]") ||
+      target.closest("[data-radix-popper-content-wrapper]") ||
+      target.closest("[data-radix-menu-content]"))
+  ) {
+    return
+  }
+
+  event.preventDefault()
+}
+
 const DialogOverlay = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Overlay>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Overlay>
@@ -121,6 +138,7 @@ export {
   DialogOverlay,
   DialogTrigger,
   DialogClose,
+  preventDialogDismissOutside,
   DialogContent,
   DialogHeader,
   DialogFooter,
