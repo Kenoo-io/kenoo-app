@@ -28,9 +28,11 @@ interface CreateDropdownProps {
 export function CreateDropdown({ onEventTypeSelect }: CreateDropdownProps) {
   const [selectedEventType, setSelectedEventType] = useState<EventType>('event');
   const [isPopupOpen, setIsPopupOpen] = useState(false);
+  const [popupSession, setPopupSession] = useState(0);
 
   const handleEventTypeSelect = (type: EventType) => {
     setSelectedEventType(type);
+    setPopupSession((session) => session + 1);
     setIsPopupOpen(true);
     onEventTypeSelect?.(type);
   };
@@ -80,6 +82,7 @@ export function CreateDropdown({ onEventTypeSelect }: CreateDropdownProps) {
       </DropdownMenu>
 
       <CreatePopup
+        key={popupSession}
         isOpen={isPopupOpen}
         onClose={() => setIsPopupOpen(false)}
         initialType={selectedEventType}

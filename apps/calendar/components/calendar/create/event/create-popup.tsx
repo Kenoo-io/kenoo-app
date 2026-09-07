@@ -2,7 +2,7 @@
 
 
 import { wallsToast } from "@/components/ui/walls-toast";
-import React, { useEffect, useState, ReactNode } from 'react';
+import React, { useState, ReactNode } from 'react';
 import {
   Dialog,
   DialogContent as DialogContentPrimitive,
@@ -80,17 +80,6 @@ export function CreatePopup({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const prefersReducedMotion = useReducedMotion();
   const tabIndicatorId = React.useId();
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    // The dialog remains mounted after it closes, so start every creation flow
-    // from the type (and blank form state) selected by the launcher.
-    setSelectedType(initialType);
-    setTitle(initialTitle);
-    setEventData({});
-    setIsSubmitting(false);
-  }, [isOpen, initialType, initialTitle]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

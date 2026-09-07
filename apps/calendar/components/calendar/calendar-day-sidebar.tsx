@@ -170,10 +170,13 @@ export function CalendarDaySidebar({
   const [completingTaskKey, setCompletingTaskKey] = useState<string | null>(null);
   const [selectedEventType, setSelectedEventType] = useState<EventType>("event");
   const [isEventPopupOpen, setIsEventPopupOpen] = useState(false);
+  const [createPopupSession, setCreatePopupSession] = useState(0);
   const [selectedEvent, setSelectedEvent] = useState<CalendarSidebarEvent | null>(null);
 
   const handleEventTypeSelect = (type: EventType) => {
     setSelectedEventType(type);
+    setCreatePopupSession((session) => session + 1);
+    setSelectedEvent(null);
     setIsEventPopupOpen(true);
   };
 
@@ -543,6 +546,7 @@ export function CalendarDaySidebar({
       </aside>
 
       <CreatePopup
+        key={createPopupSession}
         isOpen={isEventPopupOpen}
         onClose={() => setIsEventPopupOpen(false)}
         initialType={selectedEventType}
