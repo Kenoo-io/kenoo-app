@@ -30,6 +30,10 @@ const DAY_VIEW_PIXELS_PER_HOUR = 60;
 const WEEK_VIEW_PIXELS_PER_HOUR = 48;
 const ALL_DAY_ROW_HEIGHT = 24;
 const ALL_DAY_ROW_GAP = 2;
+// Below this rendered height, even a single line of normal-size text doesn't
+// fit without being clipped, so the event switches to a smaller compact
+// label instead of stretching the box past its actual time slot.
+const COMPACT_EVENT_HEIGHT_PX = 20;
 const ALL_DAY_MORE_ROW_HEIGHT = 16;
 const MAX_VISIBLE_ALL_DAY_ROWS = 2;
 
@@ -41,7 +45,7 @@ function getTimedEventTheme(event: Event): CalendarEventTheme {
   const theme = getCalendarEventTheme(event);
   return {
     ...theme,
-    container: 'transition-colors hover:bg-muted/40 duration-200',
+    container: 'bg-kenoo-white transition-colors hover:bg-muted/40 duration-200',
   };
 }
 
@@ -56,7 +60,11 @@ function getEventAccentStyle(event: Event): React.CSSProperties | undefined {
 }
 
 function getAllDayEventTheme(event: Event): CalendarEventTheme {
-  return getCalendarEventTheme(event);
+  const theme = getCalendarEventTheme(event);
+  return {
+    ...theme,
+    container: `${theme.container} bg-kenoo-white`,
+  };
 }
 
 const EVENT_TITLE_LINE_HEIGHT_PX = 16;
@@ -66,7 +74,7 @@ function getEventTitleLineBudget(
   isShortEvent: boolean,
   showTime: boolean
 ): { maxLines: number } {
-  const verticalPaddingPx = isShortEvent ? 4 : 12;
+  const verticalPaddingPx = isShortEvent ? 4 : 8;
   const reservedForTimePx = showTime ? 18 : 0;
   const availableTitleHeightPx = heightPx - verticalPaddingPx - reservedForTimePx;
   const maxLines = Math.max(
@@ -296,6 +304,7 @@ function TimedEventBlock({
   }, [open]);
 
   const isShortEvent = durationMinutes < 45;
+  const isCompactEvent = height < COMPACT_EVENT_HEIGHT_PX;
   const theme = getTimedEventTheme(event);
   const isCompleted = isCalendarTaskCompleted(event);
   const isMeeting = event.type === 'regular-event';
@@ -310,6 +319,11 @@ function TimedEventBlock({
     event,
     formatCompactEventTime(startTime)
   );
+  // Recreate whichever grid line the card's top edge sits on top of, so the
+  // line reads as continuing under the card instead of stopping at its edge:
+  // the hour line is a solid, more visible color, while the 15/30/45-minute
+  // marks are a lighter tint (matching the grid's own dashed sub-lines).
+  const startsOnHour = startTime.minute === 0;
 
   return (
     <div
@@ -317,14 +331,14 @@ function TimedEventBlock({
       className={cn(
         'absolute group hover:z-20',
         onDragStart ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer',
-        theme.container,
-        isCompleted && 'opacity-60'
+        theme.container
       )}
       style={{
         left,
         top: `${top}px`,
         width,
         height: `${height}px`,
+        borderTop: `1px solid ${startsOnHour ? '#e4e9f0' : 'rgba(238,241,245,0.5)'}`,
       }}
       draggable={Boolean(onDragStart)}
       onDragStart={(dragEvent) => {
@@ -347,7 +361,12 @@ function TimedEventBlock({
       onMouseEnter={() => setOpen(true)}
       onMouseLeave={() => setOpen(false)}
     >
-      <div className="relative h-full flex min-w-0 overflow-hidden">
+      <div
+        className={cn(
+          'relative h-full flex min-w-0 overflow-hidden',
+          isCompleted && 'opacity-60'
+        )}
+      >
         <span
           className={cn(
             'w-[3px] shrink-0 self-stretch',
@@ -360,11 +379,15 @@ function TimedEventBlock({
         <div
           className={cn(
             'min-w-0 flex-1 flex flex-col overflow-hidden',
-            isShortEvent ? 'justify-center px-2 py-0.5' : 'px-2.5 py-1.5'
+            isCompactEvent
+              ? 'justify-center px-1.5 py-0'
+              : isShortEvent
+                ? 'px-2 py-0.5'
+                : 'px-2.5 py-1'
           )}
         >
           <div className="min-w-0 overflow-hidden">
-            {isGoogleMeet && (
+            {isGoogleMeet && !isCompactEvent && (
               <Image
                 src={GOOGLE_MEET_ICON_URL}
                 alt="Google Meet"
@@ -375,8 +398,10 @@ function TimedEventBlock({
             )}
             <span
               className={cn(
-                'block leading-snug text-xs',
-                getEventTitleTextClass(maxTitleLines),
+                'block',
+                isCompactEvent
+                  ? 'truncate text-[10px] leading-none'
+                  : cn('leading-tight text-xs', getEventTitleTextClass(maxTitleLines)),
                 isCompleted ? getCompletedTaskTitleClass() : theme.title
               )}
             >
@@ -384,7 +409,7 @@ function TimedEventBlock({
             </span>
           </div>
           {showTime && (
-            <span className={cn('text-xs mt-0.5', theme.time)}>
+            <span className={cn('text-xs mt-px leading-tight', theme.time)}>
               {formatEventTime(startTime)}
             </span>
           )}
@@ -587,35 +612,25 @@ const TimeIndicator = ({
             {open && coords && (
               <motion.div
                 key="now-glance"
-                initial={{ opacity: 0, y: 'calc(-100% + 8px)', scale: 0.96, filter: 'blur(4px)' }}
-                animate={{ opacity: 1, y: '-100%', scale: 1, filter: 'blur(0px)' }}
-                exit={{ opacity: 0, y: 'calc(-100% + 6px)', scale: 0.97, filter: 'blur(4px)' }}
-                transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-                className="pointer-events-none fixed z-[9999] w-[220px] origin-bottom-left overflow-hidden rounded-2xl border border-white/60 bg-kenoo-white/92 text-left text-kenoo-ink shadow-[0_16px_40px_rgba(17,17,17,0.12)] backdrop-blur-xl"
+                initial={{ opacity: 0, y: 'calc(-100% + 4px)' }}
+                animate={{ opacity: 1, y: '-100%' }}
+                exit={{ opacity: 0, y: 'calc(-100% + 4px)' }}
+                transition={{ duration: 0.15, ease: 'easeOut' }}
+                className="pointer-events-none fixed z-[9999] w-[220px] origin-bottom-left overflow-hidden rounded-lg border border-kenoo-border bg-kenoo-white text-left text-kenoo-ink shadow-md"
                 style={{
                   top: coords.top - 12,
                   left: coords.left,
                 }}
               >
-                <div className="relative px-3.5 pb-3 pt-3">
-                  <div
-                    aria-hidden
-                    className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-[radial-gradient(120%_80%_at_0%_0%,rgba(11,110,255,0.14),transparent_60%)]"
-                  />
-                  <div className="relative flex items-center gap-2">
-                    <span className="relative flex size-1.5">
-                      <span className="absolute inset-0 animate-ping rounded-full bg-[var(--kenoo-accent)]/40" />
-                      <span className="relative size-1.5 rounded-full bg-[var(--kenoo-accent)]" />
+                <div className="px-3.5 pb-3 pt-3">
+                  <p className="font-display text-[22px] font-semibold leading-none tracking-tight text-kenoo-ink">
+                    {clock}
+                    <span className="ml-1.5 align-middle text-[11px] font-medium uppercase tracking-[0.14em] text-kenoo-muted">
+                      {meridiem}
                     </span>
-                    <p className="font-display text-[22px] font-semibold leading-none tracking-tight text-kenoo-ink">
-                      {clock}
-                      <span className="ml-1.5 align-middle text-[11px] font-medium uppercase tracking-[0.14em] text-kenoo-muted">
-                        {meridiem}
-                      </span>
-                    </p>
-                  </div>
+                  </p>
 
-                  <div className="relative mt-3 rounded-xl bg-[#f6f8fc] px-3 py-2.5">
+                  <div className="mt-3 rounded-lg bg-[#f6f8fc] px-3 py-2.5">
                     {glance.kind === 'current' && (
                       <>
                         <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--kenoo-accent)]">
@@ -1033,8 +1048,7 @@ export function CalendarGrid({ selectedDate, onDateSelect, allEvents, onTaskDrop
                     type="button"
                     className={cn(
                       'absolute text-left transition-all',
-                      theme.container,
-                      isCompleted && 'opacity-60'
+                      theme.container
                     )}
                     style={{
                       left: `${(startDayIndex / numDays) * 100}%`,
@@ -1044,7 +1058,12 @@ export function CalendarGrid({ selectedDate, onDateSelect, allEvents, onTaskDrop
                     }}
                     onClick={() => handleEventClick(event)}
                   >
-                    <div className="relative h-full flex min-w-0 overflow-hidden">
+                    <div
+                      className={cn(
+                        'relative h-full flex min-w-0 overflow-hidden',
+                        isCompleted && 'opacity-60'
+                      )}
+                    >
                       <span
                         className={cn(
                           'w-[3px] shrink-0 self-stretch',
