@@ -630,7 +630,7 @@ const TimeIndicator = ({
                     </span>
                   </p>
 
-                  <div className="mt-3 rounded-lg bg-[#f6f8fc] px-3 py-2.5">
+                  <div className="mt-3 border-t border-kenoo-border pt-2.5">
                     {glance.kind === 'current' && (
                       <>
                         <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--kenoo-accent)]">
