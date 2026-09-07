@@ -196,8 +196,15 @@ function AgentCalendarContent({
     });
 
     const formattedProjectTaskEvents = projectTasks
-      // All-day due/start markers — scheduling is separate timed blocks below
-      .filter(task => task.due_date || task.start_date)
+      // A task with one or more timed schedule blocks is represented by those
+      // blocks below, so it must not also produce an all-day due/start marker.
+      .filter(
+        (task) =>
+          (task.due_date || task.start_date) &&
+          !(task.schedules ?? []).some(
+            (schedule) => schedule.start_time && schedule.end_time
+          )
+      )
       .map(task => {
         const date = task.due_date || task.start_date;
         return {
