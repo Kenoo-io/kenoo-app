@@ -59,7 +59,7 @@ export function OutOfOffice({ onDataChange }: OutOfOfficeProps) {
       <div className="flex gap-4">
         {/* Left column - Icons */}
         <div>
-          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 mb-6">
+          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-kenoo-white mb-6">
             <Clock className="w-4 h-4 text-gray-600" />
           </div>
         </div>

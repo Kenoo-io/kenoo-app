@@ -19,7 +19,9 @@ export function getCalendarEventTheme(event: CalendarEventLike): CalendarEventTh
   const accentColor = isMeeting ? 'bg-kenoo-sky' : 'bg-kenoo-yellow';
 
   return {
-    container: 'rounded-md transition-colors hover:bg-muted/40',
+    // Events sit directly in the shared grid. The accent rail and tint provide
+    // separation without making every item look like a floating card.
+    container: 'rounded-sm transition-colors hover:bg-muted/40',
     dotColor: accentColor,
     accentColor,
     title: 'font-normal text-foreground',

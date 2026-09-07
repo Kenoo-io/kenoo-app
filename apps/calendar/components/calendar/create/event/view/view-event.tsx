@@ -292,29 +292,29 @@ export function ViewEvent({ eventData, isEditing = true, onDataChange }: ViewEve
         {/* Left column - Icons */}
         <div>
           {/* Time icon */}
-          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 mb-6">
+          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-kenoo-white mb-6">
             <Clock className="w-4 h-4 text-gray-600" />
           </div>
           
           {/* Guests/Attendees icon - always show */}
-          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 mb-6">
+          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-kenoo-white mb-6">
             <Users className="w-4 h-4 text-gray-600" />
           </div>
           
           {/* Google Meet icon */}
           {isGoogleMeet && (
-            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 mb-6">
+            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-kenoo-white mb-6">
               <VideoIcon className="w-4 h-4 text-gray-600" />
             </div>
           )}
           
           {/* Location icon - always show */}
-          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 mb-6">
+          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-kenoo-white mb-6">
             <MapPin className="w-4 h-4 text-gray-600" />
           </div>
           
           {/* Description icon - always show */}
-          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 mb-6">
+          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-kenoo-white mb-6">
             <AlignLeft className="w-4 h-4 text-gray-600" />
           </div>
         </div>

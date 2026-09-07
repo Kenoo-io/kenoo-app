@@ -56,7 +56,7 @@ export function AppointmentSchedule({ onDataChange }: AppointmentScheduleProps) 
       <div className="flex gap-4">
         {/* Left column - Icons */}
         <div>
-          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 mt-1">
+          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-kenoo-white mt-1">
             <Clock className="w-4 h-4 text-gray-600" />
           </div>
         </div>

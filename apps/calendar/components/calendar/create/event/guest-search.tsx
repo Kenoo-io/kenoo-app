@@ -173,7 +173,7 @@ export function GuestSearch({ onSelect, currentInput }: GuestSearchProps) {
   return (
     <div className="absolute top-full left-0 right-0 z-50 px-4">
       <div className="shadow-md mt-1 rounded-xl overflow-hidden">
-        <div className="bg-white/95 backdrop-blur-sm">
+        <div className="bg-kenoo-white/95 backdrop-blur-sm">
           <div className="max-h-[300px] overflow-y-auto p-2">
             <div>
               {searchResults.map((result, index) => (

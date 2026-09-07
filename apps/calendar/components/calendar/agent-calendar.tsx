@@ -18,9 +18,11 @@ import { addDays, addMonths, subMonths, addWeeks, subWeeks, startOfWeek, endOfWe
 import { TimezoneAlert } from './timezone-popp/timezone-alert';
 import {
   buildRecurringExceptionMaps,
+  filterMaterializedRecurringInstances,
   filterMeetingsHidingRecurringExceptions,
   generateRecurringCalendarInstances,
   parseCalendarToJsDate,
+  selectCurrentRecurringParents,
   type RecurrenceRule,
   type RecurringInstanceOverrideRow,
 } from '@/lib/calendar-recurring';
@@ -38,6 +40,12 @@ const PROJECT_TASK_SELECT =
 
 const PROJECT_TASK_SCHEDULE_SELECT =
   'id, created_at, updated_at, task_id, start_time, end_time, position, notes, created_by, is_blocking';
+
+function parseInitialDate(date: string): Date {
+  // Parse the date-only server value at noon so it remains the same local
+  // calendar day in every browser timezone.
+  return new Date(`${date}T12:00:00`);
+}
 
 function mapRowToProjectTask(row: Record<string, unknown>): ProjectTask {
   const projects = row.projects as { id: string; name: string; color: string | null } | null;
@@ -124,11 +132,15 @@ interface AgentCalendarProps {
     email: string;
     accessToken?: string;
   } | null;
+  initialDate: string;
 }
 
-function AgentCalendarContent({ calendarData }: AgentCalendarProps) {
+function AgentCalendarContent({
+  calendarData,
+  initialDate,
+}: AgentCalendarProps) {
   const { user } = useAuth();
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date>(() => parseInitialDate(initialDate));
   const [calendarView, setCalendarView] = useState<CalendarViewMode>('weekly');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -283,7 +295,7 @@ function AgentCalendarContent({ calendarData }: AgentCalendarProps) {
 
         const { data: meetingsData, error: meetingsError } = await supabase
           .from('calendar_view')
-          .select('id, title, start_time, end_time, meeting_link, event_id, account_id, user_id, is_recurring_parent, location, html_link, status')
+          .select('id, title, start_time, end_time, meeting_link, event_id, account_id, user_id, is_recurring_parent, recurring_event_id, original_start_time, exception_type, location, html_link, status')
           .eq('user_id', user.id)
           .eq('is_recurring_parent', false)
           .gte('end_time', rangeStartIso)
@@ -322,7 +334,25 @@ function AgentCalendarContent({ calendarData }: AgentCalendarProps) {
           }
         }
 
-        const exceptionMaps = buildRecurringExceptionMaps(exceptionRows || []);
+        // `calendar_view` is the source of truth for materialized exceptions
+        // on deployments that store them in calendar_recurrence_exceptions.
+        // Include those rows too so a modified instance suppresses the
+        // generated parent occurrence at its original slot.
+        const viewExceptionRows: RecurringInstanceOverrideRow[] = (meetingsData || [])
+          .filter((event: any) => event.recurring_event_id && event.original_start_time)
+          .map((event: any) => ({
+            id: event.id,
+            account_id: event.account_id,
+            event_id: event.event_id,
+            recurring_event_id: event.recurring_event_id,
+            original_start_time: event.original_start_time,
+            exception_type: event.exception_type,
+            status: event.status,
+          }));
+        const exceptionMaps = buildRecurringExceptionMaps([
+          ...(exceptionRows || []),
+          ...viewExceptionRows,
+        ]);
         const visibleMeetings = filterMeetingsHidingRecurringExceptions(
           meetingsData || [],
           exceptionMaps
@@ -339,9 +369,22 @@ function AgentCalendarContent({ calendarData }: AgentCalendarProps) {
           console.error('Error fetching recurring events:', recurringError);
         }
 
+        const activeParentKeys = new Set(
+          (recurringEventsData || [])
+            .filter((event: any) => {
+              if (!event.until) return true;
+              return new Date(event.until) >= new Date();
+            })
+            .map((event: any) => `${event.account_id}|${event.event_id}`)
+        );
+        const visibleMaterializedMeetings = filterMaterializedRecurringInstances(
+          visibleMeetings,
+          activeParentKeys
+        );
+
         // Fetch attendees separately from calendar_event_attendees table, keyed by event UUID
         const allEventUuids = [
-          ...(meetingsData || []).map((e: any) => e.id),
+          ...(visibleMaterializedMeetings || []).map((e: any) => e.id),
           ...(recurringEventsData || []).map((e: any) => e.id),
         ].filter(Boolean);
 
@@ -361,11 +404,14 @@ function AgentCalendarContent({ calendarData }: AgentCalendarProps) {
         }
 
         const nowDate = new Date();
-        const activeRecurringEvents = (recurringEventsData || []).filter((event: any) => {
-          if (!event.until) return true;
-          const untilDate = new Date(event.until);
-          return untilDate >= nowDate;
-        });
+        const activeRecurringEvents = selectCurrentRecurringParents(
+          (recurringEventsData || []).filter((event: any) => {
+            if (!event.until) return true;
+            const untilDate = new Date(event.until);
+            return untilDate >= nowDate;
+          }),
+          nowDate
+        );
 
         let recurringInstances: CalendarEvent[] = [];
         if (activeRecurringEvents && activeRecurringEvents.length > 0) {
@@ -465,7 +511,7 @@ function AgentCalendarContent({ calendarData }: AgentCalendarProps) {
           });
         }
 
-        const regularEventsData: CalendarEvent[] = visibleMeetings.map((event: any) => ({
+        const regularEventsData: CalendarEvent[] = visibleMaterializedMeetings.map((event: any) => ({
           id: event.id,
           title: event.title,
           description: '',
@@ -683,7 +729,7 @@ function AgentCalendarContent({ calendarData }: AgentCalendarProps) {
   };
 
   return (
-    <div className="flex h-full min-h-0 items-stretch gap-3 overflow-hidden overscroll-none bg-kenoo-white p-4">
+    <div className="flex h-full min-h-0 items-stretch gap-0 overflow-hidden overscroll-none bg-kenoo-white p-0">
       <CalendarDaySidebar
         selectedDate={selectedDate}
         onDateSelect={setSelectedDate}
@@ -692,8 +738,8 @@ function AgentCalendarContent({ calendarData }: AgentCalendarProps) {
         {...sidebarProps}
       />
 
-      {/* h-full keeps this column flush with the sidebar; no overflow clip so glass shadows paint */}
-      <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col gap-3">
+      {/* Keep the calendar column flush with the sidebar and let the workspace own the border. */}
+      <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col gap-0">
         <CalendarHeader
           selectedDate={selectedDate}
           onTodayClick={() => setSelectedDate(new Date())}
@@ -704,14 +750,15 @@ function AgentCalendarContent({ calendarData }: AgentCalendarProps) {
         />
 
         <div className="flex min-h-0 flex-1 flex-col overscroll-none">
-          {/* Shadow on the outer chrome; clip scroll content on the inner shell */}
-          <div className="kenoo-glass-chrome-dense flex h-full min-h-0 min-w-0 flex-1 flex-col rounded-[1.75rem] border border-white/40">
-            <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[1.75rem]">
+          {/* One continuous workspace surface for the header, grid, and event rows. */}
+          <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-kenoo-white">
+            <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
               {calendarView === 'monthly' ? (
                 <AgentMonthGrid
                   selectedDate={selectedDate}
                   onDateSelect={(date) => setSelectedDate(date)}
                   allEvents={allEvents}
+                  todayDate={initialDate}
                 />
               ) : (
                 <CalendarGrid
@@ -724,6 +771,7 @@ function AgentCalendarContent({ calendarData }: AgentCalendarProps) {
                   onProjectTaskClick={handleProjectTaskClick}
                   userTimezone={userTimezone}
                   viewMode={calendarView === 'daily' ? 'day' : 'week'}
+                  todayDate={initialDate}
                 />
               )}
             </div>

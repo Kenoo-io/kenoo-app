@@ -148,17 +148,17 @@ export const TASK_STATUS_CONFIG: Record<
 > = {
   todo: {
     label: "To Do",
-    badge: "bg-neutral-100 text-neutral-600",
+    badge: "bg-kenoo-white text-neutral-600",
     accent: "rgb(163 163 163)",
   },
   in_progress: {
     label: "In Progress",
-    badge: "bg-neutral-100 text-[var(--kenoo-sky-hover)]",
+    badge: "bg-kenoo-white text-[var(--kenoo-sky-hover)]",
     accent: "var(--kenoo-sky)",
   },
   in_review: {
     label: "In Review",
-    badge: "bg-neutral-100 text-neutral-800",
+    badge: "bg-kenoo-white text-neutral-800",
     accent: "var(--kenoo-dark-yellow)",
   },
   on_hold: {

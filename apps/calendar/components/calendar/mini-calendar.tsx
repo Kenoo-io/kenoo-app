@@ -111,14 +111,14 @@ export function MiniCalendar({
                 inMonth &&
                   !selectedDay &&
                   !today &&
-                  "text-kenoo-ink hover:bg-kenoo-yellow/40",
-                // Today (not selected): soft neutral ring
+                  "text-kenoo-ink hover:bg-neutral-100",
+                // Today (not selected): Google blue ring
                 today &&
                   !selectedDay &&
-                  "font-medium text-kenoo-ink ring-1 ring-inset ring-neutral-300",
-                // Selected: vivid cool cyan-azure
+                  "font-medium text-kenoo-ink ring-1 ring-inset ring-[#4285F4]/70",
+                // Selected: Google blue
                 selectedDay &&
-                  "bg-[#00A8E8] font-medium text-white hover:bg-[#0096D1]"
+                  "bg-[#4285F4] font-medium text-white hover:bg-[#4285F4]"
               )}
             >
               {format(day, "d")}
@@ -126,7 +126,7 @@ export function MiniCalendar({
                 <span
                   className={cn(
                     "absolute bottom-0 left-1/2 h-0.5 w-0.5 -translate-x-1/2 rounded-full",
-                    selectedDay ? "bg-white" : "bg-kenoo-red"
+                    selectedDay ? "bg-kenoo-white" : "bg-kenoo-red"
                   )}
                 />
               )}

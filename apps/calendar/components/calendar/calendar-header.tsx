@@ -38,12 +38,12 @@ export function CalendarHeader({
   onViewChange,
 }: CalendarHeaderProps) {
   return (
-    <div className="kenoo-glass-chrome flex shrink-0 items-center justify-between rounded-[1.25rem] border border-white/40 px-3 py-2.5">
+    <div className="flex shrink-0 items-center justify-between bg-kenoo-white px-3 py-2.5">
       <div className="flex items-center gap-2">
         <button
           type="button"
           onClick={onTodayClick}
-          className="h-10 shrink-0 rounded-full border border-neutral-300/90 bg-white/35 px-5 text-base font-medium text-kenoo-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] transition-colors hover:bg-white/55"
+          className="h-10 shrink-0 rounded-[20px] border-0 bg-white/80 px-5 text-base font-medium text-kenoo-ink shadow-[0_8px_28px_rgba(15,23,42,0.07),inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-xl transition-all duration-200 hover:bg-white/95 hover:shadow-[0_10px_32px_rgba(15,23,42,0.1),inset_0_1px_0_rgba(255,255,255,0.95)] active:scale-[0.99]"
         >
           Today
         </button>
@@ -52,7 +52,7 @@ export function CalendarHeader({
             type="button"
             aria-label="Previous"
             onClick={onPrev}
-            className="flex h-7 w-7 items-center justify-center rounded-full text-kenoo-ink transition-colors hover:bg-white/45"
+            className="flex h-7 w-7 items-center justify-center rounded-full text-kenoo-ink transition-colors hover:bg-kenoo-white/45"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
@@ -60,7 +60,7 @@ export function CalendarHeader({
             type="button"
             aria-label="Next"
             onClick={onNext}
-            className="flex h-7 w-7 items-center justify-center rounded-full text-kenoo-ink transition-colors hover:bg-white/45"
+            className="flex h-7 w-7 items-center justify-center rounded-full text-kenoo-ink transition-colors hover:bg-kenoo-white/45"
           >
             <ChevronRight className="h-4 w-4" />
           </button>
@@ -77,13 +77,13 @@ export function CalendarHeader({
         >
           <SelectTrigger
             aria-label="Calendar view"
-            className="h-10 w-auto min-w-[6.5rem] gap-2 rounded-full border border-neutral-300/90 bg-white/35 px-3.5 text-base font-medium text-kenoo-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] ring-offset-0 transition-colors hover:bg-white/55 focus:ring-0 focus:ring-offset-0 [&>svg]:h-4 [&>svg]:w-4 [&>svg]:opacity-60"
+            className="h-10 w-auto min-w-[6.5rem] gap-2 rounded-[20px] border-0 bg-white/80 px-3.5 text-base font-medium text-kenoo-ink shadow-[0_8px_28px_rgba(15,23,42,0.07),inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-xl ring-offset-0 transition-all duration-200 hover:bg-white/95 hover:shadow-[0_10px_32px_rgba(15,23,42,0.1),inset_0_1px_0_rgba(255,255,255,0.95)] active:scale-[0.99] focus:ring-0 focus:ring-offset-0 [&>svg]:h-4 [&>svg]:w-4 [&>svg]:opacity-60"
           >
             <SelectValue />
           </SelectTrigger>
           <SelectContent
             align="end"
-            className="min-w-[7rem] border border-white/60 bg-white/90 text-kenoo-ink shadow-md backdrop-blur-xl"
+            className="min-w-[7rem] border border-white/60 bg-kenoo-white/90 text-kenoo-ink shadow-md backdrop-blur-xl"
           >
             {VIEW_OPTIONS.map((opt) => (
               <SelectItem

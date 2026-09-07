@@ -3,7 +3,7 @@
 import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import { format, startOfWeek, addDays, isSameDay, startOfDay } from 'date-fns';
+import { format, startOfWeek, addDays, startOfDay } from 'date-fns';
 import { DateTime } from 'luxon';
 import { isAllDayEvent, layoutAllDayEvents } from '@/lib/calendar-all-day';
 import { parseCalendarToJsDate, resolveViewerFallbackZone } from '@/lib/calendar-recurring';
@@ -32,6 +32,10 @@ const ALL_DAY_ROW_HEIGHT = 24;
 const ALL_DAY_ROW_GAP = 2;
 const ALL_DAY_MORE_ROW_HEIGHT = 16;
 const MAX_VISIBLE_ALL_DAY_ROWS = 2;
+
+function dateWithHour(date: string, hour: number): Date {
+  return new Date(`${date}T${String(hour).padStart(2, '0')}:00:00`);
+}
 
 function getTimedEventTheme(event: Event): CalendarEventTheme {
   const theme = getCalendarEventTheme(event);
@@ -198,6 +202,7 @@ interface CalendarGridProps {
   onProjectTaskClick?: (taskId: string) => void;
   userTimezone?: string | null;
   viewMode?: 'week' | 'day';
+  todayDate: string;
 }
 
 function toEventDateTime(
@@ -362,7 +367,7 @@ function TimedEventBlock({
       {typeof document !== 'undefined' &&
         createPortal(
           open && coords ? (
-            <div
+          <div
               className="pointer-events-none fixed z-[9999] max-w-[220px] whitespace-nowrap rounded-xl bg-gray-900/95 p-2.5 text-white shadow-xl backdrop-blur-sm"
               style={{
                 top: coords.top,
@@ -544,13 +549,9 @@ const TimeIndicator = ({
         aria-hidden
       >
         <div
-          className="absolute inset-x-0 top-1/2 -translate-y-1/2 border-t border-dashed border-[var(--kenoo-accent)] pointer-events-none"
-          style={{
-            maskImage: 'linear-gradient(90deg, black 0%, black 55%, transparent 100%)',
-            WebkitMaskImage: 'linear-gradient(90deg, black 0%, black 55%, transparent 100%)',
-          }}
+          className="absolute inset-x-0 top-1/2 -translate-y-1/2 border-t border-dashed border-[#4285F4] pointer-events-none"
         />
-        <div className="absolute left-0 top-1/2 size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[var(--kenoo-accent)] pointer-events-none" />
+        <div className="absolute left-0 top-1/2 size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#4285F4] pointer-events-none" />
       </div>
 
       {typeof document !== 'undefined' &&
@@ -563,7 +564,7 @@ const TimeIndicator = ({
                 animate={{ opacity: 1, y: '-100%', scale: 1, filter: 'blur(0px)' }}
                 exit={{ opacity: 0, y: 'calc(-100% + 6px)', scale: 0.97, filter: 'blur(4px)' }}
                 transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-                className="pointer-events-none fixed z-[9999] w-[220px] origin-bottom-left overflow-hidden rounded-2xl border border-white/60 bg-white/92 text-left text-kenoo-ink shadow-[0_16px_40px_rgba(17,17,17,0.12)] backdrop-blur-xl"
+                className="pointer-events-none fixed z-[9999] w-[220px] origin-bottom-left overflow-hidden rounded-2xl border border-white/60 bg-kenoo-white/92 text-left text-kenoo-ink shadow-[0_16px_40px_rgba(17,17,17,0.12)] backdrop-blur-xl"
                 style={{
                   top: coords.top - 12,
                   left: coords.left,
@@ -641,7 +642,7 @@ const TimeIndicator = ({
   );
 };
 
-export function CalendarGrid({ selectedDate, onDateSelect, allEvents, onTaskDrop, onEventDeleted, onEventUpdated, onProjectTaskClick, userTimezone, viewMode = 'week' }: CalendarGridProps) {
+export function CalendarGrid({ selectedDate, onDateSelect, allEvents, onTaskDrop, onEventDeleted, onEventUpdated, onProjectTaskClick, userTimezone, viewMode = 'week', todayDate }: CalendarGridProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const viewerZone = resolveViewerFallbackZone(userTimezone);
   const isDayView = viewMode === 'day';
@@ -723,23 +724,6 @@ export function CalendarGrid({ selectedDate, onDateSelect, allEvents, onTaskDrop
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [isViewPopupOpen, setIsViewPopupOpen] = useState(false);
   
-  // Add state for current time
-  const [currentTime, setCurrentTime] = useState(new Date());
-
-  // Add useEffect for time updates
-  useEffect(() => {
-    // Update time immediately
-    setCurrentTime(new Date());
-
-    // Set up interval to update every 15 seconds
-    const interval = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 15000); // 15000 milliseconds = 15 seconds
-
-    // Cleanup interval on unmount
-    return () => clearInterval(interval);
-  }, []);
-
   // Handle event click
   const handleEventClick = (event: Event) => {
     if (event.type === 'project-task' || event.type === 'project-task-schedule') {
@@ -897,14 +881,14 @@ export function CalendarGrid({ selectedDate, onDateSelect, allEvents, onTaskDrop
 
   return (
     <>
-      <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden overscroll-none bg-transparent">
-        <div className="flex shrink-0 bg-transparent pb-1 pt-1">
+      <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden overscroll-none bg-kenoo-white">
+        <div className="flex shrink-0 bg-kenoo-white pb-1 pt-1">
           <div className="w-12" />
           {weekDates.map((date, index) => {
-            const isToday = isSameDay(date, new Date());
+            const isToday = format(date, 'yyyy-MM-dd') === todayDate;
 
             return (
-              <div key={index} className="flex-1 px-1">
+              <div key={index} className="flex-1 border-l border-[#edf0f4] px-1 first:border-l-0">
                 <button
                   type="button"
                   onClick={() => onDateSelect?.(date)}
@@ -918,7 +902,7 @@ export function CalendarGrid({ selectedDate, onDateSelect, allEvents, onTaskDrop
                   </span>
                   <span className={cn(
                     "flex h-7 w-7 items-center justify-center rounded-full text-sm font-medium text-kenoo-ink",
-                    isToday && "bg-[#00A8E8] text-white"
+                    isToday && "bg-[#4285F4] text-white"
                   )}>
                     {format(date, 'd')}
                   </span>
@@ -929,16 +913,16 @@ export function CalendarGrid({ selectedDate, onDateSelect, allEvents, onTaskDrop
         </div>
 
         {allDayLayouts.length > 0 && (
-          <div
+            <div
             className={cn(
-              'flex shrink-0 border-b border-white/40 bg-white/55 transition-[min-height] duration-150',
+              'flex shrink-0 bg-kenoo-white transition-[min-height] duration-150',
               isAllDayExpanded && 'relative z-20'
             )}
             style={{ minHeight: `${allDaySectionHeight}px` }}
             onMouseEnter={() => hasAllDayOverflow && setIsAllDayExpanded(true)}
             onMouseLeave={() => setIsAllDayExpanded(false)}
           >
-            <div className="w-12 shrink-0 flex items-start justify-end pr-1.5 pt-1.5">
+            <div className="w-12 shrink-0 border-r border-[#edf0f4] flex items-start justify-end pr-1.5 pt-1.5">
               <span className="text-[9px] leading-none text-muted-foreground">all-day</span>
             </div>
             <div className="flex-1 relative py-1 pr-1">
@@ -966,7 +950,7 @@ export function CalendarGrid({ selectedDate, onDateSelect, allEvents, onTaskDrop
                     )}
                     style={{
                       left: `${(startDayIndex / numDays) * 100}%`,
-                      width: `calc(${(spanDays / numDays) * 100}% - 4px)`,
+                      width: `calc(${(spanDays / numDays) * 100}% - 2px)`,
                       top: `${row * (ALL_DAY_ROW_HEIGHT + ALL_DAY_ROW_GAP) + 4}px`,
                       height: `${ALL_DAY_ROW_HEIGHT}px`,
                     }}
@@ -1038,12 +1022,12 @@ export function CalendarGrid({ selectedDate, onDateSelect, allEvents, onTaskDrop
             onDragLeave={handleDragLeave}
           >
             {/* Time column */}
-            <div className="absolute top-0 left-0 w-12 h-full border-r border-white/40 bg-transparent">
+            <div className="absolute top-0 left-0 w-12 h-full border-r border-[#e4e9f0] bg-kenoo-white">
               {HOURS.map((hour) => (
                 <div key={hour} className="relative border-b border-slate-100" style={{ height: `${pixelsPerHour}px` }}>
                   {hour !== 0 && (
                     <span className="absolute top-[-10px] right-2 text-[10px] text-kenoo-sky">
-                      {format(new Date().setHours(hour, 0), 'ha')}
+                      {format(dateWithHour(todayDate, hour), 'ha')}
                     </span>
                   )}
                 </div>
@@ -1063,15 +1047,15 @@ export function CalendarGrid({ selectedDate, onDateSelect, allEvents, onTaskDrop
               {/* Hour grid with 15-minute intervals */}
               {HOURS.map((hour) => (
                 <div key={hour} className="relative" style={{ height: `${pixelsPerHour}px` }}>
-                  <div className="absolute top-0 left-0 right-0 border-t border-slate-100" />
+                  <div className="absolute top-0 left-0 right-0 border-t border-[#e4e9f0]" />
                   <div className="flex h-full">
                     {weekDates.map((_, dayIndex) => (
-                      <div key={dayIndex} className="relative h-full flex-1 border-r border-kenoo-border last:border-r-0">
+                      <div key={dayIndex} className="relative h-full flex-1 border-r border-[#e4e9f0] last:border-r-0">
                         {/* Four 15-minute interval sections per hour */}
                         {[0, 15, 30, 45].map(minute => (
                           <div
                             key={`${hour}-${minute}-${dayIndex}`}
-                            className="absolute w-full border-t border-slate-100 border-dashed"
+                            className="absolute w-full border-t border-[#eef1f5] border-dashed"
                             style={{
                               top: `${minute * pixelsPerMinute}px`,
                               height: `${GRID_SNAP * pixelsPerMinute}px`,
@@ -1096,7 +1080,7 @@ export function CalendarGrid({ selectedDate, onDateSelect, allEvents, onTaskDrop
                   style={{
                     left: `${(dragPreview.dayIndex * (100 / numDays))}%`,
                     top: `${(dragPreview.time.getHours() * 60 + dragPreview.time.getMinutes()) * pixelsPerMinute}px`,
-                    width: `${100 / numDays - 2}%`,
+                    width: `${100 / numDays - 1}%`,
                     height: `${dragPreview.height * pixelsPerMinute}px`,
                     zIndex: 5,
                   }}
@@ -1127,7 +1111,7 @@ export function CalendarGrid({ selectedDate, onDateSelect, allEvents, onTaskDrop
                 const dayWidthPct = 100 / numDays;
                 const columnWidthPct = dayWidthPct / totalColumns;
                 const left = `${dayOffset * dayWidthPct + column * columnWidthPct}%`;
-                const width = `calc(${columnWidthPct}% - 4px)`;
+                const width = `calc(${columnWidthPct}% - 2px)`;
                 const top = topMinutes * pixelsPerMinute;
                 const height = durationMinutes * pixelsPerMinute;
 

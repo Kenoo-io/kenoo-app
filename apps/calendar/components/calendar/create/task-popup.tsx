@@ -44,7 +44,7 @@ const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-gray-50 p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-3xl",
+        "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-kenoo-white p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-3xl",
         className
       )}
       {...props}
@@ -442,7 +442,7 @@ export function TaskPopup({ isOpen, onClose, onSubmit, events, initialTask, isEd
                               className="h-6 w-6 rounded-full"
                             />
                           ) : (
-                            <div className="h-6 w-6 rounded-full bg-gray-200 flex items-center justify-center">
+                            <div className="h-6 w-6 rounded-full bg-kenoo-white flex items-center justify-center">
                               {userItem.displayName?.charAt(0)}
                             </div>
                           )}
@@ -578,7 +578,7 @@ export function TaskPopup({ isOpen, onClose, onSubmit, events, initialTask, isEd
               type="button" 
               onClick={onClose} 
               variant="ghost"
-              className="bg-gray-50 hover:bg-gray-100 text-black"
+              className="bg-kenoo-white hover:bg-gray-100 text-black"
               disabled={isSubmitting}
             >
               Cancel
@@ -586,7 +586,7 @@ export function TaskPopup({ isOpen, onClose, onSubmit, events, initialTask, isEd
             <Button 
               type="submit" 
               variant="ghost"
-              className="bg-gray-50 hover:bg-gray-100 text-black border border-gray-200"
+              className="bg-kenoo-white hover:bg-gray-100 text-black border border-gray-200"
               disabled={isSubmitting}
             >
               {isSubmitting ? "Saving..." : isEditing ? "Update Task" : "Save Task"}

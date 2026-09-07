@@ -94,7 +94,7 @@ function MiniCalendar({
         day_selected:
           "bg-kenoo-yellow text-neutral-900 font-light shadow-sm hover:bg-kenoo-yellow hover:text-neutral-900 hover:scale-95 focus:bg-kenoo-yellow focus:text-neutral-900 rounded-full",
         day_today:
-          "font-light text-neutral-800 rounded-full border border-kenoo-sky [&:not([aria-selected])]:bg-transparent",
+          "font-light text-neutral-800 rounded-full border border-[#4285F4] [&:not([aria-selected])]:bg-transparent",
         day_outside:
           "day-outside text-neutral-300 opacity-50 aria-selected:bg-kenoo-yellow/10 aria-selected:text-neutral-400 aria-selected:opacity-40",
         day_disabled: "text-neutral-300 opacity-40 cursor-not-allowed hover:bg-transparent hover:scale-100 hover:shadow-none",
@@ -105,12 +105,12 @@ function MiniCalendar({
       }}
       components={{
         IconLeft: () => (
-          <div className="relative z-10 p-1.5 rounded-full transition-all duration-200 ease-in-out group-hover:bg-neutral-50 group-hover:shadow-[inset_0_2px_4px_rgba(0,0,0,0.08)] group-hover:scale-95 origin-center">
+          <div className="relative z-10 p-1.5 rounded-full transition-all duration-200 ease-in-out group-hover:bg-kenoo-white group-hover:shadow-[inset_0_2px_4px_rgba(0,0,0,0.08)] group-hover:scale-95 origin-center">
             <ChevronLeft className="h-2.5 w-2.5 text-neutral-500" />
           </div>
         ),
         IconRight: () => (
-          <div className="relative z-10 p-1.5 rounded-full transition-all duration-200 ease-in-out group-hover:bg-neutral-50 group-hover:shadow-[inset_0_2px_4px_rgba(0,0,0,0.08)] group-hover:scale-95 origin-center">
+          <div className="relative z-10 p-1.5 rounded-full transition-all duration-200 ease-in-out group-hover:bg-kenoo-white group-hover:shadow-[inset_0_2px_4px_rgba(0,0,0,0.08)] group-hover:scale-95 origin-center">
             <ChevronRight className="h-2.5 w-2.5 text-neutral-500" />
           </div>
         ),

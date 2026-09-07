@@ -29,6 +29,10 @@ export const metadata: Metadata = createWallsMetadata({
   },
   description:
     "WALLS Calendar — schedule, tasks, and project deadlines in one view.",
+  icons: {
+    icon: [{ url: "/favicon.ico", type: "image/x-icon" }],
+    shortcut: [{ url: "/favicon.ico", type: "image/x-icon" }],
+  },
 });
 
 export default function RootLayout({

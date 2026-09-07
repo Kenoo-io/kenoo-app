@@ -1,9 +1,14 @@
 export type TimezoneGroup =
+  | "Africa"
   | "Americas"
-  | "Europe"
+  | "Antarctica"
   | "Asia"
+  | "Atlantic"
+  | "Australia"
+  | "Europe"
+  | "Indian"
   | "Pacific"
-  | "Africa";
+  | "Other";
 
 export interface TimezoneOption {
   id: string;
@@ -11,32 +16,64 @@ export interface TimezoneOption {
   group: TimezoneGroup;
 }
 
+const GROUP_LABELS: Record<string, TimezoneGroup> = {
+  Africa: "Africa",
+  America: "Americas",
+  Antarctica: "Antarctica",
+  Asia: "Asia",
+  Atlantic: "Atlantic",
+  Australia: "Australia",
+  Europe: "Europe",
+  Indian: "Indian",
+  Pacific: "Pacific",
+};
+
+function timezoneGroup(timezone: string): TimezoneGroup {
+  return GROUP_LABELS[timezone.split("/")[0]] ?? "Other";
+}
+
+function timezoneLabel(timezone: string): string {
+  const parts = timezone.split("/").slice(1).map((part) =>
+    part.replace(/_/g, " "),
+  );
+
+  if (parts.length === 0) return timezone;
+  if (parts.length === 1) return parts[0];
+
+  // City-first labels are easier to scan and match the style used by Google
+  // Calendar while retaining the parent region for less familiar locations.
+  return `${parts[parts.length - 1]} (${parts.slice(0, -1).join(" / ")})`;
+}
+
+const FALLBACK_TIMEZONES = [
+  "America/Cayman",
+  "America/New_York",
+  "America/Toronto",
+  "America/Chicago",
+  "America/Denver",
+  "America/Los_Angeles",
+  "Europe/London",
+  "Europe/Paris",
+  "Asia/Tokyo",
+  "Australia/Sydney",
+  "Pacific/Auckland",
+] as const;
+
+/**
+ * IANA timezone IDs supported by the runtime. These IDs are stored directly
+ * in users.timezone so date-fns, Luxon, and Intl can apply DST rules correctly.
+ * UTC is added because it is omitted by Intl.supportedValuesOf("timeZone").
+ */
+const supportedTimezones =
+  typeof Intl.supportedValuesOf === "function"
+    ? Intl.supportedValuesOf("timeZone")
+    : [...FALLBACK_TIMEZONES];
+
 export const COMMON_TIMEZONES: TimezoneOption[] = [
-  { id: "America/New_York", label: "Eastern Time (US & Canada)", group: "Americas" },
-  { id: "America/Chicago", label: "Central Time (US & Canada)", group: "Americas" },
-  { id: "America/Denver", label: "Mountain Time (US & Canada)", group: "Americas" },
-  { id: "America/Los_Angeles", label: "Pacific Time (US & Canada)", group: "Americas" },
-  { id: "America/Toronto", label: "Toronto", group: "Americas" },
-  { id: "America/Vancouver", label: "Vancouver", group: "Americas" },
-  { id: "America/Mexico_City", label: "Mexico City", group: "Americas" },
-  { id: "America/Sao_Paulo", label: "São Paulo", group: "Americas" },
-  { id: "Europe/London", label: "London", group: "Europe" },
-  { id: "Europe/Paris", label: "Paris", group: "Europe" },
-  { id: "Europe/Berlin", label: "Berlin", group: "Europe" },
-  { id: "Europe/Madrid", label: "Madrid", group: "Europe" },
-  { id: "Europe/Rome", label: "Rome", group: "Europe" },
-  { id: "Europe/Amsterdam", label: "Amsterdam", group: "Europe" },
-  { id: "Europe/Dublin", label: "Dublin", group: "Europe" },
-  { id: "Asia/Tokyo", label: "Tokyo", group: "Asia" },
-  { id: "Asia/Shanghai", label: "Shanghai", group: "Asia" },
-  { id: "Asia/Hong_Kong", label: "Hong Kong", group: "Asia" },
-  { id: "Asia/Singapore", label: "Singapore", group: "Asia" },
-  { id: "Asia/Dubai", label: "Dubai", group: "Asia" },
-  { id: "Asia/Kolkata", label: "India Standard Time", group: "Asia" },
-  { id: "Australia/Sydney", label: "Sydney", group: "Pacific" },
-  { id: "Australia/Melbourne", label: "Melbourne", group: "Pacific" },
-  { id: "Pacific/Auckland", label: "Auckland", group: "Pacific" },
-  { id: "Africa/Johannesburg", label: "Johannesburg", group: "Africa" },
-  { id: "Africa/Lagos", label: "Lagos", group: "Africa" },
-  { id: "UTC", label: "UTC", group: "Europe" },
-];
+  ...supportedTimezones,
+  "UTC",
+].map((id) => ({
+  id,
+  label: id === "UTC" ? "UTC" : timezoneLabel(id),
+  group: id === "UTC" ? "Other" : timezoneGroup(id),
+}));

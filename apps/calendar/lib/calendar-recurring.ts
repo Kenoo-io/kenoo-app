@@ -144,6 +144,70 @@ export function filterMeetingsHidingRecurringExceptions<
   });
 }
 
+/**
+ * The calendar view contains materialized Google recurring instances. The UI
+ * expands the parent rows itself, so normal materialized instances must not be
+ * rendered alongside those generated instances. Keep modified exceptions:
+ * their changed time/title is the source of truth for that occurrence.
+ */
+export function filterMaterializedRecurringInstances<
+  T extends {
+    account_id?: string | null;
+    recurring_event_id?: string | null;
+    exception_type?: string | null;
+  },
+>(
+  meetings: T[],
+  activeParentKeys: Set<string>,
+): T[] {
+  return meetings.filter((meeting) => {
+    if (!meeting.recurring_event_id || !meeting.account_id) return true;
+    const parentKey = `${meeting.account_id}|${meeting.recurring_event_id}`;
+    if (!activeParentKeys.has(parentKey)) return true;
+    return meeting.exception_type?.trim().toLowerCase() === "modified";
+  });
+}
+
+/**
+ * Google can split one recurring series when its schedule is edited. The sync
+ * stores each segment as a parent event, often using an `_RYYYYMMDDTHHMMSS`
+ * suffix. Only the latest segment that has started should generate future
+ * occurrences; expanding every segment produces identical duplicate events.
+ */
+export function selectCurrentRecurringParents<
+  T extends {
+    account_id: string;
+    event_id: string;
+    start_time: string;
+    until?: string | null;
+  },
+>(parents: T[], now = new Date()): T[] {
+  const groups = new Map<string, T[]>();
+
+  for (const parent of parents) {
+    const seriesId = parent.event_id.replace(/_R\d{8}T\d{6}$/i, "");
+    const key = `${parent.account_id}|${seriesId}`;
+    const group = groups.get(key) ?? [];
+    group.push(parent);
+    groups.set(key, group);
+  }
+
+  const selected: T[] = [];
+  for (const group of groups.values()) {
+    const started = group
+      .filter((parent) => new Date(parent.start_time) <= now)
+      .sort((a, b) => new Date(b.start_time).getTime() - new Date(a.start_time).getTime());
+    const future = group
+      .filter((parent) => new Date(parent.start_time) > now)
+      .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
+
+    const current = started[0] ?? future[0];
+    if (current) selected.push(current);
+  }
+
+  return selected;
+}
+
 /** @deprecated Use buildRecurringExceptionMaps */
 export function buildRecurringOverrideStartMsByParent(
   rows: RecurringInstanceOverrideRow[]

@@ -266,24 +266,24 @@ export function Event({ onDataChange }: EventProps) {
       <div className="flex gap-4">
         {/* Left column - Icons */}
         <div>
-          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 mb-6">
+          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-kenoo-white mb-6">
             <Clock className="w-4 h-4 text-gray-600" />
           </div>
           
           <div className="space-y-6 mt-[2px]">
-            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-100">
+            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-kenoo-white">
               <Users className="w-4 h-4 text-gray-600" />
             </div>
             
-            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-100">
+            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-kenoo-white">
               <VideoIcon className="w-4 h-4 text-gray-600" />
             </div>
             
-            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-100">
+            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-kenoo-white">
               <MapPin className="w-4 h-4 text-gray-600" />
             </div>
             
-            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-100">
+            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-kenoo-white">
               <AlignLeft className="w-4 h-4 text-gray-600" />
             </div>
           </div>

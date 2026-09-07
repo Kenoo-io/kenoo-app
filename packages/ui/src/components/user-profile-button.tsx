@@ -42,9 +42,9 @@ import { Portal } from "@radix-ui/react-portal";
 
 import profileButtonIcon from "../assets/logos/user-profile-button.png";
 
-/** Notification bell hover — inset shadow + scale, no border ring */
+/** Notification bell hover — light circular background, no pressed effect */
 const NOTIFICATION_BELL_HOVER =
-  "relative z-10 rounded-full border-0 p-3 transition-all duration-300 ease-in-out group-hover:scale-95 group-hover:bg-neutral-50/80 group-hover:shadow-[inset_0_3px_6px_rgba(0,0,0,0.1)]";
+  "relative z-10 rounded-full border-0 p-3 transition-colors duration-300 ease-in-out group-hover:bg-neutral-100";
 
 const AVATAR_SIZE_PX = 44;
 /** Image request size — 2× the display size for retina sharpness. */

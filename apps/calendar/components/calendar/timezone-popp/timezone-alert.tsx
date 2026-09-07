@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { resolveAppHref } from "@walls/auth";
 import { X } from "lucide-react";
 import { RiTimeZoneLine } from "react-icons/ri";
 import { Card, CardContent } from "@/components/ui/card";
@@ -17,21 +17,25 @@ const formatTimezone = (timezone: string) => {
   return timezone.replace(/_/g, ' ');
 };
 
-export function TimezoneAlert({ isOpen, onClose, browserTimezone, userTimezone }: TimezoneAlertProps) {
-  const router = useRouter();
+const settingsHref = resolveAppHref({
+  slug: "settings",
+  subdomain: "settings",
+  platformBase: "",
+});
 
+export function TimezoneAlert({ isOpen, onClose, browserTimezone, userTimezone }: TimezoneAlertProps) {
   const handleChangeTimezone = () => {
-    router.push("/agents/settings/timezone");
+    window.location.assign(settingsHref);
   };
 
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="animate-in fade-in-0 zoom-in-95 duration-300 bg-gradient-to-br from-gray-50 via-gray-50/95 to-gray-50/90 backdrop-blur-sm rounded-[50px] shadow-2xl p-8 w-full max-w-2xl border border-border/50">
+      <div className="animate-in fade-in-0 zoom-in-95 duration-300 bg-gradient-to-br from-kenoo-white via-kenoo-white/95 to-kenoo-white/90 backdrop-blur-sm rounded-[50px] shadow-2xl p-8 w-full max-w-2xl border border-border/50">
         <div className="grid grid-cols-2 gap-8">
           <Card 
-            className="cursor-pointer hover:bg-walls-gray transition-all duration-300 rounded-2xl border-2 border-transparent group bg-gray-50"
+            className="cursor-pointer hover:bg-walls-gray transition-all duration-300 rounded-2xl border-2 border-transparent group bg-kenoo-white"
             onClick={handleChangeTimezone}
           >
             <CardContent className="p-8 flex flex-col items-center justify-center gap-4">
@@ -47,7 +51,7 @@ export function TimezoneAlert({ isOpen, onClose, browserTimezone, userTimezone }
           </Card>
           
           <Card 
-            className="cursor-pointer hover:bg-walls-gray transition-all duration-300 rounded-2xl border-2 border-transparent group bg-gray-50"
+            className="cursor-pointer hover:bg-walls-gray transition-all duration-300 rounded-2xl border-2 border-transparent group bg-kenoo-white"
             onClick={onClose}
           >
             <CardContent className="p-8 flex flex-col items-center justify-center gap-4">
@@ -65,4 +69,4 @@ export function TimezoneAlert({ isOpen, onClose, browserTimezone, userTimezone }
       </div>
     </div>
   );
-} 
+}

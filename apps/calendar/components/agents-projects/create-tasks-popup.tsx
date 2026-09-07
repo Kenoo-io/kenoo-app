@@ -1157,7 +1157,7 @@ export function CreateTasksPopup({
                       </button>
                     </PopoverTrigger>
                     <PopoverContent
-                      className="w-[320px] p-0 overflow-hidden rounded-2xl border border-neutral-200/60 shadow-xl bg-white/80 backdrop-blur-xl"
+                      className="w-[320px] p-0 overflow-hidden rounded-2xl border border-neutral-200/60 shadow-xl bg-kenoo-white/80 backdrop-blur-xl"
                       align="start"
                       onOpenAutoFocus={(e) => e.preventDefault()}
                     >
@@ -1321,7 +1321,7 @@ export function CreateTasksPopup({
                           type="button"
                           disabled={saving || autoScheduling}
                           onClick={() => setScheduleMode("auto")}
-                          className="flex w-full flex-col items-start gap-1.5 rounded-2xl border border-neutral-200/80 bg-white/70 px-3 py-3 text-left transition-colors hover:bg-gray-50 disabled:opacity-50"
+                          className="flex w-full flex-col items-start gap-1.5 rounded-2xl border border-neutral-200/80 bg-kenoo-white/70 px-3 py-3 text-left transition-colors hover:bg-gray-50 disabled:opacity-50"
                         >
                           <div className="flex items-center gap-2">
                             <Sparkles className="h-3.5 w-3.5 stroke-[1.5] text-neutral-500" />
@@ -1340,7 +1340,7 @@ export function CreateTasksPopup({
                             setScheduleMode("manual");
                             if (schedules.length === 0) addManualBlock();
                           }}
-                          className="flex w-full flex-col items-start gap-1.5 rounded-2xl border border-neutral-200/80 bg-white/70 px-3 py-3 text-left transition-colors hover:bg-gray-50 disabled:opacity-50"
+                          className="flex w-full flex-col items-start gap-1.5 rounded-2xl border border-neutral-200/80 bg-kenoo-white/70 px-3 py-3 text-left transition-colors hover:bg-gray-50 disabled:opacity-50"
                         >
                           <div className="flex items-center gap-2">
                             <Clock className="h-3.5 w-3.5 stroke-[1.5] text-neutral-500" />
@@ -1551,7 +1551,7 @@ export function CreateTasksPopup({
                               return (
                                 <div
                                   key={draft.key}
-                                  className="rounded-2xl border border-neutral-200/70 bg-white/60 px-3 py-2 space-y-1.5"
+                                  className="rounded-2xl border border-neutral-200/70 bg-kenoo-white/60 px-3 py-2 space-y-1.5"
                                 >
                                   <div className="flex items-center gap-1">
                                     <Popover

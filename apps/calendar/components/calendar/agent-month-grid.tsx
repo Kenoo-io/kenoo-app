@@ -72,16 +72,17 @@ interface AgentMonthGridProps {
   selectedDate: Date;
   onDateSelect: (date: Date) => void;
   allEvents: CalendarEventItem[];
+  todayDate: string;
 }
 
 export function AgentMonthGrid({
   selectedDate,
   onDateSelect,
   allEvents,
+  todayDate,
 }: AgentMonthGridProps) {
-  const today = new Date();
   // Use local-date strings throughout so events align with grid cells correctly
-  const todayStr = format(today, "yyyy-MM-dd");
+  const todayStr = todayDate;
   const currentMonth = selectedDate.getMonth();
   const currentYear = selectedDate.getFullYear();
   const selectedDateStr = format(selectedDate, "yyyy-MM-dd");
@@ -139,7 +140,7 @@ export function AgentMonthGrid({
       </div>
 
       <div
-        className="grid min-h-0 flex-1 gap-px overflow-hidden rounded-[1.35rem] border border-white/50 bg-white/35"
+        className="grid min-h-0 flex-1 gap-px overflow-hidden rounded-[1.35rem] border border-white/50 bg-kenoo-white/35"
         style={{ gridTemplateRows: `repeat(${rowCount}, minmax(0, 1fr))` }}
       >
         {calendarCells.map((day, index) => {
@@ -152,7 +153,7 @@ export function AgentMonthGrid({
               <div
                 key={`empty-${index}`}
                 className={cn(
-                  "h-full min-h-0 bg-white/40",
+                  "h-full min-h-0 bg-kenoo-white/40",
                   cornerClass
                 )}
               />
@@ -170,7 +171,7 @@ export function AgentMonthGrid({
               type="button"
               onClick={() => handleDayClick(day)}
               className={cn(
-                "relative flex h-full min-h-0 flex-col items-center overflow-hidden bg-white/70 p-2 pt-2 transition-all hover:bg-white/85",
+                "relative flex h-full min-h-0 flex-col items-center overflow-hidden bg-kenoo-white/70 p-2 pt-2 transition-all hover:bg-kenoo-white/85",
                 cornerClass,
                 isSelected && "ring-1 ring-inset ring-kenoo-accent/50"
               )}
@@ -178,7 +179,7 @@ export function AgentMonthGrid({
               <span
                 className={cn(
                   "inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs text-kenoo-muted",
-                  isToday && "bg-kenoo-accent text-white"
+                  isToday && "bg-[#4285F4] text-white"
                 )}
               >
                 {day}
