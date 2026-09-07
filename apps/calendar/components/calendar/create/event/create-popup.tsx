@@ -2,19 +2,15 @@
 
 
 import { wallsToast } from "@/components/ui/walls-toast";
-import React, { useState, ReactNode } from 'react';
+import React, { useState } from 'react';
 import {
   Dialog,
-  DialogContent as DialogContentPrimitive,
-  DialogHeader,
   DialogFooter,
   DialogPortal,
   preventDialogDismissOutside,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Cross2Icon } from "@radix-ui/react-icons";
-import { Clock } from "lucide-react";
+import { X } from "lucide-react";
 import { motion, useReducedMotion } from "framer-motion";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { cn } from "@/lib/utils";
@@ -38,14 +34,19 @@ const DialogContent = React.forwardRef<
       {...props}
     >
       {children}
-      <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
-        <Cross2Icon className="h-4 w-4" />
+      <DialogPrimitive.Close className="absolute right-6 top-4 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-0 focus-visible:ring-0 disabled:pointer-events-none">
+        <X className="h-6 w-6 text-foreground" strokeWidth={1.5} />
         <span className="sr-only">Close</span>
       </DialogPrimitive.Close>
     </DialogPrimitive.Content>
   </DialogPortal>
 ));
 DialogContent.displayName = DialogPrimitive.Content.displayName;
+
+const modalSecondaryButtonClass =
+  "inline-flex h-10 cursor-pointer items-center justify-center rounded-lg bg-neutral-100 px-4 text-sm font-medium text-neutral-950 transition-colors hover:bg-neutral-200 disabled:cursor-not-allowed disabled:opacity-50";
+const modalPrimaryButtonClass =
+  "inline-flex h-10 cursor-pointer items-center justify-center rounded-lg bg-neutral-950 px-4 text-sm font-medium text-white transition-colors hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-50";
 
 export type EventType = 'event' | 'outOfOffice' | 'appointmentSchedule';
 
@@ -262,13 +263,21 @@ export function CreatePopup({
             </div>
           </div>
           <DialogFooter className="mt-4">
-            <Button 
-              type="submit" 
-              className="bg-blue-500 hover:bg-blue-500/80 text-white rounded-[50px] px-8 py-3 h-auto"
+            <button
+              type="button"
+              onClick={onClose}
+              className={modalSecondaryButtonClass}
               disabled={isSubmitting}
             >
-              {isSubmitting ? "Saving..." : submitButtonText}
-            </Button>
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className={modalPrimaryButtonClass}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "Saving…" : submitButtonText}
+            </button>
           </DialogFooter>
         </form>
       </DialogContent>

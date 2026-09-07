@@ -8,7 +8,6 @@ import {
   ChevronLeft,
   Clock,
   Plus,
-  Save,
   Sparkles,
   Trash2,
   X,
@@ -204,6 +203,10 @@ const popupButtonOuterClass =
   "w-10 h-10 p-0 text-slate-600 hover:bg-transparent flex items-center justify-center shadow-none relative group flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed";
 const popupButtonInnerClass =
   "relative z-10 p-3 rounded-full transition-all duration-300 ease-in-out group-hover:bg-gray-50 group-hover:border group-hover:border-neutral-200 group-hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] group-hover:scale-95";
+const modalSecondaryButtonClass =
+  "inline-flex h-10 cursor-pointer items-center justify-center rounded-lg bg-neutral-100 px-4 text-sm font-medium text-neutral-950 transition-colors hover:bg-neutral-200 disabled:cursor-not-allowed disabled:opacity-50";
+const modalPrimaryButtonClass =
+  "inline-flex h-10 cursor-pointer items-center justify-center rounded-lg bg-neutral-950 px-4 text-sm font-medium text-white transition-colors hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-50";
 const fieldLabelClass =
   "text-[11px] font-normal uppercase tracking-[0.16em] text-neutral-500";
 const fieldValueClass = "truncate text-[15px] font-light text-neutral-900";
@@ -1832,17 +1835,19 @@ export function CreateTasksPopup({
             )}
             <button
               type="button"
+              onClick={onClose}
+              disabled={saving}
+              className={modalSecondaryButtonClass}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
               onClick={handleSave}
               disabled={saving || !form.title.trim() || !form.project_id}
-              className={popupButtonOuterClass}
+              className={modalPrimaryButtonClass}
             >
-              <div className={popupButtonInnerClass}>
-                {saving ? (
-                  <div className="h-[18px] w-[18px] border-2 border-neutral-500 border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <Save className="h-[18px] w-[18px] stroke-[1.5] text-neutral-500" />
-                )}
-              </div>
+              {saving ? "Saving…" : "Save"}
             </button>
           </div>
         </DialogFooter>

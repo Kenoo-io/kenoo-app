@@ -63,7 +63,7 @@ export function AppointmentSchedule({ onDataChange }: AppointmentScheduleProps) 
         
         {/* Right column - Form inputs */}
         <div className="flex-1 grid gap-6">
-          <div className="flex items-center border-0 border-b border-gray-200">
+          <div className="relative -top-px flex items-center border-0 border-b border-gray-200 pt-1">
             <div className="flex gap-1 py-[2px]">
               {/* Date Picker */}
               <Popover>
@@ -204,4 +204,4 @@ export function AppointmentSchedule({ onDataChange }: AppointmentScheduleProps) 
       </div>
     </div>
   );
-} 
+}

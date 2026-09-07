@@ -1026,7 +1026,7 @@ export function CalendarGrid({ selectedDate, onDateSelect, allEvents, onTaskDrop
               {HOURS.map((hour) => (
                 <div key={hour} className="relative border-b border-slate-100" style={{ height: `${pixelsPerHour}px` }}>
                   {hour !== 0 && (
-                    <span className="absolute top-[-10px] right-2 text-[10px] text-kenoo-sky">
+                    <span className="absolute right-2 top-0 -translate-y-1/2 text-[10px] leading-none text-neutral-500">
                       {format(dateWithHour(todayDate, hour), 'ha')}
                     </span>
                   )}

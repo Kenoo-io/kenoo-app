@@ -8,8 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { format, addMinutes, parse } from "date-fns";
 import { EventType } from './create-popup';
-import { Switch } from "@/components/ui/switch";
-import { Users, MapPin, AlignLeft, Clock } from "lucide-react";
+import { Users, MapPin, AlignLeft, ChevronDown, Clock, Copy, X } from "lucide-react";
 import { GuestTag } from './guest-tag';
 import { GuestSearch } from './guest-search';
 import { validateEmail } from "@/lib/utils";
@@ -101,6 +100,7 @@ export function Event({ onDataChange }: EventProps) {
   const [guestTags, setGuestTags] = useState<GuestTag[]>([]);
   const [currentGuest, setCurrentGuest] = useState('');
   const [focusedField, setFocusedField] = useState<string | null>(null);
+  const [areGoogleMeetDetailsVisible, setAreGoogleMeetDetailsVisible] = useState(true);
 
   // Handle adding a guest from input field
   const handleGuestAdd = (email: string) => {
@@ -268,7 +268,7 @@ export function Event({ onDataChange }: EventProps) {
       <div className="flex gap-4">
         {/* Left column - Icons */}
         <div>
-          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-kenoo-white mb-6">
+          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-kenoo-white mb-6 mt-1">
             <Clock className="w-4 h-4 text-gray-600" />
           </div>
           
@@ -299,7 +299,7 @@ export function Event({ onDataChange }: EventProps) {
         
         {/* Right column - Form inputs */}
         <div className="flex-1 grid gap-6">
-          <div className="flex items-center border-0 border-b border-gray-200">
+          <div className="relative -top-px flex items-center border-0 border-b border-gray-200 pt-1">
             <div className="flex gap-1 py-[2px]">
               {/* Date Picker */}
               <Popover>
@@ -468,17 +468,68 @@ export function Event({ onDataChange }: EventProps) {
             />
           </div>
           
-          <div className={`flex items-center justify-between border-0 border-b ${focusedField === 'google-meet' ? 'border-[var(--kenoo-blue)]' : 'border-gray-200'} py-[2px] mt-0 transition-colors duration-200`}>
-            <span className="text-sm font-normal text-gray-500">Add Google Meet video conferencing</span>
-            <Switch
+          {eventData.useGoogleMeet ? (
+            <div
+              className="-mx-2 flex min-h-11 items-center gap-2 rounded-xl bg-[#eef3fd] px-2 py-1.5"
+              role="group"
+              aria-label="Google Meet video conferencing"
+            >
+              <div className="min-w-0 flex-1 leading-tight">
+                <p className="truncate text-sm font-medium text-[#0b57d0]">
+                  Join with Google Meet
+                </p>
+                {areGoogleMeetDetailsVisible && (
+                  <p className="truncate text-xs font-normal text-neutral-600">
+                    Meeting link created when the event is saved
+                  </p>
+                )}
+              </div>
+
+              <button
+                type="button"
+                disabled
+                aria-label="Copy Google Meet link (available after saving)"
+                title="The meeting link will be available after saving"
+                className="inline-flex size-8 shrink-0 items-center justify-center rounded-full text-neutral-500 opacity-45"
+              >
+                <Copy className="size-[18px]" />
+              </button>
+              <button
+                type="button"
+                aria-label={areGoogleMeetDetailsVisible ? "Hide meeting details" : "Show meeting details"}
+                aria-expanded={areGoogleMeetDetailsVisible}
+                onClick={() => setAreGoogleMeetDetailsVisible((visible) => !visible)}
+                className="inline-flex size-8 shrink-0 items-center justify-center rounded-full text-neutral-600 transition-colors hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--kenoo-sky)]"
+              >
+                <ChevronDown
+                  className={cn(
+                    "size-5 transition-transform",
+                    !areGoogleMeetDetailsVisible && "-rotate-90"
+                  )}
+                />
+              </button>
+              <button
+                type="button"
+                aria-label="Remove Google Meet"
+                onClick={() => setEventData({ ...eventData, useGoogleMeet: false })}
+                className="inline-flex size-8 shrink-0 items-center justify-center rounded-full text-neutral-600 transition-colors hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--kenoo-sky)]"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+          ) : (
+            <button
               id="google-meet"
-              checked={eventData.useGoogleMeet}
-              onCheckedChange={(checked) => setEventData({ ...eventData, useGoogleMeet: checked })}
-              onFocus={() => setFocusedField('google-meet')}
-              onBlur={() => setFocusedField(null)}
-              className="data-[state=checked]:bg-kenoo-light"
-            />
-          </div>
+              type="button"
+              onClick={() => {
+                setAreGoogleMeetDetailsVisible(true);
+                setEventData({ ...eventData, useGoogleMeet: true });
+              }}
+              className="-mx-2 flex min-h-8 w-[calc(100%+1rem)] items-center rounded-lg px-2 text-left text-sm font-normal text-gray-500 transition-colors hover:bg-neutral-100 hover:text-neutral-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--kenoo-sky)]"
+            >
+              Add Google Meet video conferencing
+            </button>
+          )}
           
           <div className="flex items-center mt-0">
             <Input
