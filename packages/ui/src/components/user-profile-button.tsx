@@ -35,6 +35,7 @@ import {
   BookOpen,
   Building2,
   Check,
+  Plus,
   UserRound,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -59,6 +60,8 @@ const ADMIN_CONSOLE_PATH = resolveAppHref({
   subdomain: ADMIN_APP_SLUG,
   platformBase: "",
 });
+/** Organization creation lives on its own page in the admin console. */
+const ADD_ORGANIZATION_URL = `${ADMIN_CONSOLE_PATH}/account/new`;
 
 function isAdminProfileApp(app: UserProfileApp): boolean {
   if (app.slug === ADMIN_APP_SLUG) return true;
@@ -248,12 +251,12 @@ function ProfileAccountSwitcher({
   if (!activeAccount) return null;
 
   const accountKindLabel =
-    activeAccount.accountType === "organization" ? "Organization" : "Account";
+    activeAccount.accountType === "organization" ? "Organization" : "Personal";
 
   // Single linked account: show the account chip without an expand control.
   if (accounts.length < 2) {
     return (
-      <div className="mt-3">
+      <div className="mt-3 space-y-1">
         <div
           className="flex w-full items-center gap-2 rounded-xl bg-white/[0.06] px-2.5 py-2"
           aria-label={`Current account: ${activeAccount.name}`}
@@ -272,6 +275,7 @@ function ProfileAccountSwitcher({
             </span>
           </span>
         </div>
+        <AddAccountButton />
       </div>
     );
   }
@@ -348,7 +352,7 @@ function ProfileAccountSwitcher({
                       <span className="block text-[10px] text-white/45">
                         {account.accountType === "organization"
                           ? "Organization"
-                          : "Account"}
+                          : "Personal"}
                       </span>
                     </span>
                     {isActive ? (
@@ -360,11 +364,30 @@ function ProfileAccountSwitcher({
                   </button>
                 );
               })}
+              <AddAccountButton />
             </div>
           </motion.div>
         ) : null}
       </AnimatePresence>
     </div>
+  );
+}
+
+/** Navigates to the admin console's organization creation form. */
+function AddAccountButton() {
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        window.location.assign(ADD_ORGANIZATION_URL);
+      }}
+      className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left transition-colors hover:bg-white/[0.07]"
+    >
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white/10 text-white/70">
+        <Plus className="h-3.5 w-3.5" />
+      </span>
+      <span className="text-xs font-medium text-white/70">Add account</span>
+    </button>
   );
 }
 
@@ -908,7 +931,7 @@ export default function UserProfileButton({
                   </div>
                 </div>
 
-                {!accountsLoading && accounts.length > 1 ? (
+                {!accountsLoading && accounts.length > 0 ? (
                   <ProfileAccountSwitcher
                     accounts={accounts}
                     activeAccountId={activeAccountId}
@@ -1070,7 +1093,7 @@ export default function UserProfileButton({
                 <X className="h-8 w-8" />
               </button>
 
-              {!accountsLoading && accounts.length > 1 ? (
+              {!accountsLoading && accounts.length > 0 ? (
                 <div className="shrink-0 border-b border-neutral-100 px-4 pb-3 pt-16">
                   <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-neutral-400">
                     Switch account
@@ -1131,7 +1154,7 @@ export default function UserProfileButton({
                             <span className="block text-xs text-neutral-500">
                               {account.accountType === "organization"
                                 ? "Organization"
-                                : "Account"}
+                                : "Personal"}
                             </span>
                           </span>
                           {isActive ? (
@@ -1143,6 +1166,20 @@ export default function UserProfileButton({
                         </button>
                       );
                     })}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        window.location.assign(ADD_ORGANIZATION_URL);
+                      }}
+                      className="flex w-full items-center gap-3 rounded-xl px-2.5 py-2.5 text-left transition-colors hover:bg-neutral-50"
+                    >
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-neutral-100 text-neutral-500">
+                        <Plus className="h-4 w-4" />
+                      </span>
+                      <span className="text-sm font-medium text-neutral-700">
+                        Add account
+                      </span>
+                    </button>
                   </div>
                 </div>
               ) : null}

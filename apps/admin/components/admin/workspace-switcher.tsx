@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ChevronsUpDown } from "lucide-react";
+import { Check, ChevronsUpDown, Plus } from "lucide-react";
 
 import {
   DropdownMenu,
@@ -11,6 +11,9 @@ import {
 import { cn } from "@walls/utils";
 
 import { useActiveAccount } from "@/components/active-account-context";
+
+/** Organization creation lives on its own page in the admin console. */
+const ADD_ORGANIZATION_URL = "/account/new";
 
 export function WorkspaceSwitcher() {
   const { accounts, activeAccountId, loading, setActiveAccountId } =
@@ -57,14 +60,6 @@ export function WorkspaceSwitcher() {
       />
     </>
   );
-
-  if (accounts.length < 2) {
-    return (
-      <div className="inline-flex max-w-full items-center gap-1 px-1 py-1">
-        {label}
-      </div>
-    );
-  }
 
   return (
     <DropdownMenu>
@@ -116,6 +111,17 @@ export function WorkspaceSwitcher() {
             </DropdownMenuItem>
           );
         })}
+
+        <div className="mt-1 border-t border-neutral-100 pt-1">
+          <DropdownMenuItem asChild className="cursor-pointer rounded-lg px-2 py-2">
+            <a href={ADD_ORGANIZATION_URL} className="flex w-full items-center gap-2">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-neutral-100 text-neutral-500">
+                <Plus className="h-3.5 w-3.5" />
+              </span>
+              <span className="text-[13px] font-medium">Add account</span>
+            </a>
+          </DropdownMenuItem>
+        </div>
       </DropdownMenuContent>
     </DropdownMenu>
   );

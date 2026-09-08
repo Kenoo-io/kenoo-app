@@ -16,7 +16,7 @@ import {
 import { wallsToast } from "@/components/ui/walls-toast";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+import { FloatingLabelInput } from "@/components/ui/floating-label-input";
 import {
   Popover,
   PopoverContent,
@@ -40,9 +40,6 @@ import { cn } from "@/lib/utils";
 import type { AppAccessRecord } from "@/lib/app-access-shared";
 import type { AccountMemberRecord, AccountRole } from "@/lib/accounts-shared";
 import { canManageAccountMembers } from "@/lib/accounts-shared";
-
-const inviteFieldClass =
-  "w-full rounded-none border-0 border-b border-neutral-200 bg-transparent px-0 py-2 text-sm font-light text-neutral-800 shadow-none placeholder:text-neutral-300 focus-visible:border-b-[var(--kenoo-sky)] focus-visible:outline-none focus-visible:ring-0";
 
 function roleMeta(role: AccountRole): {
   label: string;
@@ -605,57 +602,34 @@ export function OrganizationMembers({
 
                 <div className="mt-6 space-y-6">
                   <div className="grid gap-6 sm:grid-cols-2">
-                    <label className="block">
-                      <span className="mb-1.5 block text-xs font-medium text-neutral-500">
-                        First name
-                      </span>
-                      <Input
-                        type="text"
-                        value={inviteFirstName}
-                        onChange={(event) =>
-                          setInviteFirstName(event.target.value)
-                        }
-                        placeholder="Jane"
-                        className={inviteFieldClass}
-                      />
-                    </label>
-                    <label className="block">
-                      <span className="mb-1.5 block text-xs font-medium text-neutral-500">
-                        Last name
-                      </span>
-                      <Input
-                        type="text"
-                        value={inviteLastName}
-                        onChange={(event) =>
-                          setInviteLastName(event.target.value)
-                        }
-                        placeholder="Doe"
-                        className={inviteFieldClass}
-                      />
-                    </label>
+                    <FloatingLabelInput
+                      label="First name"
+                      value={inviteFirstName}
+                      onChange={(event) =>
+                        setInviteFirstName(event.target.value)
+                      }
+                    />
+                    <FloatingLabelInput
+                      label="Last name"
+                      value={inviteLastName}
+                      onChange={(event) =>
+                        setInviteLastName(event.target.value)
+                      }
+                    />
                   </div>
 
-                  <label className="block">
-                    <span className="mb-1.5 block text-xs font-medium text-neutral-500">
-                      Email <span className="text-neutral-400">*</span>
-                    </span>
-                    <Input
-                      type="email"
-                      value={inviteEmail}
-                      onChange={(event) => setInviteEmail(event.target.value)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter") {
-                          event.preventDefault();
-                          void handleInvite();
-                        }
-                      }}
-                      placeholder="user@example.com"
-                      className={inviteFieldClass}
-                    />
-                    <span className="mt-1.5 block text-xs font-light text-neutral-400">
-                      We’ll send sign-in instructions to this address.
-                    </span>
-                  </label>
+                  <FloatingLabelInput
+                    type="email"
+                    label="Email"
+                    value={inviteEmail}
+                    onChange={(event) => setInviteEmail(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        void handleInvite();
+                      }
+                    }}
+                  />
 
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <label className="block">
@@ -668,7 +642,7 @@ export function OrganizationMembers({
                           setInviteRole(value as AccountRole)
                         }
                       >
-                        <SelectTrigger className="h-10 rounded-none border-0 border-b border-neutral-200 bg-transparent px-0 font-light shadow-none focus:ring-0 data-[state=open]:border-b-[var(--kenoo-sky)]">
+                        <SelectTrigger className="h-12 rounded-2xl border border-neutral-200 bg-kenoo-white px-4 text-sm font-light shadow-none focus:ring-0 data-[state=open]:border-[var(--kenoo-sky)]">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -686,7 +660,7 @@ export function OrganizationMembers({
                         App access
                       </span>
                       {catalogApps.length === 0 ? (
-                        <p className="flex h-10 items-center text-sm font-light text-neutral-400">
+                        <p className="flex h-12 items-center rounded-2xl border border-neutral-200 bg-kenoo-white px-4 text-sm font-light text-neutral-400">
                           No apps available
                         </p>
                       ) : (
@@ -694,7 +668,7 @@ export function OrganizationMembers({
                           <PopoverTrigger asChild>
                             <button
                               type="button"
-                              className="flex h-10 w-full items-center justify-between border-0 border-b border-neutral-200 bg-transparent px-0 text-left text-sm font-light shadow-none outline-none transition-colors data-[state=open]:border-b-[var(--kenoo-sky)]"
+                              className="flex h-12 w-full items-center justify-between rounded-2xl border border-neutral-200 bg-kenoo-white px-4 text-left text-sm font-light shadow-none outline-none transition-colors data-[state=open]:border-[var(--kenoo-sky)]"
                             >
                               <span
                                 className={cn(

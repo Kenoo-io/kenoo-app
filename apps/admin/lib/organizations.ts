@@ -5,6 +5,7 @@ import {
 import { createAdminClient } from "@walls/supabase/admin";
 import { createClient } from "@walls/supabase/server";
 
+import { ADMIN_APP_SLUG } from "./account-context";
 import {
   normalizeOrganizationSlug,
   type OrganizationRecord,
@@ -394,6 +395,15 @@ export async function createOrganizationForUser(input: {
   name: string;
   iconUrl?: string | null;
   website?: string | null;
+  description?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  addressLine1?: string | null;
+  addressLine2?: string | null;
+  city?: string | null;
+  stateProvince?: string | null;
+  postalCode?: string | null;
+  countryCode?: string | null;
 }): Promise<
   | { organization: OrganizationRecord; error?: undefined }
   | { organization?: undefined; error: string }
@@ -417,6 +427,15 @@ export async function createOrganizationForUser(input: {
         slug,
         icon_url: input.iconUrl ?? null,
         website: input.website ?? null,
+        description: input.description ?? null,
+        email: input.email ?? null,
+        phone: input.phone ?? null,
+        address_line_1: input.addressLine1 ?? null,
+        address_line_2: input.addressLine2 ?? null,
+        city: input.city ?? null,
+        state_province: input.stateProvince ?? null,
+        postal_code: input.postalCode ?? null,
+        country_code: input.countryCode ?? null,
         updated_at: now,
       })
       .select(ACCOUNT_FIELDS)
@@ -456,6 +475,26 @@ export async function createOrganizationForUser(input: {
     console.error("[admin] create organization membership:", membershipError);
     await admin.from("accounts").delete().eq("id", account.id);
     return { error: "Failed to create organization membership" };
+  }
+
+  // A brand-new org has no app grants at all — without this, the owner who
+  // just created it can't even switch the Admin console over to see it.
+  const { data: adminApp } = await admin
+    .from("apps")
+    .select("id")
+    .eq("slug", ADMIN_APP_SLUG)
+    .maybeSingle();
+
+  if (adminApp?.id) {
+    await admin.from("account_app_access").insert({
+      account_id: account.id,
+      app_id: adminApp.id,
+    });
+    await admin.from("account_app_user_access").insert({
+      account_id: account.id,
+      user_id: input.userId,
+      app_id: adminApp.id,
+    });
   }
 
   return {
