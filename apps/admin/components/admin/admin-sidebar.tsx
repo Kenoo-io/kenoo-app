@@ -82,7 +82,7 @@ export function AdminSidebar() {
         : []),
       { href: "/users", label: "Users", icon: Users },
       { href: "/billing", label: "Billing", icon: CreditCard },
-      { href: "/account", label: "Account", icon: Settings },
+      { href: "/settings", label: "Settings", icon: Settings },
     ],
     [activeAccountId],
   );
@@ -445,7 +445,7 @@ function SidebarAccountMenu({
           </a>
         </DropdownMenuItem>
         <DropdownMenuItem asChild className="cursor-pointer rounded-lg px-2 py-2">
-          <Link href="/account">
+          <Link href="/settings">
             <LayoutGrid className="h-3.5 w-3.5 text-neutral-400" />
             Account
           </Link>

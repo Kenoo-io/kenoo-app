@@ -44,6 +44,15 @@ export async function POST(request: Request) {
     name?: string;
     iconUrl?: string | null;
     website?: string | null;
+    description?: string | null;
+    email?: string | null;
+    phone?: string | null;
+    addressLine1?: string | null;
+    addressLine2?: string | null;
+    city?: string | null;
+    stateProvince?: string | null;
+    postalCode?: string | null;
+    countryCode?: string | null;
   };
 
   if (!body.name?.trim()) {
@@ -58,6 +67,15 @@ export async function POST(request: Request) {
     name: body.name.trim(),
     iconUrl: body.iconUrl ?? null,
     website: body.website ?? null,
+    description: body.description ?? null,
+    email: body.email ?? null,
+    phone: body.phone ?? null,
+    addressLine1: body.addressLine1 ?? null,
+    addressLine2: body.addressLine2 ?? null,
+    city: body.city ?? null,
+    stateProvince: body.stateProvince ?? null,
+    postalCode: body.postalCode ?? null,
+    countryCode: body.countryCode ?? null,
   });
 
   if ("error" in result && result.error) {

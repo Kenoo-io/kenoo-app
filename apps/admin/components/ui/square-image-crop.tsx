@@ -31,7 +31,10 @@ export function SquareImageCrop({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent
+        className="z-[300] max-w-md"
+        overlayClassName="z-[300]"
+      >
         <div className="space-y-4">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img

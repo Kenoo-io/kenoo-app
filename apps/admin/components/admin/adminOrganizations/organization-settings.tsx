@@ -1,15 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  Building2,
-  Loader2,
-  Plus,
-  Trash2,
-  Users,
-} from "lucide-react";
+import { Building2, Loader2, Trash2, Users } from "lucide-react";
 
 import { wallsToast } from "@/components/ui/walls-toast";
 import { Button } from "@/components/ui/button";
@@ -18,148 +11,16 @@ import {
   Dialog,
   DialogContent,
 } from "@/components/ui/dialog";
-import { SquareImageCrop } from "@/components/ui/square-image-crop";
 import { Toaster } from "@/components/ui/toaster";
 import { useUploadOrganizationIcon } from "@/hooks/useMutations";
 import type { OrganizationRecord } from "@/lib/organizations-shared";
 import { canEditOrganization } from "@/lib/organizations-shared";
 import { useActiveAccount } from "@/components/active-account-context";
 import { PageShell } from "@/components/admin/page-shell";
-
-function OrganizationAvatar({
-  name,
-  iconUrl,
-}: {
-  name: string;
-  iconUrl: string | null;
-}) {
-  if (iconUrl) {
-    return (
-      <Image
-        src={iconUrl}
-        alt={`${name} icon`}
-        width={88}
-        height={88}
-        className="h-[88px] w-[88px] rounded-2xl object-cover"
-      />
-    );
-  }
-
-  const initials = name
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part.charAt(0).toUpperCase())
-    .join("");
-
-  return (
-    <div className="flex h-[88px] w-[88px] items-center justify-center rounded-2xl bg-neutral-100 text-xl font-medium text-neutral-500">
-      {initials || <Building2 className="h-7 w-7" />}
-    </div>
-  );
-}
-
-function OrganizationIconUpload({
-  name,
-  iconUrl,
-  canEdit,
-  isUploading,
-  onSelectFile,
-}: {
-  name: string;
-  iconUrl: string | null;
-  canEdit: boolean;
-  isUploading: boolean;
-  onSelectFile: (file: File) => void;
-}) {
-  const [tempImage, setTempImage] = useState<string | null>(null);
-  const [showCropDialog, setShowCropDialog] = useState(false);
-
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (reader.result) {
-        setTempImage(reader.result as string);
-        setShowCropDialog(true);
-      }
-    };
-    reader.readAsDataURL(file);
-    event.target.value = "";
-  };
-
-  const avatar = <OrganizationAvatar name={name} iconUrl={iconUrl} />;
-
-  if (!canEdit) {
-    return avatar;
-  }
-
-  return (
-    <>
-      <input
-        type="file"
-        accept="image/*"
-        onChange={handleFileChange}
-        className="hidden"
-        id="organization-icon-upload"
-        disabled={isUploading}
-      />
-      <label
-        htmlFor="organization-icon-upload"
-        className={`group relative block cursor-pointer ${isUploading ? "pointer-events-none opacity-70" : ""}`}
-      >
-        {avatar}
-        <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/45 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-          {isUploading ? (
-            <Loader2 className="h-5 w-5 animate-spin text-white" />
-          ) : (
-            <Plus className="h-5 w-5 text-white" />
-          )}
-        </div>
-      </label>
-
-      {tempImage ? (
-        <SquareImageCrop
-          open={showCropDialog}
-          onOpenChange={setShowCropDialog}
-          imageUrl={tempImage}
-          onCropComplete={(file) => {
-            onSelectFile(file);
-            setTempImage(null);
-          }}
-        />
-      ) : null}
-    </>
-  );
-}
-
-function SectionCard({
-  title,
-  description,
-  children,
-  action,
-}: {
-  title: string;
-  description?: string;
-  children: React.ReactNode;
-  action?: React.ReactNode;
-}) {
-  return (
-    <section className="rounded-xl border border-neutral-200 p-6">
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="text-sm font-semibold text-neutral-950">{title}</h2>
-          {description ? (
-            <p className="mt-0.5 text-[13px] text-neutral-500">{description}</p>
-          ) : null}
-        </div>
-        {action}
-      </div>
-      {children}
-    </section>
-  );
-}
+import {
+  OrganizationIconUpload,
+  SectionCard,
+} from "./organization-profile-fields";
 
 export default function OrganizationSettingsPage() {
   const { activeAccount, activeAccountId, loading: accountLoading } =
@@ -168,8 +29,6 @@ export default function OrganizationSettingsPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [creating, setCreating] = useState(false);
-  const [showCreateForm, setShowCreateForm] = useState(false);
   const [iconPreviewUrl, setIconPreviewUrl] = useState<string | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -207,11 +66,6 @@ export default function OrganizationSettingsPage() {
     countryCode: "",
   });
   formRef.current = form;
-
-  const [createForm, setCreateForm] = useState({
-    name: "",
-    website: "",
-  });
 
   const selectedOrganization = useMemo(
     () =>
@@ -436,48 +290,6 @@ export default function OrganizationSettingsPage() {
     }
   }
 
-  async function handleCreate() {
-    if (!createForm.name.trim()) {
-      wallsToast.error("Missing fields", "Organization name is required");
-      return;
-    }
-
-    setCreating(true);
-    try {
-      const response = await fetch("/api/organizations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: createForm.name.trim(),
-          website: createForm.website.trim() || null,
-        }),
-      });
-
-      if (!response.ok) {
-        const payload = (await response.json()) as { error?: string };
-        wallsToast.error(
-          "Error",
-          payload.error || "Failed to create organization",
-        );
-        return;
-      }
-
-      const payload = (await response.json()) as {
-        organization?: OrganizationRecord;
-      };
-
-      if (payload.organization) {
-        setOrganizations((current) => [...current, payload.organization!]);
-        setSelectedId(payload.organization.id);
-        setShowCreateForm(false);
-        setCreateForm({ name: "", website: "" });
-        wallsToast.success("Created", "Organization created successfully");
-      }
-    } finally {
-      setCreating(false);
-    }
-  }
-
   if (accountLoading || loading) {
     return (
       <PageShell title="Account">
@@ -496,25 +308,12 @@ export default function OrganizationSettingsPage() {
       }
       description={`Update the profile and contact details for ${activeAccount?.name ?? "this account"}.`}
       actions={
-        <div className="flex flex-wrap items-center gap-2">
-          {saving ? (
-            <span className="inline-flex items-center gap-1.5 text-xs text-neutral-500">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              Saving…
-            </span>
-          ) : null}
-          {activeAccount?.accountType === "organization" ? (
-            <Button
-              type="button"
-              variant="outline"
-              className="rounded-lg border-neutral-200 bg-kenoo-white text-neutral-800 hover:bg-neutral-50"
-              onClick={() => setShowCreateForm((value) => !value)}
-            >
-              <Plus className="mr-1.5 h-4 w-4" />
-              {showCreateForm ? "Cancel" : "New organization"}
-            </Button>
-          ) : null}
-        </div>
+        saving ? (
+          <span className="inline-flex items-center gap-1.5 text-xs text-neutral-500">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            Saving…
+          </span>
+        ) : undefined
       }
     >
       <Toaster />
@@ -543,57 +342,8 @@ export default function OrganizationSettingsPage() {
         </div>
       ) : null}
 
-      {showCreateForm ? (
-        <SectionCard
-          title="Create organization"
-          description="Start a new organization account"
-          action={
-            <Button
-              type="button"
-              disabled={creating}
-              onClick={() => void handleCreate()}
-              className="rounded-lg bg-neutral-950 px-5 text-white hover:bg-neutral-800 disabled:opacity-50"
-            >
-              {creating ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : null}
-              Create
-            </Button>
-          }
-        >
-          <div className="grid gap-4 sm:grid-cols-2">
-            <FloatingLabelInput
-              containerClassName="sm:col-span-2"
-              label="Organization name"
-              value={createForm.name}
-              onChange={(event) =>
-                setCreateForm((current) => ({
-                  ...current,
-                  name: event.target.value,
-                }))
-              }
-            />
-            <FloatingLabelInput
-              containerClassName="sm:col-span-2"
-              label="Website"
-              value={createForm.website}
-              onChange={(event) =>
-                setCreateForm((current) => ({
-                  ...current,
-                  website: event.target.value,
-                }))
-              }
-            />
-          </div>
-          <p className="mt-3 text-xs text-neutral-500">
-            You can upload an icon after the organization is created.
-          </p>
-        </SectionCard>
-      ) : null}
-
       {activeAccount?.accountType === "organization" &&
-      organizations.length === 0 &&
-      !showCreateForm ? (
+      organizations.length === 0 ? (
         <div className="rounded-xl border border-neutral-200 px-6 py-16 text-center">
           <Building2 className="mx-auto h-10 w-10 text-neutral-300" />
           <p className="mt-4 text-sm font-medium text-neutral-900">
@@ -606,8 +356,7 @@ export default function OrganizationSettingsPage() {
       ) : null}
 
       {activeAccount?.accountType === "organization" &&
-      selectedOrganization &&
-      !showCreateForm ? (
+      selectedOrganization ? (
         <>
           <SectionCard
             title="Profile"

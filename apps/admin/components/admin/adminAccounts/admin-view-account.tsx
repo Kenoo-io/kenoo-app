@@ -221,7 +221,7 @@ export function AdminAccountDetail({ account }: AdminAccountDetailProps) {
             </dl>
             {isOrg ? (
               <Link
-                href="/account"
+                href="/settings"
                 className="mt-4 inline-block text-sm font-medium text-neutral-800 hover:text-neutral-950"
               >
                 Edit account profile

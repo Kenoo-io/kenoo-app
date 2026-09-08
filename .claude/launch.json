@@ -6,6 +6,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--prefix", "apps/calendar"],
       "port": 3006
+    },
+    {
+      "name": "admin",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "apps/admin"],
+      "port": 3008
     }
   ]
 }
