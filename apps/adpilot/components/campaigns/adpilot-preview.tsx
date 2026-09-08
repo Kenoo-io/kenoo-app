@@ -406,7 +406,7 @@ function ChromeFrame({
   return (
     <div
       className={cn(
-        "group relative inline-flex overflow-hidden bg-kenoo-white p-[1.5px]",
+        "group relative inline-flex overflow-hidden bg-kenoo-white p-[1.5px] shadow-[0_8px_28px_rgba(15,23,42,0.07)] transition-shadow duration-200 hover:shadow-[0_10px_32px_rgba(15,23,42,0.1)]",
         radius,
         className,
       )}
@@ -467,7 +467,7 @@ function AdPilotGenerateButton({
       >
         <span
           className={cn(
-            "relative flex w-full flex-col items-center justify-center gap-3 bg-kenoo-white text-neutral-700",
+            "relative flex w-full flex-col items-center justify-center gap-3 bg-kenoo-white text-neutral-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)]",
             isLarge
               ? cn(
                   "gap-4 px-8 py-10 sm:px-12 sm:py-12",

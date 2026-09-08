@@ -123,7 +123,7 @@ function NewProjectChromeButton({
       onClick={onClick}
       className={cn(
         "group relative inline-flex h-11 shrink-0 overflow-hidden rounded-full bg-kenoo-white p-[1.5px]",
-        "transition-[filter] duration-300 hover:brightness-[1.03]",
+        "shadow-[0_8px_28px_rgba(15,23,42,0.07)] transition-[filter,box-shadow] duration-300 hover:brightness-[1.03] hover:shadow-[0_10px_32px_rgba(15,23,42,0.1)]",
         "focus-visible:outline-none",
         className
       )}
@@ -131,7 +131,7 @@ function NewProjectChromeButton({
       <span aria-hidden className="pointer-events-none absolute inset-[-60%]">
         <span className="walls-chrome-orbit absolute inset-0" />
       </span>
-      <span className="relative inline-flex h-full items-center gap-2 rounded-full bg-kenoo-white px-5 text-sm font-medium text-neutral-700">
+      <span className="relative inline-flex h-full items-center gap-2 rounded-full bg-kenoo-white px-5 text-sm font-medium text-neutral-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)]">
         <Plus className="h-4 w-4" /> New Project
       </span>
     </button>

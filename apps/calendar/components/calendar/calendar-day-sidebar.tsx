@@ -14,7 +14,6 @@ import {
   Plus,
   Users,
 } from "lucide-react";
-import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { wallsToast } from "@/components/ui/walls-toast";
 import { showTaskCompleteToast } from "@/components/agents-projects/ui/show-task-complete-toast";
@@ -34,10 +33,10 @@ import { AppointmentSchedule } from "./create/event/appointment-schedule";
 import { ViewPopup } from "./create/event/view/view-popup";
 import {
   getCalendarEventTheme,
-  GOOGLE_MEET_ICON_URL,
+  getConferenceProvider,
   isCalendarTaskCompleted,
-  isGoogleMeetLink,
 } from "./calendar-event-theme";
+import { ConferenceLinkIcon } from "./conference-link-icon";
 import { parseCalendarToJsDate } from "@/lib/calendar-recurring";
 
 export interface CalendarSidebarEvent {
@@ -150,6 +149,8 @@ interface CalendarDaySidebarProps {
   onCreateTask: () => void;
   onProjectTaskCompleted?: (taskId: string) => void;
   onLegacyTaskCompleted?: (taskId: string) => void;
+  onProjectTaskCompleteError?: (taskId: string, previousStatus?: string) => void;
+  onLegacyTaskCompleteError?: (taskId: string, previousStatus?: string) => void;
   onProjectTaskClick?: (taskId: string) => void;
   onEventDeleted?: (eventId: string) => void;
   onEventUpdated?: (eventId: string, updatedData: any) => void;
@@ -162,6 +163,8 @@ export function CalendarDaySidebar({
   onCreateTask,
   onProjectTaskCompleted,
   onLegacyTaskCompleted,
+  onProjectTaskCompleteError,
+  onLegacyTaskCompleteError,
   onProjectTaskClick,
   onEventDeleted,
   onEventUpdated,
@@ -186,12 +189,24 @@ export function CalendarDaySidebar({
 
       setCompletingTaskKey(event.id);
 
+      const isProjectTask =
+        (event.type === "project-task" ||
+          event.type === "project-task-schedule") &&
+        !!event.projectTaskId;
+      const isLegacyTask =
+        event.type === "scheduled-task" && !!event.legacyTaskId && !!user?.id;
+
+      // Optimistically flip the completed state right away so the
+      // strikethrough/crossed-out styling appears instantly in both the
+      // sidebar and the grid, instead of waiting on the network round trip.
+      if (isProjectTask) {
+        onProjectTaskCompleted?.(event.projectTaskId!);
+      } else if (isLegacyTask) {
+        onLegacyTaskCompleted?.(event.legacyTaskId!);
+      }
+
       try {
-        if (
-          (event.type === "project-task" ||
-            event.type === "project-task-schedule") &&
-          event.projectTaskId
-        ) {
+        if (isProjectTask) {
           const res = await fetch("/api/project-tasks/mark-complete", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -205,28 +220,22 @@ export function CalendarDaySidebar({
             );
           }
 
-          onProjectTaskCompleted?.(event.projectTaskId);
           showTaskCompleteToast({ taskTitle: event.title });
           return;
         }
 
-        if (
-          event.type === "scheduled-task" &&
-          event.legacyTaskId &&
-          user?.id
-        ) {
+        if (isLegacyTask) {
           const supabase = createClient();
           const { error } = await supabase
             .from("tasks")
             .update({ status: "complete" })
             .eq("id", event.legacyTaskId)
-            .eq("assignee", user.id);
+            .eq("assignee", user!.id);
 
           if (error) {
             throw new Error(error.message || "Failed to mark task complete");
           }
 
-          onLegacyTaskCompleted?.(event.legacyTaskId);
           wallsToast.success("Task Completed", event.title);
         }
       } catch (error) {
@@ -234,6 +243,12 @@ export function CalendarDaySidebar({
         wallsToast.error(
           error instanceof Error ? error.message : "Failed to mark task complete"
         );
+        // Revert the optimistic update since the request failed.
+        if (isProjectTask) {
+          onProjectTaskCompleteError?.(event.projectTaskId!, event.status);
+        } else if (isLegacyTask) {
+          onLegacyTaskCompleteError?.(event.legacyTaskId!, event.status);
+        }
       } finally {
         setCompletingTaskKey(null);
       }
@@ -242,6 +257,8 @@ export function CalendarDaySidebar({
       completingTaskKey,
       onLegacyTaskCompleted,
       onProjectTaskCompleted,
+      onLegacyTaskCompleteError,
+      onProjectTaskCompleteError,
       user?.id,
     ]
   );
@@ -339,7 +356,7 @@ export function CalendarDaySidebar({
             {selectedEvents.length > 0 ? (
               selectedEvents.map((event) => {
                 const theme = getCalendarEventTheme(event);
-                const isGoogleMeet = isGoogleMeetLink(event.meetingLink);
+                const conferenceProvider = getConferenceProvider(event.meetingLink);
                 const hasMeetingLink = !!event.meetingLink;
                 const attendees = event.attendees ?? [];
                 const showMarkComplete = canMarkTaskComplete(event);
@@ -476,19 +493,17 @@ export function CalendarDaySidebar({
                           hover: {},
                         }}
                       >
-                        {isGoogleMeet && (
-                          <Image
-                            src={GOOGLE_MEET_ICON_URL}
-                            alt="Google Meet"
-                            width={20}
-                            height={20}
+                        {conferenceProvider && (
+                          <ConferenceLinkIcon
+                            link={event.meetingLink}
+                            size={20}
                             className="shrink-0"
                           />
                         )}
                         <motion.span
                           className={cn(
                             "text-kenoo-ink group-hover/link:text-kenoo-ink",
-                            isGoogleMeet ? "text-sm" : "text-xs"
+                            conferenceProvider ? "text-sm" : "text-xs"
                           )}
                           variants={{
                             rest: { x: 0 },

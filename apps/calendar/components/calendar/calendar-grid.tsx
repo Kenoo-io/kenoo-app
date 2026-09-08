@@ -12,13 +12,12 @@ import {
   getCalendarEventTheme,
   getCompletedTaskAccentClass,
   getCompletedTaskTitleClass,
-  GOOGLE_MEET_ICON_URL,
+  getConferenceProvider,
   isCalendarTaskCompleted,
-  isGoogleMeetLink,
   type CalendarEventTheme,
 } from './calendar-event-theme';
+import { ConferenceLinkIcon } from './conference-link-icon';
 import { ViewPopup } from './create/event/view/view-popup';
-import Image from 'next/image';
 import { AnimatePresence, motion } from 'framer-motion';
 import { createPortal } from 'react-dom';
 
@@ -152,28 +151,49 @@ function layoutTimedEventsForWeek(
 
   byDay.forEach((dayEvents) => {
     const sorted = [...dayEvents].sort((a, b) => a.startMs - b.startMs);
-    const columnEnds: number[] = [];
-    const assignments: Array<{ parsed: ParsedTimedEvent; column: number }> = [];
 
-    for (const event of sorted) {
-      let column = columnEnds.findIndex((endMs) => endMs <= event.startMs);
-      if (column === -1) {
-        column = columnEnds.length;
-        columnEnds.push(event.endMs);
-      } else {
-        columnEnds[column] = event.endMs;
+    // Split the day's events into clusters of mutually-overlapping events, so
+    // that events with no time conflict elsewhere in the day never get
+    // squeezed to share width with an unrelated overlapping pair.
+    let clusterStart = 0;
+    let clusterEndMs = -Infinity;
+
+    for (let i = 0; i < sorted.length; i++) {
+      if (i > 0 && sorted[i].startMs >= clusterEndMs) {
+        layoutCluster(sorted.slice(clusterStart, i));
+        clusterStart = i;
+        clusterEndMs = -Infinity;
       }
-      assignments.push({ parsed: event, column });
+      clusterEndMs = Math.max(clusterEndMs, sorted[i].endMs);
+    }
+    if (clusterStart < sorted.length) {
+      layoutCluster(sorted.slice(clusterStart));
     }
 
-    const totalColumns = Math.max(columnEnds.length, 1);
+    function layoutCluster(cluster: ParsedTimedEvent[]) {
+      const columnEnds: number[] = [];
+      const assignments: Array<{ parsed: ParsedTimedEvent; column: number }> = [];
 
-    for (const { parsed: event, column } of assignments) {
-      positioned.push({
-        ...event,
-        column,
-        totalColumns,
-      });
+      for (const event of cluster) {
+        let column = columnEnds.findIndex((endMs) => endMs <= event.startMs);
+        if (column === -1) {
+          column = columnEnds.length;
+          columnEnds.push(event.endMs);
+        } else {
+          columnEnds[column] = event.endMs;
+        }
+        assignments.push({ parsed: event, column });
+      }
+
+      const totalColumns = Math.max(columnEnds.length, 1);
+
+      for (const { parsed: event, column } of assignments) {
+        positioned.push({
+          ...event,
+          column,
+          totalColumns,
+        });
+      }
     }
   });
 
@@ -276,6 +296,16 @@ function TimedEventBlock({
   } | null>(null);
   const anchorRef = useRef<HTMLDivElement>(null);
   const didDragRef = useRef(false);
+  const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearHoverTimeout = () => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+  };
+
+  useEffect(() => clearHoverTimeout, []);
 
   useEffect(() => {
     if (!open) return;
@@ -308,7 +338,9 @@ function TimedEventBlock({
   const theme = getTimedEventTheme(event);
   const isCompleted = isCalendarTaskCompleted(event);
   const isMeeting = event.type === 'regular-event';
-  const isGoogleMeet = isMeeting && isGoogleMeetLink(event.meetingLink);
+  const conferenceProvider = isMeeting
+    ? getConferenceProvider(event.meetingLink)
+    : null;
   const showTime = !isMeeting && durationMinutes >= 25 && height >= 36;
   const { maxLines: maxTitleLines } = getEventTitleLineBudget(
     height,
@@ -358,8 +390,14 @@ function TimedEventBlock({
         if (didDragRef.current) return;
         onClick();
       }}
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
+      onMouseEnter={() => {
+        clearHoverTimeout();
+        hoverTimeoutRef.current = setTimeout(() => setOpen(true), 1000);
+      }}
+      onMouseLeave={() => {
+        clearHoverTimeout();
+        setOpen(false);
+      }}
     >
       <div
         className={cn(
@@ -387,12 +425,10 @@ function TimedEventBlock({
           )}
         >
           <div className="min-w-0 overflow-hidden">
-            {isGoogleMeet && !isCompactEvent && (
-              <Image
-                src={GOOGLE_MEET_ICON_URL}
-                alt="Google Meet"
-                width={14}
-                height={14}
+            {conferenceProvider && !isCompactEvent && (
+              <ConferenceLinkIcon
+                link={event.meetingLink}
+                size={14}
                 className="float-left mr-1.5 shrink-0"
               />
             )}
@@ -418,26 +454,38 @@ function TimedEventBlock({
 
       {typeof document !== 'undefined' &&
         createPortal(
-          open && coords ? (
-          <div
-              className="pointer-events-none fixed z-[9999] max-w-[220px] whitespace-nowrap rounded-xl bg-gray-900/95 p-2.5 text-white shadow-xl backdrop-blur-sm"
-              style={{
-                top: coords.top,
-                left: coords.left,
-                transform: coords.placeBelow
-                  ? 'translate(-50%, 0)'
-                  : 'translate(-50%, -100%)',
-              }}
-            >
-              <div className="mb-1 text-sm font-normal">{event.title}</div>
-              <div className="text-xs font-normal text-white/80">
-                {formatEventTime(startTime)} – {formatEventTime(endTime)}
-              </div>
-              {event.location && (
-                <div className="mt-1 text-[11px] text-white/70">{event.location}</div>
-              )}
-            </div>
-          ) : null,
+          <AnimatePresence>
+            {open && coords && (
+              <motion.div
+                key="event-tooltip"
+                initial={{
+                  opacity: 0,
+                  x: '-50%',
+                  y: coords.placeBelow ? 'calc(0% - 4px)' : 'calc(-100% + 4px)',
+                }}
+                animate={{ opacity: 1, x: '-50%', y: coords.placeBelow ? '0%' : '-100%' }}
+                exit={{
+                  opacity: 0,
+                  x: '-50%',
+                  y: coords.placeBelow ? 'calc(0% - 4px)' : 'calc(-100% + 4px)',
+                }}
+                transition={{ duration: 0.15, ease: 'easeOut' }}
+                className="pointer-events-none fixed z-[9999] max-w-[220px] whitespace-nowrap rounded-xl border border-kenoo-border bg-kenoo-white p-2.5 text-kenoo-ink shadow-md"
+                style={{
+                  top: coords.top,
+                  left: coords.left,
+                }}
+              >
+                <div className="mb-1 text-sm font-normal">{event.title}</div>
+                <div className="text-xs font-normal text-kenoo-muted">
+                  {formatEventTime(startTime)} – {formatEventTime(endTime)}
+                </div>
+                {event.location && (
+                  <div className="mt-1 text-[11px] text-kenoo-muted">{event.location}</div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>,
           document.body
         )}
     </div>
@@ -1040,8 +1088,10 @@ export function CalendarGrid({ selectedDate, onDateSelect, allEvents, onTaskDrop
               {visibleAllDayLayouts.map(({ event, startDayIndex, spanDays, row }) => {
                 const theme = getAllDayEventTheme(event);
                 const isCompleted = isCalendarTaskCompleted(event);
-                const showGoogleMeetIcon =
-                  event.type === 'regular-event' && isGoogleMeetLink(event.meetingLink);
+                const allDayConferenceProvider =
+                  event.type === 'regular-event'
+                    ? getConferenceProvider(event.meetingLink)
+                    : null;
                 return (
                   <button
                     key={event.id}
@@ -1076,12 +1126,10 @@ export function CalendarGrid({ selectedDate, onDateSelect, allEvents, onTaskDrop
                         }
                       />
                       <div className="flex min-w-0 flex-1 items-center gap-1.5 pl-2 pr-2">
-                        {showGoogleMeetIcon && (
-                          <Image
-                            src={GOOGLE_MEET_ICON_URL}
-                            alt="Google Meet"
-                            width={14}
-                            height={14}
+                        {allDayConferenceProvider && (
+                          <ConferenceLinkIcon
+                            link={event.meetingLink}
+                            size={14}
                             className="shrink-0"
                           />
                         )}

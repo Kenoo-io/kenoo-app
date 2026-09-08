@@ -50,8 +50,33 @@ export function getCalendarEventDisplayLabel(
 export const GOOGLE_MEET_ICON_URL =
   'https://www.gstatic.com/images/branding/product/2x/meet_2020q4_48dp.png';
 
+export const ZOOM_ICON_URL = '/icons/zoom.svg';
+
+export const TEAMS_ICON_URL =
+  'https://assest.kenoo.io/calendar-third-pary-icons/microsoft_teams_logo.png';
+
 export function isGoogleMeetLink(link?: string | null): boolean {
   return !!link && link.includes('meet.google');
+}
+
+export function isZoomLink(link?: string | null): boolean {
+  return !!link && /zoom\.(us|com)\//i.test(link);
+}
+
+export function isTeamsLink(link?: string | null): boolean {
+  return (
+    !!link &&
+    (link.includes('teams.microsoft.com') || link.includes('teams.live.com'))
+  );
+}
+
+export type ConferenceProvider = 'google-meet' | 'zoom' | 'teams' | null;
+
+export function getConferenceProvider(link?: string | null): ConferenceProvider {
+  if (isGoogleMeetLink(link)) return 'google-meet';
+  if (isZoomLink(link)) return 'zoom';
+  if (isTeamsLink(link)) return 'teams';
+  return null;
 }
 
 const COMPLETED_PROJECT_STATUSES = new Set(['completed', 'done']);
