@@ -276,6 +276,16 @@ function TimedEventBlock({
   } | null>(null);
   const anchorRef = useRef<HTMLDivElement>(null);
   const didDragRef = useRef(false);
+  const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearHoverTimeout = () => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+  };
+
+  useEffect(() => clearHoverTimeout, []);
 
   useEffect(() => {
     if (!open) return;
@@ -358,8 +368,14 @@ function TimedEventBlock({
         if (didDragRef.current) return;
         onClick();
       }}
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
+      onMouseEnter={() => {
+        clearHoverTimeout();
+        hoverTimeoutRef.current = setTimeout(() => setOpen(true), 1000);
+      }}
+      onMouseLeave={() => {
+        clearHoverTimeout();
+        setOpen(false);
+      }}
     >
       <div
         className={cn(
@@ -418,26 +434,38 @@ function TimedEventBlock({
 
       {typeof document !== 'undefined' &&
         createPortal(
-          open && coords ? (
-          <div
-              className="pointer-events-none fixed z-[9999] max-w-[220px] whitespace-nowrap rounded-xl bg-gray-900/95 p-2.5 text-white shadow-xl backdrop-blur-sm"
-              style={{
-                top: coords.top,
-                left: coords.left,
-                transform: coords.placeBelow
-                  ? 'translate(-50%, 0)'
-                  : 'translate(-50%, -100%)',
-              }}
-            >
-              <div className="mb-1 text-sm font-normal">{event.title}</div>
-              <div className="text-xs font-normal text-white/80">
-                {formatEventTime(startTime)} – {formatEventTime(endTime)}
-              </div>
-              {event.location && (
-                <div className="mt-1 text-[11px] text-white/70">{event.location}</div>
-              )}
-            </div>
-          ) : null,
+          <AnimatePresence>
+            {open && coords && (
+              <motion.div
+                key="event-tooltip"
+                initial={{
+                  opacity: 0,
+                  x: '-50%',
+                  y: coords.placeBelow ? 'calc(0% - 4px)' : 'calc(-100% + 4px)',
+                }}
+                animate={{ opacity: 1, x: '-50%', y: coords.placeBelow ? '0%' : '-100%' }}
+                exit={{
+                  opacity: 0,
+                  x: '-50%',
+                  y: coords.placeBelow ? 'calc(0% - 4px)' : 'calc(-100% + 4px)',
+                }}
+                transition={{ duration: 0.15, ease: 'easeOut' }}
+                className="pointer-events-none fixed z-[9999] max-w-[220px] whitespace-nowrap rounded-xl border border-kenoo-border bg-kenoo-white p-2.5 text-kenoo-ink shadow-md"
+                style={{
+                  top: coords.top,
+                  left: coords.left,
+                }}
+              >
+                <div className="mb-1 text-sm font-normal">{event.title}</div>
+                <div className="text-xs font-normal text-kenoo-muted">
+                  {formatEventTime(startTime)} – {formatEventTime(endTime)}
+                </div>
+                {event.location && (
+                  <div className="mt-1 text-[11px] text-kenoo-muted">{event.location}</div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>,
           document.body
         )}
     </div>

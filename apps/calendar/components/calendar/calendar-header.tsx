@@ -1,7 +1,7 @@
 // calendar-header.tsx
 "use client";
 
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
 import { format } from "date-fns";
 import UserProfileButton from "@walls/ui/user-profile-button";
 import {
@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ChromeFrame } from "@/components/ui/chrome-frame";
 
 export type CalendarViewMode = "monthly" | "weekly" | "daily";
 
@@ -21,6 +22,7 @@ interface CalendarHeaderProps {
   onNext: () => void;
   calendarView: CalendarViewMode;
   onViewChange: (view: CalendarViewMode) => void;
+  onScheduleClick?: () => void;
 }
 
 const VIEW_OPTIONS: { value: CalendarViewMode; label: string }[] = [
@@ -36,6 +38,7 @@ export function CalendarHeader({
   onNext,
   calendarView,
   onViewChange,
+  onScheduleClick,
 }: CalendarHeaderProps) {
   return (
     <div className="flex shrink-0 items-center justify-between bg-kenoo-white px-3 py-2.5">
@@ -96,6 +99,19 @@ export function CalendarHeader({
             ))}
           </SelectContent>
         </Select>
+
+        {onScheduleClick ? (
+          <ChromeFrame className="ml-1 rounded-[20px]" contentClassName="rounded-[20px]">
+            <button
+              type="button"
+              onClick={onScheduleClick}
+              className="flex h-10 shrink-0 items-center gap-1.5 rounded-[20px] border-0 bg-white/80 px-5 text-base font-medium text-kenoo-ink shadow-[0_8px_28px_rgba(15,23,42,0.07),inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-xl transition-all duration-200 hover:bg-white/95 hover:shadow-[0_10px_32px_rgba(15,23,42,0.1),inset_0_1px_0_rgba(255,255,255,0.95)] active:scale-[0.99]"
+            >
+              <Sparkles className="h-4 w-4 stroke-[1.5] opacity-70" />
+              Schedule
+            </button>
+          </ChromeFrame>
+        ) : null}
 
         <div className="ml-1.5">
           <UserProfileButton />

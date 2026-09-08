@@ -808,9 +808,31 @@ function AgentCalendarContent({
     );
   };
 
+  // Reverts an optimistic completion if the server call fails, restoring
+  // whatever status the task had before it was optimistically marked complete.
+  const handleProjectTaskCompleteError = (taskId: string, previousStatus?: string) => {
+    setProjectTasks((prev) =>
+      prev.map((task) =>
+        task.id === taskId
+          ? { ...task, status: (previousStatus ?? task.status) as ProjectTask['status'], completed_at: null }
+          : task
+      )
+    );
+  };
+
+  const handleLegacyTaskCompleteError = (taskId: string, previousStatus?: string) => {
+    setTasks((prev) =>
+      prev.map((task) =>
+        task.id === taskId ? { ...task, status: previousStatus ?? task.status } : task
+      )
+    );
+  };
+
   const sidebarProps = {
     onProjectTaskCompleted: handleProjectTaskCompleted,
     onLegacyTaskCompleted: handleLegacyTaskCompleted,
+    onProjectTaskCompleteError: handleProjectTaskCompleteError,
+    onLegacyTaskCompleteError: handleLegacyTaskCompleteError,
     onProjectTaskClick: handleProjectTaskClick,
     onEventDeleted: handleEventDeleted,
     onEventUpdated: handleEventUpdated,
@@ -857,6 +879,7 @@ function AgentCalendarContent({
           onNext={handleNext}
           calendarView={calendarView}
           onViewChange={setCalendarView}
+          onScheduleClick={handleCreateTask}
         />
 
         <div className="flex min-h-0 flex-1 flex-col overscroll-none">
