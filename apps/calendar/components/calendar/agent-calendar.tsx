@@ -161,6 +161,23 @@ function AgentCalendarContent({
 
   const isInitialRender = useRef(true);
 
+  // `initialDate` is computed on the server using the server's UTC clock, so
+  // it can be off by a day from the browser's local "today" (the same skew
+  // the mini calendar avoids by computing `isToday` client-side). Once the
+  // client mounts, snap the still-untouched initial selection to the real
+  // local today so the main grid matches the mini calendar's outline.
+  useEffect(() => {
+    const today = new Date();
+    const serverInitial = parseInitialDate(initialDate);
+    if (
+      selectedDate.getTime() === serverInitial.getTime() &&
+      selectedDate.toDateString() !== today.toDateString()
+    ) {
+      setSelectedDate(today);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Calculate all events by combining regular events, scheduled tasks, and project tasks
   const allEvents = useMemo(() => {
     const formattedRegularEvents = regularEvents.map(event => ({
