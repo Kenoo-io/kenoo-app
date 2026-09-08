@@ -14,7 +14,6 @@ import {
   Plus,
   Users,
 } from "lucide-react";
-import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { wallsToast } from "@/components/ui/walls-toast";
 import { showTaskCompleteToast } from "@/components/agents-projects/ui/show-task-complete-toast";
@@ -34,10 +33,10 @@ import { AppointmentSchedule } from "./create/event/appointment-schedule";
 import { ViewPopup } from "./create/event/view/view-popup";
 import {
   getCalendarEventTheme,
-  GOOGLE_MEET_ICON_URL,
+  getConferenceProvider,
   isCalendarTaskCompleted,
-  isGoogleMeetLink,
 } from "./calendar-event-theme";
+import { ConferenceLinkIcon } from "./conference-link-icon";
 import { parseCalendarToJsDate } from "@/lib/calendar-recurring";
 
 export interface CalendarSidebarEvent {
@@ -357,7 +356,7 @@ export function CalendarDaySidebar({
             {selectedEvents.length > 0 ? (
               selectedEvents.map((event) => {
                 const theme = getCalendarEventTheme(event);
-                const isGoogleMeet = isGoogleMeetLink(event.meetingLink);
+                const conferenceProvider = getConferenceProvider(event.meetingLink);
                 const hasMeetingLink = !!event.meetingLink;
                 const attendees = event.attendees ?? [];
                 const showMarkComplete = canMarkTaskComplete(event);
@@ -494,19 +493,17 @@ export function CalendarDaySidebar({
                           hover: {},
                         }}
                       >
-                        {isGoogleMeet && (
-                          <Image
-                            src={GOOGLE_MEET_ICON_URL}
-                            alt="Google Meet"
-                            width={20}
-                            height={20}
+                        {conferenceProvider && (
+                          <ConferenceLinkIcon
+                            link={event.meetingLink}
+                            size={20}
                             className="shrink-0"
                           />
                         )}
                         <motion.span
                           className={cn(
                             "text-kenoo-ink group-hover/link:text-kenoo-ink",
-                            isGoogleMeet ? "text-sm" : "text-xs"
+                            conferenceProvider ? "text-sm" : "text-xs"
                           )}
                           variants={{
                             rest: { x: 0 },

@@ -101,11 +101,14 @@ export function CalendarHeader({
         </Select>
 
         {onScheduleClick ? (
-          <ChromeFrame className="ml-1 rounded-[20px]" contentClassName="rounded-[20px]">
+          <ChromeFrame
+            className="ml-1 rounded-[20px] shadow-[0_8px_28px_rgba(15,23,42,0.07)] transition-shadow duration-200 hover:shadow-[0_10px_32px_rgba(15,23,42,0.1)]"
+            contentClassName="rounded-[20px]"
+          >
             <button
               type="button"
               onClick={onScheduleClick}
-              className="flex h-10 shrink-0 items-center gap-1.5 rounded-[20px] border-0 bg-white/80 px-5 text-base font-medium text-kenoo-ink shadow-[0_8px_28px_rgba(15,23,42,0.07),inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-xl transition-all duration-200 hover:bg-white/95 hover:shadow-[0_10px_32px_rgba(15,23,42,0.1),inset_0_1px_0_rgba(255,255,255,0.95)] active:scale-[0.99]"
+              className="flex h-10 shrink-0 items-center gap-1.5 rounded-[20px] border-0 bg-white/80 px-5 text-base font-medium text-kenoo-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-xl transition-all duration-200 hover:bg-white/95 active:scale-[0.99]"
             >
               <Sparkles className="h-4 w-4 stroke-[1.5] opacity-70" />
               Schedule

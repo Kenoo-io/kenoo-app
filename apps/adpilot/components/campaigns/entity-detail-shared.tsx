@@ -1105,11 +1105,20 @@ export function AdPilotEnableToggle({
   const showChromeFrame = enabled || chromeMounted;
 
   return (
-    <div
+    <motion.div
       className={cn(
         "relative inline-flex rounded-2xl p-[1.5px]",
         showChromeFrame ? "overflow-hidden" : "overflow-visible",
       )}
+      animate={{
+        boxShadow: enabled
+          ? "0 8px 28px rgba(15,23,42,0.07)"
+          : "0 0px 0px rgba(15,23,42,0)",
+      }}
+      whileHover={
+        enabled ? { boxShadow: "0 10px 32px rgba(15,23,42,0.1)" } : undefined
+      }
+      transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
     >
       <AnimatePresence onExitComplete={() => setChromeMounted(false)}>
         {enabled ? (
@@ -1133,7 +1142,18 @@ export function AdPilotEnableToggle({
           </motion.span>
         ) : null}
       </AnimatePresence>
-      <div className="relative inline-flex items-center gap-4 rounded-[14.5px] bg-kenoo-white px-4 py-2.5">
+      <motion.div
+        className="relative inline-flex items-center gap-4 rounded-[14.5px] px-4 py-2.5"
+        animate={{
+          backgroundColor: enabled
+            ? "rgba(252,252,252,1)"
+            : "rgba(252,252,252,0)",
+          boxShadow: enabled
+            ? "inset 0 1px 0 rgba(255,255,255,0.95)"
+            : "inset 0 1px 0 rgba(255,255,255,0)",
+        }}
+        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+      >
         <div className="flex flex-col leading-tight">
           <span className="text-[11px] font-medium uppercase tracking-wider text-neutral-400">
             AdPilot
@@ -1153,8 +1173,8 @@ export function AdPilotEnableToggle({
           onCheckedChange={toggle}
           aria-label="Enable AdPilot for this entity"
         />
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
 

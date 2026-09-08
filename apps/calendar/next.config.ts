@@ -72,6 +72,11 @@ const nextConfig: NextConfig = {
         hostname: "www.gstatic.com",
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "assest.kenoo.io",
+        pathname: "/calendar-third-pary-icons/**",
+      },
     ],
   },
   transpilePackages: [
