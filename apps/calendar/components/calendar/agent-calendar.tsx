@@ -47,6 +47,13 @@ function parseInitialDate(date: string): Date {
   return new Date(`${date}T12:00:00`);
 }
 
+function localDateKey(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 function mapRowToProjectTask(row: Record<string, unknown>): ProjectTask {
   const projects = row.projects as { id: string; name: string; color: string | null } | null;
   const schedulesRaw = row.project_task_schedules;
@@ -141,6 +148,9 @@ function AgentCalendarContent({
 }: AgentCalendarProps) {
   const { user } = useAuth();
   const [selectedDate, setSelectedDate] = useState<Date>(() => parseInitialDate(initialDate));
+  // This is deliberately client-owned. `initialDate` may come from a cached
+  // server render and is only safe as a hydration seed for selectedDate.
+  const [todayDate, setTodayDate] = useState<string | null>(null);
   const [calendarView, setCalendarView] = useState<CalendarViewMode>('weekly');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -160,6 +170,43 @@ function AgentCalendarContent({
   });
 
   const isInitialRender = useRef(true);
+
+  // Keep date-dependent highlights correct for the browser's local timezone,
+  // including when the tab stays open across midnight or regains focus later.
+  useEffect(() => {
+    let midnightTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const updateToday = () => {
+      const now = new Date();
+      setTodayDate(localDateKey(now));
+
+      if (midnightTimer) clearTimeout(midnightTimer);
+      const nextMidnight = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate() + 1,
+        0,
+        0,
+        0,
+        50
+      );
+      midnightTimer = setTimeout(updateToday, Math.max(1000, nextMidnight.getTime() - now.getTime()));
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') updateToday();
+    };
+
+    updateToday();
+    window.addEventListener('focus', updateToday);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      if (midnightTimer) clearTimeout(midnightTimer);
+      window.removeEventListener('focus', updateToday);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
 
   // `initialDate` is computed on the server using the server's UTC clock, so
   // it can be off by a day from the browser's local "today" (the same skew
@@ -891,7 +938,7 @@ function AgentCalendarContent({
                   selectedDate={selectedDate}
                   onDateSelect={(date) => setSelectedDate(date)}
                   allEvents={allEvents}
-                  todayDate={initialDate}
+                  todayDate={todayDate ?? ''}
                 />
               ) : (
                 <CalendarGrid
@@ -904,7 +951,7 @@ function AgentCalendarContent({
                   onProjectTaskClick={handleProjectTaskClick}
                   userTimezone={userTimezone}
                   viewMode={calendarView === 'daily' ? 'day' : 'week'}
-                  todayDate={initialDate}
+                  todayDate={todayDate ?? ''}
                 />
               )}
             </div>

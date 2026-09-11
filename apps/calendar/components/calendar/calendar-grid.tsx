@@ -36,10 +36,6 @@ const COMPACT_EVENT_HEIGHT_PX = 20;
 const ALL_DAY_MORE_ROW_HEIGHT = 16;
 const MAX_VISIBLE_ALL_DAY_ROWS = 2;
 
-function dateWithHour(date: string, hour: number): Date {
-  return new Date(`${date}T${String(hour).padStart(2, '0')}:00:00`);
-}
-
 function getTimedEventTheme(event: Event): CalendarEventTheme {
   const theme = getCalendarEventTheme(event);
   return {
@@ -1182,7 +1178,7 @@ export function CalendarGrid({ selectedDate, onDateSelect, allEvents, onTaskDrop
                 <div key={hour} className="relative border-b border-slate-100" style={{ height: `${pixelsPerHour}px` }}>
                   {hour !== 0 && (
                     <span className="absolute right-2 top-0 -translate-y-1/2 text-[10px] leading-none text-neutral-500">
-                      {format(dateWithHour(todayDate, hour), 'ha')}
+                      {format(new Date(2000, 0, 1, hour), 'ha')}
                     </span>
                   )}
                 </div>
