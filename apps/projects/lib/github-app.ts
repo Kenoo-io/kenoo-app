@@ -119,6 +119,33 @@ export async function getGitHubAppInstallation(
   return installation;
 }
 
+/** Uninstalls this GitHub App from the installation's account. */
+export async function uninstallGitHubAppInstallation(
+  installationId: string,
+): Promise<void> {
+  if (!/^\d+$/.test(installationId)) {
+    throw new Error("Invalid GitHub installation id.");
+  }
+
+  const response = await fetch(
+    `https://api.github.com/app/installations/${installationId}`,
+    {
+      method: "DELETE",
+      headers: {
+        Accept: "application/vnd.github+json",
+        Authorization: `Bearer ${createGitHubAppJwt()}`,
+        "X-GitHub-Api-Version": "2026-03-10",
+      },
+      cache: "no-store",
+    },
+  );
+
+  // A manually removed installation is already in the desired state.
+  if (!response.ok && response.status !== 404) {
+    throw new Error(`GitHub installation removal failed (${response.status}).`);
+  }
+}
+
 export function hashGitHubPermissions(
   permissions: Record<string, string>,
 ): string {

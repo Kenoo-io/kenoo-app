@@ -82,7 +82,9 @@ export function ProjectsSettingsPage() {
             </span>
             <span className="min-w-0 flex-1">
               <span className="block text-sm font-medium text-foreground">GitHub</span>
-              <span className="mt-0.5 block text-xs font-light text-neutral-500">
+              <span
+                className={`mt-0.5 block text-xs font-light ${githubConnection ? "text-emerald-700" : "text-neutral-500"}`}
+              >
                 {githubLoading
                   ? "Checking connection…"
                   : githubConnection

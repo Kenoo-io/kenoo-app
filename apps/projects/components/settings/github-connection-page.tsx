@@ -3,9 +3,10 @@
 import * as React from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { AlertCircle, ArrowLeft, CheckCircle2, Github } from "lucide-react";
+import { AlertCircle, ArrowLeft, CheckCircle2, Github, Unplug } from "lucide-react";
 
 import { useGitHubConnection } from "@/lib/github-connection";
+import { Button } from "@/components/ui/button";
 
 function connectionErrorMessage(error: string) {
   switch (error) {
@@ -31,10 +32,27 @@ export function GitHubConnectionPage() {
   const { connection, loading, refetch } = useGitHubConnection();
   const connected = searchParams.get("connected") === "github";
   const error = searchParams.get("error");
+  const [disconnecting, setDisconnecting] = React.useState(false);
+  const [disconnectError, setDisconnectError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (connected) void refetch();
   }, [connected, refetch]);
+
+  const disconnect = async () => {
+    setDisconnecting(true);
+    setDisconnectError(null);
+    try {
+      const response = await fetch("/api/connections", { method: "DELETE" });
+      if (!response.ok) throw new Error("Unable to disconnect GitHub");
+      await refetch();
+      window.history.replaceState(null, "", "/settings/connections/github");
+    } catch {
+      setDisconnectError("GitHub could not be disconnected. Please try again.");
+    } finally {
+      setDisconnecting(false);
+    }
+  };
 
   return (
     <main className="min-h-full w-full bg-kenoo-white px-6 py-8 md:px-10 md:py-12">
@@ -74,6 +92,13 @@ export function GitHubConnectionPage() {
           </div>
         ) : null}
 
+        {disconnectError ? (
+          <div className="flex items-start gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            {disconnectError}
+          </div>
+        ) : null}
+
         <section className="overflow-hidden rounded-[28px] bg-white/80 px-4 py-5 shadow-[0_8px_28px_rgba(15,23,42,0.07),inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-xl md:px-6 md:py-6">
           {loading ? (
             <p className="text-sm font-light text-neutral-500">Loading connection…</p>
@@ -86,6 +111,15 @@ export function GitHubConnectionPage() {
               <p className="mt-1 text-xs font-light text-neutral-400">
                 Connected {new Date(connection.created_at).toLocaleDateString()}
               </p>
+              <Button
+                type="button"
+                className="mt-5 rounded-full border border-rose-300/70 bg-rose-50/80 px-5 font-medium tracking-tight text-rose-700 shadow-[inset_0_1px_2px_rgba(127,29,29,0.04)] backdrop-blur-xl transition-all duration-300 ease-in-out hover:border-rose-400/70 hover:bg-rose-50 active:scale-[0.98]"
+                onClick={() => void disconnect()}
+                disabled={disconnecting}
+              >
+                <Unplug className="mr-2 h-4 w-4" />
+                {disconnecting ? "Disconnecting…" : "Disconnect"}
+              </Button>
             </>
           ) : (
             <>

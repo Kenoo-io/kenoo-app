@@ -91,6 +91,7 @@ export async function upsertGitHubAppInstallation(input: {
   if (error) throw error;
 }
 
+/** Disconnects the active GitHub App installations from a Kenoo account. */
 /** Marks an existing installation unavailable after GitHub suspends or removes it. */
 export async function setGitHubInstallationConnectionActive(input: {
   installationId: string;
