@@ -1,6 +1,7 @@
 import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
 
 const DEFAULT_FROM_EMAIL = "noreply@mail.kenoo.io";
+const KENOO_LOGO_URL = "https://assest.kenoo.io/logos/full-text.png";
 
 type TaskAssignmentEmail = {
   to: string;
@@ -45,14 +46,16 @@ function taskAssignmentHtml(input: TaskAssignmentEmail): string {
     ? ` in <strong>${escapeHtml(input.projectName)}</strong>`
     : "";
 
-  return `<!doctype html><html><body style="margin:0;background:#fafafa;color:#171717;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:32px 16px">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#fff;border:1px solid #e5e5e5;border-radius:16px">
-      <tr><td style="padding:32px"><p style="margin:0 0 20px;font-size:15px;line-height:22px">${greeting}</p>
-      <h1 style="margin:0 0 14px;font-size:24px;line-height:30px;letter-spacing:-.03em">You have a new task</h1>
-      <p style="margin:0 0 24px;color:#525252;font-size:15px;line-height:23px"><strong>${escapeHtml(input.actorName)}</strong> assigned you <strong>“${escapeHtml(input.taskTitle)}”</strong>${project}.</p>
-      <a href="${escapeHtml(input.taskUrl)}" style="display:inline-block;border-radius:10px;background:#171717;color:#fff;padding:13px 20px;font-size:14px;font-weight:600;text-decoration:none">Open task</a>
-      <p style="margin:28px 0 0;color:#737373;font-size:12px;line-height:18px">You’re receiving this because task-assignment email notifications are enabled in Projects settings.</p></td></tr>
+  return `<!doctype html><html lang="en"><body style="margin:0;padding:0;background:#fcfcfc;color:#171717;-webkit-text-size-adjust:100%">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#fcfcfc"><tr><td align="center" style="padding:32px 16px">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;background:#fff">
+      <tr><td align="center" style="padding:32px 32px 24px"><img src="${KENOO_LOGO_URL}" alt="Kenoo" width="140" style="display:block;width:140px;max-width:100%;height:auto;border:0" /></td></tr>
+      <tr><td style="padding:0 32px 8px"><h1 style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:24px;line-height:30px;font-weight:600;letter-spacing:-.03em;color:#111">You have a new task</h1></td></tr>
+      <tr><td style="padding:0 32px 24px"><p style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:22px;color:#6b6b6b"><strong style="color:#111">${escapeHtml(input.actorName)}</strong> assigned you <strong style="color:#111">“${escapeHtml(input.taskTitle)}”</strong>${project}.</p></td></tr>
+      <tr><td style="padding:0 32px"><div style="height:1px;background:#e8e8e8"></div></td></tr>
+      <tr><td style="padding:24px 32px 0"><p style="margin:0 0 24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:14px;line-height:21px;color:#444">${greeting} A task has been assigned to you in Projects.</p></td></tr>
+      <tr><td align="center" style="padding:0 32px 32px"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td align="center" style="border-radius:12px;background:#111"><a href="${escapeHtml(input.taskUrl)}" target="_blank" style="display:inline-block;padding:14px 28px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:14px;font-weight:600;line-height:16px;color:#fff;text-decoration:none;border-radius:12px">Open task</a></td></tr></table></td></tr>
+      <tr><td style="padding:20px 32px;background:#fafafa;border-top:1px solid #e8e8e8;text-align:center"><p style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;line-height:18px;color:#6b6b6b">You’re receiving this because task-assignment email notifications are enabled in Projects settings.</p><p style="margin:10px 0 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:11px;line-height:16px;color:#999">© Kenoo · <a href="https://kenoo.io" style="color:#999;text-decoration:underline">kenoo.io</a></p></td></tr>
     </table>
   </td></tr></table></body></html>`;
 }
