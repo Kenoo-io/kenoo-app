@@ -31,8 +31,6 @@ import {
   Flag,
   RefreshCw,
   Search,
-  GitBranch,
-  ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useActiveAccount } from "@/components/active-account-context";
@@ -652,88 +650,6 @@ interface TaskDetailProps {
   onDelete: (task: ProjectTask) => void;
 }
 
-type LinkedBranch = { task_id: string; repository_full_name: string; base_branch: string; base_sha: string; branch_name: string };
-type GitHubRepository = { full_name: string; default_branch: string; html_url: string };
-
-function TaskGitHubBranchControl({ task }: { task: ProjectTask }) {
-  const [branch, setBranch] = useState<LinkedBranch | null>(null);
-  const [repositories, setRepositories] = useState<GitHubRepository[]>([]);
-  const [repository, setRepository] = useState("");
-  const [baseBranch, setBaseBranch] = useState("");
-  const [branches, setBranches] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [creating, setCreating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true); setError(null); setBranch(null);
-    Promise.all([
-      fetch(`/api/tasks/github/branch?taskId=${encodeURIComponent(task.id)}`).then((r) => r.json()),
-      fetch("/api/tasks/github/repositories").then((r) => r.json()),
-    ]).then(([branchResult, repositoryResult]) => {
-      if (cancelled) return;
-      if (branchResult.branch) setBranch(branchResult.branch as LinkedBranch);
-      if (repositoryResult.repositories) {
-        const next = repositoryResult.repositories as GitHubRepository[];
-        setRepositories(next);
-        if (next[0]) { setRepository(next[0].full_name); setBaseBranch(next[0].default_branch); }
-      }
-      setError(branchResult.error ?? repositoryResult.error ?? null);
-    }).catch(() => !cancelled && setError("Unable to load GitHub connection.")).finally(() => !cancelled && setLoading(false));
-    return () => { cancelled = true; };
-  }, [task.id]);
-
-  useEffect(() => {
-    if (!repository || branch) return;
-    let cancelled = false;
-    fetch(`/api/tasks/github/repositories?repository=${encodeURIComponent(repository)}`)
-      .then((response) => response.json())
-      .then((result) => {
-        if (cancelled) return;
-        const available = (result.branches ?? []) as string[];
-        setBranches(available);
-        setBaseBranch((current) => available.includes(current) ? current : (result.selected?.baseBranch ?? available[0] ?? current));
-      })
-      .catch(() => !cancelled && setError("Unable to load repository branches."));
-    return () => { cancelled = true; };
-  }, [repository, branch]);
-
-  const createBranch = async () => {
-    if (!repository || !baseBranch) return;
-    setCreating(true); setError(null);
-    try {
-      const response = await fetch("/api/tasks/github/branch", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ taskId: task.id, repository, baseBranch }) });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "Unable to create branch.");
-      setBranch(result.branch as LinkedBranch);
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to create branch."); }
-    finally { setCreating(false); }
-  };
-
-  if (loading) return <div className="h-10 rounded-xl bg-neutral-50 animate-pulse" />;
-  if (branch) {
-    const url = `https://github.com/${branch.repository_full_name}/tree/${encodeURIComponent(branch.branch_name)}`;
-    return <a href={url} target="_blank" rel="noreferrer" className="flex items-center justify-between gap-3 rounded-xl bg-lime-50 px-3 py-2.5 text-sm text-neutral-700 hover:bg-lime-100">
-      <span className="min-w-0 flex items-center gap-2"><GitBranch className="h-4 w-4 shrink-0 text-lime-700" /><span className="truncate"><span className="font-medium">{branch.repository_full_name}</span><span className="text-neutral-500"> · {branch.branch_name}</span></span></span><ExternalLink className="h-3.5 w-3.5 shrink-0" />
-    </a>;
-  }
-  if (!repositories.length) return <p className="text-xs font-light text-neutral-400">{error || "Connect GitHub in Settings to create a branch."}</p>;
-  const selected = repositories.find((item) => item.full_name === repository);
-  return <div className="space-y-2">
-    <div className="grid grid-cols-2 gap-2">
-      <select value={repository} onChange={(e) => { const selectedRepo = repositories.find((item) => item.full_name === e.target.value); setRepository(e.target.value); setBaseBranch(selectedRepo?.default_branch ?? ""); }} className="min-w-0 rounded-xl border border-neutral-200 bg-white px-2 py-2 text-xs">
-        {repositories.map((item) => <option key={item.full_name} value={item.full_name}>{item.full_name}</option>)}
-      </select>
-      <select value={baseBranch} onChange={(e) => setBaseBranch(e.target.value)} className="min-w-0 rounded-xl border border-neutral-200 bg-white px-2 py-2 text-xs">
-        {(branches.length ? branches : [baseBranch || selected?.default_branch || ""]).filter(Boolean).map((name) => <option key={name} value={name}>{name}</option>)}
-      </select>
-    </div>
-    {error && <p className="text-xs text-red-600">{error}</p>}
-    <Button onClick={createBranch} disabled={creating} className="w-full rounded-xl bg-neutral-900 text-white hover:bg-neutral-700"><GitBranch className="h-4 w-4 mr-2" />{creating ? "Creating branch…" : "Create branch"}</Button>
-  </div>;
-}
-
 function TaskDetail({ task, onClose, onEdit, onDelete }: TaskDetailProps) {
   if (!task) return null;
   const statusCfg =
@@ -804,10 +720,6 @@ function TaskDetail({ task, onClose, onEdit, onDelete }: TaskDetailProps) {
             </div>
           )}
 
-          <div className="border-t border-neutral-100 pt-4 space-y-2">
-            <p className="text-[10px] font-medium uppercase tracking-widest text-neutral-400">GitHub branch</p>
-            <TaskGitHubBranchControl task={task} />
-          </div>
         </div>
 
         <div className="px-6 pb-6 flex items-center justify-between gap-2">

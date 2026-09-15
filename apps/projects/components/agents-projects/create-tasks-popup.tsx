@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { getSupabaseClient } from "@walls/auth";
 import { useAuth } from "@walls/auth";
-import { Trash2, X } from "lucide-react";
+import { ExternalLink, GitBranch, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Project,
@@ -84,6 +84,8 @@ interface TaskFormState {
   is_public: boolean;
 }
 
+type TaskPanelTab = "basics" | "schedule" | "settings";
+
 const EMPTY_TASK_FORM: TaskFormState = {
   title: "",
   description: "",
@@ -141,6 +143,82 @@ export interface CreateTasksPopupProps {
   existing?: ProjectTask | null;
 }
 
+type LinkedBranch = { repository_full_name: string; branch_name: string };
+type GitHubRepository = { full_name: string; default_branch: string };
+
+function TaskBranchField({ task, disabled }: { task: ProjectTask; disabled: boolean }) {
+  const [branch, setBranch] = useState<LinkedBranch | null>(null);
+  const [repositories, setRepositories] = useState<GitHubRepository[]>([]);
+  const [repository, setRepository] = useState("");
+  const [baseBranch, setBaseBranch] = useState("");
+  const [branches, setBranches] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [setupOpen, setSetupOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/tasks/github/branch?taskId=${encodeURIComponent(task.id)}`).then((r) => r.json())
+      .then((branchResult) => {
+        if (cancelled) return;
+        setBranch((branchResult.branch as LinkedBranch | null) ?? null);
+        setError(branchResult.error ?? null);
+      })
+      .catch(() => !cancelled && setError("Unable to load the linked GitHub branch."))
+      .finally(() => !cancelled && setLoading(false));
+    return () => { cancelled = true; };
+  }, [task.id]);
+
+  useEffect(() => {
+    if (!setupOpen || branch) return;
+    let cancelled = false;
+    fetch("/api/tasks/github/repositories").then((r) => r.json()).then((result) => {
+      if (cancelled) return;
+      const available = (result.repositories ?? []) as GitHubRepository[];
+      setRepositories(available);
+      if (available[0]) { setRepository(available[0].full_name); setBaseBranch(available[0].default_branch); }
+      setError(result.error ?? null);
+    }).catch(() => !cancelled && setError("Unable to load GitHub connection."));
+    return () => { cancelled = true; };
+  }, [setupOpen, branch]);
+
+  useEffect(() => {
+    if (!setupOpen || !repository || branch) return;
+    let cancelled = false;
+    fetch(`/api/tasks/github/repositories?repository=${encodeURIComponent(repository)}`).then((r) => r.json()).then((result) => {
+      if (cancelled) return;
+      const available = (result.branches ?? []) as string[];
+      setBranches(available);
+      setBaseBranch((current) => available.includes(current) ? current : (result.selected?.baseBranch ?? available[0] ?? current));
+    }).catch(() => !cancelled && setError("Unable to load repository branches."));
+    return () => { cancelled = true; };
+  }, [setupOpen, repository, branch]);
+
+  const createBranch = async () => {
+    if (!repository || !baseBranch) return;
+    setCreating(true); setError(null);
+    try {
+      const response = await fetch("/api/tasks/github/branch", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ taskId: task.id, repository, baseBranch }) });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Unable to create branch.");
+      setBranch(result.branch as LinkedBranch);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to create branch."); }
+    finally { setCreating(false); }
+  };
+
+  if (loading) return <div className="h-10 animate-pulse rounded-xl bg-neutral-50" />;
+  if (branch) return <a href={`https://github.com/${branch.repository_full_name}/tree/${encodeURIComponent(branch.branch_name)}`} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-xl bg-lime-50 px-3 py-2 text-xs text-neutral-700 hover:bg-lime-100"><GitBranch className="h-4 w-4 shrink-0 text-lime-700" /><span className="truncate">{branch.repository_full_name} · {branch.branch_name}</span><ExternalLink className="ml-auto h-3.5 w-3.5 shrink-0" /></a>;
+  if (!setupOpen) return <div className="px-4"><button type="button" disabled={disabled} onClick={() => { setError(null); setSetupOpen(true); }} className="rounded-full bg-neutral-900 px-3 py-2 text-xs font-medium text-white hover:bg-neutral-700 disabled:opacity-50"><GitBranch className="mr-1.5 inline h-3.5 w-3.5" />Connect a branch</button>{error && <p className="mt-2 text-xs text-red-600">{error}</p>}</div>;
+  if (!repositories.length) return <p className="px-4 text-xs font-light text-neutral-400">{error || "No repositories are available to this GitHub installation."}</p>;
+  const selected = repositories.find((item) => item.full_name === repository);
+  return <div className="space-y-2 px-4">
+    <div className="grid grid-cols-2 gap-2"><select value={repository} disabled={disabled || creating} onChange={(e) => { const selectedRepo = repositories.find((item) => item.full_name === e.target.value); setRepository(e.target.value); setBaseBranch(selectedRepo?.default_branch ?? ""); }} className="min-w-0 rounded-xl border border-neutral-200 bg-white px-2 py-2 text-xs">{repositories.map((item) => <option key={item.full_name} value={item.full_name}>{item.full_name}</option>)}</select><select value={baseBranch} disabled={disabled || creating} onChange={(e) => setBaseBranch(e.target.value)} className="min-w-0 rounded-xl border border-neutral-200 bg-white px-2 py-2 text-xs">{(branches.length ? branches : [baseBranch || selected?.default_branch || ""]).filter(Boolean).map((name) => <option key={name} value={name}>{name}</option>)}</select></div>
+    {error && <p className="text-xs text-red-600">{error}</p>}
+    <button type="button" disabled={disabled || creating} onClick={createBranch} className="w-full rounded-xl bg-neutral-900 px-3 py-2 text-xs font-medium text-white hover:bg-neutral-700 disabled:opacity-50"><GitBranch className="mr-1.5 inline h-3.5 w-3.5" />{creating ? "Creating branch…" : "Create branch"}</button>
+  </div>;
+}
+
 /* ─── Component ──────────────────────────────────────────────────────────── */
 export function CreateTasksPopup({
   open,
@@ -165,6 +243,7 @@ export function CreateTasksPopup({
   const [projectSelectOpen, setProjectSelectOpen] = useState(false);
   const [statusSelectOpen, setStatusSelectOpen] = useState(false);
   const [prioritySelectOpen, setPrioritySelectOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<TaskPanelTab>("basics");
   /** True while a nested dropdown is open, and briefly after — blocks dialog dismiss / overlay click-through. */
   const [blockDialogDismiss, setBlockDialogDismiss] = useState(false);
   const blockDialogDismissRef = useRef(false);
@@ -684,6 +763,7 @@ export function CreateTasksPopup({
 
   const parsedDueDate = form.due_date ? parseISO(form.due_date) : null;
   const dueDate = parsedDueDate && isValid(parsedDueDate) ? parsedDueDate : null;
+  const canSchedule = dueDate !== null;
 
   return (
     <Dialog
@@ -751,6 +831,14 @@ export function CreateTasksPopup({
 
           {/* Right Column */}
           <div className="space-y-2 pl-6 min-w-0">
+            <div role="tablist" aria-label="Task details" className="mb-4 flex items-center gap-1 rounded-full bg-neutral-100/80 p-1">
+              {(["basics", "schedule", "settings"] as const).map((tab) => {
+                const disabled = saving || (tab === "schedule" && !canSchedule);
+                return <button key={tab} type="button" role="tab" aria-selected={activeTab === tab} disabled={disabled} title={tab === "schedule" && !canSchedule ? "Set a due date to enable scheduling" : undefined} onClick={() => setActiveTab(tab)} className={cn("flex-1 rounded-full px-3 py-1.5 text-[12px] font-medium capitalize transition-colors", activeTab === tab ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-500 hover:bg-white/60 hover:text-neutral-800", disabled && "cursor-not-allowed opacity-40")}>{tab}</button>;
+              })}
+            </div>
+
+            {activeTab === "basics" && <>
             {/* Project */}
             <Select
               value={form.project_id}
@@ -962,37 +1050,51 @@ export function CreateTasksPopup({
               placeholderClassName={fieldPlaceholderClass}
             />
 
-            {/* Visibility */}
-            <div
-              role="button"
-              tabIndex={saving ? -1 : 0}
-              onClick={() => {
-                if (saving) return;
-                setForm((f) => ({ ...f, is_public: !f.is_public }));
-              }}
-              onKeyDown={(e) => {
-                if (saving) return;
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  setForm((f) => ({ ...f, is_public: !f.is_public }));
-                }
-              }}
-              className={cn(
-                "flex h-10 items-center gap-2.5 rounded-full px-4 hover:bg-gray-100",
-                saving ? "cursor-not-allowed opacity-50" : "cursor-pointer"
-              )}
-            >
-              <span className={fieldLabelClass}>Public:</span>
-              <Switch
-                checked={form.is_public}
-                onCheckedChange={(checked) =>
-                  setForm((f) => ({ ...f, is_public: checked }))
-                }
-                disabled={saving}
-                aria-label="Make task public"
-                onClick={(e) => e.stopPropagation()}
-              />
+            </>}
+
+            {activeTab === "settings" && <div className="space-y-3">
+            <div className="rounded-2xl border border-neutral-200/80 bg-white/70 px-4 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className={fieldValueClass}>Visibility</p>
+                  <p className="mt-0.5 text-[11px] font-light text-neutral-500">
+                    Choose who can see this task.
+                  </p>
+                </div>
+                <Switch
+                  checked={form.is_public}
+                  onCheckedChange={(checked) =>
+                    setForm((f) => ({ ...f, is_public: checked }))
+                  }
+                  disabled={saving}
+                  aria-label="Make task public"
+                />
+              </div>
+              <p className="mt-3 text-[12px] font-light text-neutral-600">
+                {form.is_public ? "Public task" : "Private task"}
+              </p>
             </div>
+
+            {existing && (
+              <div className="border-t border-neutral-100 pt-4 mt-3 space-y-2">
+                <p className="px-4 text-[11px] font-normal uppercase tracking-[0.16em] text-neutral-500">
+                  GitHub branch
+                </p>
+                <TaskBranchField task={existing} disabled={saving} />
+              </div>
+            )}
+            {!existing && (
+              <div className="rounded-2xl border border-dashed border-neutral-200 px-4 py-3 text-xs font-light leading-5 text-neutral-500">
+                Save this task first, then return to Settings to connect or create a GitHub branch.
+              </div>
+            )}
+            </div>}
+
+            {activeTab === "schedule" && <div className="rounded-2xl border border-neutral-200/80 bg-neutral-50/60 px-4 py-4">
+              <p className="text-sm font-medium text-neutral-900">Schedule this task</p>
+              <p className="mt-1 text-xs font-light leading-5 text-neutral-500">This task is due {format(dueDate!, "MMMM d, yyyy")}. Open it in Calendar to add or adjust time blocks.</p>
+              <a href="https://calendar.kenoo.io" className="mt-3 inline-flex rounded-full bg-neutral-900 px-3 py-2 text-xs font-medium text-white hover:bg-neutral-700">Open Calendar</a>
+            </div>}
           </div>
         </div>
 
