@@ -129,11 +129,13 @@ export function GitHubConnectionPage() {
               </p>
 
               <ul className="mt-3 space-y-1 text-xs font-light text-neutral-500">
-                <li>Contents · Read-only</li>
+                <li>Contents · Read &amp; write</li>
                 <li>Pull requests · Read-only</li>
                 <li>Issues · Read-only</li>
                 <li>Metadata · Read-only</li>
                 <li>Commit statuses · Read-only</li>
+                <li>Checks · Read-only</li>
+                <li>Deployments · Read-only</li>
               </ul>
 
               <a
