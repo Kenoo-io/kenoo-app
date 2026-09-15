@@ -48,6 +48,7 @@ import { AgentSearch } from "@/components/ui/searches/agent-search";
 import { SimpleMarkdownEditor } from "@/components/agents-projects/simple-markdown-editor";
 import {
   notifyTaskAssignee,
+  sendTaskAssignmentEmail,
   resolveActorDisplayName,
 } from "@/lib/user-notifications";
 import { useActiveAccount } from "@/components/active-account-context";
@@ -657,15 +658,18 @@ export function CreateTasksPopup({
 
       await Promise.all(
         newlyAdded.map((assigneeId) =>
-          notifyTaskAssignee(supabase, {
-            assigneeId,
-            taskId: taskId!,
-            taskTitle,
-            projectId: form.project_id,
-            projectName: selectedProject?.name,
-            actorUserId,
-            actorName,
-          })
+          Promise.all([
+            notifyTaskAssignee(supabase, {
+              assigneeId,
+              taskId: taskId!,
+              taskTitle,
+              projectId: form.project_id,
+              projectName: selectedProject?.name,
+              actorUserId,
+              actorName,
+            }),
+            sendTaskAssignmentEmail({ taskId: taskId!, assigneeId }),
+          ])
         )
       );
 

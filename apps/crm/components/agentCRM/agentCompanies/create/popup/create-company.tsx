@@ -359,7 +359,7 @@ export function CreateCompanyPopup({
                   </div>
                   {isSyncing && (
                     <p className="text-xs text-neutral-500 pt-1">
-                      Syncing can take 1–2 minutes. You can close this and refresh the companies list when it’s done.
+                      Syncing company data…
                     </p>
                   )}
                 </div>

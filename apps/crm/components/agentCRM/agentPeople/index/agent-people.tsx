@@ -12,11 +12,9 @@ import { MobileFAB } from "@/components/ui/mobile-fab";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getSupabaseClient } from "@/app/auth/supabaseClient";
 import { useActiveAccount } from "@/components/active-account-context";
-import { withCrmAccount } from "@/lib/crm-account";
 import UserProfileButton from "@/components/user-profile-button";
 import EditAgentCompanies from "@/components/agentCRM/agentCompanies/view/view-agent-companies";
 import EditAgentPeople from "@/components/agentCRM/agentPeople/view/view-agent-people";
-import { createClient } from '@supabase/supabase-js';
 import { fetchCompanySocialUrls } from "@/lib/company-social";
 import EmailComposer from "@/components/agentCRM/emailComposer/email-composer";
 import AddToSequencePopup from "@/components/agentCRM/ui/add-to-sequence-popup";
@@ -27,11 +25,6 @@ import { PeopleTableToolbar } from "./table/people-table-toolbar";
 import { PeopleTableHeader } from "./table/people-table-header";
 import { PeopleTableRow } from "./table/people-table-row";
 import { Lead, Filters, ImageStates, SequencePopupPersonData } from "./types";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 const ITEMS_PER_PAGE = 50;
 const SEARCH_DEBOUNCE_MS = 400;
@@ -154,11 +147,11 @@ function AgentLeadsContent({ analyticsData }: AgentLeadsProps) {
             departments:people_departments!people_departments_person_id_fkey(
               name,
               apollo_name
-            )
+            ),
+            person_account_overrides!inner(account_id, first_name, last_name, phone, contact_owner, status, crm_source)
           `, { count: 'exact' })
-          .eq('person_type', 'contact');
-
-        query = withCrmAccount(query, activeAccountId);
+          .eq('person_type', 'contact')
+          .eq('person_account_overrides.account_id', activeAccountId);
 
         if (filters.status) query = query.eq('status', filters.status);
         if (filters.source) query = query.eq('source', filters.source);
@@ -187,9 +180,10 @@ function AgentLeadsContent({ analyticsData }: AgentLeadsProps) {
         }
 
         const leadsData: Lead[] = (data || []).map((person: any) => {
-          const leadName = person.first_name && person.last_name
-            ? `${person.first_name} ${person.last_name}`
-            : person.first_name || person.last_name || '';
+          const override = Array.isArray(person.person_account_overrides) ? person.person_account_overrides[0] : person.person_account_overrides;
+          const firstName = override?.first_name ?? person.first_name ?? '';
+          const lastName = override?.last_name ?? person.last_name ?? '';
+          const leadName = firstName && lastName ? `${firstName} ${lastName}` : firstName || lastName || '';
           const country = person.country || '';
           const state = person.state || '';
           const location = state ? `${country}${country ? ', ' : ''}${state}` : country;
@@ -210,17 +204,17 @@ function AgentLeadsContent({ analyticsData }: AgentLeadsProps) {
           }
           return {
             id: person.id,
-            firstName: person.first_name || '',
-            lastName: person.last_name || '',
+            firstName,
+            lastName,
             leadName,
             email: person.email || '',
-            phone: person.phone || '',
+            phone: override?.phone ?? person.phone ?? '',
             company: companyName,
             companyWebsite: person.company_website || '',
             companyLogo: companyLogo || undefined,
             companyId: companyId || undefined,
-            source: person.source || '',
-            status: person.status || 'New',
+            source: override?.crm_source ?? person.source ?? '',
+            status: override?.status ?? person.status ?? 'New',
             region: location,
             operatingCountries: person.country ? [person.country] : [],
             title: person.title || '',
@@ -644,10 +638,11 @@ function AgentLeadsContent({ analyticsData }: AgentLeadsProps) {
             logo_url,
             id,
             name
-          )
+          ),
+          person_account_overrides!inner(account_id, first_name, last_name, phone, contact_owner, status, crm_source)
         `)
         .eq('id', personId)
-        .eq('account_id', activeAccountId)
+        .eq('person_account_overrides.account_id', activeAccountId)
         .single();
 
       if (error) {
@@ -658,6 +653,7 @@ function AgentLeadsContent({ analyticsData }: AgentLeadsProps) {
       }
 
       if (person) {
+        const override = Array.isArray(person.person_account_overrides) ? person.person_account_overrides[0] : person.person_account_overrides;
         // Get logo_url from joined company, fallback to company_photo_url
         const companyLogo = person.company?.logo_url || person.company_photo_url || "";
         
@@ -666,10 +662,10 @@ function AgentLeadsContent({ analyticsData }: AgentLeadsProps) {
         const companyName = person.company?.name || person.company_name || "";
         
         setSelectedPersonData({
-          first_name: person.first_name || "",
-          last_name: person.last_name || "",
+          first_name: override?.first_name ?? person.first_name ?? "",
+          last_name: override?.last_name ?? person.last_name ?? "",
           email: person.email || "",
-          phone: person.phone || "",
+          phone: override?.phone ?? person.phone ?? "",
           title: person.title || "",
           headline: person.headline || "",
           company_name: companyName,
@@ -680,8 +676,8 @@ function AgentLeadsContent({ analyticsData }: AgentLeadsProps) {
           facebook_url: person.facebook_url || "",
           github_url: person.github_url || "",
           photo_url: person.photo_url || "",
-          source: person.source || "",
-          status: person.status || "New",
+          source: override?.crm_source ?? person.source ?? "",
+          status: override?.status ?? person.status ?? "New",
           country: person.country || "",
           city: person.city || "",
           state: person.state || "",
@@ -689,7 +685,7 @@ function AgentLeadsContent({ analyticsData }: AgentLeadsProps) {
           time_zone: person.time_zone || "",
           is_contact: person.is_contact || false,
           is_verified: person.is_verified || false,
-          contact_owner: person.contact_owner || null,
+          contact_owner: override?.contact_owner ?? person.contact_owner ?? null,
           apollo_contact_id: person.apollo_contact_id || "",
           apollo_person_id: person.apollo_person_id || "",
           apollo_organization_id: person.apollo_organization_id || "",
@@ -938,4 +934,4 @@ function AgentLeadsContent({ analyticsData }: AgentLeadsProps) {
 
 export default function AgentLeads(props: AgentLeadsProps) {
   return <AgentLeadsContent {...props} />;
-} 
+}

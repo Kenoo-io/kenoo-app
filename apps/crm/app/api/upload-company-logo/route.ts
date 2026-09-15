@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { uploadCompanyLogoToR2 } from "@/lib/upload-company-logo-r2";
+import { getCrmDataScope } from "@/lib/crm-scope";
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
@@ -14,6 +15,11 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    const scope = await getCrmDataScope();
+    if (!scope) {
+      return NextResponse.json({ error: "No active CRM account" }, { status: 403 });
+    }
+
     const formData = await request.formData();
     const image = formData.get("file") as File;
     const companyIdRaw = formData.get("companyId");
@@ -48,13 +54,13 @@ export async function POST(request: NextRequest) {
     const { downloadUrl, message } = await uploadCompanyLogoToR2(image, companyId);
 
     const { error: updateError } = await supabase
-      .from("companies")
-      .update({
+      .from("company_account_overrides")
+      .upsert({
+        company_id: companyId,
+        account_id: scope.accountId,
         logo_url: downloadUrl,
-        fallback_logo_url: downloadUrl,
         updated_at: new Date().toISOString(),
-      })
-      .eq("id", companyId);
+      }, { onConflict: "company_id,account_id" });
 
     if (updateError) {
       console.error("Company logo URL update error:", updateError);

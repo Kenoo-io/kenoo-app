@@ -11,6 +11,8 @@ interface BasicInformationProps {
   handleSelectChange: (field: string) => (value: string) => void;
   /** Persisted company domain — when set, domain is read-only in System Information only */
   savedDomain?: string | null;
+  /** Apollo/source-owned fields remain visible but cannot be changed from an account copy. */
+  sourceFieldsReadOnly?: boolean;
 }
 
 export default function BasicInformation({ 
@@ -18,6 +20,7 @@ export default function BasicInformation({
   handleInputChange,
   handleSelectChange,
   savedDomain,
+  sourceFieldsReadOnly = false,
 }: BasicInformationProps) {
   const [domainError, setDomainError] = useState("");
 
@@ -54,9 +57,10 @@ export default function BasicInformation({
               label="Country HQ"
               value={formData.country || ''}
               onChange={handleInputChange("country")}
+              disabled={sourceFieldsReadOnly}
             />
 
-            {!savedDomain && (
+            {!savedDomain && !sourceFieldsReadOnly && (
               <FloatingLabelInput
                 label="Domain"
                 value={formData.domain || ''}
@@ -79,6 +83,7 @@ export default function BasicInformation({
               type="number"
               value={formData.foundingYear || ''}
               onChange={handleInputChange("foundingYear")}
+              disabled={sourceFieldsReadOnly}
             />
 
             <FloatingLabelInput

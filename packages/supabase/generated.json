@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-01T00:16:48.884Z",
+  "generatedAt": "2026-09-15T17:58:08.084Z",
   "source": "packages/supabase/scripts/dump-schema.mjs",
   "schemasIncluded": [
     "public",
@@ -7,11 +7,11 @@
     "storage"
   ],
   "summary": {
-    "tables": 236,
+    "tables": 239,
     "views": 2,
     "materializedViews": 6,
     "enums": 26,
-    "columns": 2581
+    "columns": 2617
   },
   "schemas": {
     "public": {
@@ -7658,36 +7658,36 @@
           },
           "policies": [
             {
-              "name": "alert_subscriptions_delete_member",
+              "name": "alert_subscriptions_delete_scoped",
               "permissive": "PERMISSIVE",
               "roles": "{authenticated}",
               "command": "DELETE",
-              "using": "is_ad_account_member(account_id)",
+              "using": "(((app_slug = 'projects'::text) AND (user_id = ( SELECT auth.uid() AS uid))) OR ((app_slug <> 'projects'::text) AND ( SELECT is_account_member(alert_subscriptions.account_id) AS is_account_member)))",
               "withCheck": null
             },
             {
-              "name": "alert_subscriptions_insert_member",
+              "name": "alert_subscriptions_insert_scoped",
               "permissive": "PERMISSIVE",
               "roles": "{authenticated}",
               "command": "INSERT",
               "using": null,
-              "withCheck": "is_ad_account_member(account_id)"
+              "withCheck": "(((app_slug = 'projects'::text) AND (user_id = ( SELECT auth.uid() AS uid)) AND ( SELECT is_account_member(alert_subscriptions.account_id) AS is_account_member)) OR ((app_slug <> 'projects'::text) AND ( SELECT is_account_member(alert_subscriptions.account_id) AS is_account_member)))"
             },
             {
-              "name": "alert_subscriptions_select_member",
+              "name": "alert_subscriptions_select_scoped",
               "permissive": "PERMISSIVE",
               "roles": "{authenticated}",
               "command": "SELECT",
-              "using": "is_ad_account_member(account_id)",
+              "using": "(((app_slug = 'projects'::text) AND (user_id = ( SELECT auth.uid() AS uid))) OR ((app_slug <> 'projects'::text) AND ( SELECT is_account_member(alert_subscriptions.account_id) AS is_account_member)))",
               "withCheck": null
             },
             {
-              "name": "alert_subscriptions_update_member",
+              "name": "alert_subscriptions_update_scoped",
               "permissive": "PERMISSIVE",
               "roles": "{authenticated}",
               "command": "UPDATE",
-              "using": "is_ad_account_member(account_id)",
-              "withCheck": "is_ad_account_member(account_id)"
+              "using": "(((app_slug = 'projects'::text) AND (user_id = ( SELECT auth.uid() AS uid))) OR ((app_slug <> 'projects'::text) AND ( SELECT is_account_member(alert_subscriptions.account_id) AS is_account_member)))",
+              "withCheck": "(((app_slug = 'projects'::text) AND (user_id = ( SELECT auth.uid() AS uid)) AND ( SELECT is_account_member(alert_subscriptions.account_id) AS is_account_member)) OR ((app_slug <> 'projects'::text) AND ( SELECT is_account_member(alert_subscriptions.account_id) AS is_account_member)))"
             }
           ]
         },
@@ -10588,7 +10588,7 @@
               "permissive": "PERMISSIVE",
               "roles": "{authenticated}",
               "command": "SELECT",
-              "using": "is_account_member(account_id)",
+              "using": "(is_account_member(account_id) OR (EXISTS ( SELECT 1\n   FROM company_account_overrides o\n  WHERE ((o.company_id = companies.id) AND is_account_member(o.account_id)))))",
               "withCheck": null
             },
             {
@@ -12684,7 +12684,7 @@
               "permissive": "PERMISSIVE",
               "roles": "{authenticated}",
               "command": "SELECT",
-              "using": "is_company_member(company_id)",
+              "using": "(is_company_member(company_id) OR (EXISTS ( SELECT 1\n   FROM company_account_overrides o\n  WHERE ((o.company_id = companies_vendor_information.company_id) AND is_account_member(o.account_id)))))",
               "withCheck": null
             },
             {
@@ -12694,6 +12694,309 @@
               "command": "UPDATE",
               "using": "is_company_member(company_id)",
               "withCheck": "is_company_member(company_id)"
+            }
+          ]
+        },
+        "company_account_overrides": {
+          "type": "BASE TABLE",
+          "columns": [
+            {
+              "name": "id",
+              "position": 1,
+              "dataType": "uuid",
+              "udtName": "uuid",
+              "nullable": false,
+              "default": "gen_random_uuid()",
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "company_id",
+              "position": 2,
+              "dataType": "uuid",
+              "udtName": "uuid",
+              "nullable": false,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "account_id",
+              "position": 3,
+              "dataType": "uuid",
+              "udtName": "uuid",
+              "nullable": false,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "display_name",
+              "position": 4,
+              "dataType": "text",
+              "udtName": "text",
+              "nullable": true,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "overview",
+              "position": 5,
+              "dataType": "text",
+              "udtName": "text",
+              "nullable": true,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "phone",
+              "position": 6,
+              "dataType": "text",
+              "udtName": "text",
+              "nullable": true,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "industry",
+              "position": 7,
+              "dataType": "text",
+              "udtName": "text",
+              "nullable": true,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "website",
+              "position": 8,
+              "dataType": "text",
+              "udtName": "text",
+              "nullable": true,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "logo_url",
+              "position": 9,
+              "dataType": "text",
+              "udtName": "text",
+              "nullable": true,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "vendor_legal_name",
+              "position": 10,
+              "dataType": "text",
+              "udtName": "text",
+              "nullable": true,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "vendor_city",
+              "position": 11,
+              "dataType": "text",
+              "udtName": "text",
+              "nullable": true,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "vendor_state",
+              "position": 12,
+              "dataType": "text",
+              "udtName": "text",
+              "nullable": true,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "vendor_country",
+              "position": 13,
+              "dataType": "text",
+              "udtName": "text",
+              "nullable": true,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "vendor_address",
+              "position": 14,
+              "dataType": "text",
+              "udtName": "text",
+              "nullable": true,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "vendor_post_code",
+              "position": 15,
+              "dataType": "text",
+              "udtName": "text",
+              "nullable": true,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "vendor_email",
+              "position": 16,
+              "dataType": "text",
+              "udtName": "text",
+              "nullable": true,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "created_at",
+              "position": 17,
+              "dataType": "timestamp with time zone",
+              "udtName": "timestamptz",
+              "nullable": false,
+              "default": "now()",
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "updated_at",
+              "position": 18,
+              "dataType": "timestamp with time zone",
+              "udtName": "timestamptz",
+              "nullable": false,
+              "default": "now()",
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            }
+          ],
+          "primaryKey": [
+            "id"
+          ],
+          "foreignKeys": [
+            {
+              "name": "company_account_overrides_account_id_fkey",
+              "columns": [
+                "account_id"
+              ],
+              "references": {
+                "schema": "public",
+                "table": "accounts",
+                "columns": [
+                  "id"
+                ]
+              },
+              "onUpdate": "NO ACTION",
+              "onDelete": "CASCADE"
+            },
+            {
+              "name": "company_account_overrides_company_id_fkey",
+              "columns": [
+                "company_id"
+              ],
+              "references": {
+                "schema": "public",
+                "table": "companies",
+                "columns": [
+                  "id"
+                ]
+              },
+              "onUpdate": "NO ACTION",
+              "onDelete": "CASCADE"
+            }
+          ],
+          "uniqueConstraints": [
+            {
+              "name": "company_account_overrides_company_id_account_id_key",
+              "columns": [
+                "company_id",
+                "account_id"
+              ]
+            }
+          ],
+          "indexes": [
+            {
+              "name": "company_account_overrides_account_id_idx",
+              "definition": "CREATE INDEX company_account_overrides_account_id_idx ON public.company_account_overrides USING btree (account_id)"
+            },
+            {
+              "name": "company_account_overrides_company_id_account_id_key",
+              "definition": "CREATE UNIQUE INDEX company_account_overrides_company_id_account_id_key ON public.company_account_overrides USING btree (company_id, account_id)"
+            },
+            {
+              "name": "company_account_overrides_company_id_idx",
+              "definition": "CREATE INDEX company_account_overrides_company_id_idx ON public.company_account_overrides USING btree (company_id)"
+            },
+            {
+              "name": "company_account_overrides_pkey",
+              "definition": "CREATE UNIQUE INDEX company_account_overrides_pkey ON public.company_account_overrides USING btree (id)"
+            }
+          ],
+          "rls": {
+            "enabled": true,
+            "forced": false
+          },
+          "policies": [
+            {
+              "name": "company_account_overrides_delete_member",
+              "permissive": "PERMISSIVE",
+              "roles": "{authenticated}",
+              "command": "DELETE",
+              "using": "is_account_member(account_id)",
+              "withCheck": null
+            },
+            {
+              "name": "company_account_overrides_insert_member",
+              "permissive": "PERMISSIVE",
+              "roles": "{authenticated}",
+              "command": "INSERT",
+              "using": null,
+              "withCheck": "is_account_member(account_id)"
+            },
+            {
+              "name": "company_account_overrides_select_member",
+              "permissive": "PERMISSIVE",
+              "roles": "{authenticated}",
+              "command": "SELECT",
+              "using": "is_account_member(account_id)",
+              "withCheck": null
+            },
+            {
+              "name": "company_account_overrides_update_member",
+              "permissive": "PERMISSIVE",
+              "roles": "{authenticated}",
+              "command": "UPDATE",
+              "using": "is_account_member(account_id)",
+              "withCheck": "is_account_member(account_id)"
             }
           ]
         },
@@ -20233,6 +20536,17 @@
               "maxLength": null,
               "numericPrecision": null,
               "numericScale": null
+            },
+            {
+              "name": "card_fee_enabled",
+              "position": 14,
+              "dataType": "boolean",
+              "udtName": "bool",
+              "nullable": false,
+              "default": "true",
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
             }
           ],
           "primaryKey": [
@@ -27469,7 +27783,7 @@
               "permissive": "PERMISSIVE",
               "roles": "{authenticated}",
               "command": "SELECT",
-              "using": "is_account_member(account_id)",
+              "using": "(is_account_member(account_id) OR (EXISTS ( SELECT 1\n   FROM person_account_overrides o\n  WHERE ((o.person_id = people.id) AND is_account_member(o.account_id)))))",
               "withCheck": null
             },
             {
@@ -27813,7 +28127,7 @@
               "permissive": "PERMISSIVE",
               "roles": "{authenticated}",
               "command": "SELECT",
-              "using": "is_person_member(person_id)",
+              "using": "(is_person_member(person_id) OR (EXISTS ( SELECT 1\n   FROM person_account_overrides o\n  WHERE ((o.person_id = people_employment_history.person_id) AND is_account_member(o.account_id)))))",
               "withCheck": null
             },
             {
@@ -28469,6 +28783,269 @@
               "command": "UPDATE",
               "using": "is_person_member(person_id)",
               "withCheck": "is_person_member(person_id)"
+            }
+          ]
+        },
+        "person_account_overrides": {
+          "type": "BASE TABLE",
+          "columns": [
+            {
+              "name": "id",
+              "position": 1,
+              "dataType": "uuid",
+              "udtName": "uuid",
+              "nullable": false,
+              "default": "gen_random_uuid()",
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "person_id",
+              "position": 2,
+              "dataType": "uuid",
+              "udtName": "uuid",
+              "nullable": false,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "account_id",
+              "position": 3,
+              "dataType": "uuid",
+              "udtName": "uuid",
+              "nullable": false,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "first_name",
+              "position": 4,
+              "dataType": "text",
+              "udtName": "text",
+              "nullable": true,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "last_name",
+              "position": 5,
+              "dataType": "text",
+              "udtName": "text",
+              "nullable": true,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "phone",
+              "position": 6,
+              "dataType": "text",
+              "udtName": "text",
+              "nullable": true,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "contact_owner",
+              "position": 7,
+              "dataType": "uuid",
+              "udtName": "uuid",
+              "nullable": true,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "status",
+              "position": 8,
+              "dataType": "text",
+              "udtName": "text",
+              "nullable": true,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "crm_source",
+              "position": 9,
+              "dataType": "text",
+              "udtName": "text",
+              "nullable": true,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "notes",
+              "position": 10,
+              "dataType": "text",
+              "udtName": "text",
+              "nullable": true,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "custom_fields",
+              "position": 11,
+              "dataType": "jsonb",
+              "udtName": "jsonb",
+              "nullable": false,
+              "default": "'{}'::jsonb",
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "created_at",
+              "position": 12,
+              "dataType": "timestamp with time zone",
+              "udtName": "timestamptz",
+              "nullable": false,
+              "default": "now()",
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "updated_at",
+              "position": 13,
+              "dataType": "timestamp with time zone",
+              "udtName": "timestamptz",
+              "nullable": false,
+              "default": "now()",
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            }
+          ],
+          "primaryKey": [
+            "id"
+          ],
+          "foreignKeys": [
+            {
+              "name": "person_account_overrides_account_id_fkey",
+              "columns": [
+                "account_id"
+              ],
+              "references": {
+                "schema": "public",
+                "table": "accounts",
+                "columns": [
+                  "id"
+                ]
+              },
+              "onUpdate": "NO ACTION",
+              "onDelete": "CASCADE"
+            },
+            {
+              "name": "person_account_overrides_contact_owner_fkey",
+              "columns": [
+                "contact_owner"
+              ],
+              "references": {
+                "schema": "public",
+                "table": "users",
+                "columns": [
+                  "id"
+                ]
+              },
+              "onUpdate": "NO ACTION",
+              "onDelete": "SET NULL"
+            },
+            {
+              "name": "person_account_overrides_person_id_fkey",
+              "columns": [
+                "person_id"
+              ],
+              "references": {
+                "schema": "public",
+                "table": "people",
+                "columns": [
+                  "id"
+                ]
+              },
+              "onUpdate": "NO ACTION",
+              "onDelete": "CASCADE"
+            }
+          ],
+          "uniqueConstraints": [
+            {
+              "name": "person_account_overrides_person_id_account_id_key",
+              "columns": [
+                "person_id",
+                "account_id"
+              ]
+            }
+          ],
+          "indexes": [
+            {
+              "name": "person_account_overrides_account_id_idx",
+              "definition": "CREATE INDEX person_account_overrides_account_id_idx ON public.person_account_overrides USING btree (account_id)"
+            },
+            {
+              "name": "person_account_overrides_person_id_account_id_key",
+              "definition": "CREATE UNIQUE INDEX person_account_overrides_person_id_account_id_key ON public.person_account_overrides USING btree (person_id, account_id)"
+            },
+            {
+              "name": "person_account_overrides_person_id_idx",
+              "definition": "CREATE INDEX person_account_overrides_person_id_idx ON public.person_account_overrides USING btree (person_id)"
+            },
+            {
+              "name": "person_account_overrides_pkey",
+              "definition": "CREATE UNIQUE INDEX person_account_overrides_pkey ON public.person_account_overrides USING btree (id)"
+            }
+          ],
+          "rls": {
+            "enabled": true,
+            "forced": false
+          },
+          "policies": [
+            {
+              "name": "person_account_overrides_delete_member",
+              "permissive": "PERMISSIVE",
+              "roles": "{authenticated}",
+              "command": "DELETE",
+              "using": "is_account_member(account_id)",
+              "withCheck": null
+            },
+            {
+              "name": "person_account_overrides_insert_member",
+              "permissive": "PERMISSIVE",
+              "roles": "{authenticated}",
+              "command": "INSERT",
+              "using": null,
+              "withCheck": "is_account_member(account_id)"
+            },
+            {
+              "name": "person_account_overrides_select_member",
+              "permissive": "PERMISSIVE",
+              "roles": "{authenticated}",
+              "command": "SELECT",
+              "using": "is_account_member(account_id)",
+              "withCheck": null
+            },
+            {
+              "name": "person_account_overrides_update_member",
+              "permissive": "PERMISSIVE",
+              "roles": "{authenticated}",
+              "command": "UPDATE",
+              "using": "is_account_member(account_id)",
+              "withCheck": "is_account_member(account_id)"
             }
           ]
         },
@@ -29691,6 +30268,112 @@
               "roles": "{anon,authenticated}",
               "command": "SELECT",
               "using": "(is_published = true)",
+              "withCheck": null
+            }
+          ]
+        },
+        "platform_spend_alerts": {
+          "type": "BASE TABLE",
+          "columns": [
+            {
+              "name": "id",
+              "position": 1,
+              "dataType": "uuid",
+              "udtName": "uuid",
+              "nullable": false,
+              "default": "gen_random_uuid()",
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "created_at",
+              "position": 2,
+              "dataType": "timestamp with time zone",
+              "udtName": "timestamptz",
+              "nullable": false,
+              "default": "now()",
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "account_id",
+              "position": 3,
+              "dataType": "uuid",
+              "udtName": "uuid",
+              "nullable": false,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "threshold_percent",
+              "position": 4,
+              "dataType": "integer",
+              "udtName": "int4",
+              "nullable": false,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": 32,
+              "numericScale": 0
+            }
+          ],
+          "primaryKey": [
+            "id"
+          ],
+          "foreignKeys": [
+            {
+              "name": "platform_spend_alerts_account_id_fkey",
+              "columns": [
+                "account_id"
+              ],
+              "references": {
+                "schema": "public",
+                "table": "accounts",
+                "columns": [
+                  "id"
+                ]
+              },
+              "onUpdate": "NO ACTION",
+              "onDelete": "CASCADE"
+            }
+          ],
+          "uniqueConstraints": [
+            {
+              "name": "platform_spend_alerts_account_percent_key",
+              "columns": [
+                "account_id",
+                "threshold_percent"
+              ]
+            }
+          ],
+          "indexes": [
+            {
+              "name": "platform_spend_alerts_account_idx",
+              "definition": "CREATE INDEX platform_spend_alerts_account_idx ON public.platform_spend_alerts USING btree (account_id)"
+            },
+            {
+              "name": "platform_spend_alerts_account_percent_key",
+              "definition": "CREATE UNIQUE INDEX platform_spend_alerts_account_percent_key ON public.platform_spend_alerts USING btree (account_id, threshold_percent)"
+            },
+            {
+              "name": "platform_spend_alerts_pkey",
+              "definition": "CREATE UNIQUE INDEX platform_spend_alerts_pkey ON public.platform_spend_alerts USING btree (id)"
+            }
+          ],
+          "rls": {
+            "enabled": true,
+            "forced": false
+          },
+          "policies": [
+            {
+              "name": "platform_spend_alerts_select_member",
+              "permissive": "PERMISSIVE",
+              "roles": "{authenticated}",
+              "command": "SELECT",
+              "using": "platform_is_account_member(account_id)",
               "withCheck": null
             }
           ]
@@ -48006,8 +48689,20 @@
               "definition": "CREATE INDEX idx_objects_bucket_id_name_lower ON storage.objects USING btree (bucket_id, lower(name) COLLATE \"C\")"
             },
             {
+              "name": "idx_objects_current_version",
+              "definition": "CREATE UNIQUE INDEX idx_objects_current_version ON storage.objects USING btree (bucket_id, name COLLATE \"C\") WHERE (archived_at IS NULL)"
+            },
+            {
+              "name": "idx_objects_null_version",
+              "definition": "CREATE UNIQUE INDEX idx_objects_null_version ON storage.objects USING btree (bucket_id, name COLLATE \"C\") WHERE (NOT is_versioned)"
+            },
+            {
               "name": "name_prefix_search",
               "definition": "CREATE INDEX name_prefix_search ON storage.objects USING btree (name text_pattern_ops)"
+            },
+            {
+              "name": "objects_bucket_id_name_version_key",
+              "definition": "CREATE UNIQUE INDEX objects_bucket_id_name_version_key ON storage.objects USING btree (bucket_id, name COLLATE \"C\", version) NULLS NOT DISTINCT"
             },
             {
               "name": "objects_pkey",

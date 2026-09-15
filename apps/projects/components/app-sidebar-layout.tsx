@@ -21,7 +21,7 @@ function AppSidebarContent({ children, className }: AppSidebarLayoutProps) {
 
   return (
     <>
-      <AppSidebar headerVisible={headerVisible} />
+      <AppSidebar />
       {/* Soft white veil at the page edge — content scrolls under the floating rail */}
       <div
         aria-hidden

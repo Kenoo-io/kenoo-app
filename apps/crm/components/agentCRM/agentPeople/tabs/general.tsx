@@ -11,6 +11,8 @@ interface BasicInformationProps {
   duplicateEmail: string | null;
   handleSelectChange: (field: string) => (value: string) => void;
   personId?: string;
+  emailReadOnly?: boolean;
+  sourceFieldsReadOnly?: boolean;
 }
 
 export default function BasicInformation({
@@ -18,6 +20,8 @@ export default function BasicInformation({
   handleInputChange,
   duplicateEmail,
   handleSelectChange,
+  emailReadOnly = false,
+  sourceFieldsReadOnly = false,
 }: BasicInformationProps) {
   return (
     <div className="space-y-6">
@@ -47,6 +51,7 @@ export default function BasicInformation({
               onChange={handleInputChange("email")}
               className={duplicateEmail ? "text-red-500" : undefined}
               error={duplicateEmail}
+              disabled={emailReadOnly}
             />
           </div>
 
@@ -55,6 +60,7 @@ export default function BasicInformation({
               label="Title"
               value={formData.title || ""}
               onChange={handleInputChange("title")}
+              disabled={sourceFieldsReadOnly}
             />
 
             <FloatingLabelInput

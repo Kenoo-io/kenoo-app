@@ -38,6 +38,26 @@ export function projectBoardUrl(projectId: string): string {
   return `/tasks?project=${projectId}`;
 }
 
+/**
+ * Delivers the optional transactional email after the client has saved an
+ * assignment. The server independently verifies the assignment and recipient.
+ */
+export async function sendTaskAssignmentEmail(options: {
+  taskId: string;
+  assigneeId: string;
+}): Promise<void> {
+  try {
+    await fetch("/api/notifications/task-assigned", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(options),
+    });
+  } catch (error) {
+    // An email delivery issue must never prevent the task itself from saving.
+    console.error("Failed to request task assignment email:", error);
+  }
+}
+
 /** Scouter notifications open the index, not a specific profile sheet. */
 export function scouterNotificationUrl(): string {
   return SCOUTER_INDEX_URL;

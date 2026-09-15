@@ -19,7 +19,7 @@ const APOLLO_CREATE_ACCOUNT_URL = "https://api.apollo.io/api/v1/accounts";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
 const normalizeUrl = (url: string): string => {
@@ -33,6 +33,17 @@ const normalizeUrl = (url: string): string => {
   }
 };
 
+async function ensureCompanyAccountCopy(companyId: string, accountId: string | undefined) {
+  if (!accountId) return;
+  const { error } = await supabase
+    .from("company_account_overrides")
+    .upsert(
+      { company_id: companyId, account_id: accountId, updated_at: new Date().toISOString() },
+      { onConflict: "company_id,account_id" },
+    );
+  if (error) throw new Error(`Unable to attach company to the active account: ${error.message}`);
+}
+
 export async function POST(request: Request) {
   if (!APOLLO_API_KEY) {
     return NextResponse.json({ error: "Apollo API key not configured" }, { status: 500 });
@@ -40,7 +51,10 @@ export async function POST(request: Request) {
 
   try {
     const scope = await getCrmDataScope();
-    const { organizationId } = await request.json();
+    if (!scope) {
+      return NextResponse.json({ error: "You must be signed in with an active CRM account" }, { status: 401 });
+    }
+    const { organizationId, createApolloAccount = false } = await request.json();
     const rawId = typeof organizationId === "string" ? organizationId.trim() : null;
     if (!rawId) {
       return NextResponse.json(
@@ -158,7 +172,10 @@ export async function POST(request: Request) {
       companyId = newCompany!.id;
     }
 
-    if (apolloDomain && companyId) {
+    await ensureCompanyAccountCopy(companyId, scope.accountId);
+
+    const domainWrite = (async () => {
+      if (!apolloDomain || !companyId) return;
       const { data: existingDomain } = await supabase
         .from("companies_domains")
         .select("id")
@@ -176,9 +193,10 @@ export async function POST(request: Request) {
           is_apollo_org_domain: true,
         });
       }
-    }
+    })();
 
-    if (companyId && Array.isArray(organization.keywords)) {
+    const keywordsWrite = (async () => {
+      if (!companyId || !Array.isArray(organization.keywords)) return;
       const keywords = Array.from(new Set(organization.keywords.map((k: unknown) => (typeof k === "string" ? k.trim() : "")).filter(Boolean)));
       if (keywords.length > 0) {
         const { data: existing } = await supabase.from("companies_keywords").select("keyword").eq("company_id", companyId);
@@ -188,16 +206,17 @@ export async function POST(request: Request) {
           await supabase.from("companies_keywords").insert(toInsert);
         }
       }
-    }
+    })();
 
-    const techEntries: { name: string; uid?: string | null; category?: string | null }[] =
+    const technologiesWrite = (async () => {
+      const techEntries: { name: string; uid?: string | null; category?: string | null }[] =
       Array.isArray(organization.current_technologies) && organization.current_technologies.length > 0
         ? organization.current_technologies.filter((t: any) => t?.name?.trim()).map((t: any) => ({ name: t.name.trim(), uid: t.uid ?? null, category: t.category ?? null }))
         : Array.isArray(organization.technology_names)
           ? organization.technology_names.map((t: unknown) => (typeof t === "string" ? { name: t.trim(), uid: null, category: null } : null)).filter(Boolean) as { name: string; uid: null; category: null }[]
           : [];
 
-    if (companyId && techEntries.length > 0) {
+      if (!companyId || techEntries.length === 0) return;
       const names = techEntries.map((e) => e.name);
       const { data: existingTechs } = await supabase.from("companies_technologies").select("id, name").in("name", names);
       const byName = new Map((existingTechs || []).map((r) => [r.name, r.id]));
@@ -213,9 +232,10 @@ export async function POST(request: Request) {
       const existingJoinIds = new Set((existingJoins || []).map((r) => r.technology_id));
       const joinRows = names.map((n) => byName.get(n)).filter(Boolean).filter((id) => !existingJoinIds.has(id!)).map((technology_id) => ({ company_id: companyId, technology_id: technology_id!, source: "apollo" }));
       if (joinRows.length > 0) await supabase.from("companies_technologies_join").insert(joinRows);
-    }
+    })();
 
-    if (companyId && organization.departmental_head_count && typeof organization.departmental_head_count === "object") {
+    const headcountWrite = (async () => {
+      if (!companyId || !organization.departmental_head_count || typeof organization.departmental_head_count !== "object") return;
       const entries = Object.entries(organization.departmental_head_count).filter(([, c]) => c != null && c !== "");
       const { data: existingHeadcount } = await supabase.from("companies_headcount").select("id, department").eq("company_id", companyId);
       const existingDepts = new Map((existingHeadcount || []).map((r) => [r.department, r.id]));
@@ -230,9 +250,10 @@ export async function POST(request: Request) {
           }
         })
       );
-    }
+    })();
 
-    if (companyId && Array.isArray(organization.suborganizations)) {
+    const suborganizationsWrite = (async () => {
+      if (!companyId || !Array.isArray(organization.suborganizations)) return;
       const subs = organization.suborganizations.filter((s: any) => s?.id);
       if (subs.length > 0) {
         const { data: existing } = await supabase.from("companies_suborganizations").select("apollo_organization_id").eq("company_id", companyId);
@@ -242,9 +263,10 @@ export async function POST(request: Request) {
           .map((s: any) => ({ company_id: companyId, apollo_organization_id: s.id, name: s.name || "", website: s.website_url || s.website || null }));
         if (toInsert.length > 0) await supabase.from("companies_suborganizations").insert(toInsert);
       }
-    }
+    })();
 
-    if (companyId && Array.isArray(organization.funding_events)) {
+    const fundingEventsWrite = (async () => {
+      if (!companyId || !Array.isArray(organization.funding_events)) return;
       const events = organization.funding_events.filter(Boolean);
       if (events.length > 0) {
         const { data: existing } = await supabase.from("companies_funding_events").select("event_id").eq("company_id", companyId);
@@ -254,20 +276,40 @@ export async function POST(request: Request) {
           .map((e: any) => ({ company_id: companyId, event_id: e.id || null, type: e.type || null, amount: e.amount || null, currency: e.currency || null, date: e.date || null, investors: e.investors || null, news_url: e.news_url || null }));
         if (toInsert.length > 0) await supabase.from("companies_funding_events").insert(toInsert);
       }
-    }
+    })();
 
-    if (companyId) {
+    const socialProfilesWrite = (async () => {
       const companyName = companyData.name || organization.name || "Unknown";
       await syncCompanySocialUrls(supabase, companyId, companyName, {
         linkedin: organization.linkedin_url,
         twitter: organization.twitter_url,
         facebook: organization.facebook_url,
       });
-    }
+    })();
+
+    const relatedWriteResults = await Promise.allSettled([
+      domainWrite,
+      keywordsWrite,
+      technologiesWrite,
+      headcountWrite,
+      suborganizationsWrite,
+      fundingEventsWrite,
+      socialProfilesWrite,
+    ]);
+    relatedWriteResults.forEach((result, index) => {
+      if (result.status === "rejected") {
+        console.error("[apollo-organization-id-supabase-sync] Related company data import failed", {
+          task: ["domain", "keywords", "technologies", "headcount", "suborganizations", "funding", "social"][index],
+          error: result.reason,
+        });
+      }
+    });
 
     // Create an Apollo Account from the enriched organization data if we don't have one yet.
     let apolloAccountId: string | null = matchingCompany?.apollo_account_id ?? null;
-    if (companyId && !apolloAccountId && APOLLO_MASTER_API_KEY) {
+    // Enrichment must not block on Apollo account creation; that mutation is
+    // optional and can be explicitly requested by a separate workflow.
+    if (companyId && !apolloAccountId && APOLLO_MASTER_API_KEY && createApolloAccount === true) {
       const accountName = companyData.name || organization.name || "Unnamed Company";
       const accountDomain = apolloDomain || null;
       const accountPhone = organization.phone || organization.primary_phone?.number || null;
