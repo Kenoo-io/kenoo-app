@@ -185,6 +185,17 @@ export async function createGitHubBranchRef(input: { installationId: string; rep
   throw new Error(`GitHub branch creation failed (${response.status}).`);
 }
 
+export async function deleteGitHubBranchRef(input: { installationId: string; repositoryFullName: string; branchName: string }) {
+  const [owner, repo] = input.repositoryFullName.split("/");
+  if (!owner || !repo || !input.branchName || input.repositoryFullName.split("/").length !== 2) throw new Error("Invalid GitHub branch deletion request.");
+  const token = await createGitHubInstallationToken(input.installationId);
+  const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/refs/heads/${encodeURIComponent(input.branchName)}`, {
+    method: "DELETE", headers: githubHeaders(token), cache: "no-store",
+  });
+  // A manually deleted branch is already in the desired state.
+  if (!response.ok && response.status !== 404) throw new Error(`GitHub branch deletion failed (${response.status}).`);
+}
+
 export async function getGitHubAppInstallation(
   installationId: string,
 ): Promise<GitHubInstallation> {

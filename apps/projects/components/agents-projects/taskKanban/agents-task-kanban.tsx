@@ -839,6 +839,10 @@ function AgentsProjectsKanbanContent({
   const [defaultStatus, setDefaultStatus] = useState<TaskStatus>("todo");
   const [viewTask, setViewTask] = useState<ProjectTask | null>(null);
   const [deleteTask, setDeleteTask] = useState<ProjectTask | null>(null);
+  const [deleteTaskBranch, setDeleteTaskBranch] = useState<{ repository_full_name: string; branch_name: string } | null>(null);
+  const [checkingDeleteBranch, setCheckingDeleteBranch] = useState(false);
+  const [deletingTask, setDeletingTask] = useState(false);
+  const [deleteTaskError, setDeleteTaskError] = useState<string | null>(null);
 
   // DnD state
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
@@ -1190,14 +1194,43 @@ function AgentsProjectsKanbanContent({
     }
   };
 
-  const handleDeleteTask = async (task: ProjectTask) => {
-    setDeleteTask(null);
+  const openDeleteTask = async (task: ProjectTask) => {
+    setDeleteTask(task);
+    setDeleteTaskBranch(null);
+    setDeleteTaskError(null);
+    setCheckingDeleteBranch(true);
     try {
-      const supabase = getSupabaseClient();
-      await supabase.from("project_tasks").delete().eq("id", task.id);
-      setTasks((prev) => prev.filter((t) => t.id !== task.id));
+      const response = await fetch(`/api/tasks/github/branch?taskId=${encodeURIComponent(task.id)}`);
+      const result = await response.json();
+      if (response.ok && result.branch) setDeleteTaskBranch(result.branch);
     } catch {
-      // silent
+      // A link lookup failure must not block deletion of the task itself.
+    } finally {
+      setCheckingDeleteBranch(false);
+    }
+  };
+
+  const handleDeleteTask = async (task: ProjectTask, deleteBranch = false) => {
+    setDeletingTask(true);
+    setDeleteTaskError(null);
+    try {
+      if (deleteBranch) {
+        const response = await fetch(`/api/tasks/github/branch?taskId=${encodeURIComponent(task.id)}`, { method: "DELETE" });
+        if (!response.ok) {
+          const result = await response.json().catch(() => ({}));
+          throw new Error(result.error || "Unable to delete the linked GitHub branch.");
+        }
+      }
+      const supabase = getSupabaseClient();
+      const { error } = await supabase.from("project_tasks").delete().eq("id", task.id);
+      if (error) throw error;
+      setTasks((prev) => prev.filter((t) => t.id !== task.id));
+      setDeleteTask(null);
+      setDeleteTaskBranch(null);
+    } catch (error) {
+      setDeleteTaskError(error instanceof Error ? error.message : "Unable to delete task.");
+    } finally {
+      setDeletingTask(false);
     }
   };
 
@@ -1349,14 +1382,14 @@ function AgentsProjectsKanbanContent({
         }}
         onDelete={(task) => {
           setViewTask(null);
-          setDeleteTask(task);
+          void openDeleteTask(task);
         }}
       />
 
       {/* Delete task confirm */}
       <Dialog
         open={!!deleteTask}
-        onOpenChange={(o) => !o && setDeleteTask(null)}
+        onOpenChange={(o) => { if (!o && !deletingTask) { setDeleteTask(null); setDeleteTaskBranch(null); setDeleteTaskError(null); } }}
       >
         <DialogContent className="max-w-[360px] p-0 gap-0 overflow-hidden rounded-3xl">
           <DialogHeader className="px-6 pt-6 pb-4">
@@ -1368,19 +1401,38 @@ function AgentsProjectsKanbanContent({
             <p className="text-sm text-neutral-600">
               &ldquo;{deleteTask?.title}&rdquo; will be permanently deleted.
             </p>
+            {checkingDeleteBranch ? (
+              <div className="h-14 animate-pulse rounded-xl bg-neutral-50" />
+            ) : deleteTaskBranch ? (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-900">
+                This task is linked to <span className="font-medium">{deleteTaskBranch.repository_full_name} · {deleteTaskBranch.branch_name}</span>.
+                <p className="mt-1 text-xs text-amber-800">Would you also like to delete that GitHub branch?</p>
+              </div>
+            ) : null}
+            {deleteTaskError ? <p className="text-xs text-red-600">{deleteTaskError}</p> : null}
             <div className="flex items-center justify-end gap-2">
               <Button
                 variant="ghost"
-                onClick={() => setDeleteTask(null)}
+                onClick={() => { setDeleteTask(null); setDeleteTaskBranch(null); setDeleteTaskError(null); }}
+                disabled={deletingTask}
                 className="rounded-xl"
               >
                 Cancel
               </Button>
-              <Button
+              {deleteTaskBranch && !checkingDeleteBranch ? <Button
+                variant="ghost"
                 onClick={() => deleteTask && handleDeleteTask(deleteTask)}
+                disabled={deletingTask}
+                className="rounded-xl"
+              >
+                Delete task only
+              </Button> : null}
+              <Button
+                onClick={() => deleteTask && handleDeleteTask(deleteTask, Boolean(deleteTaskBranch))}
+                disabled={deletingTask || checkingDeleteBranch}
                 className="rounded-xl bg-red-600 text-white hover:bg-red-500"
               >
-                Delete
+                {deletingTask ? "Deleting…" : deleteTaskBranch ? "Delete task & branch" : "Delete"}
               </Button>
             </div>
           </div>

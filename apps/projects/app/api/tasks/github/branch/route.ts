@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { createAdminClient } from "@walls/supabase/admin";
-import { createGitHubBranchRef, getGitHubRepositoryBranch, listGitHubInstallationRepositories } from "@/lib/github-app";
+import { createGitHubBranchRef, deleteGitHubBranchRef, getGitHubRepositoryBranch, listGitHubInstallationRepositories } from "@/lib/github-app";
 import { TaskGitHubError, getTaskForAccount, requireTaskGitHubContext, taskBranchName, type TaskGitHubBranch } from "@/lib/task-github-server";
 
 export async function GET(request: Request) {
@@ -53,5 +53,27 @@ export async function POST(request: Request) {
     const status = error instanceof TaskGitHubError ? error.status : 500;
     console.error("[projects] create task GitHub branch:", error);
     return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to create branch" }, { status });
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const taskId = new URL(request.url).searchParams.get("taskId");
+    if (!taskId) return NextResponse.json({ error: "taskId is required" }, { status: 400 });
+    const { accountId, connection } = await requireTaskGitHubContext({ write: true });
+    await getTaskForAccount(taskId, accountId);
+    const admin = createAdminClient();
+    const { data: branch, error } = await admin.from("project_task_github_branches")
+      .select("task_id, repository_full_name, branch_name").eq("task_id", taskId).maybeSingle();
+    if (error) throw error;
+    if (!branch) return NextResponse.json({ deleted: false, branch: null });
+    await deleteGitHubBranchRef({ installationId: connection.provider_account_id!, repositoryFullName: branch.repository_full_name, branchName: branch.branch_name });
+    const { error: unlinkError } = await admin.from("project_task_github_branches").delete().eq("task_id", taskId);
+    if (unlinkError) throw unlinkError;
+    return NextResponse.json({ deleted: true });
+  } catch (error) {
+    const status = error instanceof TaskGitHubError ? error.status : 500;
+    console.error("[projects] delete task GitHub branch:", error);
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to delete branch" }, { status });
   }
 }

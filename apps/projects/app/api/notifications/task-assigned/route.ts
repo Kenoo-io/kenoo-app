@@ -32,6 +32,8 @@ export async function POST(request: Request) {
   const sessionClient = await createClient();
   const { data: { user: actor } } = await sessionClient.auth.getUser();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // Never notify someone that they assigned a task to themselves.
+  if (actor.id === body.assigneeId) return NextResponse.json({ queued: false });
 
   const [{ data: task, error: taskError }, { data: assignment, error: assignmentError }] =
     await Promise.all([
