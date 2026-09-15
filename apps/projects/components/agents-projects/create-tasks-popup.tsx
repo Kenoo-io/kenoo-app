@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { getSupabaseClient } from "@walls/auth";
 import { useAuth } from "@walls/auth";
-import { ExternalLink, GitBranch, Trash2, X } from "lucide-react";
+import { ChevronDown, ExternalLink, GitBranch, Github, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Project,
@@ -20,6 +20,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogFooter,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
@@ -153,6 +154,7 @@ function TaskBranchField({ task, disabled }: { task: ProjectTask; disabled: bool
   const [baseBranch, setBaseBranch] = useState("");
   const [branches, setBranches] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingRepositories, setLoadingRepositories] = useState(false);
   const [setupOpen, setSetupOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -173,13 +175,16 @@ function TaskBranchField({ task, disabled }: { task: ProjectTask; disabled: bool
   useEffect(() => {
     if (!setupOpen || branch) return;
     let cancelled = false;
+    setLoadingRepositories(true);
     fetch("/api/tasks/github/repositories").then((r) => r.json()).then((result) => {
       if (cancelled) return;
       const available = (result.repositories ?? []) as GitHubRepository[];
       setRepositories(available);
       if (available[0]) { setRepository(available[0].full_name); setBaseBranch(available[0].default_branch); }
       setError(result.error ?? null);
-    }).catch(() => !cancelled && setError("Unable to load GitHub connection."));
+    }).catch(() => !cancelled && setError("Unable to load GitHub connection.")).finally(() => {
+      if (!cancelled) setLoadingRepositories(false);
+    });
     return () => { cancelled = true; };
   }, [setupOpen, branch]);
 
@@ -207,16 +212,18 @@ function TaskBranchField({ task, disabled }: { task: ProjectTask; disabled: bool
     finally { setCreating(false); }
   };
 
-  if (loading) return <div className="h-10 animate-pulse rounded-xl bg-neutral-50" />;
-  if (branch) return <a href={`https://github.com/${branch.repository_full_name}/tree/${encodeURIComponent(branch.branch_name)}`} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-xl bg-lime-50 px-3 py-2 text-xs text-neutral-700 hover:bg-lime-100"><GitBranch className="h-4 w-4 shrink-0 text-lime-700" /><span className="truncate">{branch.repository_full_name} · {branch.branch_name}</span><ExternalLink className="ml-auto h-3.5 w-3.5 shrink-0" /></a>;
-  if (!setupOpen) return <div className="px-4"><button type="button" disabled={disabled} onClick={() => { setError(null); setSetupOpen(true); }} className="rounded-full bg-neutral-900 px-3 py-2 text-xs font-medium text-white hover:bg-neutral-700 disabled:opacity-50"><GitBranch className="mr-1.5 inline h-3.5 w-3.5" />Connect a branch</button>{error && <p className="mt-2 text-xs text-red-600">{error}</p>}</div>;
-  if (!repositories.length) return <p className="px-4 text-xs font-light text-neutral-400">{error || "No repositories are available to this GitHub installation."}</p>;
+  const heading = <div className="flex w-full items-center justify-between px-4"><p className="text-[11px] font-normal uppercase tracking-[0.16em] text-neutral-500">GitHub branch</p>{setupOpen && !branch && <button type="button" aria-label="Close GitHub branch setup" onClick={() => { setSetupOpen(false); setError(null); }} className="rounded-full p-1 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-700"><X className="h-3.5 w-3.5" /></button>}</div>;
+  if (loading) return <div className="w-full space-y-2">{heading}<div className="h-10 animate-pulse rounded-xl bg-neutral-50" /></div>;
+  if (branch) return <div className="w-full space-y-2">{heading}<a href={`https://github.com/${branch.repository_full_name}/tree/${encodeURIComponent(branch.branch_name)}`} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-xl bg-lime-50 px-3 py-2 text-xs text-neutral-700 hover:bg-lime-100"><GitBranch className="h-4 w-4 shrink-0 text-lime-700" /><span className="truncate">{branch.repository_full_name} · {branch.branch_name}</span><ExternalLink className="ml-auto h-3.5 w-3.5 shrink-0" /></a></div>;
+  if (!setupOpen) return <div className="w-full space-y-2">{heading}<div className="px-4"><button type="button" disabled={disabled} onClick={() => { setError(null); setSetupOpen(true); }} className="w-full rounded-xl bg-neutral-900 px-3 py-2 text-xs font-medium text-white hover:bg-neutral-700 disabled:opacity-50"><Github className="mr-1.5 inline h-3.5 w-3.5" />Connect a branch</button>{error && <p className="mt-2 text-xs text-red-600">{error}</p>}</div></div>;
+  if (loadingRepositories) return <div className="w-full space-y-2">{heading}<div className="space-y-2 px-4"><div className="h-10 animate-pulse rounded-xl bg-neutral-100" /><div className="h-10 animate-pulse rounded-xl bg-neutral-100" /><div className="h-9 animate-pulse rounded-xl bg-neutral-100" /></div></div>;
+  if (!repositories.length) return <div className="w-full space-y-2">{heading}<p className="px-4 text-xs font-light text-neutral-400">{error || "No repositories are available to this GitHub installation."}</p></div>;
   const selected = repositories.find((item) => item.full_name === repository);
-  return <div className="space-y-2 px-4">
-    <div className="grid grid-cols-2 gap-2"><select value={repository} disabled={disabled || creating} onChange={(e) => { const selectedRepo = repositories.find((item) => item.full_name === e.target.value); setRepository(e.target.value); setBaseBranch(selectedRepo?.default_branch ?? ""); }} className="min-w-0 rounded-xl border border-neutral-200 bg-white px-2 py-2 text-xs">{repositories.map((item) => <option key={item.full_name} value={item.full_name}>{item.full_name}</option>)}</select><select value={baseBranch} disabled={disabled || creating} onChange={(e) => setBaseBranch(e.target.value)} className="min-w-0 rounded-xl border border-neutral-200 bg-white px-2 py-2 text-xs">{(branches.length ? branches : [baseBranch || selected?.default_branch || ""]).filter(Boolean).map((name) => <option key={name} value={name}>{name}</option>)}</select></div>
+  return <div className="w-full space-y-2">{heading}<div className="space-y-2 px-4">
+    <div className="grid grid-cols-1 gap-2"><div className="relative"><select value={repository} disabled={disabled || creating} onChange={(e) => { const selectedRepo = repositories.find((item) => item.full_name === e.target.value); setRepository(e.target.value); setBaseBranch(selectedRepo?.default_branch ?? ""); }} className="min-w-0 w-full appearance-none rounded-xl border border-neutral-200 bg-white px-3 py-2 pr-10 text-xs">{repositories.map((item) => <option key={item.full_name} value={item.full_name}>{item.full_name}</option>)}</select><ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-700" /></div><div className="relative"><select value={baseBranch} disabled={disabled || creating} onChange={(e) => setBaseBranch(e.target.value)} className="min-w-0 w-full appearance-none rounded-xl border border-neutral-200 bg-white px-3 py-2 pr-10 text-xs">{(branches.length ? branches : [baseBranch || selected?.default_branch || ""]).filter(Boolean).map((name) => <option key={name} value={name}>{name}</option>)}</select><ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-700" /></div></div>
     {error && <p className="text-xs text-red-600">{error}</p>}
-    <button type="button" disabled={disabled || creating} onClick={createBranch} className="w-full rounded-xl bg-neutral-900 px-3 py-2 text-xs font-medium text-white hover:bg-neutral-700 disabled:opacity-50"><GitBranch className="mr-1.5 inline h-3.5 w-3.5" />{creating ? "Creating branch…" : "Create branch"}</button>
-  </div>;
+    <button type="button" disabled={disabled || creating} onClick={createBranch} className="w-full rounded-xl bg-neutral-900 px-3 py-2 text-xs font-medium text-white hover:bg-neutral-700 disabled:opacity-50"><Github className="mr-1.5 inline h-3.5 w-3.5" />{creating ? "Creating branch…" : "Create branch"}</button>
+  </div></div>;
 }
 
 /* ─── Component ──────────────────────────────────────────────────────────── */
@@ -244,6 +251,10 @@ export function CreateTasksPopup({
   const [statusSelectOpen, setStatusSelectOpen] = useState(false);
   const [prioritySelectOpen, setPrioritySelectOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<TaskPanelTab>("basics");
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [checkingDeleteBranch, setCheckingDeleteBranch] = useState(false);
+  const [linkedDeleteBranch, setLinkedDeleteBranch] = useState<{ repository_full_name: string; branch_name: string } | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   /** True while a nested dropdown is open, and briefly after — blocks dialog dismiss / overlay click-through. */
   const [blockDialogDismiss, setBlockDialogDismiss] = useState(false);
   const blockDialogDismissRef = useRef(false);
@@ -643,21 +654,44 @@ export function CreateTasksPopup({
     return () => observer.disconnect();
   }, [selectedProjectName, open]);
 
-  const handleDelete = async () => {
+  const requestDelete = async () => {
+    if (!existing) return;
+    setDeleteConfirmOpen(true);
+    setCheckingDeleteBranch(true);
+    setLinkedDeleteBranch(null);
+    setDeleteError(null);
+    try {
+      const response = await fetch(`/api/tasks/github/branch?taskId=${encodeURIComponent(existing.id)}`);
+      const result = await response.json();
+      if (response.ok && result.branch) setLinkedDeleteBranch(result.branch);
+    } finally {
+      setCheckingDeleteBranch(false);
+    }
+  };
+
+  const handleDelete = async (deleteBranch = false) => {
     if (!existing) return;
     setSaving(true);
-    setError(null);
+    setDeleteError(null);
     try {
+      if (deleteBranch) {
+        const response = await fetch(`/api/tasks/github/branch?taskId=${encodeURIComponent(existing.id)}`, { method: "DELETE" });
+        if (!response.ok) {
+          const result = await response.json().catch(() => ({}));
+          throw new Error(result.error || "Unable to delete the linked GitHub branch.");
+        }
+      }
       const supabase = getSupabaseClient();
       const { error: err } = await supabase
         .from("project_tasks")
         .delete()
         .eq("id", existing.id);
       if (err) throw err;
+      setDeleteConfirmOpen(false);
       onSaved();
       onClose();
     } catch (e: unknown) {
-      setError((e as { message?: string })?.message ?? "Failed to delete task.");
+      setDeleteError((e as { message?: string })?.message ?? "Failed to delete task.");
     } finally {
       setSaving(false);
     }
@@ -684,7 +718,7 @@ export function CreateTasksPopup({
       const primaryAssigneeId = assigneeIds[0] ?? null;
       const assignedBy = resolveAssignedBy(assigneeIds, actorUserId);
       const newlyAdded = assigneeIds.filter(
-        (id) => !previousAssigneeIds.includes(id)
+        (id) => !previousAssigneeIds.includes(id) && id !== actorUserId
       );
       const assigneesChanged =
         assigneeIds.length !== previousAssigneeIds.length ||
@@ -766,6 +800,7 @@ export function CreateTasksPopup({
   const canSchedule = dueDate !== null;
 
   return (
+    <>
     <Dialog
       open={open}
       onOpenChange={(next) => {
@@ -1077,9 +1112,6 @@ export function CreateTasksPopup({
 
             {existing && (
               <div className="border-t border-neutral-100 pt-4 mt-3 space-y-2">
-                <p className="px-4 text-[11px] font-normal uppercase tracking-[0.16em] text-neutral-500">
-                  GitHub branch
-                </p>
                 <TaskBranchField task={existing} disabled={saving} />
               </div>
             )}
@@ -1105,7 +1137,7 @@ export function CreateTasksPopup({
             {existing && (
               <button
                 type="button"
-                onClick={handleDelete}
+                onClick={() => void requestDelete()}
                 disabled={saving}
                 className={popupButtonOuterClass}
               >
@@ -1134,5 +1166,17 @@ export function CreateTasksPopup({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    <Dialog open={deleteConfirmOpen} onOpenChange={(next) => !saving && setDeleteConfirmOpen(next)}>
+      <DialogContent className="w-[calc(100vw-2rem)] max-w-[620px] gap-0 rounded-[28px] p-6">
+        <DialogHeader className="p-0"><DialogTitle className="text-lg font-semibold tracking-tight text-neutral-950">Delete task?</DialogTitle></DialogHeader>
+        <div className="mt-2 flex flex-col gap-4">
+          <p className="text-sm leading-6 text-neutral-500">&ldquo;{existing?.title}&rdquo; will be permanently deleted.</p>
+          {checkingDeleteBranch ? <div className="h-14 animate-pulse rounded-2xl bg-neutral-50" /> : linkedDeleteBranch ? <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">This task is linked to <span className="font-medium">{linkedDeleteBranch.repository_full_name} · {linkedDeleteBranch.branch_name}</span>.<p className="mt-1 text-xs leading-5 text-amber-800">Would you also like to delete that GitHub branch?</p></div> : null}
+          {deleteError ? <p className="text-xs text-red-600">{deleteError}</p> : null}
+          <div className="mt-2 flex flex-wrap items-center justify-end gap-2"><button type="button" onClick={() => setDeleteConfirmOpen(false)} disabled={saving} className={cn(modalSecondaryButtonClass, "whitespace-nowrap")}>Cancel</button>{linkedDeleteBranch && !checkingDeleteBranch ? <button type="button" onClick={() => void handleDelete(false)} disabled={saving} className={cn(modalSecondaryButtonClass, "whitespace-nowrap")}>Delete task only</button> : null}<button type="button" onClick={() => void handleDelete(Boolean(linkedDeleteBranch))} disabled={saving || checkingDeleteBranch} className="inline-flex h-10 whitespace-nowrap items-center justify-center rounded-lg bg-red-600 px-4 text-sm font-medium text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50">{saving ? "Deleting…" : linkedDeleteBranch ? "Delete task & branch" : "Delete"}</button></div>
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
