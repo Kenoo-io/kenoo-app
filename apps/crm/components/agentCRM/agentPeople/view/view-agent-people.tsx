@@ -6,7 +6,8 @@ import { useState, useEffect } from "react";
 import { FALLBACK_ICON_URL } from "@/lib/asset-urls";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/auth/AuthContext";
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseClient } from "@/app/auth/supabaseClient";
+import { useActiveAccount } from "@/components/active-account-context";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/toaster";
 import { Loader2, User, Save, Trash2, Expand, Minimize } from "lucide-react";
@@ -25,11 +26,6 @@ import EmploymentHistory from "../tabs/employment-history";
 import SystemInformation from "../tabs/system-information";
 import { FaLinkedin, FaTwitter, FaFacebook, FaGithub } from "react-icons/fa";
 import Image from "next/image";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 interface EditAgentPeopleProps {
   analyticsData: any;
@@ -82,6 +78,7 @@ const peopleSheetHeaderIconInnerClass = cn(
 
 export default function EditAgentPeople({ analyticsData, personId, initialData, isOpen, onClose, onSaved }: EditAgentPeopleProps) {
   const { user } = useAuth();
+  const { activeAccountId } = useActiveAccount();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<string>('basic');
   const [formData, setFormData] = useState({
@@ -154,7 +151,7 @@ export default function EditAgentPeople({ analyticsData, personId, initialData, 
     }
 
     try {
-      const { data, error } = await supabase
+      const { data, error } = await getSupabaseClient()
         .from('people')
         .select('id')
         .eq('email', email.toLowerCase())
@@ -198,50 +195,32 @@ export default function EditAgentPeople({ analyticsData, personId, initialData, 
   };
 
   const handleSave = async () => {
-    if (!user) {
+    if (!user || !activeAccountId) {
       wallsToast.error("Error", "You must be logged in to edit a person");
-      return;
-    }
-
-    if (duplicateEmail) {
-      wallsToast.error("Error", duplicateEmail);
       return;
     }
 
     try {
       setIsSubmitting(true);
-      
-      // Map form data to Supabase schema
-      const updatedData: any = {
-        first_name: formData.firstName || null,
-        last_name: formData.lastName || null,
-        email: formData.email || null,
-        phone: formData.phone || null,
-        title: formData.title || null,
-        headline: formData.headline || null,
-        company_name: formData.company || null,
-        company_website: formData.companyWebsite || null,
-        linkedin_url: formData.linkedin || null,
-        twitter_url: formData.twitter || null,
-        facebook_url: formData.facebook || null,
-        github_url: formData.github || null,
-        photo_url: formData.photoURL || null,
-        source: formData.source || null,
-        status: formData.status || 'New',
-        country: formData.region || null,
-        city: formData.city || null,
-        state: formData.state || null,
-        seniority: formData.seniority || null,
-        time_zone: formData.timeZone || null,
-        is_verified: formData.isVerified || false,
-        contact_owner: formData.contactOwner || null,
-        updated_at: new Date().toISOString(),
-      };
-
-      const { error } = await supabase
-        .from('people')
-        .update(updatedData)
-        .eq('id', personId);
+      const updates: Record<string, string | null> = {};
+      const fields: Array<[keyof typeof formData, keyof typeof initialData, string]> = [
+        ['firstName', 'first_name', 'first_name'],
+        ['lastName', 'last_name', 'last_name'],
+        ['phone', 'phone', 'phone'],
+        ['source', 'source', 'crm_source'],
+        ['status', 'status', 'status'],
+        ['contactOwner', 'contact_owner', 'contact_owner'],
+      ];
+      for (const [formField, initialField, column] of fields) {
+        const current = formData[formField] ?? null;
+        const initial = initialData[initialField] ?? null;
+        if (String(current ?? '').trim() !== String(initial ?? '').trim()) {
+          updates[column] = typeof current === 'string' ? current.trim() || null : current as string | null;
+        }
+      }
+      const { error } = await getSupabaseClient()
+        .from('person_account_overrides')
+        .upsert({ person_id: personId, account_id: activeAccountId, ...updates, updated_at: new Date().toISOString() }, { onConflict: 'person_id,account_id' });
 
       if (error) {
         throw error;
@@ -261,7 +240,7 @@ export default function EditAgentPeople({ analyticsData, personId, initialData, 
   };
 
   const handleDelete = async () => {
-    if (!user) {
+    if (!user || !activeAccountId) {
       wallsToast.error("Error", "You must be logged in to delete a person");
       return;
     }
@@ -269,10 +248,11 @@ export default function EditAgentPeople({ analyticsData, personId, initialData, 
     try {
       setIsSubmitting(true);
       
-      const { error } = await supabase
-        .from('people')
+      const { error } = await getSupabaseClient()
+        .from('person_account_overrides')
         .delete()
-        .eq('id', personId);
+        .eq('person_id', personId)
+        .eq('account_id', activeAccountId);
 
       if (error) {
         throw error;
@@ -593,6 +573,8 @@ export default function EditAgentPeople({ analyticsData, personId, initialData, 
                 duplicateEmail={duplicateEmail}
                 handleSelectChange={handleSelectChange}
                 personId={personId}
+                emailReadOnly
+                sourceFieldsReadOnly
               />
             )}
             {activeTab === 'region' && (

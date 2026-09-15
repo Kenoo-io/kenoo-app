@@ -5,7 +5,8 @@ import { wallsToast } from "@/components/ui/walls-toast";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/auth/AuthContext";
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseClient } from "@/app/auth/supabaseClient";
+import { useActiveAccount } from "@/components/active-account-context";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/toaster";
 import { Command, Loader2, Save, Trash2, Expand, Minimize, Plus } from "lucide-react";
@@ -20,21 +21,12 @@ import {
   SheetHeader,
 } from "@/components/ui/sheet-view";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 import BasicInformation from "../tabs/general";
 import VendorInformation from "../tabs/vendor-information";
 import DepartmentHeadcount from "../tabs/company-people";
 import Architecture from "../tabs/architecture";
 import BrandRepresentation from "../tabs/brand-representation";
 import SystemInformation from "../tabs/system-information";
-import {
-  BARE_DOMAIN_ERROR,
-  bareDomainToWebsite,
-  normalizeBareDomain,
-} from "../lib/domain-utils";
 import { FaLinkedin, FaTwitter, FaFacebook, FaGlobe } from "react-icons/fa";
 
 interface EditAgentCompaniesProps {
@@ -93,6 +85,7 @@ const companySheetHeaderIconInnerClass = cn(
 
 export default function EditAgentCompanies({ analyticsData, companyId, initialData, isOpen, onClose, onEmailClick, onAddToSequence, onSaved }: EditAgentCompaniesProps) {
   const { user } = useAuth();
+  const { activeAccountId } = useActiveAccount();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<string>('basic');
   const [formData, setFormData] = useState({
@@ -145,6 +138,7 @@ export default function EditAgentCompanies({ analyticsData, companyId, initialDa
     // Immediately save is_representative to database
     if (field === 'is_representative') {
       try {
+        const supabase = getSupabaseClient();
         const { error } = await supabase
           .from('companies')
           .update({ is_representative: value })
@@ -226,98 +220,50 @@ export default function EditAgentCompanies({ analyticsData, companyId, initialDa
   };
 
   const handleSave = async () => {
-    if (!user) {
+    if (!user || !activeAccountId) {
       wallsToast.error("Error", "You must be logged in to edit a company");
       return;
     }
 
     try {
       setIsSubmitting(true);
-      
-      const rawDomainInput = (formData.domain || '').trim();
-      let newDomain: string | null = null;
-      if (rawDomainInput) {
-        newDomain = normalizeBareDomain(rawDomainInput);
-        if (!newDomain) {
-          wallsToast.error("Invalid domain", BARE_DOMAIN_ERROR);
-          return;
-        }
+      const supabase = getSupabaseClient();
+      const updates: Record<string, string | null> = {};
+      const overrideFields: Array<[keyof typeof initialData, string]> = [
+        ['organization_name', 'display_name'],
+        ['shortDescription', 'overview'],
+        ['phone', 'phone'],
+        ['industry', 'industry'],
+        ['website', 'website'],
+        ['logo', 'logo_url'],
+        ['vendorCompanyName', 'vendor_legal_name'],
+        ['vendorCity', 'vendor_city'],
+        ['vendorState', 'vendor_state'],
+        ['vendorCountry', 'vendor_country'],
+        ['vendorStreetAddress', 'vendor_address'],
+        ['vendorZipCode', 'vendor_post_code'],
+        ['vendorContact', 'vendor_email'],
+      ];
+
+      for (const [formField, column] of overrideFields) {
+        const current = String(formData[formField] ?? '').trim();
+        const initial = String(initialData[formField] ?? '').trim();
+        if (current !== initial) updates[column] = current || null;
       }
 
-      const isLinkingDomain = Boolean(newDomain && newDomain !== (initialData.domain || null));
-      const websiteFromDomain = newDomain ? bareDomainToWebsite(newDomain) : null;
-
-      // Map form data to Supabase schema
-      const updatedData: any = {
-        name: formData.organization_name || null,
-        logo_url: formData.logo || null,
-        website: isLinkingDomain ? websiteFromDomain : (formData.website || null),
-        annual_revenue: formData.annualRevenue ? parseFloat(formData.annualRevenue) : null,
-        employee_count: formData.employeeCount ? parseInt(formData.employeeCount) : null,
-        industry: formData.industry || null,
-        founding_year: formData.foundingYear ? parseInt(formData.foundingYear) : null,
-        country: formData.country || null,
-        phone: formData.phone || null,
-        apollo_organization_id: formData.apolloOrganizationId || null,
-        alexa_ranking: formData.alexaRanking ? parseInt(formData.alexaRanking) : null,
-        overview: formData.shortDescription || null,
-        is_representative: Boolean(formData.is_representative),
-        updated_at: new Date().toISOString(),
-      };
-
-      if (isLinkingDomain) {
-        updatedData.domain = newDomain;
-      }
-
-      const { error } = await supabase
-        .from('companies')
-        .update(updatedData)
-        .eq('id', companyId);
-
-      if (error) {
-        throw error;
-      }
-
-      // Create the companies_domains entry the first time a domain is linked
-      if (isLinkingDomain && newDomain) {
-        await supabase
-          .from('companies_domains')
-          .insert({
-            company_id: companyId,
-            domain: newDomain,
-            is_primary: true,
-            url: websiteFromDomain,
-          });
-      }
-
-      // Save vendor information to companies_vendor_information
-      const vendorPayload = {
-        legal_name: (formData.vendorCompanyName || '').trim() || formData.organization_name || '',
-        city: (formData.vendorCity || '').trim() || null,
-        state: (formData.vendorState || '').trim() || null,
-        country: (formData.vendorCountry || '').trim() || null,
-        address: (formData.vendorStreetAddress || '').trim() || null,
-        post_code: (formData.vendorZipCode || '').trim() || null,
-        vendor_email: (formData.vendorContact || '').trim() || null,
-      };
-
-      const vendorInfoId = (formData as any).vendorInfoId;
-      if (vendorInfoId) {
-        const { error: vendorError } = await supabase
-          .from('companies_vendor_information')
-          .update(vendorPayload)
-          .eq('id', vendorInfoId);
-        if (vendorError) throw vendorError;
-      } else {
-        const { data: insertedVendor, error: vendorError } = await supabase
-          .from('companies_vendor_information')
-          .insert({ company_id: companyId, ...vendorPayload })
-          .select('id')
-          .single();
-        if (vendorError) throw vendorError;
-        if (insertedVendor) {
-          setFormData(prev => ({ ...prev, vendorInfoId: insertedVendor.id }));
-        }
+      if (Object.keys(updates).length > 0) {
+        const { error } = await supabase
+          .from('company_account_overrides')
+          .upsert(
+            {
+              company_id: companyId,
+              account_id: activeAccountId,
+              ...updates,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: 'company_id,account_id' },
+          );
+        if (error) throw error;
       }
 
       wallsToast.success("Success", "Company updated successfully");
@@ -334,18 +280,19 @@ export default function EditAgentCompanies({ analyticsData, companyId, initialDa
   };
 
   const handleDelete = async () => {
-    if (!user) {
+    if (!user || !activeAccountId) {
       wallsToast.error("Error", "You must be logged in to delete a company");
       return;
     }
 
     try {
       setIsSubmitting(true);
-      
+      const supabase = getSupabaseClient();
       const { error } = await supabase
-        .from('companies')
+        .from('company_account_overrides')
         .delete()
-        .eq('id', companyId);
+        .eq('company_id', companyId)
+        .eq('account_id', activeAccountId);
 
       if (error) {
         throw error;
@@ -651,6 +598,7 @@ export default function EditAgentCompanies({ analyticsData, companyId, initialDa
                 handleInputChange={handleInputChange}
                 handleSelectChange={handleSelectChange}
                 savedDomain={initialData.domain}
+                sourceFieldsReadOnly
               />
             )}
             {activeTab === 'vendor' && (
@@ -680,4 +628,4 @@ export default function EditAgentCompanies({ analyticsData, companyId, initialDa
       <Toaster />
     </Sheet>
   );
-} 
+}

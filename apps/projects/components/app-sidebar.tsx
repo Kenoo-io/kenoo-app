@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   LayoutList,
   Lock,
+  Settings,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -21,6 +22,7 @@ const navItems = [
   { href: "/tasks", label: "Tasks", icon: FolderKanban },
   { href: "/timeline", label: "Timeline", icon: GanttChartSquare },
   { href: "/projects", label: "Projects", icon: LayoutList },
+  { href: "/settings", label: "Settings", icon: Settings },
 ] as const;
 
 export function AppSidebar({ headerVisible = true }: { headerVisible?: boolean }) {

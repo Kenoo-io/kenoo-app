@@ -11,7 +11,7 @@ const APOLLO_CREATE_ACCOUNT_URL = "https://api.apollo.io/api/v1/accounts";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
 // Normalize a domain or URL down to a bare domain
@@ -25,6 +25,17 @@ const normalizeUrl = (url: string): string => {
     return url.toLowerCase().trim();
   }
 };
+
+async function ensureCompanyAccountCopy(companyId: string, accountId: string | undefined) {
+  if (!accountId) return;
+  const { error } = await supabase
+    .from("company_account_overrides")
+    .upsert(
+      { company_id: companyId, account_id: accountId, updated_at: new Date().toISOString() },
+      { onConflict: "company_id,account_id" },
+    );
+  if (error) throw new Error(`Unable to attach company to the active account: ${error.message}`);
+}
 
 /** Serper organic result shape */
 interface SerperOrganicItem {
@@ -194,6 +205,8 @@ async function trySerperOpenAiCompaniesFallback(
     companyId = newCompany!.id;
   }
 
+  await ensureCompanyAccountCopy(companyId, scope?.accountId);
+
   return NextResponse.json({
     success: true,
     message: matchingCompany ? "Company updated" : "Company created",
@@ -212,7 +225,10 @@ export async function POST(request: Request) {
 
   try {
     const scope = await getCrmDataScope();
-    const { domain, companyId: requestedCompanyId } = await request.json();
+    if (!scope) {
+      return NextResponse.json({ error: "You must be signed in with an active CRM account" }, { status: 401 });
+    }
+    const { domain, companyId: requestedCompanyId, createApolloAccount = false, force = false } = await request.json();
     const rawDomain = typeof domain === "string" ? domain.trim() : "";
 
     if (!rawDomain) {
@@ -226,6 +242,36 @@ export async function POST(request: Request) {
     }
 
     const normalizedDomain = normalizeUrl(rawDomain);
+
+    // Re-attaching a recently enriched canonical company should feel instant.
+    // Callers can pass `force: true` when they explicitly need fresh Apollo data.
+    if (!force) {
+      const { data: cachedCompany } = await supabase
+        .from("companies")
+        .select("id, name, apollo_organization_id, apollo_account_id, last_enriched")
+        .eq("domain", normalizedDomain)
+        .maybeSingle();
+      const lastEnrichedAt = cachedCompany?.last_enriched
+        ? new Date(cachedCompany.last_enriched).getTime()
+        : 0;
+      if (
+        cachedCompany &&
+        (!requestedCompanyId || requestedCompanyId === cachedCompany.id) &&
+        Number.isFinite(lastEnrichedAt) &&
+        Date.now() - lastEnrichedAt < 24 * 60 * 60 * 1000
+      ) {
+        await ensureCompanyAccountCopy(cachedCompany.id, scope.accountId);
+        return NextResponse.json({
+          success: true,
+          message: "Company added from recent enrichment",
+          companyId: cachedCompany.id,
+          companyName: cachedCompany.name,
+          apollo_organization_id: cachedCompany.apollo_organization_id,
+          apollo_account_id: cachedCompany.apollo_account_id,
+          source: "cache",
+        });
+      }
+    }
 
     // 1) Enrich organization in Apollo by domain
     const enrichRes = await fetch(APOLLO_ORG_ENRICH_URL, {
@@ -386,8 +432,13 @@ export async function POST(request: Request) {
       companyId = newCompany!.id;
     }
 
-    // companies_domains
-    if (apolloDomain && companyId) {
+    await ensureCompanyAccountCopy(companyId, scope?.accountId);
+
+    // These writes are independent of one another. Run them together so the
+    // request is bounded by the slowest import, rather than the sum of every
+    // related-data table round trip.
+    const domainWrite = (async () => {
+      if (!apolloDomain || !companyId) return;
       const { data: existingDomain } = await supabase
         .from("companies_domains")
         .select("id")
@@ -408,10 +459,10 @@ export async function POST(request: Request) {
           is_apollo_org_domain: true,
         });
       }
-    }
+    })();
 
-    // companies_keywords
-    if (companyId && Array.isArray(organization.keywords)) {
+    const keywordsWrite = (async () => {
+      if (!companyId || !Array.isArray(organization.keywords)) return;
       const keywords = Array.from(
         new Set(
           organization.keywords
@@ -432,10 +483,10 @@ export async function POST(request: Request) {
           await supabase.from("companies_keywords").insert(toInsert);
         }
       }
-    }
+    })();
 
-    // companies_technologies & join
-    const techEntries: { name: string; uid?: string | null; category?: string | null }[] =
+    const technologiesWrite = (async () => {
+      const techEntries: { name: string; uid?: string | null; category?: string | null }[] =
       Array.isArray(organization.current_technologies) && organization.current_technologies.length > 0
         ? organization.current_technologies
             .filter((t: any) => t?.name?.trim())
@@ -448,7 +499,7 @@ export async function POST(request: Request) {
             .filter(Boolean) as { name: string; uid: null; category: null }[])
         : [];
 
-    if (companyId && techEntries.length > 0) {
+      if (!companyId || techEntries.length === 0) return;
       const names = techEntries.map((e) => e.name);
       const { data: existingTechs } = await supabase
         .from("companies_technologies")
@@ -484,10 +535,10 @@ export async function POST(request: Request) {
           source: "apollo",
         }));
       if (joinRows.length > 0) await supabase.from("companies_technologies_join").insert(joinRows);
-    }
+    })();
 
-    // companies_headcount
-    if (companyId && organization.departmental_head_count && typeof organization.departmental_head_count === "object") {
+    const headcountWrite = (async () => {
+      if (!companyId || !organization.departmental_head_count || typeof organization.departmental_head_count !== "object") return;
       const entries = Object.entries(organization.departmental_head_count).filter(
         ([, c]) => c != null && c !== ""
       );
@@ -512,10 +563,10 @@ export async function POST(request: Request) {
           }
         })
       );
-    }
+    })();
 
-    // companies_suborganizations
-    if (companyId && Array.isArray(organization.suborganizations)) {
+    const suborganizationsWrite = (async () => {
+      if (!companyId || !Array.isArray(organization.suborganizations)) return;
       const subs = organization.suborganizations.filter((s: any) => s?.id);
       if (subs.length > 0) {
         const { data: existing } = await supabase
@@ -533,10 +584,10 @@ export async function POST(request: Request) {
           }));
         if (toInsert.length > 0) await supabase.from("companies_suborganizations").insert(toInsert);
       }
-    }
+    })();
 
-    // companies_funding_events
-    if (companyId && Array.isArray(organization.funding_events)) {
+    const fundingEventsWrite = (async () => {
+      if (!companyId || !Array.isArray(organization.funding_events)) return;
       const events = organization.funding_events.filter(Boolean);
       if (events.length > 0) {
         const { data: existing } = await supabase
@@ -558,20 +609,41 @@ export async function POST(request: Request) {
           }));
         if (toInsert.length > 0) await supabase.from("companies_funding_events").insert(toInsert);
       }
-    }
+    })();
 
-    if (companyId) {
+    const socialProfilesWrite = (async () => {
       const companyName = companyData.name || organization.name || "Unknown";
       await syncCompanySocialUrls(supabase, companyId, companyName, {
         linkedin: organization.linkedin_url,
         twitter: organization.twitter_url,
         facebook: organization.facebook_url,
       });
-    }
+    })();
+
+    const relatedWriteResults = await Promise.allSettled([
+      domainWrite,
+      keywordsWrite,
+      technologiesWrite,
+      headcountWrite,
+      suborganizationsWrite,
+      fundingEventsWrite,
+      socialProfilesWrite,
+    ]);
+    relatedWriteResults.forEach((result, index) => {
+      if (result.status === "rejected") {
+        console.error("[apollo-domain-supabase-sync] Related company data import failed", {
+          task: ["domain", "keywords", "technologies", "headcount", "suborganizations", "funding", "social"][index],
+          error: result.reason,
+        });
+      }
+    });
 
     // Optionally create an Apollo Account from enriched organization if we don't have one yet
     let apolloAccountId: string | null = matchingCompany?.apollo_account_id ?? null;
-    if (companyId && !apolloAccountId && APOLLO_MASTER_API_KEY) {
+    // Creating an Apollo Account is a separate, slow remote mutation. It is
+    // not required to enrich or attach a company, so keep normal CRM syncs on
+    // the fast path. Callers can explicitly opt in when they truly need one.
+    if (companyId && !apolloAccountId && APOLLO_MASTER_API_KEY && createApolloAccount === true) {
       const accountName = companyData.name || organization.name || "Unnamed Company";
       const accountDomain = apolloDomain || null;
       const accountPhone = organization.phone || organization.primary_phone?.number || null;
@@ -648,4 +720,3 @@ export async function POST(request: Request) {
     );
   }
 }
-

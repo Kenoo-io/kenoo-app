@@ -1172,6 +1172,9 @@ importers:
 
   apps/projects:
     dependencies:
+      '@aws-sdk/client-ses':
+        specifier: ^3.876.0
+        version: 3.1091.0
       '@anthropic-ai/sdk':
         specifier: ^0.39.0
         version: 0.39.0

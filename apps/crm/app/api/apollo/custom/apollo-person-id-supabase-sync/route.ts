@@ -27,8 +27,17 @@ const APOLLO_CREATE_CONTACT_URL = "https://api.apollo.io/api/v1/contacts";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
+
+async function ensurePersonAccountCopy(personId: string, accountId: string | undefined) {
+  if (!accountId) return;
+  const { error } = await supabase.from("person_account_overrides").upsert(
+    { person_id: personId, account_id: accountId, updated_at: new Date().toISOString() },
+    { onConflict: "person_id,account_id" },
+  );
+  if (error) throw new Error(`Unable to attach person to the active account: ${error.message}`);
+}
 
 /** Convert Apollo-style key (e.g. "marketing_manager") to display name (e.g. "Marketing Manager"). */
 function apolloKeyToDisplayName(raw: string): string {
@@ -518,6 +527,8 @@ async function tryEmailInboxFallbackResponse(rawEmail: string): Promise<NextResp
     message = "Person created";
   }
 
+  await ensurePersonAccountCopy(personId, scope?.accountId);
+
   const personName = buildInboxFallbackPersonName(firstName, lastName);
   console.log("[apollo-person-id-supabase-sync] inbox fallback success", {
     personId,
@@ -580,6 +591,9 @@ export async function POST(request: Request) {
 
   try {
     const scope = await getCrmDataScope();
+    if (!scope) {
+      return NextResponse.json({ error: "You must be signed in with an active CRM account" }, { status: 401 });
+    }
     const { personId, email: requestEmail } = await request.json();
     const rawPersonId =
       typeof personId === "string" ? personId.trim() : null;
@@ -889,6 +903,8 @@ export async function POST(request: Request) {
         apolloPersonId,
       });
     }
+
+    await ensurePersonAccountCopy(resolvedPersonId, scope.accountId);
 
     // Sync related data from enrichment response (employment_history, departments, subdepartments)
     if (person.employment_history && Array.isArray(person.employment_history) && person.employment_history.length > 0) {

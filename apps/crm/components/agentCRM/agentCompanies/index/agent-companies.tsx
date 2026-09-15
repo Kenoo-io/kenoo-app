@@ -12,11 +12,9 @@ import { MobileFAB } from "@/components/ui/mobile-fab";
 import { useRouter } from "next/navigation";
 import { getSupabaseClient } from "@/app/auth/supabaseClient";
 import { useActiveAccount } from "@/components/active-account-context";
-import { withCrmAccount } from "@/lib/crm-account";
 import UserProfileButton from "@/components/user-profile-button";
 import EditAgentCompanies from "../view/view-agent-companies";
 import CreateAgentCompanies from "../create/create-agent-companies";
-import { createClient } from '@supabase/supabase-js';
 import EmailComposer from "@/components/agentCRM/emailComposer/email-composer";
 import { CreateCompanyPopup, type CreateCompanyAnchorRect } from "../create/popup/create-company";
 import AddToSequencePopup from "@/components/agentCRM/ui/add-to-sequence-popup";
@@ -26,11 +24,6 @@ import { CompaniesTableHeader } from "./table/companies-table-header";
 import { CompaniesTableRow } from "./table/companies-table-row";
 import { Company, Filters, ImageStates, SequencePopupCompanyData } from "./types";
 import { fetchCompanySocialUrls } from "@/lib/company-social";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 const ITEMS_PER_PAGE = 50;
 const SEARCH_DEBOUNCE_MS = 400;
@@ -52,6 +45,9 @@ const ensureHttps = (url: string): string => {
 };
 
 function mapSupabaseCompany(company: any): Company {
+  const override = Array.isArray(company.company_account_overrides)
+    ? company.company_account_overrides[0]
+    : company.company_account_overrides;
   const tags = (company.companies_tags || []).map((tagRow: any) => ({
     tag: tagRow.tag || '',
     type: tagRow.type || '',
@@ -59,11 +55,11 @@ function mapSupabaseCompany(company: any): Company {
 
   return {
     id: company.id,
-    name: company.name || '—',
-    industry: company.industry || '—',
-    website: company.website || '',
+    name: override?.display_name ?? company.name ?? '—',
+    industry: override?.industry ?? company.industry ?? '—',
+    website: override?.website ?? company.website ?? '',
     domain: company.domain || '',
-    phone: company.phone || '—',
+    phone: override?.phone ?? company.phone ?? '—',
     employeeCount: company.employee_count ?? null,
     annualRevenue: company.annual_revenue ?? null,
     country: company.country || '—',
@@ -164,9 +160,16 @@ function AgentCompaniesContent({ analyticsData }: AgentCompaniesProps) {
 
         let query = supabase
           .from('companies')
-          .select('*, companies_tags(tag, type)', { count: 'exact' });
-
-        query = withCrmAccount(query, activeAccountId);
+          .select(`
+            *,
+            companies_tags(tag, type),
+            company_account_overrides!inner(
+              account_id, display_name, overview, phone, industry, website, logo_url,
+              vendor_legal_name, vendor_city, vendor_state, vendor_country,
+              vendor_address, vendor_post_code, vendor_email
+            )
+          `, { count: 'exact' })
+          .eq('company_account_overrides.account_id', activeAccountId);
 
         if (filters.industry) query = query.eq('industry', filters.industry);
         if (filters.country) query = query.eq('country', filters.country);
@@ -270,9 +273,17 @@ function AgentCompaniesContent({ analyticsData }: AgentCompaniesProps) {
       const supabase = getSupabaseClient();
       const { data, error } = await supabase
         .from('companies')
-        .select('*, companies_tags(tag, type)')
+        .select(`
+          *,
+          companies_tags(tag, type),
+          company_account_overrides!inner(
+            account_id, display_name, overview, phone, industry, website, logo_url,
+            vendor_legal_name, vendor_city, vendor_state, vendor_country,
+            vendor_address, vendor_post_code, vendor_email
+          )
+        `)
         .eq('id', companyId)
-        .eq('account_id', activeAccountId)
+        .eq('company_account_overrides.account_id', activeAccountId)
         .single();
 
       if (error || !data) return;
@@ -459,11 +470,21 @@ function AgentCompaniesContent({ analyticsData }: AgentCompaniesProps) {
     setIsSheetOpen(true);
 
     try {
+      // Use the session-aware client so the account-scoped detail query is
+      // authorized the same way as the companies table query.
+      const supabase = getSupabaseClient();
       const { data: company, error } = await supabase
         .from('companies')
-        .select('*')
+        .select(`
+          *,
+          company_account_overrides!inner(
+            account_id, display_name, overview, phone, industry, website, logo_url,
+            vendor_legal_name, vendor_city, vendor_state, vendor_country,
+            vendor_address, vendor_post_code, vendor_email
+          )
+        `)
         .eq('id', companyId)
-        .eq('account_id', activeAccountId)
+        .eq('company_account_overrides.account_id', activeAccountId)
         .single();
 
       if (error) {
@@ -474,15 +495,18 @@ function AgentCompaniesContent({ analyticsData }: AgentCompaniesProps) {
       }
 
       if (company) {
+        const override = Array.isArray(company.company_account_overrides)
+          ? company.company_account_overrides[0]
+          : company.company_account_overrides;
         // Fetch vendor information
         let vendorInfoId = "";
-        let vendorCompanyName = "";
-        let vendorCountry = "";
-        let vendorState = "";
-        let vendorCity = "";
-        let vendorStreetAddress = "";
-        let vendorZipCode = "";
-        let vendorContact = "";
+        let vendorCompanyName = override?.vendor_legal_name ?? "";
+        let vendorCountry = override?.vendor_country ?? "";
+        let vendorState = override?.vendor_state ?? "";
+        let vendorCity = override?.vendor_city ?? "";
+        let vendorStreetAddress = override?.vendor_address ?? "";
+        let vendorZipCode = override?.vendor_post_code ?? "";
+        let vendorContact = override?.vendor_email ?? "";
 
         try {
           const { data: vendorInfo } = await supabase
@@ -493,13 +517,13 @@ function AgentCompaniesContent({ analyticsData }: AgentCompaniesProps) {
 
           if (vendorInfo) {
             vendorInfoId = vendorInfo.id || "";
-            vendorCompanyName = vendorInfo.legal_name || "";
-            vendorCountry = vendorInfo.country || "";
-            vendorState = vendorInfo.state || "";
-            vendorCity = vendorInfo.city || "";
-            vendorStreetAddress = vendorInfo.address || "";
-            vendorZipCode = vendorInfo.post_code || "";
-            vendorContact = vendorInfo.vendor_email || "";
+            vendorCompanyName = override?.vendor_legal_name ?? vendorInfo.legal_name ?? "";
+            vendorCountry = override?.vendor_country ?? vendorInfo.country ?? "";
+            vendorState = override?.vendor_state ?? vendorInfo.state ?? "";
+            vendorCity = override?.vendor_city ?? vendorInfo.city ?? "";
+            vendorStreetAddress = override?.vendor_address ?? vendorInfo.address ?? "";
+            vendorZipCode = override?.vendor_post_code ?? vendorInfo.post_code ?? "";
+            vendorContact = override?.vendor_email ?? vendorInfo.vendor_email ?? "";
           }
         } catch (vendorError) {
           console.error("Error fetching vendor information:", vendorError);
@@ -614,16 +638,16 @@ function AgentCompaniesContent({ analyticsData }: AgentCompaniesProps) {
         // Map Supabase fields to the expected format
         setSelectedCompanyData({
           id: company.id || "",
-          organization_name: company.name || "",
-          logo: company.logo_url || "",
+          organization_name: override?.display_name ?? company.name ?? "",
+          logo: override?.logo_url ?? company.logo_url ?? "",
           domain: company.domain || "",
-          website: company.website || "",
+          website: override?.website ?? company.website ?? "",
           linkedinUrl: linkedinUrl,
           twitterUrl: twitterUrl,
           facebookUrl: facebookUrl,
           annualRevenue: company.annual_revenue?.toString() || "0",
           employeeCount: company.employee_count?.toString() || "",
-          industry: company.industry || "",
+          industry: override?.industry ?? company.industry ?? "",
           foundingYear: company.founding_year?.toString() || "",
           country: company.country || "",
           vendorInfoId: vendorInfoId,
@@ -634,7 +658,7 @@ function AgentCompaniesContent({ analyticsData }: AgentCompaniesProps) {
           vendorStreetAddress: vendorStreetAddress,
           vendorZipCode: vendorZipCode,
           vendorContact: vendorContact,
-          shortDescription: company.overview || "",
+          shortDescription: override?.overview ?? company.overview ?? "",
           createdAt: company.created_at || "",
           createdBy: company.created_by || "",
           apolloOrganizationId: company.apollo_organization_id || "",
@@ -642,7 +666,7 @@ function AgentCompaniesContent({ analyticsData }: AgentCompaniesProps) {
           apollo_organization_name: company.apollo_organization_name || "",
           alexaRanking: company.alexa_ranking?.toString() || "",
           lastEnriched: company.last_enriched || "",
-          phone: company.phone || "",
+          phone: override?.phone ?? company.phone ?? "",
           retail_location_count: "",
           updatedAt: company.updated_at || "",
           updated_at: company.updated_at || "",

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseClient } from "@/app/auth/supabaseClient";
 import { format } from "date-fns";
 import { ChevronDown, ChevronUp, Info, Plus, Pencil } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -13,11 +13,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 interface EmploymentHistoryProps {
   personId: string;
@@ -48,6 +43,7 @@ export default function EmploymentHistory({ personId }: EmploymentHistoryProps) 
   const [showCompanySearch, setShowCompanySearch] = useState(false);
   const [companySearchValue, setCompanySearchValue] = useState("");
   const [isLinkingCompany, setIsLinkingCompany] = useState(false);
+  const supabase = getSupabaseClient();
 
   const fetchCurrentEmployer = useCallback(async () => {
     if (!personId) return;
