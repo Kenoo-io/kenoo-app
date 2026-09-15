@@ -6,10 +6,17 @@ import { createClient } from "@walls/supabase/server";
 
 import { sendTaskAssignmentEmail } from "@/lib/task-assignment-email";
 
+const TASK_ASSIGNED_ALERT_KEY = "projects.task_assigned";
+
 type AssignmentRow = {
   id: string;
   task_id: string;
   user_id: string;
+};
+
+type ProjectRow = {
+  name: string | null;
+  account_id: string;
 };
 
 export async function POST(request: Request) {
@@ -30,7 +37,7 @@ export async function POST(request: Request) {
     await Promise.all([
       sessionClient
         .from("project_tasks")
-        .select("id, title, project_id, projects(name)")
+        .select("id, title, project_id, projects(name, account_id)")
         .eq("id", body.taskId)
         .maybeSingle(),
       sessionClient
@@ -45,6 +52,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Task assignment was not found" }, { status: 404 });
   }
 
+  const project = (Array.isArray(task.projects) ? task.projects[0] : task.projects) as ProjectRow | null;
+  if (!project?.account_id) {
+    return NextResponse.json({ error: "Project account was not found" }, { status: 404 });
+  }
+
   // Preferences and recipient details are private to the recipient, so this
   // trusted route reads only the fields it needs with the service role.
   let admin;
@@ -57,9 +69,12 @@ export async function POST(request: Request) {
 
   const [{ data: preference }, { data: recipient }, { data: actorDetails }] = await Promise.all([
     admin
-      .from("project_notification_preferences")
-      .select("task_assigned_email")
+      .from("alert_subscriptions")
+      .select("notify_email, enabled")
+      .eq("account_id", project.account_id)
       .eq("user_id", body.assigneeId)
+      .eq("app_slug", process.env.NEXT_PUBLIC_PROJECTS_APP_SLUG || "projects")
+      .eq("alert_key", TASK_ASSIGNED_ALERT_KEY)
       .maybeSingle(),
     admin
       .from("users")
@@ -73,11 +88,10 @@ export async function POST(request: Request) {
       .maybeSingle(),
   ]);
 
-  if (preference?.task_assigned_email === false || !recipient?.email) {
+  if ((preference && (!preference.enabled || !preference.notify_email)) || !recipient?.email) {
     return NextResponse.json({ queued: false });
   }
 
-  const project = Array.isArray(task.projects) ? task.projects[0] : task.projects;
   const actorName = `${actorDetails?.first_name ?? ""} ${actorDetails?.last_name ?? ""}`.trim()
     || actorDetails?.email
     || "Someone";
