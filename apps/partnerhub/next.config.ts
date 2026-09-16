@@ -71,6 +71,11 @@ const nextConfig: NextConfig = {
         hostname: "assest.kenoo.io",
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "assets.kenoo.io",
+        pathname: "/**",
+      },
       ...(supabaseHostname
         ? [
             {

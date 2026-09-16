@@ -57,6 +57,16 @@ const nextConfig: NextConfig = {
         hostname: "assets.wallsentertainment.com",
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "assest.kenoo.io",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "assets.kenoo.io",
+        pathname: "/**",
+      },
       ...(supabaseHostname
         ? [
             {
