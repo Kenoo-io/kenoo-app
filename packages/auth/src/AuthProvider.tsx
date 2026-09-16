@@ -101,7 +101,7 @@ async function fetchUserProfile(
     supabase
       .from("user_app_access")
       .select(
-        "app_id, order_index, apps(id, slug, name, icon_url, url_redirect, subdomain)",
+        "app_id, order_index, apps(id, slug, name, icon_url, kenoo_icon_urls, url_redirect, subdomain)",
       )
       .eq("user_id", userId)
       .order("order_index", { ascending: true }),
@@ -135,7 +135,7 @@ async function fetchUserProfile(
     const { data } = await supabase
       .from("account_app_user_access")
       .select(
-        "app_id, apps(id, slug, name, icon_url, url_redirect, subdomain)",
+        "app_id, apps(id, slug, name, icon_url, kenoo_icon_urls, url_redirect, subdomain)",
       )
       .eq("account_id", activeAccountId)
       .eq("user_id", userId);
@@ -228,10 +228,18 @@ async function fetchUserProfile(
         "subdomain" in a && a.subdomain != null
           ? String(a.subdomain)
           : null;
+      const kenooIconUrl =
+        "kenoo_icon_urls" in a && typeof a.kenoo_icon_urls === "string"
+          ? a.kenoo_icon_urls.trim()
+          : "";
+      const legacyIconUrl =
+        "icon_url" in a && typeof a.icon_url === "string"
+          ? a.icon_url.trim()
+          : "";
       const iconUrl =
-        "icon_url" in a && a.icon_url
-          ? String(a.icon_url)
-          : `https://assets.wallsentertainment.com/walls-app-icons/${slug}.svg`;
+        kenooIconUrl ||
+        legacyIconUrl ||
+        `https://assets.wallsentertainment.com/walls-app-icons/${slug}.svg`;
       const path = resolveAppHref({
         slug,
         subdomain,
