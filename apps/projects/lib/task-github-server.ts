@@ -9,6 +9,7 @@ export type TaskGitHubBranch = {
   base_branch: string;
   base_sha: string;
   branch_name: string;
+  branch_deleted_at?: string | null;
 };
 
 export async function requireTaskGitHubContext(options: { write?: boolean } = {}) {

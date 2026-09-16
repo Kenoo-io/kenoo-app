@@ -11,7 +11,7 @@ export async function GET(request: Request) {
     const { accountId } = await requireTaskGitHubContext();
     await getTaskForAccount(taskId, accountId);
     const { data, error } = await createAdminClient().from("project_task_github_branches")
-      .select("task_id, repository_full_name, base_branch, base_sha, branch_name").eq("task_id", taskId).maybeSingle();
+      .select("task_id, repository_full_name, base_branch, base_sha, branch_name, branch_deleted_at").eq("task_id", taskId).maybeSingle();
     if (error) throw error;
     return NextResponse.json({ branch: data as TaskGitHubBranch | null });
   } catch (error) {

@@ -839,7 +839,7 @@ function AgentsProjectsKanbanContent({
   const [defaultStatus, setDefaultStatus] = useState<TaskStatus>("todo");
   const [viewTask, setViewTask] = useState<ProjectTask | null>(null);
   const [deleteTask, setDeleteTask] = useState<ProjectTask | null>(null);
-  const [deleteTaskBranch, setDeleteTaskBranch] = useState<{ repository_full_name: string; branch_name: string } | null>(null);
+  const [deleteTaskBranch, setDeleteTaskBranch] = useState<{ repository_full_name: string; branch_name: string; branch_deleted_at?: string | null } | null>(null);
   const [checkingDeleteBranch, setCheckingDeleteBranch] = useState(false);
   const [deletingTask, setDeletingTask] = useState(false);
   const [deleteTaskError, setDeleteTaskError] = useState<string | null>(null);
@@ -1403,7 +1403,7 @@ function AgentsProjectsKanbanContent({
             </p>
             {checkingDeleteBranch ? (
               <div className="h-14 animate-pulse rounded-xl bg-neutral-50" />
-            ) : deleteTaskBranch ? (
+            ) : deleteTaskBranch && !deleteTaskBranch.branch_deleted_at ? (
               <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-900">
                 This task is linked to <span className="font-medium">{deleteTaskBranch.repository_full_name} · {deleteTaskBranch.branch_name}</span>.
                 <p className="mt-1 text-xs text-amber-800">Would you also like to delete that GitHub branch?</p>
@@ -1419,7 +1419,7 @@ function AgentsProjectsKanbanContent({
               >
                 Cancel
               </Button>
-              {deleteTaskBranch && !checkingDeleteBranch ? <Button
+              {deleteTaskBranch && !deleteTaskBranch.branch_deleted_at && !checkingDeleteBranch ? <Button
                 variant="ghost"
                 onClick={() => deleteTask && handleDeleteTask(deleteTask)}
                 disabled={deletingTask}
@@ -1428,11 +1428,11 @@ function AgentsProjectsKanbanContent({
                 Delete task only
               </Button> : null}
               <Button
-                onClick={() => deleteTask && handleDeleteTask(deleteTask, Boolean(deleteTaskBranch))}
+                onClick={() => deleteTask && handleDeleteTask(deleteTask, Boolean(deleteTaskBranch && !deleteTaskBranch.branch_deleted_at))}
                 disabled={deletingTask || checkingDeleteBranch}
                 className="rounded-xl bg-red-600 text-white hover:bg-red-500"
               >
-                {deletingTask ? "Deleting…" : deleteTaskBranch ? "Delete task & branch" : "Delete"}
+                {deletingTask ? "Deleting…" : deleteTaskBranch && !deleteTaskBranch.branch_deleted_at ? "Delete task & branch" : "Delete"}
               </Button>
             </div>
           </div>
