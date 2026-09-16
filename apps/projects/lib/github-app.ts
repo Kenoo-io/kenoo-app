@@ -196,6 +196,20 @@ export async function deleteGitHubBranchRef(input: { installationId: string; rep
   if (!response.ok && response.status !== 404) throw new Error(`GitHub branch deletion failed (${response.status}).`);
 }
 
+/** Checks GitHub directly so webhook delivery order cannot misclassify a merged branch as abandoned. */
+export async function hasMergedGitHubPullRequest(input: { installationId: string; repositoryFullName: string; branchName: string }): Promise<boolean> {
+  const [owner, repo] = input.repositoryFullName.split("/");
+  if (!owner || !repo || input.repositoryFullName.split("/").length !== 2 || !input.branchName) throw new Error("Invalid GitHub pull request lookup.");
+  const token = await createGitHubInstallationToken(input.installationId);
+  const params = new URLSearchParams({ state: "closed", head: `${owner}:${input.branchName}`, per_page: "100" });
+  const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/pulls?${params}`, {
+    headers: githubHeaders(token), cache: "no-store",
+  });
+  if (!response.ok) throw new Error(`GitHub pull request lookup failed (${response.status}).`);
+  const pullRequests = (await response.json()) as { merged_at?: string | null }[];
+  return pullRequests.some((pullRequest) => Boolean(pullRequest.merged_at));
+}
+
 export async function getGitHubAppInstallation(
   installationId: string,
 ): Promise<GitHubInstallation> {

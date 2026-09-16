@@ -2,8 +2,18 @@ import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@walls/supabase/admin";
 import { setGitHubInstallationConnectionActive } from "@/lib/github-connections-server";
+import { hasMergedGitHubPullRequest } from "@/lib/github-app";
 
-type Payload = { action?: string; installation?: { id?: number }; repository?: { full_name?: string }; ref?: string; pull_request?: { merged?: boolean; head?: { ref?: string }; base?: { ref?: string } }; deployment?: { ref?: string; environment?: string }; deployment_status?: { state?: string; environment?: string } };
+type Payload = {
+  action?: string;
+  installation?: { id?: number };
+  repository?: { full_name?: string };
+  ref?: string;
+  ref_type?: string;
+  pull_request?: { merged?: boolean; head?: { ref?: string }; base?: { ref?: string } };
+  deployment?: { ref?: string; environment?: string };
+  deployment_status?: { state?: string; environment?: string };
+};
 
 function validSignature(body: string, signature: string | null) {
   const secret = process.env.GITHUB_WEBHOOK_SECRET;
@@ -44,6 +54,51 @@ async function transition(event: string | null, payload: Payload) {
   if (updateError) throw updateError;
 }
 
+async function recordPullRequestMerge(payload: Payload) {
+  const repository = payload.repository?.full_name;
+  const branch = payload.pull_request?.head?.ref;
+  if (!repository || !branch || !payload.pull_request?.merged) return;
+  const { error } = await createAdminClient()
+    .from("project_task_github_branches")
+    .update({ pull_request_merged_at: new Date().toISOString() })
+    .eq("repository_full_name", repository)
+    .eq("branch_name", branch);
+  if (error) throw error;
+}
+
+async function handleBranchDeletion(payload: Payload) {
+  const repository = payload.repository?.full_name;
+  const branch = payload.ref;
+  if (payload.ref_type !== "branch" || !repository || !branch) return;
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("project_task_github_branches")
+    .select("task_id, pull_request_merged_at")
+    .eq("repository_full_name", repository)
+    .eq("branch_name", branch);
+  if (error) throw error;
+
+  const hasPersistedMerge = (data ?? []).some((row) => Boolean(row.pull_request_merged_at));
+  const installationId = payload.installation?.id;
+  const hasMergedPullRequest = hasPersistedMerge || (installationId
+    ? await hasMergedGitHubPullRequest({ installationId: String(installationId), repositoryFullName: repository, branchName: branch })
+    : false);
+  const unmergedTaskIds = hasMergedPullRequest ? [] : (data ?? []).map((row) => row.task_id as string);
+  const mergedTaskIds = hasMergedPullRequest ? (data ?? []).map((row) => row.task_id as string) : [];
+  if (unmergedTaskIds.length) {
+    const { error: unlinkError } = await admin.from("project_task_github_branches").delete().in("task_id", unmergedTaskIds);
+    if (unlinkError) throw unlinkError;
+  }
+  if (mergedTaskIds.length) {
+    const { error: archiveError } = await admin
+      .from("project_task_github_branches")
+      .update({ branch_deleted_at: new Date().toISOString() })
+      .in("task_id", mergedTaskIds)
+      .is("branch_deleted_at", null);
+    if (archiveError) throw archiveError;
+  }
+}
+
 export async function POST(request: NextRequest) {
   const body = await request.text();
   if (!validSignature(body, request.headers.get("x-hub-signature-256"))) return NextResponse.json({ error: "Invalid webhook signature" }, { status: 401 });
@@ -62,6 +117,8 @@ export async function POST(request: NextRequest) {
       if (["deleted", "suspend"].includes(payload.action ?? "")) await setGitHubInstallationConnectionActive({ installationId: String(installationId), active: false });
       if (payload.action === "unsuspend") await setGitHubInstallationConnectionActive({ installationId: String(installationId), active: true });
     }
+    if (event === "pull_request") await recordPullRequestMerge(payload);
+    if (event === "delete") await handleBranchDeletion(payload);
     // check_run/check_suite and pull_request_review are recorded but never infer completion.
     if (["push", "pull_request", "pull_request_review", "check_run", "check_suite", "deployment", "deployment_status"].includes(event ?? "")) await transition(event, payload);
     await admin.from("project_github_webhook_deliveries").update({ processed_at: new Date().toISOString() }).eq("delivery_id", deliveryId);

@@ -144,7 +144,7 @@ export interface CreateTasksPopupProps {
   existing?: ProjectTask | null;
 }
 
-type LinkedBranch = { repository_full_name: string; branch_name: string };
+type LinkedBranch = { repository_full_name: string; branch_name: string; branch_deleted_at?: string | null };
 type GitHubRepository = { full_name: string; default_branch: string };
 
 function TaskBranchField({ task, disabled }: { task: ProjectTask; disabled: boolean }) {
@@ -214,6 +214,7 @@ function TaskBranchField({ task, disabled }: { task: ProjectTask; disabled: bool
 
   const heading = <div className="flex w-full items-center justify-between px-4"><p className="text-[11px] font-normal uppercase tracking-[0.16em] text-neutral-500">GitHub branch</p>{setupOpen && !branch && <button type="button" aria-label="Close GitHub branch setup" onClick={() => { setSetupOpen(false); setError(null); }} className="rounded-full p-1 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-700"><X className="h-3.5 w-3.5" /></button>}</div>;
   if (loading) return <div className="w-full space-y-2">{heading}<div className="h-10 animate-pulse rounded-xl bg-neutral-50" /></div>;
+  if (branch?.branch_deleted_at) return <div className="w-full space-y-2">{heading}<div className="flex items-center gap-2 rounded-xl bg-neutral-100 px-3 py-2 text-xs text-neutral-500"><GitBranch className="h-4 w-4 shrink-0" /><span className="truncate">{branch.repository_full_name} · {branch.branch_name} (deleted after merge)</span></div></div>;
   if (branch) return <div className="w-full space-y-2">{heading}<a href={`https://github.com/${branch.repository_full_name}/tree/${encodeURIComponent(branch.branch_name)}`} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-xl bg-lime-50 px-3 py-2 text-xs text-neutral-700 hover:bg-lime-100"><GitBranch className="h-4 w-4 shrink-0 text-lime-700" /><span className="truncate">{branch.repository_full_name} · {branch.branch_name}</span><ExternalLink className="ml-auto h-3.5 w-3.5 shrink-0" /></a></div>;
   if (!setupOpen) return <div className="w-full space-y-2">{heading}<div className="px-4"><button type="button" disabled={disabled} onClick={() => { setError(null); setSetupOpen(true); }} className="w-full rounded-xl bg-neutral-900 px-3 py-2 text-xs font-medium text-white hover:bg-neutral-700 disabled:opacity-50"><Github className="mr-1.5 inline h-3.5 w-3.5" />Connect a branch</button>{error && <p className="mt-2 text-xs text-red-600">{error}</p>}</div></div>;
   if (loadingRepositories) return <div className="w-full space-y-2">{heading}<div className="space-y-2 px-4"><div className="h-10 animate-pulse rounded-xl bg-neutral-100" /><div className="h-10 animate-pulse rounded-xl bg-neutral-100" /><div className="h-9 animate-pulse rounded-xl bg-neutral-100" /></div></div>;
@@ -253,7 +254,7 @@ export function CreateTasksPopup({
   const [activeTab, setActiveTab] = useState<TaskPanelTab>("basics");
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [checkingDeleteBranch, setCheckingDeleteBranch] = useState(false);
-  const [linkedDeleteBranch, setLinkedDeleteBranch] = useState<{ repository_full_name: string; branch_name: string } | null>(null);
+  const [linkedDeleteBranch, setLinkedDeleteBranch] = useState<LinkedBranch | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   /** True while a nested dropdown is open, and briefly after — blocks dialog dismiss / overlay click-through. */
   const [blockDialogDismiss, setBlockDialogDismiss] = useState(false);
@@ -1171,9 +1172,9 @@ export function CreateTasksPopup({
         <DialogHeader className="p-0"><DialogTitle className="text-lg font-semibold tracking-tight text-neutral-950">Delete task?</DialogTitle></DialogHeader>
         <div className="mt-2 flex flex-col gap-4">
           <p className="text-sm leading-6 text-neutral-500">&ldquo;{existing?.title}&rdquo; will be permanently deleted.</p>
-          {checkingDeleteBranch ? <div className="h-14 animate-pulse rounded-2xl bg-neutral-50" /> : linkedDeleteBranch ? <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">This task is linked to <span className="font-medium">{linkedDeleteBranch.repository_full_name} · {linkedDeleteBranch.branch_name}</span>.<p className="mt-1 text-xs leading-5 text-amber-800">Would you also like to delete that GitHub branch?</p></div> : null}
+          {checkingDeleteBranch ? <div className="h-14 animate-pulse rounded-2xl bg-neutral-50" /> : linkedDeleteBranch && !linkedDeleteBranch.branch_deleted_at ? <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">This task is linked to <span className="font-medium">{linkedDeleteBranch.repository_full_name} · {linkedDeleteBranch.branch_name}</span>.<p className="mt-1 text-xs leading-5 text-amber-800">Would you also like to delete that GitHub branch?</p></div> : null}
           {deleteError ? <p className="text-xs text-red-600">{deleteError}</p> : null}
-          <div className="mt-2 flex flex-wrap items-center justify-end gap-2"><button type="button" onClick={() => setDeleteConfirmOpen(false)} disabled={saving} className={cn(modalSecondaryButtonClass, "whitespace-nowrap")}>Cancel</button>{linkedDeleteBranch && !checkingDeleteBranch ? <button type="button" onClick={() => void handleDelete(false)} disabled={saving} className={cn(modalSecondaryButtonClass, "whitespace-nowrap")}>Delete task only</button> : null}<button type="button" onClick={() => void handleDelete(Boolean(linkedDeleteBranch))} disabled={saving || checkingDeleteBranch} className="inline-flex h-10 whitespace-nowrap items-center justify-center rounded-lg bg-red-600 px-4 text-sm font-medium text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50">{saving ? "Deleting…" : linkedDeleteBranch ? "Delete task & branch" : "Delete"}</button></div>
+          <div className="mt-2 flex flex-wrap items-center justify-end gap-2"><button type="button" onClick={() => setDeleteConfirmOpen(false)} disabled={saving} className={cn(modalSecondaryButtonClass, "whitespace-nowrap")}>Cancel</button>{linkedDeleteBranch && !linkedDeleteBranch.branch_deleted_at && !checkingDeleteBranch ? <button type="button" onClick={() => void handleDelete(false)} disabled={saving} className={cn(modalSecondaryButtonClass, "whitespace-nowrap")}>Delete task only</button> : null}<button type="button" onClick={() => void handleDelete(Boolean(linkedDeleteBranch && !linkedDeleteBranch.branch_deleted_at))} disabled={saving || checkingDeleteBranch} className="inline-flex h-10 whitespace-nowrap items-center justify-center rounded-lg bg-red-600 px-4 text-sm font-medium text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50">{saving ? "Deleting…" : linkedDeleteBranch && !linkedDeleteBranch.branch_deleted_at ? "Delete task & branch" : "Delete"}</button></div>
         </div>
       </DialogContent>
     </Dialog>
