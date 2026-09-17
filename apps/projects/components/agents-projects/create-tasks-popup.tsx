@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { getSupabaseClient } from "@walls/auth";
 import { useAuth } from "@walls/auth";
-import { ChevronDown, ExternalLink, GitBranch, Github, Trash2, X } from "lucide-react";
+import { Check, ChevronDown, ExternalLink, GitBranch, Github, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Project,
@@ -81,6 +81,7 @@ interface TaskFormState {
   priority: string;
   project_id: string;
   assignee_ids: string[];
+  blocker_task_ids: string[];
   /** When true (default), task is public (is_private = false). */
   is_public: boolean;
 }
@@ -95,8 +96,11 @@ const EMPTY_TASK_FORM: TaskFormState = {
   priority: "3",
   project_id: "",
   assignee_ids: [],
+  blocker_task_ids: [],
   is_public: true,
 };
+
+type TaskBlockerOption = Pick<ProjectTask, "id" | "status" | "title">;
 
 function projectSwatchColor(project: Project): string {
   return (
@@ -297,6 +301,8 @@ export function CreateTasksPopup({
     Record<string, string>
   >({});
   const [assigneePopoverOpen, setAssigneePopoverOpen] = useState(false);
+  const [blockersPopoverOpen, setBlockersPopoverOpen] = useState(false);
+  const [blockerSearch, setBlockerSearch] = useState("");
   const [duePopoverOpen, setDuePopoverOpen] = useState(false);
   const [projectSelectOpen, setProjectSelectOpen] = useState(false);
   const [statusSelectOpen, setStatusSelectOpen] = useState(false);
@@ -347,6 +353,7 @@ export function CreateTasksPopup({
   const forceCloseDialog = useCallback(() => {
     clearDialogDismissBlock();
     setAssigneePopoverOpen(false);
+    setBlockersPopoverOpen(false);
     setDuePopoverOpen(false);
     setProjectSelectOpen(false);
     setStatusSelectOpen(false);
@@ -374,12 +381,22 @@ export function CreateTasksPopup({
     },
     [form.project_id, setNestedDropdownOpen]
   );
+  const handleBlockersPopoverOpenChange = useCallback(
+    (next: boolean) => {
+      if (next && !form.project_id) return;
+      if (!next) setBlockerSearch("");
+      setNestedDropdownOpen(setBlockersPopoverOpen)(next);
+    },
+    [form.project_id, setNestedDropdownOpen]
+  );
   const projectNameRef = useRef<HTMLSpanElement | null>(null);
   const [isProjectNameTruncated, setIsProjectNameTruncated] = useState(false);
   const [projectMemberIds, setProjectMemberIds] = useState<string[]>([]);
   const [loadingProjectMembers, setLoadingProjectMembers] = useState(false);
   const [accessibleProjects, setAccessibleProjects] = useState<Project[]>([]);
   const [loadingAccessibleProjects, setLoadingAccessibleProjects] = useState(false);
+  const [projectTasks, setProjectTasks] = useState<TaskBlockerOption[]>([]);
+  const [loadingProjectTasks, setLoadingProjectTasks] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -490,6 +507,7 @@ export function CreateTasksPopup({
         priority: existing.priority?.toString() ?? "3",
         project_id: existing.project_id,
         assignee_ids: getTaskAssigneeIds(existing),
+        blocker_task_ids: [],
         is_public: existing.is_private === false,
       });
     } else {
@@ -558,6 +576,61 @@ export function CreateTasksPopup({
       f.assignee_ids.length > 0 ? f : { ...f, assignee_ids: [currentUserId] }
     );
   }, [open, existing, currentUserId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadProjectTasks = async () => {
+      if (!open || !form.project_id) {
+        setProjectTasks([]);
+        setLoadingProjectTasks(false);
+        return;
+      }
+
+      setLoadingProjectTasks(true);
+      const supabase = getSupabaseClient();
+      const { data, error: loadError } = await supabase
+        .from("project_tasks")
+        .select("id, title, status")
+        .eq("project_id", form.project_id)
+        .neq("id", existing?.id ?? "00000000-0000-0000-0000-000000000000")
+        .order("title");
+
+      if (cancelled) return;
+      setProjectTasks(loadError ? [] : (data ?? []) as TaskBlockerOption[]);
+      setLoadingProjectTasks(false);
+    };
+
+    void loadProjectTasks();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, form.project_id, existing?.id]);
+
+  useEffect(() => {
+    if (!open || !existing?.id) return;
+
+    let cancelled = false;
+    const loadBlockers = async () => {
+      const supabase = getSupabaseClient();
+      const { data, error: loadError } = await supabase
+        .from("project_task_dependencies")
+        .select("blocker_task_id")
+        .eq("blocking_task_id", existing.id);
+
+      if (cancelled || loadError) return;
+      setForm((current) => ({
+        ...current,
+        blocker_task_ids: (data ?? []).map(
+          (dependency: { blocker_task_id: string }) => dependency.blocker_task_id
+        ),
+      }));
+    };
+
+    void loadBlockers();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, existing?.id]);
 
   useEffect(() => {
     if (!open || !form.project_id) {
@@ -683,6 +756,14 @@ export function CreateTasksPopup({
     (project) => project.id === form.project_id
   );
   const selectedProjectName = selectedProject?.name ?? "No project";
+  const filteredProjectTasks = useMemo(() => {
+    const query = blockerSearch.trim().toLocaleLowerCase();
+    return projectTasks.filter((task) => {
+      const isExistingBlocker = form.blocker_task_ids.includes(task.id);
+      if (task.status === "completed" && !isExistingBlocker) return false;
+      return !query || task.title.toLocaleLowerCase().includes(query);
+    });
+  }, [blockerSearch, form.blocker_task_ids, projectTasks]);
 
   useEffect(() => {
     const textElement = projectNameRef.current;
@@ -774,6 +855,9 @@ export function CreateTasksPopup({
       const assigneesChanged =
         assigneeIds.length !== previousAssigneeIds.length ||
         assigneeIds.some((id) => !previousAssigneeIds.includes(id));
+      const blockerTaskIds = form.status === "blocked"
+        ? [...new Set(form.blocker_task_ids.filter(Boolean))]
+        : [];
 
       const payload: Record<string, unknown> = {
         title: form.title.trim(),
@@ -812,6 +896,44 @@ export function CreateTasksPopup({
       }
 
       if (!taskId) throw new Error("Failed to save task.");
+
+      const { data: currentDependencies, error: dependenciesError } = await supabase
+        .from("project_task_dependencies")
+        .select("blocker_task_id")
+        .eq("blocking_task_id", taskId);
+      if (dependenciesError) throw dependenciesError;
+
+      const currentBlockerIds = (currentDependencies ?? []).map(
+        (dependency: { blocker_task_id: string }) => dependency.blocker_task_id
+      );
+      const blockerIdsToAdd = blockerTaskIds.filter(
+        (id) => !currentBlockerIds.includes(id)
+      );
+      const blockerIdsToRemove = currentBlockerIds.filter(
+        (id) => !blockerTaskIds.includes(id)
+      );
+
+      if (blockerIdsToAdd.length > 0) {
+        const { error: insertBlockersError } = await supabase
+          .from("project_task_dependencies")
+          .insert(
+            blockerIdsToAdd.map((blockerTaskId) => ({
+              blocking_task_id: taskId,
+              blocker_task_id: blockerTaskId,
+              created_by: actorUserId,
+            }))
+          );
+        if (insertBlockersError) throw insertBlockersError;
+      }
+
+      if (blockerIdsToRemove.length > 0) {
+        const { error: removeBlockersError } = await supabase
+          .from("project_task_dependencies")
+          .delete()
+          .eq("blocking_task_id", taskId)
+          .in("blocker_task_id", blockerIdsToRemove);
+        if (removeBlockersError) throw removeBlockersError;
+      }
 
       await syncProjectTaskAssignees(
         supabase,
@@ -854,6 +976,7 @@ export function CreateTasksPopup({
     <>
     <Dialog
       open={open}
+      modal={false}
       onOpenChange={(next) => {
         if (!next && blockDialogDismissRef.current) return;
         if (!next) onClose();
@@ -928,7 +1051,11 @@ export function CreateTasksPopup({
             {/* Project */}
             <Select
               value={form.project_id}
-              onValueChange={(v) => setForm((f) => ({ ...f, project_id: v }))}
+              onValueChange={(v) => setForm((f) => ({
+                ...f,
+                project_id: v,
+                blocker_task_ids: f.project_id === v ? f.blocker_task_ids : [],
+              }))}
               open={projectSelectOpen}
               onOpenChange={setNestedDropdownOpen(setProjectSelectOpen)}
               disabled={saving || (loadingAccessibleProjects && projectOptions.length === 0)}
@@ -1091,6 +1218,110 @@ export function CreateTasksPopup({
                 ))}
               </SelectContent>
             </Select>
+
+            {form.status === "blocked" && (
+              <Popover
+                modal={false}
+                open={blockersPopoverOpen}
+                onOpenChange={handleBlockersPopoverOpenChange}
+              >
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    disabled={saving || !form.project_id}
+                    className="w-full flex cursor-pointer items-center gap-2 rounded-full px-4 py-2 hover:bg-gray-100 focus:outline-none text-left disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <span className={cn("shrink-0", fieldLabelClass)}>Blockers:</span>
+                    <span
+                      className={cn(
+                        "flex-1 truncate",
+                        fieldValueClass,
+                        form.blocker_task_ids.length === 0 && fieldPlaceholderClass
+                      )}
+                    >
+                      {!form.project_id
+                        ? "Select a project"
+                        : form.blocker_task_ids.length === 0
+                          ? "Select tasks"
+                          : projectTasks
+                              .filter((task) => form.blocker_task_ids.includes(task.id))
+                              .map((task) => task.title)
+                              .join(", ") || "Select tasks"}
+                    </span>
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent
+                  className="w-[360px] p-1 overflow-hidden rounded-2xl border border-neutral-200/60 shadow-xl bg-white/80 backdrop-blur-xl"
+                  align="start"
+                  onOpenAutoFocus={(e) => e.preventDefault()}
+                  onWheelCapture={(e) => e.stopPropagation()}
+                  onTouchMoveCapture={(e) => e.stopPropagation()}
+                >
+                  <p className="px-3 py-2 text-xs font-light text-neutral-500">
+                    Select the tasks that must be resolved first.
+                  </p>
+                  <div className="px-2 pb-2">
+                    <Input
+                      value={blockerSearch}
+                      onChange={(event) => setBlockerSearch(event.target.value)}
+                      placeholder="Search tasks"
+                      className="h-9 rounded-xl border-neutral-200 bg-white text-sm shadow-none focus-visible:ring-0"
+                      autoFocus
+                    />
+                  </div>
+                  <div className="max-h-64 overflow-y-auto">
+                    {loadingProjectTasks ? (
+                      <p className="px-3 py-3 text-sm font-light text-neutral-500">
+                        Loading project tasks…
+                      </p>
+                    ) : filteredProjectTasks.length === 0 ? (
+                      <p className="px-3 py-3 text-sm font-light text-neutral-500">
+                        {blockerSearch.trim()
+                          ? "No matching tasks"
+                          : "No other tasks in this project"}
+                      </p>
+                    ) : (
+                      filteredProjectTasks.map((task) => {
+                        const selected = form.blocker_task_ids.includes(task.id);
+                        return (
+                          <button
+                            key={task.id}
+                            type="button"
+                            onClick={() => setForm((current) => ({
+                              ...current,
+                              blocker_task_ids: selected
+                                ? current.blocker_task_ids.filter((id) => id !== task.id)
+                                : [...current.blocker_task_ids, task.id],
+                            }))}
+                            className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left hover:bg-neutral-100"
+                          >
+                            <span
+                              className={cn(
+                                "flex h-4 w-4 shrink-0 items-center justify-center rounded border",
+                                selected
+                                  ? "border-neutral-900 bg-neutral-900 text-white"
+                                  : "border-neutral-300 bg-white"
+                              )}
+                              aria-hidden
+                            >
+                              {selected ? <Check className="h-3 w-3" /> : null}
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-sm font-light text-neutral-900">
+                                {task.title}
+                              </span>
+                              <span className="block text-[11px] text-neutral-400">
+                                {TASK_STATUS_CONFIG[task.status].label}
+                              </span>
+                            </span>
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
 
             {/* Priority */}
             <Select
