@@ -91,7 +91,9 @@ export function useGitHubConnection() {
     // If this was already loaded during this browser session, render it right
     // away instead of making another round trip when a settings route remounts.
     if (!cache.loaded) void refetch();
-    return () => listeners.delete(subscribe);
+    return () => {
+      listeners.delete(subscribe);
+    };
   }, [refetch]);
 
   return { connection: state.connection, loading: state.loading || !state.loaded, refetch };
