@@ -87,6 +87,31 @@ import {
   resolveActorDisplayName,
 } from "@/lib/user-notifications";
 
+type TasksScreenCacheEntry = {
+  projects: Project[];
+  tasks: ProjectTask[];
+  scopeMetaRows: TaskScopeMetaRow[];
+};
+
+// The Tasks route is unmounted when navigating to another screen. Retain its
+// loaded data in the open app session so coming back does not replay the full
+// board/list loading state. A browser refresh naturally clears this module.
+const tasksScreenCache = new Map<string, TasksScreenCacheEntry>();
+
+function getTasksScreenCacheKey({
+  userId,
+  accountId,
+  projectFilter,
+  taskScopeFilter,
+}: {
+  userId: string;
+  accountId: string;
+  projectFilter: string;
+  taskScopeFilter: BoardTaskScope;
+}) {
+  return JSON.stringify([userId, accountId, projectFilter, taskScopeFilter]);
+}
+
 /* Parse date as local calendar date (avoids timezone shifting to previous day). */
 function parseLocalDate(dateStr: string): Date {
   const dateOnly = dateStr.slice(0, 10);
@@ -1049,17 +1074,35 @@ function AgentsProjectsKanbanContent({
   const { activeAccountId, loading: accountLoading } = useActiveAccount();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [tasks, setTasks] = useState<ProjectTask[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [projectFilter, setProjectFilter] = useState<string>(
-    searchParams.get("project") ?? "all"
+  const initialProjectFilter = searchParams.get("project") ?? "all";
+  const initialTaskScopeFilter = parseBoardTaskScope(searchParams.get("scope"));
+  const initialCacheKey =
+    user && activeAccountId
+      ? getTasksScreenCacheKey({
+          userId: user.id,
+          accountId: activeAccountId,
+          projectFilter: initialProjectFilter,
+          taskScopeFilter: initialTaskScopeFilter,
+        })
+      : null;
+  const initialCachedData = initialCacheKey
+    ? tasksScreenCache.get(initialCacheKey)
+    : undefined;
+  const [projects, setProjects] = useState<Project[]>(
+    () => initialCachedData?.projects ?? [],
   );
-  const [taskScopeFilter, setTaskScopeFilter] = useState<BoardTaskScope>(() =>
-    parseBoardTaskScope(searchParams.get("scope"))
+  const [tasks, setTasks] = useState<ProjectTask[]>(
+    () => initialCachedData?.tasks ?? [],
   );
+  const [loading, setLoading] = useState(() => !initialCachedData);
+  const [projectFilter, setProjectFilter] = useState<string>(initialProjectFilter);
+  const [taskScopeFilter, setTaskScopeFilter] =
+    useState<BoardTaskScope>(initialTaskScopeFilter);
   const viewMode = searchParams.get("view") === "list" ? "list" : "kanban";
-  const [scopeMetaRows, setScopeMetaRows] = useState<TaskScopeMetaRow[]>([]);
+  const [scopeMetaRows, setScopeMetaRows] = useState<TaskScopeMetaRow[]>(
+    () => initialCachedData?.scopeMetaRows ?? [],
+  );
+  const loadedCacheKeyRef = useRef<string | null>(initialCacheKey);
 
   const scopeProjectIds = useMemo(() => {
     if (projectFilter === "all") {
@@ -1174,11 +1217,30 @@ function AgentsProjectsKanbanContent({
   /* Load data */
   const loadData = useCallback(async () => {
     if (!user || !activeAccountId || accountLoading) {
+      loadedCacheKeyRef.current = null;
       setTasks([]);
       setProjects([]);
       setLoading(false);
       return;
     }
+
+    const cacheKey = getTasksScreenCacheKey({
+      userId: user.id,
+      accountId: activeAccountId,
+      projectFilter,
+      taskScopeFilter,
+    });
+    const cached = tasksScreenCache.get(cacheKey);
+    if (cached && refreshTrigger === 0) {
+      loadedCacheKeyRef.current = cacheKey;
+      setProjects(cached.projects);
+      setTasks(cached.tasks);
+      setScopeMetaRows(cached.scopeMetaRows);
+      setLoading(false);
+      return;
+    }
+
+    loadedCacheKeyRef.current = null;
     setLoading(true);
     try {
       const supabase = getSupabaseClient();
@@ -1189,7 +1251,6 @@ function AgentsProjectsKanbanContent({
           select: ACCESSIBLE_PROJECT_SELECT.summary,
         })
       ).filter((p) => TASK_BOARD_PROJECT_STATUSES.includes(p.status));
-      setProjects(loadedProjects);
 
       const projectIds = loadedProjects.map((p) => p.id);
       const taskSelect = PROJECT_TASK_SELECT_WITH_ASSIGNEE;
@@ -1224,8 +1285,6 @@ function AgentsProjectsKanbanContent({
           };
         });
       }
-      setScopeMetaRows(metaRows);
-
       const contextualProjectIds =
         projectFilter === "all"
           ? projectIds
@@ -1290,12 +1349,20 @@ function AgentsProjectsKanbanContent({
       );
 
       const loadedTasks = filterTasksVisibleToUser(taskRows ?? [], user.id);
-      setTasks(
-        loadedTasks.map((t) => ({
+      const loadedTasksWithProjects = loadedTasks.map((t) => ({
           ...t,
           project: projectMap.get(t.project_id),
-        }))
-      );
+        }));
+
+      loadedCacheKeyRef.current = cacheKey;
+      tasksScreenCache.set(cacheKey, {
+        projects: loadedProjects,
+        tasks: loadedTasksWithProjects,
+        scopeMetaRows: metaRows,
+      });
+      setProjects(loadedProjects);
+      setScopeMetaRows(metaRows);
+      setTasks(loadedTasksWithProjects);
     } catch {
       setTasks([]);
     } finally {
@@ -1304,6 +1371,12 @@ function AgentsProjectsKanbanContent({
   }, [user, activeAccountId, accountLoading, refreshTrigger, taskScopeFilter, projectFilter]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  useEffect(() => {
+    const cacheKey = loadedCacheKeyRef.current;
+    if (!cacheKey) return;
+    tasksScreenCache.set(cacheKey, { projects, tasks, scopeMetaRows });
+  }, [projects, scopeMetaRows, tasks]);
 
   useEffect(() => {
     if (taskScopeOptions.length === 0) {
@@ -1593,7 +1666,11 @@ function AgentsProjectsKanbanContent({
     }
   };
 
-  const refresh = () => setRefreshTrigger((r) => r + 1);
+  const refresh = () => {
+    tasksScreenCache.clear();
+    loadedCacheKeyRef.current = null;
+    setRefreshTrigger((r) => r + 1);
+  };
 
   return (
     <>

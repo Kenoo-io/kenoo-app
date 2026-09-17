@@ -146,14 +146,46 @@ export interface CreateTasksPopupProps {
 
 type LinkedBranch = { repository_full_name: string; branch_name: string; branch_deleted_at?: string | null };
 type GitHubRepository = { full_name: string; default_branch: string };
+type TimedCacheEntry<T> = { value: T; expiresAt: number };
 
-function TaskBranchField({ task, disabled }: { task: ProjectTask; disabled: boolean }) {
+const GITHUB_CACHE_TTL_MS = 5 * 60 * 1000;
+const taskBranchCache = new Map<string, TimedCacheEntry<LinkedBranch | null>>();
+let repositoriesCache: TimedCacheEntry<GitHubRepository[]> | null = null;
+
+function getCachedValue<T>(entry: TimedCacheEntry<T> | null | undefined): T | null {
+  return entry && entry.expiresAt > Date.now() ? entry.value : null;
+}
+
+async function loadTaskBranch(taskId: string): Promise<LinkedBranch | null> {
+  const cached = taskBranchCache.get(taskId);
+  if (cached && cached.expiresAt > Date.now()) return cached.value;
+  const response = await fetch(`/api/tasks/github/branch?taskId=${encodeURIComponent(taskId)}`);
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || "Unable to load the linked GitHub branch.");
+  const branch = (result.branch as LinkedBranch | null) ?? null;
+  taskBranchCache.set(taskId, { value: branch, expiresAt: Date.now() + GITHUB_CACHE_TTL_MS });
+  return branch;
+}
+
+async function loadGitHubRepositories(): Promise<GitHubRepository[]> {
+  const cached = getCachedValue(repositoriesCache);
+  if (cached) return cached;
+  const response = await fetch("/api/tasks/github/repositories");
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || "Unable to load GitHub connection.");
+  const repositories = (result.repositories ?? []) as GitHubRepository[];
+  repositoriesCache = { value: repositories, expiresAt: Date.now() + GITHUB_CACHE_TTL_MS };
+  return repositories;
+}
+
+function TaskBranchField({ task, disabled, open }: { task: ProjectTask; disabled: boolean; open: boolean }) {
   const [branch, setBranch] = useState<LinkedBranch | null>(null);
   const [repositories, setRepositories] = useState<GitHubRepository[]>([]);
   const [repository, setRepository] = useState("");
   const [baseBranch, setBaseBranch] = useState("");
   const [branches, setBranches] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadedBranchTaskId, setLoadedBranchTaskId] = useState<string | null>(null);
   const [loadingRepositories, setLoadingRepositories] = useState(false);
   const [setupOpen, setSetupOpen] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -162,33 +194,35 @@ function TaskBranchField({ task, disabled }: { task: ProjectTask; disabled: bool
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!open) return;
     let cancelled = false;
-    fetch(`/api/tasks/github/branch?taskId=${encodeURIComponent(task.id)}`).then((r) => r.json())
-      .then((branchResult) => {
+    setLoading(true);
+    setLoadedBranchTaskId(null);
+    loadTaskBranch(task.id)
+      .then((linkedBranch) => {
         if (cancelled) return;
-        setBranch((branchResult.branch as LinkedBranch | null) ?? null);
-        setError(branchResult.error ?? null);
+        setBranch(linkedBranch);
+        setError(null);
+        setLoadedBranchTaskId(task.id);
       })
       .catch(() => !cancelled && setError("Unable to load the linked GitHub branch."))
       .finally(() => !cancelled && setLoading(false));
     return () => { cancelled = true; };
-  }, [task.id]);
+  }, [task.id, open]);
 
   useEffect(() => {
-    if (!setupOpen || branch) return;
+    if (!open || loading || loadedBranchTaskId !== task.id || branch || repositories.length) return;
     let cancelled = false;
     setLoadingRepositories(true);
-    fetch("/api/tasks/github/repositories").then((r) => r.json()).then((result) => {
+    loadGitHubRepositories().then((available) => {
       if (cancelled) return;
-      const available = (result.repositories ?? []) as GitHubRepository[];
       setRepositories(available);
       if (available[0]) { setRepository(available[0].full_name); setBaseBranch(available[0].default_branch); }
-      setError(result.error ?? null);
     }).catch(() => !cancelled && setError("Unable to load GitHub connection.")).finally(() => {
       if (!cancelled) setLoadingRepositories(false);
     });
     return () => { cancelled = true; };
-  }, [setupOpen, branch]);
+  }, [open, loading, loadedBranchTaskId, task.id, branch, repositories.length]);
 
   useEffect(() => {
     if (!setupOpen || !repository || branch) return;
@@ -210,6 +244,7 @@ function TaskBranchField({ task, disabled }: { task: ProjectTask; disabled: bool
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Unable to create branch.");
       setBranch(result.branch as LinkedBranch);
+      taskBranchCache.set(task.id, { value: result.branch as LinkedBranch, expiresAt: Date.now() + GITHUB_CACHE_TTL_MS });
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to create branch."); }
     finally { setCreating(false); }
   };
@@ -221,6 +256,7 @@ function TaskBranchField({ task, disabled }: { task: ProjectTask; disabled: bool
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Unable to delete the GitHub branch.");
       setBranch(null);
+      taskBranchCache.set(task.id, { value: null, expiresAt: Date.now() + GITHUB_CACHE_TTL_MS });
       setConfirmingBranchRemoval(false);
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to delete the GitHub branch."); }
     finally { setRemovingBranch(false); }
@@ -1125,17 +1161,14 @@ export function CreateTasksPopup({
               </p>
             </div>
 
-            {existing && (
-              <div className="border-t border-neutral-100 pt-4 mt-3 space-y-2">
-                <TaskBranchField task={existing} disabled={saving} />
-              </div>
-            )}
             {!existing && (
               <div className="rounded-2xl border border-dashed border-neutral-200 px-4 py-3 text-xs font-light leading-5 text-neutral-500">
                 Save this task first, then return to Settings to connect or create a GitHub branch.
               </div>
             )}
             </div>}
+
+            {existing && <div className={cn("border-t border-neutral-100 pt-4 mt-3 space-y-2", activeTab !== "settings" && "hidden")}><TaskBranchField task={existing} disabled={saving} open={open} /></div>}
 
             {activeTab === "schedule" && <div className="rounded-2xl border border-neutral-200/80 bg-neutral-50/60 px-4 py-4">
               <p className="text-sm font-medium text-neutral-900">Schedule this task</p>
