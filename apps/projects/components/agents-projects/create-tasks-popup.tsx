@@ -43,7 +43,7 @@ import {
 } from "@/components/ui/tooltip";
 import { MiniDatePicker } from "@/components/ui/mini-date-picker";
 import { SequenceSwitch as Switch } from "@/components/ui/sequence-switch";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { format, isValid, parseISO } from "date-fns";
 import { AgentSearch } from "@/components/ui/searches/agent-search";
 import { SimpleMarkdownEditor } from "@/components/agents-projects/simple-markdown-editor";
@@ -146,47 +146,83 @@ export interface CreateTasksPopupProps {
 
 type LinkedBranch = { repository_full_name: string; branch_name: string; branch_deleted_at?: string | null };
 type GitHubRepository = { full_name: string; default_branch: string };
+type TimedCacheEntry<T> = { value: T; expiresAt: number };
 
-function TaskBranchField({ task, disabled }: { task: ProjectTask; disabled: boolean }) {
+const GITHUB_CACHE_TTL_MS = 5 * 60 * 1000;
+const taskBranchCache = new Map<string, TimedCacheEntry<LinkedBranch | null>>();
+let repositoriesCache: TimedCacheEntry<GitHubRepository[]> | null = null;
+
+function getCachedValue<T>(entry: TimedCacheEntry<T> | null | undefined): T | null {
+  return entry && entry.expiresAt > Date.now() ? entry.value : null;
+}
+
+async function loadTaskBranch(taskId: string): Promise<LinkedBranch | null> {
+  const cached = taskBranchCache.get(taskId);
+  if (cached && cached.expiresAt > Date.now()) return cached.value;
+  const response = await fetch(`/api/tasks/github/branch?taskId=${encodeURIComponent(taskId)}`);
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || "Unable to load the linked GitHub branch.");
+  const branch = (result.branch as LinkedBranch | null) ?? null;
+  taskBranchCache.set(taskId, { value: branch, expiresAt: Date.now() + GITHUB_CACHE_TTL_MS });
+  return branch;
+}
+
+async function loadGitHubRepositories(): Promise<GitHubRepository[]> {
+  const cached = getCachedValue(repositoriesCache);
+  if (cached) return cached;
+  const response = await fetch("/api/tasks/github/repositories");
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || "Unable to load GitHub connection.");
+  const repositories = (result.repositories ?? []) as GitHubRepository[];
+  repositoriesCache = { value: repositories, expiresAt: Date.now() + GITHUB_CACHE_TTL_MS };
+  return repositories;
+}
+
+function TaskBranchField({ task, disabled, open }: { task: ProjectTask; disabled: boolean; open: boolean }) {
   const [branch, setBranch] = useState<LinkedBranch | null>(null);
   const [repositories, setRepositories] = useState<GitHubRepository[]>([]);
   const [repository, setRepository] = useState("");
   const [baseBranch, setBaseBranch] = useState("");
   const [branches, setBranches] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadedBranchTaskId, setLoadedBranchTaskId] = useState<string | null>(null);
   const [loadingRepositories, setLoadingRepositories] = useState(false);
   const [setupOpen, setSetupOpen] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [removingBranch, setRemovingBranch] = useState(false);
+  const [confirmingBranchRemoval, setConfirmingBranchRemoval] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!open) return;
     let cancelled = false;
-    fetch(`/api/tasks/github/branch?taskId=${encodeURIComponent(task.id)}`).then((r) => r.json())
-      .then((branchResult) => {
+    setLoading(true);
+    setLoadedBranchTaskId(null);
+    loadTaskBranch(task.id)
+      .then((linkedBranch) => {
         if (cancelled) return;
-        setBranch((branchResult.branch as LinkedBranch | null) ?? null);
-        setError(branchResult.error ?? null);
+        setBranch(linkedBranch);
+        setError(null);
+        setLoadedBranchTaskId(task.id);
       })
       .catch(() => !cancelled && setError("Unable to load the linked GitHub branch."))
       .finally(() => !cancelled && setLoading(false));
     return () => { cancelled = true; };
-  }, [task.id]);
+  }, [task.id, open]);
 
   useEffect(() => {
-    if (!setupOpen || branch) return;
+    if (!open || loading || loadedBranchTaskId !== task.id || branch || repositories.length) return;
     let cancelled = false;
     setLoadingRepositories(true);
-    fetch("/api/tasks/github/repositories").then((r) => r.json()).then((result) => {
+    loadGitHubRepositories().then((available) => {
       if (cancelled) return;
-      const available = (result.repositories ?? []) as GitHubRepository[];
       setRepositories(available);
       if (available[0]) { setRepository(available[0].full_name); setBaseBranch(available[0].default_branch); }
-      setError(result.error ?? null);
     }).catch(() => !cancelled && setError("Unable to load GitHub connection.")).finally(() => {
       if (!cancelled) setLoadingRepositories(false);
     });
     return () => { cancelled = true; };
-  }, [setupOpen, branch]);
+  }, [open, loading, loadedBranchTaskId, task.id, branch, repositories.length]);
 
   useEffect(() => {
     if (!setupOpen || !repository || branch) return;
@@ -208,22 +244,36 @@ function TaskBranchField({ task, disabled }: { task: ProjectTask; disabled: bool
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Unable to create branch.");
       setBranch(result.branch as LinkedBranch);
+      taskBranchCache.set(task.id, { value: result.branch as LinkedBranch, expiresAt: Date.now() + GITHUB_CACHE_TTL_MS });
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to create branch."); }
     finally { setCreating(false); }
   };
 
-  const heading = <div className="flex w-full items-center justify-between px-4"><p className="text-[11px] font-normal uppercase tracking-[0.16em] text-neutral-500">GitHub branch</p>{setupOpen && !branch && <button type="button" aria-label="Close GitHub branch setup" onClick={() => { setSetupOpen(false); setError(null); }} className="rounded-full p-1 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-700"><X className="h-3.5 w-3.5" /></button>}</div>;
+  const deleteBranch = async () => {
+    setRemovingBranch(true); setError(null);
+    try {
+      const response = await fetch(`/api/tasks/github/branch?taskId=${encodeURIComponent(task.id)}`, { method: "DELETE" });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Unable to delete the GitHub branch.");
+      setBranch(null);
+      taskBranchCache.set(task.id, { value: null, expiresAt: Date.now() + GITHUB_CACHE_TTL_MS });
+      setConfirmingBranchRemoval(false);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to delete the GitHub branch."); }
+    finally { setRemovingBranch(false); }
+  };
+
+  const heading = <div className="relative flex w-full items-center px-4"><p className="text-[11px] font-normal uppercase tracking-[0.16em] text-neutral-500">GitHub</p>{setupOpen && !branch && <button type="button" aria-label="Close GitHub branch setup" onClick={() => { setSetupOpen(false); setError(null); }} className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full p-1 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-700"><X className="h-3.5 w-3.5" /></button>}</div>;
   if (loading) return <div className="w-full space-y-2">{heading}<div className="h-10 animate-pulse rounded-xl bg-neutral-50" /></div>;
   if (branch?.branch_deleted_at) return <div className="w-full space-y-2">{heading}<div className="flex items-center gap-2 rounded-xl bg-neutral-100 px-3 py-2 text-xs text-neutral-500"><GitBranch className="h-4 w-4 shrink-0" /><span className="truncate">{branch.repository_full_name} · {branch.branch_name} (deleted after merge)</span></div></div>;
-  if (branch) return <div className="w-full space-y-2">{heading}<a href={`https://github.com/${branch.repository_full_name}/tree/${encodeURIComponent(branch.branch_name)}`} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-xl bg-lime-50 px-3 py-2 text-xs text-neutral-700 hover:bg-lime-100"><GitBranch className="h-4 w-4 shrink-0 text-lime-700" /><span className="truncate">{branch.repository_full_name} · {branch.branch_name}</span><ExternalLink className="ml-auto h-3.5 w-3.5 shrink-0" /></a></div>;
-  if (!setupOpen) return <div className="w-full space-y-2">{heading}<div className="px-4"><button type="button" disabled={disabled} onClick={() => { setError(null); setSetupOpen(true); }} className="w-full rounded-xl bg-neutral-900 px-3 py-2 text-xs font-medium text-white hover:bg-neutral-700 disabled:opacity-50"><Github className="mr-1.5 inline h-3.5 w-3.5" />Connect a branch</button>{error && <p className="mt-2 text-xs text-red-600">{error}</p>}</div></div>;
-  if (loadingRepositories) return <div className="w-full space-y-2">{heading}<div className="space-y-2 px-4"><div className="h-10 animate-pulse rounded-xl bg-neutral-100" /><div className="h-10 animate-pulse rounded-xl bg-neutral-100" /><div className="h-9 animate-pulse rounded-xl bg-neutral-100" /></div></div>;
+  if (branch) return <div className="w-full space-y-2">{heading}<div className="space-y-1 px-4"><a href={`https://github.com/${branch.repository_full_name}/tree/${encodeURIComponent(branch.branch_name)}`} target="_blank" rel="noreferrer" className="group flex items-center gap-2.5 rounded-2xl bg-white px-3 py-2 text-xs text-neutral-700 shadow-[0_8px_28px_rgba(15,23,42,0.07),inset_0_1px_0_rgba(255,255,255,0.95)] transition-all duration-200 hover:bg-neutral-50 hover:shadow-[0_10px_32px_rgba(15,23,42,0.1),inset_0_1px_0_rgba(255,255,255,0.95)]"><Github className="h-4 w-4 shrink-0 text-neutral-700" /><span className="min-w-0 flex-1 truncate font-medium text-neutral-800">{branch.repository_full_name} · {branch.branch_name}</span><ExternalLink className="h-3.5 w-3.5 shrink-0 text-neutral-400 transition-colors group-hover:text-neutral-700" /></a><AnimatePresence initial={false} mode="wait"><motion.div key={confirmingBranchRemoval ? "confirm-delete" : "disconnect"} initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }} transition={{ duration: 0.16 }} className="flex h-7 items-center gap-1"><span className="px-2 text-xs font-medium text-neutral-500">{confirmingBranchRemoval ? "Delete branch?" : null}</span>{confirmingBranchRemoval ? <><button type="button" disabled={disabled || removingBranch} onClick={deleteBranch} className="inline-flex h-7 items-center rounded-lg px-2 text-xs font-medium text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50">{removingBranch ? "Deleting…" : "Yes"}</button><button type="button" disabled={removingBranch} onClick={() => setConfirmingBranchRemoval(false)} className="inline-flex h-7 items-center rounded-lg px-2 text-xs font-medium text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-900 disabled:cursor-not-allowed disabled:opacity-50">No</button></> : <button type="button" disabled={disabled} onClick={() => setConfirmingBranchRemoval(true)} className="inline-flex h-7 items-center rounded-lg px-2 text-xs font-medium text-red-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50">Disconnect</button>}</motion.div></AnimatePresence>{error && <p className="text-xs text-red-600">{error}</p>}</div></div>;
+  if (!setupOpen) return <div className="w-full space-y-2">{heading}<div className="px-4"><motion.button layoutId="create-branch-button" type="button" disabled={disabled} onClick={() => { setError(null); setSetupOpen(true); }} transition={{ type: "spring", stiffness: 420, damping: 32 }} className="w-full rounded-xl bg-neutral-900 px-3 py-2 text-xs font-medium text-white hover:bg-neutral-700 disabled:opacity-50"><Github className="mr-1.5 inline h-3.5 w-3.5" />Create branch</motion.button>{error && <p className="mt-2 text-xs text-red-600">{error}</p>}</div></div>;
+  if (loadingRepositories) return <div className="w-full space-y-2">{heading}<div className="space-y-2 px-4"><div className="h-8 animate-pulse rounded-xl bg-neutral-100" /><div className="h-8 animate-pulse rounded-xl bg-neutral-100" /><motion.button layoutId="create-branch-button" type="button" disabled transition={{ type: "spring", stiffness: 420, damping: 32 }} className="w-full rounded-xl bg-neutral-900 px-3 py-2 text-xs font-medium text-white disabled:opacity-50"><Github className="mr-1.5 inline h-3.5 w-3.5" />Create branch</motion.button></div></div>;
   if (!repositories.length) return <div className="w-full space-y-2">{heading}<p className="px-4 text-xs font-light text-neutral-400">{error || "No repositories are available to this GitHub installation."}</p></div>;
   const selected = repositories.find((item) => item.full_name === repository);
   return <div className="w-full space-y-2">{heading}<div className="space-y-2 px-4">
     <div className="grid grid-cols-1 gap-2"><div className="relative"><select value={repository} disabled={disabled || creating} onChange={(e) => { const selectedRepo = repositories.find((item) => item.full_name === e.target.value); setRepository(e.target.value); setBaseBranch(selectedRepo?.default_branch ?? ""); }} className="min-w-0 w-full appearance-none rounded-xl border border-neutral-200 bg-white px-3 py-2 pr-10 text-xs">{repositories.map((item) => <option key={item.full_name} value={item.full_name}>{item.full_name}</option>)}</select><ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-700" /></div><div className="relative"><select value={baseBranch} disabled={disabled || creating} onChange={(e) => setBaseBranch(e.target.value)} className="min-w-0 w-full appearance-none rounded-xl border border-neutral-200 bg-white px-3 py-2 pr-10 text-xs">{(branches.length ? branches : [baseBranch || selected?.default_branch || ""]).filter(Boolean).map((name) => <option key={name} value={name}>{name}</option>)}</select><ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-700" /></div></div>
     {error && <p className="text-xs text-red-600">{error}</p>}
-    <button type="button" disabled={disabled || creating} onClick={createBranch} className="w-full rounded-xl bg-neutral-900 px-3 py-2 text-xs font-medium text-white hover:bg-neutral-700 disabled:opacity-50"><Github className="mr-1.5 inline h-3.5 w-3.5" />{creating ? "Creating branch…" : "Create branch"}</button>
+    <motion.button layoutId="create-branch-button" type="button" disabled={disabled || creating} onClick={createBranch} transition={{ type: "spring", stiffness: 420, damping: 32 }} className="w-full rounded-xl bg-neutral-900 px-3 py-2 text-xs font-medium text-white hover:bg-neutral-700 disabled:opacity-50"><Github className="mr-1.5 inline h-3.5 w-3.5" />{creating ? "Creating branch…" : "Create branch"}</motion.button>
   </div></div>;
 }
 
@@ -1111,17 +1161,14 @@ export function CreateTasksPopup({
               </p>
             </div>
 
-            {existing && (
-              <div className="border-t border-neutral-100 pt-4 mt-3 space-y-2">
-                <TaskBranchField task={existing} disabled={saving} />
-              </div>
-            )}
             {!existing && (
               <div className="rounded-2xl border border-dashed border-neutral-200 px-4 py-3 text-xs font-light leading-5 text-neutral-500">
                 Save this task first, then return to Settings to connect or create a GitHub branch.
               </div>
             )}
             </div>}
+
+            {existing && <div className={cn("border-t border-neutral-100 pt-4 mt-3 space-y-2", activeTab !== "settings" && "hidden")}><TaskBranchField task={existing} disabled={saving} open={open} /></div>}
 
             {activeTab === "schedule" && <div className="rounded-2xl border border-neutral-200/80 bg-neutral-50/60 px-4 py-4">
               <p className="text-sm font-medium text-neutral-900">Schedule this task</p>

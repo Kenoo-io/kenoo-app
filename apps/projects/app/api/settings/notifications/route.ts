@@ -23,7 +23,7 @@ export async function GET() {
     .maybeSingle();
   if (error) return NextResponse.json({ error: "Unable to load preferences" }, { status: 500 });
 
-  return NextResponse.json({ taskAssignedEmail: data ? data.enabled && data.notify_email : true });
+  return NextResponse.json({ taskAssignedEmail: data ? data.enabled && data.notify_email : false });
 }
 
 export async function PUT(request: Request) {

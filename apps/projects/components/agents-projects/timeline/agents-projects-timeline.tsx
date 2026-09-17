@@ -26,6 +26,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useActiveAccount } from "@/components/active-account-context";
 import { ProjectsHeader } from "../projects-header";
+import { SegmentToggle } from "@/components/ui/segment-toggle";
 import {
   ACCESSIBLE_PROJECT_SELECT,
   loadAccessibleProjects,
@@ -50,7 +51,6 @@ import {
   addDays,
   addWeeks,
   subWeeks,
-  startOfWeek,
   differenceInDays,
   format,
   isToday,
@@ -86,6 +86,26 @@ function isDueSoon(date: string | null): boolean {
   if (!date) return false;
   const diff = new Date(date).getTime() - Date.now();
   return diff >= 0 && diff < 3 * 24 * 60 * 60 * 1000;
+}
+
+/** Start at the latest unfinished item that has reached today; otherwise today. */
+function getTimelineStart(tasks: ProjectTask[]): Date {
+  const today = startOfDay(new Date());
+  let latestIncompleteDate: Date | null = null;
+
+  for (const task of tasks) {
+    if (task.status === "completed") continue;
+    const taskDate = parseDateSafe(task.due_date ?? task.start_date);
+    if (
+      taskDate &&
+      taskDate <= today &&
+      (!latestIncompleteDate || taskDate > latestIncompleteDate)
+    ) {
+      latestIncompleteDate = taskDate;
+    }
+  }
+
+  return latestIncompleteDate ?? today;
 }
 
 /* ─── View mode types ─────────────────────────────────────────────────────── */
@@ -322,18 +342,18 @@ function GanttHeader({
   }
 
   return (
-    <div className="bg-neutral-100 border-b border-neutral-100">
+    <div className="border-b border-[#e4e9f0] bg-white">
       {/* Month row */}
       <div className="flex">
         {/* Sticky label column header to align with project names */}
         <div
-          className="flex-shrink-0 bg-neutral-100 border-r border-neutral-200 sticky left-0 z-20"
+          className="sticky left-0 z-20 shrink-0 border-r border-[#e4e9f0] bg-white"
           style={{ width: LABEL_WIDTH, minWidth: LABEL_WIDTH }}
         />
         {months.map((m) => (
           <div
             key={m.label}
-            className="text-[10px] font-semibold uppercase tracking-widest text-neutral-400 px-2 py-1.5 border-r border-neutral-100 last:border-r-0"
+            className="border-r border-[#edf0f4] px-2 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-neutral-400 last:border-r-0"
             style={{ width: m.count * DAY_WIDTH }}
           >
             {m.label}
@@ -344,7 +364,7 @@ function GanttHeader({
       <div className="flex">
         {/* Sticky label column header spacer */}
         <div
-          className="flex-shrink-0 bg-neutral-100 border-r border-neutral-200 sticky left-0 z-20"
+          className="sticky left-0 z-20 shrink-0 border-r border-[#e4e9f0] bg-white"
           style={{ width: LABEL_WIDTH, minWidth: LABEL_WIDTH }}
         />
         {days.map((d) => {
@@ -355,9 +375,9 @@ function GanttHeader({
             <div
               key={d.toISOString()}
               className={cn(
-                "flex flex-col items-center justify-center border-r border-neutral-100 last:border-r-0 py-1",
-                (isSat || isSun) ? "bg-neutral-50/70" : "",
-                today ? "bg-[#ceff00]/20" : ""
+                "flex flex-col items-center justify-center border-r border-[#edf0f4] py-1 last:border-r-0",
+                (isSat || isSun) ? "bg-[#fafbfc]" : "",
+                today ? "bg-[#4285F4]/10" : ""
               )}
               style={{ width: DAY_WIDTH, minWidth: DAY_WIDTH }}
             >
@@ -373,7 +393,7 @@ function GanttHeader({
                 className={cn(
                   "text-[11px] tabular-nums",
                   today
-                    ? "text-neutral-900 font-black w-5 h-5 rounded-full bg-[#ceff00] flex items-center justify-center"
+                    ? "flex h-5 w-5 items-center justify-center rounded-full bg-[#4285F4] font-black text-white"
                     : "text-neutral-500 font-light"
                 )}
               >
@@ -423,17 +443,17 @@ function GanttRow({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.15, delay: index * 0.015 }}
       className={cn(
-        "flex group relative border-b border-neutral-50 last:border-b-0",
+        "group relative flex border-b border-[#e4e9f0] last:border-b-0",
         onClick ? "cursor-pointer" : "",
         isCompleted ? "opacity-50" : "",
-        isOverdueFlag ? "bg-red-50/30" : ""
+        isOverdueFlag ? "bg-red-50/30" : "hover:bg-[#fafbfc]"
       )}
       style={{ height: ROW_HEIGHT }}
       onClick={onClick}
     >
       {/* Label - sticky like talent names in scouter table */}
       <div
-        className="flex items-center gap-3 px-4 flex-shrink-0 bg-neutral-100 border-r border-neutral-200 sticky left-0 z-20"
+        className="sticky left-0 z-20 flex shrink-0 items-center gap-3 border-r border-[#e4e9f0] bg-white px-4 group-hover:bg-[#fafbfc]"
         style={{ width: LABEL_WIDTH, minWidth: LABEL_WIDTH }}
       >
         {status && <TaskStatusIcon status={status} />}
@@ -480,9 +500,9 @@ function GanttRow({
             <div
               key={d.toISOString()}
               className={cn(
-                "h-full border-r border-neutral-100/80 last:border-r-0 flex-shrink-0",
-                (isSat || isSun) ? "bg-neutral-50/50" : "",
-                today ? "bg-[#ceff00]/10" : ""
+                "h-full shrink-0 border-r border-[#edf0f4] last:border-r-0",
+                (isSat || isSun) ? "bg-[#fafbfc]" : "",
+                today ? "bg-[#4285F4]/5" : ""
               )}
               style={{ width: DAY_WIDTH }}
             />
@@ -545,9 +565,9 @@ function TodayMarker({
       className="absolute top-0 bottom-0 z-20 pointer-events-none"
       style={{ left: LABEL_WIDTH + offset * DAY_WIDTH + DAY_WIDTH / 2, width: 1.5 }}
     >
-      <div className="h-full bg-[#ceff00] opacity-70" />
+      <div className="h-full bg-[#4285F4] opacity-70" />
       <div
-        className="absolute -top-1 -translate-x-1/2 w-2.5 h-2.5 rounded-full bg-[#ceff00]"
+        className="absolute -top-1 w-2.5 -translate-x-1/2 rounded-full bg-[#4285F4]"
         style={{ left: "50%" }}
       />
     </div>
@@ -718,70 +738,6 @@ function ProjectListGroup({
 /** Fixed toolbar row height — keeps Gantt/List from shifting when nav appears. */
 const TIMELINE_TOOLBAR_ROW_H = "h-10";
 
-const TIMELINE_TOGGLE_INNER =
-  "relative z-10 flex h-7 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-transparent px-3 text-xs font-light uppercase tracking-wider transition-all duration-300 ease-in-out";
-
-const TIMELINE_TOGGLE_ACTIVE =
-  "border-neutral-200 bg-neutral-50 text-neutral-900 shadow-[inset_0_2px_4px_rgba(0,0,0,0.10)]";
-
-const TIMELINE_TOGGLE_INACTIVE =
-  "text-neutral-500 group-hover:bg-neutral-100 group-hover:text-neutral-700";
-
-function TimelineSegmentToggle<T extends string>({
-  value,
-  onChange,
-  options,
-  "aria-label": ariaLabel,
-  equalWidth,
-}: {
-  value: T;
-  onChange: (value: T) => void;
-  options: { value: T; label: string; icon?: React.ReactNode }[];
-  "aria-label": string;
-  /** Keeps segment width fixed so the control does not shift when selection changes. */
-  equalWidth?: boolean;
-}) {
-  return (
-    <div
-      className={cn(
-        "shrink-0 whitespace-nowrap rounded-full border border-neutral-200/70 bg-neutral-50/50 p-0.5",
-        equalWidth
-          ? "grid w-[12.25rem] grid-cols-2 gap-0.5"
-          : "flex w-max items-center gap-0.5"
-      )}
-      role="group"
-      aria-label={ariaLabel}
-    >
-      {options.map((opt) => {
-        const active = value === opt.value;
-        return (
-          <button
-            key={opt.value}
-            type="button"
-            aria-pressed={active}
-            onClick={() => onChange(opt.value)}
-            className={cn(
-              "group flex min-w-0 cursor-pointer items-center justify-center border-none bg-transparent p-0 hover:bg-transparent",
-              equalWidth && "w-full"
-            )}
-          >
-            <div
-              className={cn(
-                TIMELINE_TOGGLE_INNER,
-                equalWidth && "w-full justify-center",
-                active ? TIMELINE_TOGGLE_ACTIVE : TIMELINE_TOGGLE_INACTIVE
-              )}
-            >
-              {opt.icon}
-              {opt.label}
-            </div>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
 /* ─── Main component ─────────────────────────────────────────────────────── */
 interface AgentsProjectsTimelineProps {
   analyticsData: unknown;
@@ -804,21 +760,18 @@ function AgentsProjectsTimelineContent({
 
   /* gantt scroll / range */
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [rangeStart, setRangeStart] = useState<Date>(() =>
-    startOfWeek(subWeeks(new Date(), 2), { weekStartsOn: 1 })
-  );
+  const hasInitializedTimeline = useRef(false);
+  const [rangeStart, setRangeStart] = useState<Date>(() => startOfDay(new Date()));
   const TOTAL_DAYS = 90;
 
   const days = useMemo(() => {
     return Array.from({ length: TOTAL_DAYS }, (_, i) => addDays(rangeStart, i));
   }, [rangeStart]);
 
-  /* scroll to today on mount */
+  /* Keep the selected starting date at the left edge of the viewport. */
   useEffect(() => {
     if (viewMode === "gantt" && scrollRef.current) {
-      const todayOffset = differenceInDays(startOfDay(new Date()), rangeStart);
-      const scrollLeft = todayOffset * DAY_WIDTH - 80;
-      scrollRef.current.scrollLeft = Math.max(0, scrollLeft);
+      scrollRef.current.scrollLeft = 0;
     }
   }, [viewMode, rangeStart]);
 
@@ -901,6 +854,16 @@ function AgentsProjectsTimelineContent({
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    hasInitializedTimeline.current = false;
+  }, [activeAccountId]);
+
+  useEffect(() => {
+    if (loading || hasInitializedTimeline.current) return;
+    setRangeStart(getTimelineStart(tasks));
+    hasInitializedTimeline.current = true;
+  }, [loading, tasks]);
 
   /* Status change */
   const handleStatusChange = async (task: ProjectTask, status: TaskStatus) => {
@@ -998,21 +961,10 @@ function AgentsProjectsTimelineContent({
         <div className="flex-1 w-full flex flex-col min-h-0">
           {/* Fixed header - no page scroll */}
           <div className="flex-none">
-            <div className="app-sidebar-pad pb-0 pr-4 md:pr-6">
-              <ProjectsHeader
-                projects={projects}
-                projectFilter={projectFilter}
-                onProjectFilterChange={setProjectFilter}
-                statusFilter={statusFilter}
-                onStatusFilterChange={setStatusFilter}
-              />
-            </div>
-
             {/* Toolbar — view toggle in a fixed left cluster; grouping collapses beside it */}
             <div
               className={cn(
-                "app-sidebar-pad mb-5 flex items-center gap-2.5 pr-8",
-                TIMELINE_TOOLBAR_ROW_H
+                "app-sidebar-pad mb-5 flex items-center gap-2.5 pt-3 pr-8",
               )}
             >
               <div
@@ -1021,8 +973,8 @@ function AgentsProjectsTimelineContent({
                   TIMELINE_TOOLBAR_ROW_H
                 )}
               >
-                <TimelineSegmentToggle<ViewMode>
-                  equalWidth
+                <SegmentToggle<ViewMode>
+                  className="w-[12.25rem] [&>button]:flex-1"
                   aria-label="Timeline view"
                   value={viewMode}
                   onChange={(v) => setViewMode(v)}
@@ -1051,7 +1003,7 @@ function AgentsProjectsTimelineContent({
                 />
 
                 <motion.div
-                  className={cn("flex shrink-0 items-center overflow-hidden", TIMELINE_TOOLBAR_ROW_H)}
+                  className={cn("flex shrink-0 items-center overflow-visible", TIMELINE_TOOLBAR_ROW_H)}
                   initial={false}
                   animate={
                     viewMode === "gantt"
@@ -1070,7 +1022,7 @@ function AgentsProjectsTimelineContent({
                       viewMode !== "gantt" && "pointer-events-none"
                     )}
                   >
-                    <TimelineSegmentToggle<GanttMode>
+                    <SegmentToggle<GanttMode>
                       aria-label="Gantt grouping"
                       value={ganttMode}
                       onChange={(v) => setGanttMode(v)}
@@ -1081,6 +1033,16 @@ function AgentsProjectsTimelineContent({
                     />
                   </div>
                 </motion.div>
+                <div className="ml-2 shrink-0">
+                  <ProjectsHeader
+                    filterOnly
+                    projects={projects}
+                    projectFilter={projectFilter}
+                    onProjectFilterChange={setProjectFilter}
+                    statusFilter={statusFilter}
+                    onStatusFilterChange={setStatusFilter}
+                  />
+                </div>
               </div>
 
               <div
@@ -1137,19 +1099,12 @@ function AgentsProjectsTimelineContent({
                     type="button"
                     className="flex cursor-pointer items-center justify-center border-none bg-transparent p-0 hover:bg-transparent group"
                     onClick={() => {
-                      const newStart = startOfWeek(subWeeks(new Date(), 2), { weekStartsOn: 1 });
-                      setRangeStart(newStart);
-                      setTimeout(() => {
-                        if (scrollRef.current) {
-                          const todayOffset = differenceInDays(startOfDay(new Date()), newStart);
-                          scrollRef.current.scrollLeft = Math.max(0, todayOffset * DAY_WIDTH - 80);
-                        }
-                      }, 50);
+                      setRangeStart(startOfDay(new Date()));
                     }}
                   >
                     <div className="relative z-10 flex h-7 items-center gap-2 rounded-full border border-transparent px-3 text-xs font-medium uppercase tracking-wider text-neutral-500 transition-all duration-300 ease-in-out group-hover:bg-neutral-100">
                       <span
-                        className="h-1.5 w-1.5 shrink-0 rounded-full bg-kenoo-yellow"
+                        className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#4285F4]"
                         aria-hidden
                       />
                       Today
@@ -1191,13 +1146,13 @@ function AgentsProjectsTimelineContent({
                     </p>
                   </div>
                 ) : (
-                  <div className="rounded-2xl overflow-hidden bg-neutral-100 flex-1 min-h-0 flex flex-col">
+                  <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[1.35rem] bg-white">
                     {/* Single scrollport for x + y so sticky left on row labels shares the same
                         ancestor as the header; a nested overflow-y-only wrapper breaks
                         position: sticky left relative to horizontal scroll. */}
                     <div
                       ref={scrollRef}
-                      className="overflow-auto flex-1 min-h-0 flex flex-col"
+                      className="overflow-auto overscroll-none flex-1 min-h-0 flex flex-col"
                     >
                       <div
                         style={{
@@ -1206,7 +1161,7 @@ function AgentsProjectsTimelineContent({
                         }}
                         className="flex flex-col"
                       >
-                        <div className="sticky top-0 z-30 flex-shrink-0 bg-neutral-100 shadow-sm">
+                        <div className="sticky top-0 z-30 shrink-0 bg-white shadow-[0_1px_0_#e4e9f0]">
                           <GanttHeader days={days} timelineStart={rangeStart} />
                         </div>
                         <div className="relative flex-shrink-0">

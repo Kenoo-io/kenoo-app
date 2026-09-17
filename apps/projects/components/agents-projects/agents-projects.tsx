@@ -109,7 +109,7 @@ function themeFromProjectColor(
   return glassThemeFromRgb(rgb.r, rgb.g, rgb.b);
 }
 
-/** Primary CTA with the same chrome-glow rim as AdPilot’s Generate button. */
+/** Primary CTA for creating a project. */
 function NewProjectChromeButton({
   onClick,
   className,
@@ -122,18 +122,12 @@ function NewProjectChromeButton({
       type="button"
       onClick={onClick}
       className={cn(
-        "group relative inline-flex h-11 shrink-0 overflow-hidden rounded-full bg-kenoo-white p-[1.5px]",
-        "shadow-[0_8px_28px_rgba(15,23,42,0.07)] transition-[filter,box-shadow] duration-300 hover:brightness-[1.03] hover:shadow-[0_10px_32px_rgba(15,23,42,0.1)]",
-        "focus-visible:outline-none",
+        "inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-black px-5 text-sm font-medium text-white",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2",
         className
       )}
     >
-      <span aria-hidden className="pointer-events-none absolute inset-[-60%]">
-        <span className="walls-chrome-orbit absolute inset-0" />
-      </span>
-      <span className="relative inline-flex h-full items-center gap-2 rounded-full bg-kenoo-white px-5 text-sm font-medium text-neutral-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)]">
-        <Plus className="h-4 w-4" /> New Project
-      </span>
+      <Plus className="h-4 w-4" /> New Project
     </button>
   );
 }
@@ -583,9 +577,14 @@ function AgentsProjectsContent({ analyticsData: _analyticsData }: AgentsProjects
   }, [projects]);
 
   const total = projects.length;
-  const completedProjects = projects.filter((p) => p.status === "completed").length;
-  const activeProjects = projects.filter((p) => p.status === "active").length;
-  const planningProjects = projects.filter((p) => p.status === "planning").length;
+  const totalTasks = tasks.length;
+  const completedTasks = tasks.filter((t) => t.status === "completed").length;
+  const inProgressTasks = tasks.filter(
+    (t) => t.status === "in_progress" || t.status === "in_review"
+  ).length;
+  const backlogTasks = tasks.filter(
+    (t) => t.status === "todo" || t.status === "on_hold" || t.status === "blocked"
+  ).length;
 
   const openTasks = tasks.filter((t) => t.status !== "completed");
 
@@ -646,22 +645,22 @@ function AgentsProjectsContent({ analyticsData: _analyticsData }: AgentsProjects
     return feed;
   }, [openTasks, user?.id]);
 
-  const rankPerformance = useMemo(() => {
+  const teamWorkload = useMemo(() => {
     const counts = new Map<string, number>();
     for (const t of tasks) {
-      if (t.status !== "completed") continue;
+      if (t.status === "completed") continue;
       const ids = t.assignee_ids ?? (t.assignee_id ? [t.assignee_id] : []);
       for (const id of ids) {
         counts.set(id, (counts.get(id) ?? 0) + 1);
       }
     }
     return Array.from(counts.entries())
-      .map(([id, points]) => {
+      .map(([id, openTasks]) => {
         const member = allMembers.find((m) => m.id === id);
-        return member ? { member, points } : null;
+        return member ? { member, openTasks } : null;
       })
-      .filter((r): r is { member: MemberUser; points: number } => !!r)
-      .sort((a, b) => b.points - a.points)
+      .filter((r): r is { member: MemberUser; openTasks: number } => !!r)
+      .sort((a, b) => b.openTasks - a.openTasks)
       .slice(0, 3);
   }, [tasks, allMembers]);
 
@@ -908,37 +907,37 @@ function AgentsProjectsContent({ analyticsData: _analyticsData }: AgentsProjects
                     </SectionCard>
 
                     <SectionCard
-                      title="Project Status"
+                      title="Task Status"
                       action={
                         <span className="text-xs font-light text-neutral-400">
-                          Total {total}
+                          Total {totalTasks}
                         </span>
                       }
                       className="lg:col-span-2"
                       bodyClassName="flex"
                     >
                       <StatusRings
-                        done={completedProjects}
-                        active={activeProjects}
-                        backlog={planningProjects + projects.filter((p) => p.status === "on_hold").length}
-                        total={Math.max(total, 1)}
+                        done={completedTasks}
+                        active={inProgressTasks}
+                        backlog={backlogTasks}
+                        total={Math.max(totalTasks, 1)}
                       />
                     </SectionCard>
                   </div>
 
-                  {/* ── Rank + Tracker + Attention ── */}
+                  {/* ── Workload + Tracker + Attention ── */}
                   <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
                     <SectionCard
-                      title="Rank Performance"
+                      title="Team Workload"
                       action={<SeeAllLink href="/projects" />}
                     >
-                      {rankPerformance.length === 0 ? (
+                      {teamWorkload.length === 0 ? (
                         <p className="py-10 text-center text-sm font-light text-neutral-400">
-                          Complete tasks to build the leaderboard.
+                          No open tasks are assigned right now.
                         </p>
                       ) : (
                         <ul className="space-y-3">
-                          {rankPerformance.map(({ member, points }, i) => (
+                          {teamWorkload.map(({ member, openTasks }) => (
                             <li
                               key={member.id}
                               className="flex items-center gap-3 rounded-2xl px-1 py-1.5"
@@ -956,12 +955,14 @@ function AgentsProjectsContent({ analyticsData: _analyticsData }: AgentsProjects
                                   {memberName(member)}
                                 </p>
                                 <p className="truncate text-xs font-light text-neutral-400">
-                                  {i === 0 ? "Top contributor" : "Team member"}
+                                  Current workload
                                 </p>
                               </div>
                               <span className="flex-shrink-0 text-sm font-semibold tabular-nums text-neutral-800">
-                                {points}{" "}
-                                <span className="font-light text-neutral-400">Point</span>
+                                {openTasks}{" "}
+                                <span className="font-light text-neutral-400">
+                                  {openTasks === 1 ? "open task" : "open tasks"}
+                                </span>
                               </span>
                             </li>
                           ))}

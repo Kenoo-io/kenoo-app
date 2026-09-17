@@ -13,7 +13,6 @@ import {
   ChevronRight,
   ArrowUp,
   ArrowDown,
-  RefreshCw,
   Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -455,13 +454,10 @@ function ProjectsListSkeleton() {
 function SearchToolbar({
   search,
   onSearch,
-  onRefresh,
 }: {
   search: string;
   onSearch: (v: string) => void;
-  onRefresh: () => void;
 }) {
-  const [spinning, setSpinning] = useState(false);
   return (
     <div className="flex items-center gap-3 flex-wrap mb-5">
       <div className="relative flex-1 max-w-sm">
@@ -478,26 +474,6 @@ function SearchToolbar({
           )}
         />
       </div>
-
-      <button
-        type="button"
-        onClick={() => { setSpinning(true); onRefresh(); }}
-        className={cn(
-          "h-9 w-9 flex items-center justify-center text-xs group",
-        )}
-        aria-label="Refresh projects"
-      >
-        <div className={cn(
-          "relative z-10 p-2.5 rounded-full",
-          "transition-all duration-300 ease-in-out",
-          "group-hover:bg-neutral-100",
-        )}>
-          <RefreshCw
-            className={cn("h-4 w-4 text-neutral-400", spinning && "animate-[spin_0.6s_linear_1]")}
-            onAnimationEnd={() => setSpinning(false)}
-          />
-        </div>
-      </button>
     </div>
   );
 }
@@ -779,7 +755,6 @@ function AgentsProjectsListContent({
                 <SearchToolbar
                   search={search}
                   onSearch={setSearch}
-                  onRefresh={refresh}
                 />
               </div>
 

@@ -29,8 +29,12 @@ import {
   Plus,
   Calendar,
   Flag,
-  RefreshCw,
   Search,
+  Columns3,
+  LayoutList,
+  ChevronDown,
+  ChevronUp,
+  ChevronsUpDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useActiveAccount } from "@/components/active-account-context";
@@ -49,12 +53,14 @@ import {
 import {
   getTaskAssigneeDisplayName,
   getTaskAssigneeInitials,
+  getTaskAssigneeIds,
   getTaskAssigneesDisplayLabel,
   isUserTaskAssignee,
   mapProjectTaskRow,
   PROJECT_TASK_SELECT_WITH_ASSIGNEE,
 } from "../task-assignee";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { SegmentToggle } from "@/components/ui/segment-toggle";
 import {
   Dialog,
   DialogContent,
@@ -80,6 +86,31 @@ import {
   notifyTaskAssignerOnComplete,
   resolveActorDisplayName,
 } from "@/lib/user-notifications";
+
+type TasksScreenCacheEntry = {
+  projects: Project[];
+  tasks: ProjectTask[];
+  scopeMetaRows: TaskScopeMetaRow[];
+};
+
+// The Tasks route is unmounted when navigating to another screen. Retain its
+// loaded data in the open app session so coming back does not replay the full
+// board/list loading state. A browser refresh naturally clears this module.
+const tasksScreenCache = new Map<string, TasksScreenCacheEntry>();
+
+function getTasksScreenCacheKey({
+  userId,
+  accountId,
+  projectFilter,
+  taskScopeFilter,
+}: {
+  userId: string;
+  accountId: string;
+  projectFilter: string;
+  taskScopeFilter: BoardTaskScope;
+}) {
+  return JSON.stringify([userId, accountId, projectFilter, taskScopeFilter]);
+}
 
 /* Parse date as local calendar date (avoids timezone shifting to previous day). */
 function parseLocalDate(dateStr: string): Date {
@@ -642,6 +673,290 @@ function KanbanColumn({
   );
 }
 
+/* ─── List view ─────────────────────────────────────────────────────────── */
+function TaskListRow({
+  task,
+  onEdit,
+  columnWidths,
+  tableWidth,
+}: {
+  task: ProjectTask;
+  onEdit: (task: ProjectTask) => void;
+  columnWidths: Record<TaskListSortKey, number>;
+  tableWidth: number;
+}) {
+  const { user } = useAuth();
+  const status = TASK_STATUS_CONFIG[task.status];
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => onEdit(task)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onEdit(task);
+        }
+      }}
+      className="group flex cursor-pointer items-stretch border-b border-l-0 border-t-0 border-neutral-300 bg-kenoo-white transition-colors duration-200 hover:bg-gray-200/60 focus-visible:bg-gray-200/60 focus-visible:outline-none"
+      style={{ minWidth: tableWidth }}
+    >
+      <div className="flex shrink-0 items-center px-6 py-3" style={{ width: columnWidths.title }}>
+        <p className={cn("w-full truncate text-sm font-light text-foreground", task.status === "completed" && "text-neutral-400 line-through")}>
+          {task.title}
+        </p>
+      </div>
+      <div className="flex shrink-0 items-center gap-2 overflow-hidden px-4 py-3" style={{ width: columnWidths.project }}>
+        {task.project ? (
+          <span className="flex min-w-0 items-center gap-2 truncate text-sm font-light text-foreground">
+            <span
+              className="h-1.5 w-1.5 shrink-0 rounded-full"
+              style={{ backgroundColor: task.project.color ?? "#ceff00" }}
+            />
+            <span className="truncate">{task.project.name}</span>
+          </span>
+        ) : (
+          <span className="text-sm font-light text-neutral-300">—</span>
+        )}
+      </div>
+      <div className="flex shrink-0 items-center gap-2 overflow-hidden px-4 py-3" style={{ width: columnWidths.status }}>
+        <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: status.accent }} />
+        <span className="truncate text-sm font-light text-foreground">
+          {status.label}
+        </span>
+      </div>
+      <div className="flex shrink-0 items-center overflow-hidden px-4 py-3" style={{ width: columnWidths.assignee }}>
+        <TaskAssignee
+          assignees={task.assignees?.length ? task.assignees : task.assignee ? [task.assignee] : []}
+          currentUserId={user?.id}
+        />
+      </div>
+      <div className="flex shrink-0 items-center overflow-hidden px-4 py-3" style={{ width: columnWidths.priority }}>
+        {task.priority ? (
+          <PriorityFlag priority={task.priority} />
+        ) : (
+          <span className="text-sm font-light text-neutral-300">—</span>
+        )}
+      </div>
+      <div className="flex shrink-0 items-center overflow-hidden px-4 py-3" style={{ width: columnWidths.due_date }}>
+        <TaskDueDate date={task.due_date} isCompleted={task.status === "completed"} />
+      </div>
+    </div>
+  );
+}
+
+type TaskListSortKey =
+  | "title"
+  | "project"
+  | "status"
+  | "assignee"
+  | "priority"
+  | "due_date";
+
+const TASK_LIST_DEFAULT_COLUMN_WIDTHS: Record<TaskListSortKey, number> = {
+  title: 320,
+  project: 190,
+  status: 150,
+  assignee: 180,
+  priority: 110,
+  due_date: 125,
+};
+
+const TASK_LIST_MIN_COLUMN_WIDTHS: Record<TaskListSortKey, number> = {
+  title: 260,
+  project: 140,
+  status: 125,
+  assignee: 145,
+  priority: 100,
+  due_date: 105,
+};
+
+function TaskListView({
+  tasksByStatus,
+  onEditTask,
+  sortBy,
+  sortDir,
+  onSort,
+}: {
+  tasksByStatus: Record<TaskStatus, ProjectTask[]>;
+  onEditTask: (task: ProjectTask) => void;
+  sortBy: TaskListSortKey;
+  sortDir: "asc" | "desc";
+  onSort: (key: TaskListSortKey) => void;
+}) {
+  const [columnWidths, setColumnWidths] = useState(
+    TASK_LIST_DEFAULT_COLUMN_WIDTHS
+  );
+  const [resizingColumn, setResizingColumn] =
+    useState<TaskListSortKey | null>(null);
+  const resizeRef = useRef<{
+    key: TaskListSortKey;
+    startX: number;
+    startWidth: number;
+  } | null>(null);
+  const taskCount = KANBAN_COLUMNS.reduce(
+    (count, status) => count + (tasksByStatus[status]?.length ?? 0),
+    0
+  );
+
+  const orderedTasks = useMemo(() => {
+    const statusOrder = new Map(KANBAN_COLUMNS.map((status, index) => [status, index]));
+    const valueFor = (task: ProjectTask): string | number | null => {
+      switch (sortBy) {
+        case "title":
+          return task.title;
+        case "project":
+          return task.project?.name ?? null;
+        case "status":
+          return statusOrder.get(task.status) ?? KANBAN_COLUMNS.length;
+        case "assignee":
+          return getTaskAssigneesDisplayLabel(
+            task.assignees?.length ? task.assignees : task.assignee ? [task.assignee] : []
+          );
+        case "priority":
+          return task.priority;
+        case "due_date":
+          return task.due_date;
+      }
+    };
+
+    return KANBAN_COLUMNS.flatMap((status) => tasksByStatus[status] ?? []).sort(
+      (a, b) => {
+        const aValue = valueFor(a);
+        const bValue = valueFor(b);
+        if (aValue == null && bValue == null) return 0;
+        if (aValue == null) return 1;
+        if (bValue == null) return -1;
+        const comparison =
+          typeof aValue === "number" && typeof bValue === "number"
+            ? aValue - bValue
+            : String(aValue).localeCompare(String(bValue), undefined, {
+                sensitivity: "base",
+              });
+        return sortDir === "asc" ? comparison : -comparison;
+      }
+    );
+  }, [tasksByStatus, sortBy, sortDir]);
+
+  const handleResizeMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    const resize = resizeRef.current;
+    if (!resize) return;
+    const nextWidth = Math.max(
+      TASK_LIST_MIN_COLUMN_WIDTHS[resize.key],
+      resize.startWidth + event.clientX - resize.startX
+    );
+    setColumnWidths((current) => ({
+      ...current,
+      [resize.key]: nextWidth,
+    }));
+  };
+
+  const startResize = (
+    event: React.PointerEvent<HTMLDivElement>,
+    key: TaskListSortKey
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    resizeRef.current = {
+      key,
+      startX: event.clientX,
+      startWidth: columnWidths[key],
+    };
+    setResizingColumn(key);
+  };
+
+  const stopResize = () => {
+    resizeRef.current = null;
+    setResizingColumn(null);
+  };
+
+  const tableWidth = Object.values(columnWidths).reduce(
+    (total, width) => total + width,
+    0
+  );
+
+  const header = (key: TaskListSortKey, label: string) => {
+    const active = sortBy === key;
+    const SortIcon = active
+      ? sortDir === "asc"
+        ? ChevronUp
+        : ChevronDown
+      : ChevronsUpDown;
+    return (
+      <button
+        type="button"
+        onClick={() => onSort(key)}
+        aria-label={`Sort by ${label}`}
+        aria-pressed={active}
+        className={cn(
+          "group relative flex shrink-0 items-center gap-1.5 px-4 text-[11px] font-normal uppercase tracking-[0.16em] transition-colors",
+          active ? "text-neutral-800" : "text-neutral-500 hover:text-neutral-800",
+        )}
+        style={{ width: columnWidths[key] }}
+      >
+        {label}
+        <SortIcon className={cn("h-3 w-3", !active && "text-neutral-300")} strokeWidth={1.7} />
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label={`Resize ${label} column`}
+          onPointerDown={(event) => startResize(event, key)}
+          onPointerMove={handleResizeMove}
+          onPointerUp={stopResize}
+          onPointerCancel={stopResize}
+          onClick={(event) => event.stopPropagation()}
+          className="absolute right-0 top-0 z-20 h-full w-3 cursor-col-resize touch-none"
+        >
+          <div
+            className={cn(
+              "absolute right-0 top-0 h-full w-px transition-colors",
+              resizingColumn === key ? "bg-neutral-500" : "bg-neutral-300 group-hover:bg-neutral-400"
+            )}
+          />
+        </div>
+      </button>
+    );
+  };
+
+  if (taskCount === 0) {
+    return (
+      <div className="flex min-h-[240px] flex-col items-center justify-center text-center">
+        <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-neutral-100">
+          <LayoutList className="h-7 w-7 text-neutral-300" />
+        </div>
+        <p className="text-sm font-medium text-neutral-500">No tasks found</p>
+        <p className="mt-1 text-xs font-light text-neutral-400">Try adjusting your filters or search.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-kenoo-white" style={{ minWidth: tableWidth }}>
+      <div className="sticky top-0 z-40 flex items-center border-b border-l-0 border-t-0 border-neutral-300 bg-kenoo-white py-2" style={{ minWidth: tableWidth }}>
+        {header("title", "Task")}
+        {header("project", "Project")}
+        {header("status", "Status")}
+        {header("assignee", "Assignee")}
+        {header("priority", "Priority")}
+        {header("due_date", "Due date")}
+      </div>
+      <div className="flex flex-col">
+        {orderedTasks.map((task) => (
+          <TaskListRow
+            key={task.id}
+            task={task}
+            onEdit={onEditTask}
+            columnWidths={columnWidths}
+            tableWidth={tableWidth}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /* ─── Task detail sheet ──────────────────────────────────────────────────── */
 interface TaskDetailProps {
   task: ProjectTask | null;
@@ -759,16 +1074,35 @@ function AgentsProjectsKanbanContent({
   const { activeAccountId, loading: accountLoading } = useActiveAccount();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [tasks, setTasks] = useState<ProjectTask[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [projectFilter, setProjectFilter] = useState<string>(
-    searchParams.get("project") ?? "all"
+  const initialProjectFilter = searchParams.get("project") ?? "all";
+  const initialTaskScopeFilter = parseBoardTaskScope(searchParams.get("scope"));
+  const initialCacheKey =
+    user && activeAccountId
+      ? getTasksScreenCacheKey({
+          userId: user.id,
+          accountId: activeAccountId,
+          projectFilter: initialProjectFilter,
+          taskScopeFilter: initialTaskScopeFilter,
+        })
+      : null;
+  const initialCachedData = initialCacheKey
+    ? tasksScreenCache.get(initialCacheKey)
+    : undefined;
+  const [projects, setProjects] = useState<Project[]>(
+    () => initialCachedData?.projects ?? [],
   );
-  const [taskScopeFilter, setTaskScopeFilter] = useState<BoardTaskScope>(() =>
-    parseBoardTaskScope(searchParams.get("scope"))
+  const [tasks, setTasks] = useState<ProjectTask[]>(
+    () => initialCachedData?.tasks ?? [],
   );
-  const [scopeMetaRows, setScopeMetaRows] = useState<TaskScopeMetaRow[]>([]);
+  const [loading, setLoading] = useState(() => !initialCachedData);
+  const [projectFilter, setProjectFilter] = useState<string>(initialProjectFilter);
+  const [taskScopeFilter, setTaskScopeFilter] =
+    useState<BoardTaskScope>(initialTaskScopeFilter);
+  const viewMode = searchParams.get("view") === "list" ? "list" : "kanban";
+  const [scopeMetaRows, setScopeMetaRows] = useState<TaskScopeMetaRow[]>(
+    () => initialCachedData?.scopeMetaRows ?? [],
+  );
+  const loadedCacheKeyRef = useRef<string | null>(initialCacheKey);
 
   const scopeProjectIds = useMemo(() => {
     if (projectFilter === "all") {
@@ -823,10 +1157,38 @@ function AgentsProjectsKanbanContent({
     },
     [router, searchParams]
   );
+  const handleViewModeChange = useCallback(
+    (nextView: "kanban" | "list") => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (nextView === "kanban") {
+        params.delete("view");
+      } else {
+        params.set("view", nextView);
+      }
+      const qs = params.toString();
+      router.replace(`/tasks${qs ? `?${qs}` : ""}`, { scroll: false });
+    },
+    [router, searchParams]
+  );
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [listSortBy, setListSortBy] = useState<TaskListSortKey>("due_date");
+  const [listSortDir, setListSortDir] = useState<"asc" | "desc">("asc");
+  const [assigneeFilter, setAssigneeFilter] = useState<string[]>([]);
+  const [priorityFilter, setPriorityFilter] = useState<number[]>([]);
+  const [dueDateFilter, setDueDateFilter] = useState<
+    "all" | "overdue" | "today" | "next_7_days" | "no_due_date"
+  >("all");
+
+  const handleListSort = useCallback((key: TaskListSortKey) => {
+    if (key === listSortBy) {
+      setListSortDir((direction) => (direction === "asc" ? "desc" : "asc"));
+      return;
+    }
+    setListSortBy(key);
+    setListSortDir(key === "priority" ? "desc" : "asc");
+  }, [listSortBy]);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search.trim()), 350);
@@ -855,11 +1217,30 @@ function AgentsProjectsKanbanContent({
   /* Load data */
   const loadData = useCallback(async () => {
     if (!user || !activeAccountId || accountLoading) {
+      loadedCacheKeyRef.current = null;
       setTasks([]);
       setProjects([]);
       setLoading(false);
       return;
     }
+
+    const cacheKey = getTasksScreenCacheKey({
+      userId: user.id,
+      accountId: activeAccountId,
+      projectFilter,
+      taskScopeFilter,
+    });
+    const cached = tasksScreenCache.get(cacheKey);
+    if (cached && refreshTrigger === 0) {
+      loadedCacheKeyRef.current = cacheKey;
+      setProjects(cached.projects);
+      setTasks(cached.tasks);
+      setScopeMetaRows(cached.scopeMetaRows);
+      setLoading(false);
+      return;
+    }
+
+    loadedCacheKeyRef.current = null;
     setLoading(true);
     try {
       const supabase = getSupabaseClient();
@@ -870,7 +1251,6 @@ function AgentsProjectsKanbanContent({
           select: ACCESSIBLE_PROJECT_SELECT.summary,
         })
       ).filter((p) => TASK_BOARD_PROJECT_STATUSES.includes(p.status));
-      setProjects(loadedProjects);
 
       const projectIds = loadedProjects.map((p) => p.id);
       const taskSelect = PROJECT_TASK_SELECT_WITH_ASSIGNEE;
@@ -905,8 +1285,6 @@ function AgentsProjectsKanbanContent({
           };
         });
       }
-      setScopeMetaRows(metaRows);
-
       const contextualProjectIds =
         projectFilter === "all"
           ? projectIds
@@ -971,12 +1349,20 @@ function AgentsProjectsKanbanContent({
       );
 
       const loadedTasks = filterTasksVisibleToUser(taskRows ?? [], user.id);
-      setTasks(
-        loadedTasks.map((t) => ({
+      const loadedTasksWithProjects = loadedTasks.map((t) => ({
           ...t,
           project: projectMap.get(t.project_id),
-        }))
-      );
+        }));
+
+      loadedCacheKeyRef.current = cacheKey;
+      tasksScreenCache.set(cacheKey, {
+        projects: loadedProjects,
+        tasks: loadedTasksWithProjects,
+        scopeMetaRows: metaRows,
+      });
+      setProjects(loadedProjects);
+      setScopeMetaRows(metaRows);
+      setTasks(loadedTasksWithProjects);
     } catch {
       setTasks([]);
     } finally {
@@ -985,6 +1371,12 @@ function AgentsProjectsKanbanContent({
   }, [user, activeAccountId, accountLoading, refreshTrigger, taskScopeFilter, projectFilter]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  useEffect(() => {
+    const cacheKey = loadedCacheKeyRef.current;
+    if (!cacheKey) return;
+    tasksScreenCache.set(cacheKey, { projects, tasks, scopeMetaRows });
+  }, [projects, scopeMetaRows, tasks]);
 
   useEffect(() => {
     if (taskScopeOptions.length === 0) {
@@ -1008,17 +1400,57 @@ function AgentsProjectsKanbanContent({
       ? tasks
       : tasks.filter((t) => t.project_id === projectFilter);
 
+  const availableAssignees = React.useMemo(() => {
+    const byId = new Map<string, TaskAssignee>();
+    for (const task of filteredTasks) {
+      for (const assignee of task.assignees ?? []) byId.set(assignee.id, assignee);
+      if (task.assignee) byId.set(task.assignee.id, task.assignee);
+    }
+    return [...byId.values()].sort((a, b) => {
+      const aName = `${a.first_name ?? ""} ${a.last_name ?? ""}`.trim() || a.email;
+      const bName = `${b.first_name ?? ""} ${b.last_name ?? ""}`.trim() || b.email;
+      return aName.localeCompare(bName);
+    });
+  }, [filteredTasks]);
+
+  const advancedFilteredTasks = React.useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayKey = today.toISOString().slice(0, 10);
+    const nextWeek = new Date(today);
+    nextWeek.setDate(nextWeek.getDate() + 7);
+    const nextWeekKey = nextWeek.toISOString().slice(0, 10);
+
+    return filteredTasks.filter((task) => {
+      const assigneeIds = getTaskAssigneeIds(task);
+      if (
+        assigneeFilter.length > 0 &&
+        !assigneeFilter.some((id) =>
+          id === "unassigned" ? assigneeIds.length === 0 : assigneeIds.includes(id),
+        )
+      ) return false;
+      if (priorityFilter.length > 0 && !priorityFilter.includes(task.priority ?? 0)) return false;
+      if (dueDateFilter === "no_due_date") return !task.due_date;
+      if (dueDateFilter === "overdue") return Boolean(task.due_date && task.due_date < todayKey);
+      if (dueDateFilter === "today") return task.due_date === todayKey;
+      if (dueDateFilter === "next_7_days") {
+        return Boolean(task.due_date && task.due_date >= todayKey && task.due_date <= nextWeekKey);
+      }
+      return true;
+    });
+  }, [assigneeFilter, dueDateFilter, filteredTasks, priorityFilter]);
+
   /* Filter tasks by search (title, description, project name) */
   const searchFilteredTasks = React.useMemo(() => {
-    if (!debouncedSearch) return filteredTasks;
+    if (!debouncedSearch) return advancedFilteredTasks;
     const q = debouncedSearch.toLowerCase();
-    return filteredTasks.filter(
+    return advancedFilteredTasks.filter(
       (t) =>
         t.title.toLowerCase().includes(q) ||
         (t.description?.toLowerCase().includes(q) ?? false) ||
         (t.project?.name.toLowerCase().includes(q) ?? false)
     );
-  }, [filteredTasks, debouncedSearch]);
+  }, [advancedFilteredTasks, debouncedSearch]);
 
   /* Group tasks by status column and sort: non-completed by due_date (soonest first), completed by completed_at (most recent first) */
   const tasksByStatus = React.useMemo(() => {
@@ -1234,7 +1666,11 @@ function AgentsProjectsKanbanContent({
     }
   };
 
-  const refresh = () => { setIsRefreshing(true); setRefreshTrigger((r) => r + 1); };
+  const refresh = () => {
+    tasksScreenCache.clear();
+    loadedCacheKeyRef.current = null;
+    setRefreshTrigger((r) => r + 1);
+  };
 
   return (
     <>
@@ -1258,6 +1694,24 @@ function AgentsProjectsKanbanContent({
                 />
               </div>
 
+              <SegmentToggle
+                aria-label="Task view"
+                value={viewMode}
+                onChange={(value) => handleViewModeChange(value)}
+                options={[
+                  {
+                    value: "kanban",
+                    label: "Kanban",
+                    icon: <Columns3 className="h-3.5 w-3.5 shrink-0 text-neutral-400" strokeWidth={1.5} />,
+                  },
+                  {
+                    value: "list",
+                    label: "List",
+                    icon: <LayoutList className="h-3.5 w-3.5 shrink-0 text-neutral-400" strokeWidth={1.5} />,
+                  },
+                ]}
+              />
+
               <KanbanPlusButton
                 title="New task"
                 onClick={() => {
@@ -1265,29 +1719,6 @@ function AgentsProjectsKanbanContent({
                   setTaskFormOpen(true);
                 }}
               />
-
-              <button
-                type="button"
-                onClick={refresh}
-                className="h-9 w-9 shrink-0 flex items-center justify-center text-xs group outline-none ring-0 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0"
-                aria-label="Refresh board"
-              >
-                <div
-                  className={cn(
-                    "relative z-10 p-2.5 rounded-full border-0",
-                    "transition-all duration-300 ease-in-out",
-                    "group-hover:bg-neutral-100"
-                  )}
-                >
-                  <RefreshCw
-                    className={cn(
-                      "h-4 w-4 text-neutral-400",
-                      isRefreshing && "animate-[spin_0.6s_linear_1]"
-                    )}
-                    onAnimationEnd={() => setIsRefreshing(false)}
-                  />
-                </div>
-              </button>
 
               <ProjectsBoardFilters
                 projects={projects}
@@ -1297,6 +1728,13 @@ function AgentsProjectsKanbanContent({
                 taskScopeOptions={taskScopeOptions}
                 taskScopeFilter={taskScopeFilter}
                 onTaskScopeFilterChange={handleTaskScopeFilterChange}
+                assignees={availableAssignees}
+                assigneeFilter={assigneeFilter}
+                onAssigneeFilterChange={setAssigneeFilter}
+                priorityFilter={priorityFilter}
+                onPriorityFilterChange={setPriorityFilter}
+                dueDateFilter={dueDateFilter}
+                onDueDateFilterChange={setDueDateFilter}
               />
             </div>
           </div>
@@ -1312,6 +1750,19 @@ function AgentsProjectsKanbanContent({
                   />
                 ))}
               </div>
+            </div>
+          ) : viewMode === "list" ? (
+            <div className="app-sidebar-pad flex-1 min-h-0 overflow-auto overscroll-contain pb-0 pr-4">
+              <TaskListView
+                tasksByStatus={tasksByStatus}
+                sortBy={listSortBy}
+                sortDir={listSortDir}
+                onSort={handleListSort}
+                onEditTask={(task) => {
+                  setEditTask(task);
+                  setTaskFormOpen(true);
+                }}
+              />
             </div>
           ) : (
             <div className="flex-1 min-h-0 pr-4 overflow-x-auto overflow-y-hidden overscroll-contain flex flex-col">

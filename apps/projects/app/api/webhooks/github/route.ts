@@ -10,6 +10,7 @@ type Payload = {
   repository?: { full_name?: string };
   ref?: string;
   ref_type?: string;
+  commits?: unknown[];
   pull_request?: { merged?: boolean; head?: { ref?: string }; base?: { ref?: string } };
   deployment?: { ref?: string; environment?: string };
   deployment_status?: { state?: string; environment?: string };
@@ -28,7 +29,14 @@ async function transition(event: string | null, payload: Payload) {
   if (!repository) return;
   let branch: string | undefined;
   let status: "in_progress" | "in_review" | "completed" | undefined;
-  if (event === "push") { branch = payload.ref?.replace(/^refs\/heads\//, ""); status = branch ? "in_progress" : undefined; }
+  if (event === "push") {
+    branch = payload.ref?.replace(/^refs\/heads\//, "");
+    // Creating a branch points it at an existing commit and produces a push
+    // webhook with no commits. It is only setup, not work in progress.
+    status = branch && (payload.commits?.length ?? 0) > 0
+      ? "in_progress"
+      : undefined;
+  }
   if (event === "pull_request") {
     branch = payload.pull_request?.head?.ref;
     if (payload.action === "opened") status = "in_review";
