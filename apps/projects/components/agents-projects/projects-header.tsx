@@ -24,6 +24,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useState, useRef, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
+import { AnimatePresence, motion } from "framer-motion";
 import { usePathname } from "next/navigation";
 import {
   Project,
@@ -197,9 +198,15 @@ export function ProjectsBoardFilters({
                 : "—";
             })();
 
-  const filterPanel = isOpen ? (
-    <aside
-      className="fixed inset-y-0 left-0 z-[9999] flex w-80 flex-col border-r border-white/30 bg-white/80 shadow-2xl backdrop-blur-xl transition-transform duration-200 ease-in-out"
+  const filterPanel = (
+    <AnimatePresence>
+      {isOpen ? (
+    <motion.aside
+      initial={{ opacity: 0, x: -28 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: -28 }}
+      transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+      className="fixed inset-y-0 left-0 z-[9999] flex w-80 flex-col border-r border-white/30 bg-white/80 shadow-2xl backdrop-blur-xl"
       aria-label="Task filters"
     >
       <div className="flex items-center justify-between border-b border-black/10 bg-white/80 p-6 backdrop-blur-xl">
@@ -317,8 +324,10 @@ export function ProjectsBoardFilters({
           <span className="leading-none">Done</span>
         </button>
       </div>
-    </aside>
-  ) : null;
+    </motion.aside>
+      ) : null}
+    </AnimatePresence>
+  );
 
   return (
     <>
