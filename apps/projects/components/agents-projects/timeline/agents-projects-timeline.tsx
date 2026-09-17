@@ -1152,7 +1152,7 @@ function AgentsProjectsTimelineContent({
                         position: sticky left relative to horizontal scroll. */}
                     <div
                       ref={scrollRef}
-                      className="overflow-auto flex-1 min-h-0 flex flex-col"
+                      className="overflow-auto overscroll-none flex-1 min-h-0 flex flex-col"
                     >
                       <div
                         style={{
