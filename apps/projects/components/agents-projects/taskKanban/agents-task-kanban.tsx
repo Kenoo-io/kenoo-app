@@ -31,6 +31,11 @@ import {
   Flag,
   RefreshCw,
   Search,
+  Columns3,
+  LayoutList,
+  ChevronDown,
+  ChevronUp,
+  ChevronsUpDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useActiveAccount } from "@/components/active-account-context";
@@ -642,6 +647,290 @@ function KanbanColumn({
   );
 }
 
+/* ─── List view ─────────────────────────────────────────────────────────── */
+function TaskListRow({
+  task,
+  onEdit,
+  columnWidths,
+  tableWidth,
+}: {
+  task: ProjectTask;
+  onEdit: (task: ProjectTask) => void;
+  columnWidths: Record<TaskListSortKey, number>;
+  tableWidth: number;
+}) {
+  const { user } = useAuth();
+  const status = TASK_STATUS_CONFIG[task.status];
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => onEdit(task)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onEdit(task);
+        }
+      }}
+      className="group flex cursor-pointer items-stretch border-b border-r border-l-0 border-t-0 border-neutral-300 bg-kenoo-white transition-colors duration-200 hover:bg-gray-200/60 focus-visible:bg-gray-200/60 focus-visible:outline-none"
+      style={{ minWidth: tableWidth }}
+    >
+      <div className="flex shrink-0 items-center px-6 py-3" style={{ width: columnWidths.title }}>
+        <p className={cn("w-full truncate text-sm font-light text-foreground", task.status === "completed" && "text-neutral-400 line-through")}>
+          {task.title}
+        </p>
+      </div>
+      <div className="flex shrink-0 items-center gap-2 overflow-hidden px-4 py-3" style={{ width: columnWidths.project }}>
+        {task.project ? (
+          <span className="flex min-w-0 items-center gap-2 truncate text-sm font-light text-foreground">
+            <span
+              className="h-1.5 w-1.5 shrink-0 rounded-full"
+              style={{ backgroundColor: task.project.color ?? "#ceff00" }}
+            />
+            <span className="truncate">{task.project.name}</span>
+          </span>
+        ) : (
+          <span className="text-sm font-light text-neutral-300">—</span>
+        )}
+      </div>
+      <div className="flex shrink-0 items-center gap-2 overflow-hidden px-4 py-3" style={{ width: columnWidths.status }}>
+        <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: status.accent }} />
+        <span className="truncate text-sm font-light text-foreground">
+          {status.label}
+        </span>
+      </div>
+      <div className="flex shrink-0 items-center overflow-hidden px-4 py-3" style={{ width: columnWidths.assignee }}>
+        <TaskAssignee
+          assignees={task.assignees?.length ? task.assignees : task.assignee ? [task.assignee] : []}
+          currentUserId={user?.id}
+        />
+      </div>
+      <div className="flex shrink-0 items-center overflow-hidden px-4 py-3" style={{ width: columnWidths.priority }}>
+        {task.priority ? (
+          <PriorityFlag priority={task.priority} />
+        ) : (
+          <span className="text-sm font-light text-neutral-300">—</span>
+        )}
+      </div>
+      <div className="flex shrink-0 items-center overflow-hidden px-4 py-3" style={{ width: columnWidths.due_date }}>
+        <TaskDueDate date={task.due_date} isCompleted={task.status === "completed"} />
+      </div>
+    </div>
+  );
+}
+
+type TaskListSortKey =
+  | "title"
+  | "project"
+  | "status"
+  | "assignee"
+  | "priority"
+  | "due_date";
+
+const TASK_LIST_DEFAULT_COLUMN_WIDTHS: Record<TaskListSortKey, number> = {
+  title: 320,
+  project: 190,
+  status: 150,
+  assignee: 180,
+  priority: 110,
+  due_date: 125,
+};
+
+const TASK_LIST_MIN_COLUMN_WIDTHS: Record<TaskListSortKey, number> = {
+  title: 260,
+  project: 140,
+  status: 125,
+  assignee: 145,
+  priority: 100,
+  due_date: 105,
+};
+
+function TaskListView({
+  tasksByStatus,
+  onEditTask,
+  sortBy,
+  sortDir,
+  onSort,
+}: {
+  tasksByStatus: Record<TaskStatus, ProjectTask[]>;
+  onEditTask: (task: ProjectTask) => void;
+  sortBy: TaskListSortKey;
+  sortDir: "asc" | "desc";
+  onSort: (key: TaskListSortKey) => void;
+}) {
+  const [columnWidths, setColumnWidths] = useState(
+    TASK_LIST_DEFAULT_COLUMN_WIDTHS
+  );
+  const [resizingColumn, setResizingColumn] =
+    useState<TaskListSortKey | null>(null);
+  const resizeRef = useRef<{
+    key: TaskListSortKey;
+    startX: number;
+    startWidth: number;
+  } | null>(null);
+  const taskCount = KANBAN_COLUMNS.reduce(
+    (count, status) => count + (tasksByStatus[status]?.length ?? 0),
+    0
+  );
+
+  const orderedTasks = useMemo(() => {
+    const statusOrder = new Map(KANBAN_COLUMNS.map((status, index) => [status, index]));
+    const valueFor = (task: ProjectTask): string | number | null => {
+      switch (sortBy) {
+        case "title":
+          return task.title;
+        case "project":
+          return task.project?.name ?? null;
+        case "status":
+          return statusOrder.get(task.status) ?? KANBAN_COLUMNS.length;
+        case "assignee":
+          return getTaskAssigneesDisplayLabel(
+            task.assignees?.length ? task.assignees : task.assignee ? [task.assignee] : []
+          );
+        case "priority":
+          return task.priority;
+        case "due_date":
+          return task.due_date;
+      }
+    };
+
+    return KANBAN_COLUMNS.flatMap((status) => tasksByStatus[status] ?? []).sort(
+      (a, b) => {
+        const aValue = valueFor(a);
+        const bValue = valueFor(b);
+        if (aValue == null && bValue == null) return 0;
+        if (aValue == null) return 1;
+        if (bValue == null) return -1;
+        const comparison =
+          typeof aValue === "number" && typeof bValue === "number"
+            ? aValue - bValue
+            : String(aValue).localeCompare(String(bValue), undefined, {
+                sensitivity: "base",
+              });
+        return sortDir === "asc" ? comparison : -comparison;
+      }
+    );
+  }, [tasksByStatus, sortBy, sortDir]);
+
+  const handleResizeMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    const resize = resizeRef.current;
+    if (!resize) return;
+    const nextWidth = Math.max(
+      TASK_LIST_MIN_COLUMN_WIDTHS[resize.key],
+      resize.startWidth + event.clientX - resize.startX
+    );
+    setColumnWidths((current) => ({
+      ...current,
+      [resize.key]: nextWidth,
+    }));
+  };
+
+  const startResize = (
+    event: React.PointerEvent<HTMLDivElement>,
+    key: TaskListSortKey
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    resizeRef.current = {
+      key,
+      startX: event.clientX,
+      startWidth: columnWidths[key],
+    };
+    setResizingColumn(key);
+  };
+
+  const stopResize = () => {
+    resizeRef.current = null;
+    setResizingColumn(null);
+  };
+
+  const tableWidth = Object.values(columnWidths).reduce(
+    (total, width) => total + width,
+    0
+  );
+
+  const header = (key: TaskListSortKey, label: string) => {
+    const active = sortBy === key;
+    const SortIcon = active
+      ? sortDir === "asc"
+        ? ChevronUp
+        : ChevronDown
+      : ChevronsUpDown;
+    return (
+      <button
+        type="button"
+        onClick={() => onSort(key)}
+        aria-label={`Sort by ${label}`}
+        aria-pressed={active}
+        className={cn(
+          "group relative flex shrink-0 items-center gap-1.5 px-4 text-[11px] font-normal uppercase tracking-[0.16em] transition-colors",
+          active ? "text-neutral-800" : "text-neutral-500 hover:text-neutral-800",
+        )}
+        style={{ width: columnWidths[key] }}
+      >
+        {label}
+        <SortIcon className={cn("h-3 w-3", !active && "text-neutral-300")} strokeWidth={1.7} />
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label={`Resize ${label} column`}
+          onPointerDown={(event) => startResize(event, key)}
+          onPointerMove={handleResizeMove}
+          onPointerUp={stopResize}
+          onPointerCancel={stopResize}
+          onClick={(event) => event.stopPropagation()}
+          className="absolute right-0 top-0 z-20 h-full w-3 cursor-col-resize touch-none"
+        >
+          <div
+            className={cn(
+              "absolute right-0 top-0 h-full w-px transition-colors",
+              resizingColumn === key ? "bg-neutral-500" : "bg-neutral-300 group-hover:bg-neutral-400"
+            )}
+          />
+        </div>
+      </button>
+    );
+  };
+
+  if (taskCount === 0) {
+    return (
+      <div className="flex min-h-[240px] flex-col items-center justify-center text-center">
+        <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-neutral-100">
+          <LayoutList className="h-7 w-7 text-neutral-300" />
+        </div>
+        <p className="text-sm font-medium text-neutral-500">No tasks found</p>
+        <p className="mt-1 text-xs font-light text-neutral-400">Try adjusting your filters or search.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-kenoo-white" style={{ minWidth: tableWidth }}>
+      <div className="sticky top-0 z-40 flex items-center border-b border-r border-l-0 border-t-0 border-neutral-300 bg-kenoo-white py-2" style={{ minWidth: tableWidth }}>
+        {header("title", "Task")}
+        {header("project", "Project")}
+        {header("status", "Status")}
+        {header("assignee", "Assignee")}
+        {header("priority", "Priority")}
+        {header("due_date", "Due date")}
+      </div>
+      <div className="flex flex-col">
+        {orderedTasks.map((task) => (
+          <TaskListRow
+            key={task.id}
+            task={task}
+            onEdit={onEditTask}
+            columnWidths={columnWidths}
+            tableWidth={tableWidth}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /* ─── Task detail sheet ──────────────────────────────────────────────────── */
 interface TaskDetailProps {
   task: ProjectTask | null;
@@ -768,6 +1057,7 @@ function AgentsProjectsKanbanContent({
   const [taskScopeFilter, setTaskScopeFilter] = useState<BoardTaskScope>(() =>
     parseBoardTaskScope(searchParams.get("scope"))
   );
+  const viewMode = searchParams.get("view") === "list" ? "list" : "kanban";
   const [scopeMetaRows, setScopeMetaRows] = useState<TaskScopeMetaRow[]>([]);
 
   const scopeProjectIds = useMemo(() => {
@@ -823,10 +1113,34 @@ function AgentsProjectsKanbanContent({
     },
     [router, searchParams]
   );
+  const handleViewModeChange = useCallback(
+    (nextView: "kanban" | "list") => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (nextView === "kanban") {
+        params.delete("view");
+      } else {
+        params.set("view", nextView);
+      }
+      const qs = params.toString();
+      router.replace(`/tasks${qs ? `?${qs}` : ""}`, { scroll: false });
+    },
+    [router, searchParams]
+  );
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [listSortBy, setListSortBy] = useState<TaskListSortKey>("due_date");
+  const [listSortDir, setListSortDir] = useState<"asc" | "desc">("asc");
+
+  const handleListSort = useCallback((key: TaskListSortKey) => {
+    if (key === listSortBy) {
+      setListSortDir((direction) => (direction === "asc" ? "desc" : "asc"));
+      return;
+    }
+    setListSortBy(key);
+    setListSortDir(key === "priority" ? "desc" : "asc");
+  }, [listSortBy]);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search.trim()), 350);
@@ -1258,6 +1572,36 @@ function AgentsProjectsKanbanContent({
                 />
               </div>
 
+              <div
+                className="flex shrink-0 items-center rounded-full border border-neutral-200/70 bg-neutral-50/50 p-0.5"
+                role="group"
+                aria-label="Task view"
+              >
+                {[
+                  { value: "kanban", label: "Kanban", icon: Columns3 },
+                  { value: "list", label: "List", icon: LayoutList },
+                ].map(({ value, label, icon: Icon }) => {
+                  const active = viewMode === value;
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => handleViewModeChange(value as "kanban" | "list")}
+                      className={cn(
+                        "flex h-7 items-center gap-1.5 rounded-full px-3 text-xs font-light uppercase tracking-wider transition-all duration-200",
+                        active
+                          ? "border border-neutral-200 bg-neutral-50 text-neutral-900 shadow-[inset_0_2px_4px_rgba(0,0,0,0.10)]"
+                          : "text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700"
+                      )}
+                    >
+                      <Icon className="h-3.5 w-3.5" strokeWidth={1.5} />
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+
               <KanbanPlusButton
                 title="New task"
                 onClick={() => {
@@ -1312,6 +1656,19 @@ function AgentsProjectsKanbanContent({
                   />
                 ))}
               </div>
+            </div>
+          ) : viewMode === "list" ? (
+            <div className="app-sidebar-pad flex-1 min-h-0 overflow-auto overscroll-contain pb-0 pr-4">
+              <TaskListView
+                tasksByStatus={tasksByStatus}
+                sortBy={listSortBy}
+                sortDir={listSortDir}
+                onSort={handleListSort}
+                onEditTask={(task) => {
+                  setEditTask(task);
+                  setTaskFormOpen(true);
+                }}
+              />
             </div>
           ) : (
             <div className="flex-1 min-h-0 pr-4 overflow-x-auto overflow-y-hidden overscroll-contain flex flex-col">
