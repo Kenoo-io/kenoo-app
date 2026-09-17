@@ -50,6 +50,7 @@ import { SimpleMarkdownEditor } from "@/components/agents-projects/simple-markdo
 import {
   notifyTaskAssignee,
   sendTaskAssignmentEmail,
+  sendTaskBlockerCompletedEmail,
   resolveActorDisplayName,
 } from "@/lib/user-notifications";
 import { useActiveAccount } from "@/components/active-account-context";
@@ -941,6 +942,10 @@ export function CreateTasksPopup({
         assigneeIds,
         assignedBy
       );
+
+      if (existing && existing.status !== "completed" && form.status === "completed") {
+        void sendTaskBlockerCompletedEmail({ taskId });
+      }
 
       await Promise.all(
         newlyAdded.map((assigneeId) =>

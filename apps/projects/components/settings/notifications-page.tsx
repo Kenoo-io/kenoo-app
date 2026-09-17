@@ -74,18 +74,29 @@ function NotificationChannelSelect({
 
 export function NotificationsPage() {
   const [taskAssignedEmail, setTaskAssignedEmail] = React.useState(false);
+  const [taskBlockerCompletedEmail, setTaskBlockerCompletedEmail] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
-  const [saving, setSaving] = React.useState(false);
+  const [savingPreferences, setSavingPreferences] = React.useState<Set<"taskAssigned" | "taskBlockerCompleted">>(new Set());
+
+  function setPreferenceSaving(preference: "taskAssigned" | "taskBlockerCompleted", saving: boolean) {
+    setSavingPreferences((current) => {
+      const next = new Set(current);
+      if (saving) next.add(preference);
+      else next.delete(preference);
+      return next;
+    });
+  }
 
   React.useEffect(() => {
     let active = true;
     void fetch("/api/settings/notifications")
       .then(async (response) => {
         if (!response.ok) throw new Error("Unable to load notification preferences");
-        return response.json() as Promise<{ taskAssignedEmail: boolean }>;
+        return response.json() as Promise<{ taskAssignedEmail: boolean; taskBlockerCompletedEmail: boolean }>;
       })
       .then((data) => {
         if (active) setTaskAssignedEmail(data.taskAssignedEmail);
+        if (active) setTaskBlockerCompletedEmail(data.taskBlockerCompletedEmail);
       })
       .catch(() => {
         if (active) wallsToast.error("Couldn’t load settings", "Your default preferences are still shown.");
@@ -99,7 +110,7 @@ export function NotificationsPage() {
   async function updateTaskAssignedEmail(notifyEmail: boolean) {
     const previous = taskAssignedEmail;
     setTaskAssignedEmail(notifyEmail);
-    setSaving(true);
+    setPreferenceSaving("taskAssigned", true);
     try {
       const response = await fetch("/api/settings/notifications", {
         method: "PUT",
@@ -112,8 +123,25 @@ export function NotificationsPage() {
       setTaskAssignedEmail(previous);
       wallsToast.error("Couldn’t save settings", "Please try again.");
     } finally {
-      setSaving(false);
+      setPreferenceSaving("taskAssigned", false);
     }
+  }
+
+  async function updateTaskBlockerCompletedEmail(notifyEmail: boolean) {
+    const previous = taskBlockerCompletedEmail;
+    setTaskBlockerCompletedEmail(notifyEmail);
+    setPreferenceSaving("taskBlockerCompleted", true);
+    try {
+      const response = await fetch("/api/settings/notifications", {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ taskBlockerCompletedEmail: notifyEmail }),
+      });
+      if (!response.ok) throw new Error("Unable to save notification preference");
+      wallsToast.success("Notification preference saved");
+    } catch {
+      setTaskBlockerCompletedEmail(previous);
+      wallsToast.error("Couldn’t save settings", "Please try again.");
+    } finally { setPreferenceSaving("taskBlockerCompleted", false); }
   }
 
   return (
@@ -136,12 +164,25 @@ export function NotificationsPage() {
             <p className="text-xs font-medium uppercase tracking-widest text-neutral-500">Task assignments</p>
             <p className="mt-1.5 text-sm font-light text-neutral-500">Get notified when someone assigns a task to you.</p>
           </div>
-          <div className="flex items-center gap-3 overflow-hidden rounded-2xl border border-neutral-200/80 bg-white px-4 py-3 shadow-[0_8px_28px_rgba(15,23,42,0.07),inset_0_1px_0_rgba(255,255,255,0.95)] md:px-5">
+          <div className="flex items-center gap-3 overflow-hidden rounded-2xl bg-white px-4 py-3 shadow-[0_8px_28px_rgba(15,23,42,0.07),inset_0_1px_0_rgba(255,255,255,0.95)] md:px-5">
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium text-foreground">New task assignments</p>
               <p className="mt-0.5 text-xs font-light text-neutral-500">When a task is assigned to you in Projects</p>
             </div>
-            {loading ? <Loader2 className="h-4 w-4 shrink-0 animate-spin text-neutral-400" /> : <NotificationChannelSelect notifyEmail={taskAssignedEmail} loading={loading} saving={saving} onChange={(notifyEmail) => void updateTaskAssignedEmail(notifyEmail)} />}
+            {loading ? <Loader2 className="h-4 w-4 shrink-0 animate-spin text-neutral-400" /> : <NotificationChannelSelect notifyEmail={taskAssignedEmail} loading={loading} saving={savingPreferences.has("taskAssigned")} onChange={(notifyEmail) => void updateTaskAssignedEmail(notifyEmail)} />}
+          </div>
+        </section>
+        <section>
+          <div className="mb-4">
+            <p className="text-xs font-medium uppercase tracking-widest text-neutral-500">Task blockers</p>
+            <p className="mt-1.5 text-sm font-light text-neutral-500">Know when work assigned to you is closer to being ready.</p>
+          </div>
+          <div className="flex items-center gap-3 overflow-hidden rounded-2xl bg-white px-4 py-3 shadow-[0_8px_28px_rgba(15,23,42,0.07),inset_0_1px_0_rgba(255,255,255,0.95)] md:px-5">
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-foreground">Blocker completed</p>
+              <p className="mt-0.5 text-xs font-light text-neutral-500">When a task blocking one of your tasks is completed</p>
+            </div>
+            {loading ? <Loader2 className="h-4 w-4 shrink-0 animate-spin text-neutral-400" /> : <NotificationChannelSelect notifyEmail={taskBlockerCompletedEmail} loading={loading} saving={savingPreferences.has("taskBlockerCompleted")} onChange={(notifyEmail) => void updateTaskBlockerCompletedEmail(notifyEmail)} />}
           </div>
         </section>
       </div>
