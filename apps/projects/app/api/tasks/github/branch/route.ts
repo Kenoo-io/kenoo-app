@@ -58,7 +58,9 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    const taskId = new URL(request.url).searchParams.get("taskId");
+    const url = new URL(request.url);
+    const taskId = url.searchParams.get("taskId");
+    const deleteGitHubBranch = url.searchParams.get("deleteBranch") !== "false";
     if (!taskId) return NextResponse.json({ error: "taskId is required" }, { status: 400 });
     const { accountId, connection } = await requireTaskGitHubContext({ write: true });
     await getTaskForAccount(taskId, accountId);
@@ -67,7 +69,9 @@ export async function DELETE(request: Request) {
       .select("task_id, repository_full_name, branch_name").eq("task_id", taskId).maybeSingle();
     if (error) throw error;
     if (!branch) return NextResponse.json({ deleted: false, branch: null });
-    await deleteGitHubBranchRef({ installationId: connection.provider_account_id!, repositoryFullName: branch.repository_full_name, branchName: branch.branch_name });
+    if (deleteGitHubBranch) {
+      await deleteGitHubBranchRef({ installationId: connection.provider_account_id!, repositoryFullName: branch.repository_full_name, branchName: branch.branch_name });
+    }
     const { error: unlinkError } = await admin.from("project_task_github_branches").delete().eq("task_id", taskId);
     if (unlinkError) throw unlinkError;
     return NextResponse.json({ deleted: true });
