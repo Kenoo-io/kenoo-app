@@ -466,18 +466,22 @@ function TimedEventBlock({
                   y: coords.placeBelow ? 'calc(0% - 4px)' : 'calc(-100% + 4px)',
                 }}
                 transition={{ duration: 0.15, ease: 'easeOut' }}
-                className="pointer-events-none fixed z-[9999] max-w-[220px] whitespace-nowrap rounded-xl border border-kenoo-border bg-kenoo-white p-2.5 text-kenoo-ink shadow-md"
+                className="pointer-events-none fixed z-[9999] max-w-[min(220px,calc(100vw-2rem))] whitespace-normal rounded-xl border border-kenoo-border bg-kenoo-white p-2.5 text-kenoo-ink shadow-md"
                 style={{
                   top: coords.top,
                   left: coords.left,
                 }}
               >
-                <div className="mb-1 text-sm font-normal">{event.title}</div>
+                <div className="mb-1 break-words [overflow-wrap:anywhere] text-sm font-normal">
+                  {event.title}
+                </div>
                 <div className="text-xs font-normal text-kenoo-muted">
                   {formatEventTime(startTime)} – {formatEventTime(endTime)}
                 </div>
                 {event.location && (
-                  <div className="mt-1 text-[11px] text-kenoo-muted">{event.location}</div>
+                  <div className="mt-1 break-words [overflow-wrap:anywhere] text-[11px] text-kenoo-muted">
+                    {event.location}
+                  </div>
                 )}
               </motion.div>
             )}
