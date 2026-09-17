@@ -85,6 +85,7 @@ import {
 import {
   notifyTaskAssignerOnComplete,
   resolveActorDisplayName,
+  sendTaskBlockerCompletedEmail,
 } from "@/lib/user-notifications";
 
 type TasksScreenCacheEntry = {
@@ -1589,6 +1590,10 @@ function AgentsProjectsKanbanContent({
           .from("project_tasks")
           .update(updatePayload)
           .eq("id", taskId);
+
+        if (targetStatus === "completed" && draggedTask.status !== "completed") {
+          void sendTaskBlockerCompletedEmail({ taskId: draggedTask.id });
+        }
 
         if (
           targetStatus === "completed" &&

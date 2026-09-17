@@ -26,7 +26,7 @@ function SettingsActionPanel({
   actionLabel: string;
 }) {
   return (
-    <div className="overflow-hidden rounded-[28px] border border-neutral-200/80 bg-white px-5 py-5 shadow-[0_12px_40px_rgba(15,23,42,0.06)] md:px-6 md:py-6">
+    <div className="overflow-hidden rounded-[28px] bg-white px-5 py-5 shadow-[0_12px_40px_rgba(15,23,42,0.06)] md:px-6 md:py-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <p className="font-medium text-foreground">{title}</p>

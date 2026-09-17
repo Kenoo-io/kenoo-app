@@ -58,6 +58,20 @@ export async function sendTaskAssignmentEmail(options: {
   }
 }
 
+/** Requests blocker-completion email delivery after a task status transitions. */
+export async function sendTaskBlockerCompletedEmail(options: { taskId: string }): Promise<void> {
+  try {
+    await fetch("/api/notifications/task-blocker-completed", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(options),
+    });
+  } catch (error) {
+    // Email delivery is secondary to completing the task.
+    console.error("Failed to request task blocker email:", error);
+  }
+}
+
 /** Scouter notifications open the index, not a specific profile sheet. */
 export function scouterNotificationUrl(): string {
   return SCOUTER_INDEX_URL;

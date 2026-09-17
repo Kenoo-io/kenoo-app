@@ -50,6 +50,7 @@ import { SimpleMarkdownEditor } from "@/components/agents-projects/simple-markdo
 import {
   notifyTaskAssignee,
   sendTaskAssignmentEmail,
+  sendTaskBlockerCompletedEmail,
   resolveActorDisplayName,
 } from "@/lib/user-notifications";
 import { useActiveAccount } from "@/components/active-account-context";
@@ -869,6 +870,15 @@ export function CreateTasksPopup({
         assignee_id: primaryAssigneeId,
         is_private: !form.is_public,
       };
+      if (form.status === "completed") {
+        // Keep the original completion time while editing a completed task,
+        // otherwise record the status transition for completion automations.
+        payload.completed_at = existing?.status === "completed"
+          ? existing.completed_at ?? new Date().toISOString()
+          : new Date().toISOString();
+      } else if (existing?.status === "completed") {
+        payload.completed_at = null;
+      }
       if (threadId) payload.thread_id = threadId;
 
       if (assigneesChanged) {
@@ -941,6 +951,12 @@ export function CreateTasksPopup({
         assigneeIds,
         assignedBy
       );
+
+      if (existing && existing.status !== "completed" && form.status === "completed") {
+        // Await the request before the popup unmounts; this helper absorbs
+        // delivery errors, so it never prevents the task from being saved.
+        await sendTaskBlockerCompletedEmail({ taskId });
+      }
 
       await Promise.all(
         newlyAdded.map((assigneeId) =>

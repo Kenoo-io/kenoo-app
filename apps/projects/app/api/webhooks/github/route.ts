@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@walls/supabase/admin";
 import { setGitHubInstallationConnectionActive } from "@/lib/github-connections-server";
 import { hasMergedGitHubPullRequest } from "@/lib/github-app";
+import { notifyTaskAssigneesWhenBlockerCompletes } from "@/lib/task-blocker-notification";
 
 type Payload = {
   action?: string;
@@ -57,9 +58,17 @@ async function transition(event: string | null, payload: Payload) {
   if (error) throw error;
   const taskIds = (data ?? []).map((row) => row.task_id as string);
   if (!taskIds.length) return;
+  const previouslyCompletedIds = status === "completed"
+    ? (await admin.from("project_tasks").select("id").in("id", taskIds).eq("status", "completed")).data?.map((row) => row.id as string) ?? []
+    : [];
   const update = status === "completed" ? { status, completed_at: new Date().toISOString() } : { status, completed_at: null };
   const { error: updateError } = await admin.from("project_tasks").update(update).in("id", taskIds);
   if (updateError) throw updateError;
+  if (status === "completed") {
+    const completedNow = taskIds.filter((id) => !previouslyCompletedIds.includes(id));
+    const origin = process.env.NEXT_PUBLIC_PROJECTS_URL?.replace(/\/$/, "") || "https://projects.kenoo.io";
+    await Promise.all(completedNow.map((taskId) => notifyTaskAssigneesWhenBlockerCompletes({ taskId, origin })));
+  }
 }
 
 async function recordPullRequestMerge(payload: Payload) {
