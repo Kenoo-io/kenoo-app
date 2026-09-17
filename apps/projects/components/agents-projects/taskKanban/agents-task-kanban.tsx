@@ -673,7 +673,7 @@ function TaskListRow({
           onEdit(task);
         }
       }}
-      className="group flex cursor-pointer items-stretch border-b border-r border-l-0 border-t-0 border-neutral-300 bg-kenoo-white transition-colors duration-200 hover:bg-gray-200/60 focus-visible:bg-gray-200/60 focus-visible:outline-none"
+      className="group flex cursor-pointer items-stretch border-b border-l-0 border-t-0 border-neutral-300 bg-kenoo-white transition-colors duration-200 hover:bg-gray-200/60 focus-visible:bg-gray-200/60 focus-visible:outline-none"
       style={{ minWidth: tableWidth }}
     >
       <div className="flex shrink-0 items-center px-6 py-3" style={{ width: columnWidths.title }}>
@@ -908,7 +908,7 @@ function TaskListView({
 
   return (
     <div className="bg-kenoo-white" style={{ minWidth: tableWidth }}>
-      <div className="sticky top-0 z-40 flex items-center border-b border-r border-l-0 border-t-0 border-neutral-300 bg-kenoo-white py-2" style={{ minWidth: tableWidth }}>
+      <div className="sticky top-0 z-40 flex items-center border-b border-l-0 border-t-0 border-neutral-300 bg-kenoo-white py-2" style={{ minWidth: tableWidth }}>
         {header("title", "Task")}
         {header("project", "Project")}
         {header("status", "Status")}
