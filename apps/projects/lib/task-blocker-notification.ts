@@ -130,9 +130,9 @@ export async function notifyTaskAssigneesWhenBlockerCompletes({
       if (notificationError || !notification) continue;
 
       const result = await sendTaskBlockerCompletedEmail({
-        to: recipient.email as string, recipientFirstName: recipient.first_name as string | null,
+        to: recipient.email as string,
         blockerTaskTitle: completedBlocker.title, blockedTaskTitle: task.title,
-        projectName: project.name, remainingBlockerCount,
+        remainingBlockerCount,
         taskUrl: `${origin.replace(/\/$/, "")}/tasks?project=${task.project_id}`,
       });
       if (result.ok) queued += 1;
