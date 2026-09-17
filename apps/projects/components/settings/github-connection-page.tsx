@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { AlertCircle, ArrowLeft, CheckCircle2, Github, Unplug } from "lucide-react";
 
-import { useGitHubConnection } from "@/lib/github-connection";
+import { setCachedGitHubConnection, useGitHubConnection } from "@/lib/github-connection";
 import { Button } from "@/components/ui/button";
 
 function connectionErrorMessage(error: string) {
@@ -45,7 +45,9 @@ export function GitHubConnectionPage() {
     try {
       const response = await fetch("/api/connections", { method: "DELETE" });
       if (!response.ok) throw new Error("Unable to disconnect GitHub");
-      await refetch();
+      // The delete endpoint is authoritative, so update the shared cache
+      // immediately rather than leaving another settings view stale.
+      setCachedGitHubConnection(null);
       window.history.replaceState(null, "", "/settings/connections/github");
     } catch {
       setDisconnectError("GitHub could not be disconnected. Please try again.");

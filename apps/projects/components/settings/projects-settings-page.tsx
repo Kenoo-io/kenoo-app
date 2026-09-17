@@ -1,11 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { ChevronRight, Github, Mail } from "lucide-react";
+import { ChevronRight, Github } from "lucide-react";
 import Link from "next/link";
 
-import { Switch } from "@/components/ui/switch";
-import { wallsToast } from "@/components/ui/walls-toast";
 import { useGitHubConnection } from "@/lib/github-connection";
 
 function SectionLabel({ title, description }: { title: string; description?: string }) {
@@ -17,51 +14,39 @@ function SectionLabel({ title, description }: { title: string; description?: str
   );
 }
 
+function SettingsActionPanel({
+  title,
+  description,
+  href,
+  actionLabel,
+}: {
+  title: string;
+  description: string;
+  href: string;
+  actionLabel: string;
+}) {
+  return (
+    <div className="overflow-hidden rounded-[28px] border border-neutral-200/80 bg-white px-5 py-5 shadow-[0_12px_40px_rgba(15,23,42,0.06)] md:px-6 md:py-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <p className="font-medium text-foreground">{title}</p>
+          <p className="mt-1 text-sm font-light leading-6 text-neutral-500">{description}</p>
+        </div>
+        <Link
+          href={href}
+          className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-[var(--kenoo-sky)] transition-opacity hover:opacity-80"
+        >
+          {actionLabel}
+          <ChevronRight className="h-4 w-4" />
+        </Link>
+      </div>
+    </div>
+  );
+}
+
 export function ProjectsSettingsPage() {
-  const [taskAssignedEmail, setTaskAssignedEmail] = useState(true);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const { connection: githubConnection, loading: githubLoading } =
     useGitHubConnection();
-
-  useEffect(() => {
-    let active = true;
-    void fetch("/api/settings/notifications")
-      .then(async (response) => {
-        if (!response.ok) throw new Error("Unable to load notification preferences");
-        return response.json() as Promise<{ taskAssignedEmail: boolean }>;
-      })
-      .then((data) => {
-        if (active) setTaskAssignedEmail(data.taskAssignedEmail);
-      })
-      .catch(() => {
-        if (active) wallsToast.error("Couldn’t load settings", "Your default preferences are still shown.");
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => { active = false; };
-  }, []);
-
-  async function updateTaskAssignedEmail(checked: boolean) {
-    const previous = taskAssignedEmail;
-    setTaskAssignedEmail(checked);
-    setSaving(true);
-    try {
-      const response = await fetch("/api/settings/notifications", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ taskAssignedEmail: checked }),
-      });
-      if (!response.ok) throw new Error("Unable to save notification preference");
-      wallsToast.success("Notification preference saved");
-    } catch {
-      setTaskAssignedEmail(previous);
-      wallsToast.error("Couldn’t save settings", "Please try again.");
-    } finally {
-      setSaving(false);
-    }
-  }
 
   return (
     <main className="min-h-full w-full bg-kenoo-white px-6 pb-12 pt-6 md:px-10">
@@ -97,31 +82,13 @@ export function ProjectsSettingsPage() {
         </section>
 
         <section>
-          <SectionLabel title="Email notifications" description="Control which project activity reaches your inbox." />
-          <div className="overflow-hidden rounded-[28px] border border-neutral-200/80 bg-white px-5 py-5 shadow-[0_12px_40px_rgba(15,23,42,0.06)] md:px-6">
-            <div className="flex items-start gap-4">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-sky-50 text-[var(--kenoo-sky)]">
-                <Mail className="h-5 w-5 stroke-[1.7]" />
-              </span>
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-foreground">New task assignments</p>
-                    <p className="mt-1 max-w-lg text-sm font-light leading-6 text-neutral-500">
-                      Email me when someone assigns a task to me in Projects.
-                    </p>
-                  </div>
-                  <Switch
-                    size="md"
-                    checked={taskAssignedEmail}
-                    disabled={loading || saving}
-                    onCheckedChange={updateTaskAssignedEmail}
-                    aria-label="Email me for new task assignments"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
+          <SectionLabel title="Email notifications" />
+          <SettingsActionPanel
+            title="Manage notifications"
+            description="Choose how Projects activity notifications are delivered to you."
+            href="/settings/notifications"
+            actionLabel="Manage notifications"
+          />
         </section>
       </div>
     </main>

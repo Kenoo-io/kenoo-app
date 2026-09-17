@@ -29,7 +29,6 @@ import {
   Plus,
   Calendar,
   Flag,
-  RefreshCw,
   Search,
   Columns3,
   LayoutList,
@@ -54,12 +53,14 @@ import {
 import {
   getTaskAssigneeDisplayName,
   getTaskAssigneeInitials,
+  getTaskAssigneeIds,
   getTaskAssigneesDisplayLabel,
   isUserTaskAssignee,
   mapProjectTaskRow,
   PROJECT_TASK_SELECT_WITH_ASSIGNEE,
 } from "../task-assignee";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { SegmentToggle } from "@/components/ui/segment-toggle";
 import {
   Dialog,
   DialogContent,
@@ -1127,11 +1128,15 @@ function AgentsProjectsKanbanContent({
     [router, searchParams]
   );
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [listSortBy, setListSortBy] = useState<TaskListSortKey>("due_date");
   const [listSortDir, setListSortDir] = useState<"asc" | "desc">("asc");
+  const [assigneeFilter, setAssigneeFilter] = useState<string[]>([]);
+  const [priorityFilter, setPriorityFilter] = useState<number[]>([]);
+  const [dueDateFilter, setDueDateFilter] = useState<
+    "all" | "overdue" | "today" | "next_7_days" | "no_due_date"
+  >("all");
 
   const handleListSort = useCallback((key: TaskListSortKey) => {
     if (key === listSortBy) {
@@ -1322,17 +1327,57 @@ function AgentsProjectsKanbanContent({
       ? tasks
       : tasks.filter((t) => t.project_id === projectFilter);
 
+  const availableAssignees = React.useMemo(() => {
+    const byId = new Map<string, TaskAssignee>();
+    for (const task of filteredTasks) {
+      for (const assignee of task.assignees ?? []) byId.set(assignee.id, assignee);
+      if (task.assignee) byId.set(task.assignee.id, task.assignee);
+    }
+    return [...byId.values()].sort((a, b) => {
+      const aName = `${a.first_name ?? ""} ${a.last_name ?? ""}`.trim() || a.email;
+      const bName = `${b.first_name ?? ""} ${b.last_name ?? ""}`.trim() || b.email;
+      return aName.localeCompare(bName);
+    });
+  }, [filteredTasks]);
+
+  const advancedFilteredTasks = React.useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayKey = today.toISOString().slice(0, 10);
+    const nextWeek = new Date(today);
+    nextWeek.setDate(nextWeek.getDate() + 7);
+    const nextWeekKey = nextWeek.toISOString().slice(0, 10);
+
+    return filteredTasks.filter((task) => {
+      const assigneeIds = getTaskAssigneeIds(task);
+      if (
+        assigneeFilter.length > 0 &&
+        !assigneeFilter.some((id) =>
+          id === "unassigned" ? assigneeIds.length === 0 : assigneeIds.includes(id),
+        )
+      ) return false;
+      if (priorityFilter.length > 0 && !priorityFilter.includes(task.priority ?? 0)) return false;
+      if (dueDateFilter === "no_due_date") return !task.due_date;
+      if (dueDateFilter === "overdue") return Boolean(task.due_date && task.due_date < todayKey);
+      if (dueDateFilter === "today") return task.due_date === todayKey;
+      if (dueDateFilter === "next_7_days") {
+        return Boolean(task.due_date && task.due_date >= todayKey && task.due_date <= nextWeekKey);
+      }
+      return true;
+    });
+  }, [assigneeFilter, dueDateFilter, filteredTasks, priorityFilter]);
+
   /* Filter tasks by search (title, description, project name) */
   const searchFilteredTasks = React.useMemo(() => {
-    if (!debouncedSearch) return filteredTasks;
+    if (!debouncedSearch) return advancedFilteredTasks;
     const q = debouncedSearch.toLowerCase();
-    return filteredTasks.filter(
+    return advancedFilteredTasks.filter(
       (t) =>
         t.title.toLowerCase().includes(q) ||
         (t.description?.toLowerCase().includes(q) ?? false) ||
         (t.project?.name.toLowerCase().includes(q) ?? false)
     );
-  }, [filteredTasks, debouncedSearch]);
+  }, [advancedFilteredTasks, debouncedSearch]);
 
   /* Group tasks by status column and sort: non-completed by due_date (soonest first), completed by completed_at (most recent first) */
   const tasksByStatus = React.useMemo(() => {
@@ -1548,7 +1593,7 @@ function AgentsProjectsKanbanContent({
     }
   };
 
-  const refresh = () => { setIsRefreshing(true); setRefreshTrigger((r) => r + 1); };
+  const refresh = () => setRefreshTrigger((r) => r + 1);
 
   return (
     <>
@@ -1572,35 +1617,23 @@ function AgentsProjectsKanbanContent({
                 />
               </div>
 
-              <div
-                className="flex shrink-0 items-center rounded-full border border-neutral-200/70 bg-neutral-50/50 p-0.5"
-                role="group"
+              <SegmentToggle
                 aria-label="Task view"
-              >
-                {[
-                  { value: "kanban", label: "Kanban", icon: Columns3 },
-                  { value: "list", label: "List", icon: LayoutList },
-                ].map(({ value, label, icon: Icon }) => {
-                  const active = viewMode === value;
-                  return (
-                    <button
-                      key={value}
-                      type="button"
-                      aria-pressed={active}
-                      onClick={() => handleViewModeChange(value as "kanban" | "list")}
-                      className={cn(
-                        "flex h-7 items-center gap-1.5 rounded-full px-3 text-xs font-light uppercase tracking-wider transition-all duration-200",
-                        active
-                          ? "border border-neutral-200 bg-neutral-50 text-neutral-900 shadow-[inset_0_2px_4px_rgba(0,0,0,0.10)]"
-                          : "text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700"
-                      )}
-                    >
-                      <Icon className="h-3.5 w-3.5" strokeWidth={1.5} />
-                      {label}
-                    </button>
-                  );
-                })}
-              </div>
+                value={viewMode}
+                onChange={(value) => handleViewModeChange(value)}
+                options={[
+                  {
+                    value: "kanban",
+                    label: "Kanban",
+                    icon: <Columns3 className="h-3.5 w-3.5 shrink-0 text-neutral-400" strokeWidth={1.5} />,
+                  },
+                  {
+                    value: "list",
+                    label: "List",
+                    icon: <LayoutList className="h-3.5 w-3.5 shrink-0 text-neutral-400" strokeWidth={1.5} />,
+                  },
+                ]}
+              />
 
               <KanbanPlusButton
                 title="New task"
@@ -1610,29 +1643,6 @@ function AgentsProjectsKanbanContent({
                 }}
               />
 
-              <button
-                type="button"
-                onClick={refresh}
-                className="h-9 w-9 shrink-0 flex items-center justify-center text-xs group outline-none ring-0 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0"
-                aria-label="Refresh board"
-              >
-                <div
-                  className={cn(
-                    "relative z-10 p-2.5 rounded-full border-0",
-                    "transition-all duration-300 ease-in-out",
-                    "group-hover:bg-neutral-100"
-                  )}
-                >
-                  <RefreshCw
-                    className={cn(
-                      "h-4 w-4 text-neutral-400",
-                      isRefreshing && "animate-[spin_0.6s_linear_1]"
-                    )}
-                    onAnimationEnd={() => setIsRefreshing(false)}
-                  />
-                </div>
-              </button>
-
               <ProjectsBoardFilters
                 projects={projects}
                 projectFilter={projectFilter}
@@ -1641,6 +1651,13 @@ function AgentsProjectsKanbanContent({
                 taskScopeOptions={taskScopeOptions}
                 taskScopeFilter={taskScopeFilter}
                 onTaskScopeFilterChange={handleTaskScopeFilterChange}
+                assignees={availableAssignees}
+                assigneeFilter={assigneeFilter}
+                onAssigneeFilterChange={setAssigneeFilter}
+                priorityFilter={priorityFilter}
+                onPriorityFilterChange={setPriorityFilter}
+                dueDateFilter={dueDateFilter}
+                onDueDateFilterChange={setDueDateFilter}
               />
             </div>
           </div>

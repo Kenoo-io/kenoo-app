@@ -90,7 +90,7 @@ export async function POST(request: Request) {
       .maybeSingle(),
   ]);
 
-  if ((preference && (!preference.enabled || !preference.notify_email)) || !recipient?.email) {
+  if (!preference || !preference.enabled || !preference.notify_email || !recipient?.email) {
     return NextResponse.json({ queued: false });
   }
 
