@@ -13,6 +13,15 @@ import {
 import { wallsToast } from "@/components/ui/walls-toast";
 import { cn } from "@/lib/utils";
 
+type NotificationPreferences = {
+  taskAssignedEmail: boolean;
+  taskBlockerCompletedEmail: boolean;
+};
+
+// This lives for the lifetime of the Projects app session. Settings are scoped to
+// the signed-in account and every successful mutation below writes through to it.
+let cachedPreferences: NotificationPreferences | null = null;
+
 function NotificationChannelSelect({
   notifyEmail,
   loading,
@@ -73,9 +82,9 @@ function NotificationChannelSelect({
 }
 
 export function NotificationsPage() {
-  const [taskAssignedEmail, setTaskAssignedEmail] = React.useState(false);
-  const [taskBlockerCompletedEmail, setTaskBlockerCompletedEmail] = React.useState(false);
-  const [loading, setLoading] = React.useState(true);
+  const [taskAssignedEmail, setTaskAssignedEmail] = React.useState(() => cachedPreferences?.taskAssignedEmail ?? false);
+  const [taskBlockerCompletedEmail, setTaskBlockerCompletedEmail] = React.useState(() => cachedPreferences?.taskBlockerCompletedEmail ?? false);
+  const [loading, setLoading] = React.useState(() => cachedPreferences === null);
   const [savingPreferences, setSavingPreferences] = React.useState<Set<"taskAssigned" | "taskBlockerCompleted">>(new Set());
 
   function setPreferenceSaving(preference: "taskAssigned" | "taskBlockerCompleted", saving: boolean) {
@@ -89,12 +98,16 @@ export function NotificationsPage() {
 
   React.useEffect(() => {
     let active = true;
+
+    if (cachedPreferences) return;
+
     void fetch("/api/settings/notifications")
       .then(async (response) => {
         if (!response.ok) throw new Error("Unable to load notification preferences");
-        return response.json() as Promise<{ taskAssignedEmail: boolean; taskBlockerCompletedEmail: boolean }>;
+        return response.json() as Promise<NotificationPreferences>;
       })
       .then((data) => {
+        cachedPreferences = data;
         if (active) setTaskAssignedEmail(data.taskAssignedEmail);
         if (active) setTaskBlockerCompletedEmail(data.taskBlockerCompletedEmail);
       })
@@ -107,6 +120,15 @@ export function NotificationsPage() {
     return () => { active = false; };
   }, []);
 
+  function cachePreference(preference: keyof NotificationPreferences, notifyEmail: boolean) {
+    cachedPreferences = {
+      taskAssignedEmail,
+      taskBlockerCompletedEmail,
+      ...cachedPreferences,
+      [preference]: notifyEmail,
+    };
+  }
+
   async function updateTaskAssignedEmail(notifyEmail: boolean) {
     const previous = taskAssignedEmail;
     setTaskAssignedEmail(notifyEmail);
@@ -118,6 +140,7 @@ export function NotificationsPage() {
         body: JSON.stringify({ taskAssignedEmail: notifyEmail }),
       });
       if (!response.ok) throw new Error("Unable to save notification preference");
+      cachePreference("taskAssignedEmail", notifyEmail);
       wallsToast.success("Notification preference saved");
     } catch {
       setTaskAssignedEmail(previous);
@@ -137,6 +160,7 @@ export function NotificationsPage() {
         body: JSON.stringify({ taskBlockerCompletedEmail: notifyEmail }),
       });
       if (!response.ok) throw new Error("Unable to save notification preference");
+      cachePreference("taskBlockerCompletedEmail", notifyEmail);
       wallsToast.success("Notification preference saved");
     } catch {
       setTaskBlockerCompletedEmail(previous);
