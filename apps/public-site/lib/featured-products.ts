@@ -27,7 +27,9 @@ export type CapabilityFeatureIcon =
   | "activity"
   | "utensils"
   | "target"
-  | "heart";
+  | "heart"
+  | "calendar"
+  | "check";
 
 export type CapabilitySection = {
   title: string;
@@ -42,7 +44,10 @@ export type CapabilitySection = {
     | "crm-contact"
     | "health-energy"
     | "health-meals"
-    | "health-pulse";
+    | "health-pulse"
+    | "projects-board"
+    | "projects-timeline"
+    | "projects-github";
   features: {
     title: string;
     description: string;
@@ -51,7 +56,7 @@ export type CapabilitySection = {
 };
 
 export type FeaturedProduct = {
-  slug: "adpilot" | "crm" | "health";
+  slug: "adpilot" | "crm" | "health" | "projects";
   name: string;
   tagline: string;
   description: string;
@@ -75,7 +80,12 @@ function appUrl(subdomain: string) {
   return `https://${subdomain}.${ROOT_DOMAIN}`;
 }
 
-export const FEATURED_PRODUCT_SLUGS = ["adpilot", "crm", "health"] as const;
+export const FEATURED_PRODUCT_SLUGS = [
+  "adpilot",
+  "crm",
+  "health",
+  "projects",
+] as const;
 
 export const FEATURED_PRODUCTS: FeaturedProduct[] = [
   {
@@ -600,6 +610,171 @@ export const FEATURED_PRODUCTS: FeaturedProduct[] = [
         question: "How do I get started with Health?",
         answer:
           "Open Health from your Kenoo workspace, set a simple goal, and log a meal or activity. Add provider sync later if you want richer daily totals.",
+      },
+    ],
+  },
+  {
+    slug: "projects",
+    name: "Projects",
+    tagline: "Work that moves forward together",
+    description:
+      "Plan initiatives, organize tasks, and keep owners, timelines, and progress visible in one shared workspace.",
+    overview:
+      "Kenoo Projects brings the work behind your business into focus. Shape initiatives, break them into clear tasks, assign owners, and follow progress across boards and timelines - so priorities stay clear from the first plan through completion.",
+    icon: "https://assest.kenoo.io/app-icons/projects.png",
+    appHref: appUrl("projects"),
+    accent: "#7c5ce0",
+    accentSoft: "rgba(124,92,224,0.13)",
+    features: [
+      {
+        title: "Projects & initiatives",
+        description:
+          "Give important work a clear home with ownership, status, and the context the team needs to move it forward.",
+      },
+      {
+        title: "Tasks that stay actionable",
+        description:
+          "Break work into tasks, assign the right people, and keep due dates and blockers visible before they become surprises.",
+      },
+      {
+        title: "Boards & timelines",
+        description:
+          "Switch between a practical task board and a timeline view to see both the next action and the bigger plan.",
+      },
+      {
+        title: "GitHub-connected delivery",
+        description:
+          "Link engineering work to the plan so branches and implementation details remain connected to the work they serve.",
+      },
+    ],
+    capabilitySections: [
+      {
+        title: "Make the next move obvious",
+        description:
+          "A focused board keeps work flowing from planned to in progress to done, with ownership and due dates where the team can see them.",
+        visual: "projects-board",
+        features: [
+          {
+            icon: "layers",
+            title: "Flexible boards",
+            description:
+              "See tasks in the stages that make sense for the way your team works.",
+          },
+          {
+            icon: "check",
+            title: "Clear status",
+            description:
+              "Keep planned, active, blocked, and completed work easy to scan.",
+          },
+          {
+            icon: "users",
+            title: "Owners in context",
+            description:
+              "Every task has a person responsible for carrying it forward.",
+          },
+          {
+            icon: "calendar",
+            title: "Due dates",
+            description:
+              "Spot what needs attention this week before priorities drift.",
+          },
+        ],
+      },
+      {
+        title: "See the plan, not just the pile",
+        description:
+          "Project timelines show how tasks fit together over time, helping the team understand what is next and where work may collide.",
+        visual: "projects-timeline",
+        features: [
+          {
+            icon: "calendar",
+            title: "Timeline view",
+            description:
+              "Map initiatives and tasks against the weeks that matter.",
+          },
+          {
+            icon: "target",
+            title: "Shared priorities",
+            description:
+              "Keep the work that matters most visible across the organization.",
+          },
+          {
+            icon: "activity",
+            title: "Progress at a glance",
+            description:
+              "See momentum and stalled work without chasing status updates.",
+          },
+          {
+            icon: "layers",
+            title: "Project context",
+            description:
+              "Keep tasks connected to the initiative they are advancing.",
+          },
+        ],
+      },
+      {
+        title: "Keep delivery tied to the plan",
+        description:
+          "Connect project tasks to GitHub when software is part of the work, so implementation stays visible alongside the outcome it supports.",
+        visual: "projects-github",
+        features: [
+          {
+            icon: "link",
+            title: "GitHub connection",
+            description:
+              "Connect repositories to the workspace when delivery needs engineering context.",
+          },
+          {
+            icon: "layers",
+            title: "Task branches",
+            description:
+              "Keep a task’s implementation work associated with its project record.",
+          },
+          {
+            icon: "shield",
+            title: "Connected access",
+            description:
+              "Project and code access stay grounded in the same Kenoo workspace.",
+          },
+          {
+            icon: "sparkles",
+            title: "One operating view",
+            description:
+              "Plan, execute, and review work without losing the thread between teams.",
+          },
+        ],
+      },
+    ],
+    faq: [
+      {
+        question: "What is Kenoo Projects?",
+        answer:
+          "Kenoo Projects is the shared workspace for planning initiatives, organizing tasks, assigning owners, and following progress from the first plan through completion.",
+      },
+      {
+        question: "Can I manage tasks across multiple projects?",
+        answer:
+          "Yes. Projects keeps work grouped by initiative while giving your team board and task views that make everyday priorities easy to manage.",
+      },
+      {
+        question: "Does Projects include a timeline?",
+        answer:
+          "Yes. The timeline view helps you see projects and tasks across time so upcoming work, sequencing, and potential conflicts are easier to understand.",
+      },
+      {
+        question: "Can tasks be assigned to teammates?",
+        answer:
+          "Yes. Assign tasks to the people responsible, set due dates, and keep statuses visible so the next action and owner are always clear.",
+      },
+      {
+        question: "Can Projects connect to GitHub?",
+        answer:
+          "Yes. When software delivery is part of the project, you can connect GitHub so repositories and task branches stay linked to the work they support.",
+      },
+      {
+        question: "How does Projects fit with the rest of Kenoo?",
+        answer:
+          "Projects shares the same Kenoo workspace as CRM, AdPilot, Health, and the rest of the suite, so the work behind your business is managed in the same operating system.",
       },
     ],
   },

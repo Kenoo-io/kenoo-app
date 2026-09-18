@@ -13,6 +13,7 @@ import {
   Users,
   LayoutGrid,
   ListTodo,
+  Activity,
 } from "lucide-react";
 import { useConsoleSidebar } from "./ConsoleSidebarContext";
 
@@ -20,6 +21,7 @@ const menuItems = [
   { name: "Users", href: "/users", Icon: UserCircle },
   { name: "Apps", href: "/apps", Icon: LayoutGrid },
   { name: "Jobs", href: "/jobs", Icon: ListTodo },
+  { name: "Monitoring", href: "/monitoring", Icon: Activity },
   { name: "Teams", href: "/teams", Icon: Users },
 ];
 

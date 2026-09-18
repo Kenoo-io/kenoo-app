@@ -5,7 +5,7 @@ import ProductPage from "@/components/kenoo/product-page";
 export const metadata: Metadata = {
   title: "Products",
   description:
-    "Explore Kenoo’s polished apps (AdPilot, CRM, and Health), plus the business, finance, and health angles of the suite.",
+    "Explore Kenoo’s polished apps: AdPilot, CRM, Health, and Projects.",
 };
 
 export default function Page() {

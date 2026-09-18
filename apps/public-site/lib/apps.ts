@@ -94,7 +94,7 @@ export function mapAppsRows(rows: AppsRow[]): PublicApp[] {
       appHref: appHrefForApp(row),
     }));
 
-  // Keep a stable marketing order: AdPilot, CRM, Health.
+  // Keep a stable marketing order in the Products menu.
   const order = new Map<string, number>(
     FEATURED_PRODUCT_SLUGS.map((slug, index) => [slug, index]),
   );

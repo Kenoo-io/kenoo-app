@@ -9,7 +9,11 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@aws-sdk/client-cloudwatch": "^3.1135.0",
+    "@aws-sdk/client-cost-explorer": "^3.1135.0",
+    "@aws-sdk/client-ecs": "^3.1135.0",
     "@aws-sdk/client-ses": "^3.876.0",
+    "@aws-sdk/client-sqs": "^3.1125.0",
     "@radix-ui/react-dialog": "^1.1.14",
     "@radix-ui/react-popover": "^1.1.14",
     "@radix-ui/react-select": "^2.1.1",

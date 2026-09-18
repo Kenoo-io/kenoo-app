@@ -1,0 +1,27 @@
+{
+  "name": "@walls/mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Kenoo's authenticated Model Context Protocol server.",
+  "scripts": {
+    "dev": "tsx watch src/index.ts --http --port 3002",
+    "start": "node dist/index.js --http --port 3002",
+    "start:stdio": "node dist/index.js --stdio",
+    "build": "tsc -p tsconfig.build.json",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@supabase/supabase-js": "^2.49.8",
+    "dotenv": "^16.5.0",
+    "express": "^4.21.0",
+    "zod": "^3.25.28"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.1",
+    "@types/node": "^20.19.0",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.3"
+  }
+}

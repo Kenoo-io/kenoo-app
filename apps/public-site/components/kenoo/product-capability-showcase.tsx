@@ -4,12 +4,17 @@ import { motion, useReducedMotion } from "framer-motion";
 import type { LucideIcon } from "lucide-react";
 import {
   Activity,
+  ArrowLeft,
   ArrowRight,
   Building2,
   Calendar,
+  CalendarDays,
+  CheckCircle2,
   CircleDollarSign,
   Handshake,
   Heart,
+  GitBranch,
+  Github,
   Layers,
   Link2,
   Mail,
@@ -24,6 +29,7 @@ import {
   Target,
   TrendingUp,
   UtensilsCrossed,
+  Unplug,
   Users,
   Wallet,
   X,
@@ -60,6 +66,8 @@ const ICON_MAP: Record<CapabilityFeatureIcon, LucideIcon> = {
   utensils: UtensilsCrossed,
   target: Target,
   heart: Heart,
+  calendar: CalendarDays,
+  check: CheckCircle2,
 };
 
 const floatEase = [0.22, 1, 0.36, 1] as const;
@@ -179,7 +187,156 @@ function CapabilityVisual({
       {visual === "health-energy" ? <HealthEnergyVisual /> : null}
       {visual === "health-meals" ? <HealthMealsVisual /> : null}
       {visual === "health-pulse" ? <HealthPulseVisual accent={accent} /> : null}
+      {visual === "projects-board" ? <ProjectsBoardVisual /> : null}
+      {visual === "projects-timeline" ? <ProjectsTimelineVisual /> : null}
+      {visual === "projects-github" ? <ProjectsGithubVisual /> : null}
     </motion.div>
+  );
+}
+
+function ProjectsBoardVisual() {
+  const columns = [
+    {
+      title: "To Do",
+      color: "#a3a3a3",
+      tasks: [
+        ["Review launch brief", "Growth", "Sep 18"],
+        ["Confirm partner list", "WALLS Team", "Sep 20"],
+      ],
+    },
+    {
+      title: "In Progress",
+      color: "#6eadc0",
+      tasks: [
+        ["Kenoo CRM Outreach Adjustments", "WALLS Team", "Sep 16"],
+        ["Build Projects landing page", "Web platform", "Today"],
+      ],
+    },
+    {
+      title: "In Review",
+      color: "#e0a800",
+      tasks: [["Check mobile task flow", "Product", "Sep 19"]],
+    },
+    {
+      title: "Completed",
+      color: "#10b981",
+      tasks: [["Set up project workspace", "Operations", "Done"]],
+    },
+  ];
+
+  return (
+    <div className="relative aspect-[5/4] overflow-hidden rounded-[28px] bg-white p-4 shadow-[0_18px_40px_-24px_rgba(0,0,0,0.25)] md:p-5">
+      <div className="flex items-center gap-2 border-b border-neutral-100 pb-3">
+        <div className="relative min-w-0 flex-1 border-b border-neutral-200 pb-1.5 pl-4">
+          <span className="absolute left-0 top-0.5 text-xs text-neutral-300">⌕</span>
+          <span className="text-[9px] font-light text-neutral-400">Search tasks…</span>
+        </div>
+        <span className="rounded-full border border-neutral-200 bg-white px-2 py-1 text-[8px] font-medium text-neutral-600">Kanban</span>
+        <span className="rounded-full bg-black px-2 py-1 text-[8px] font-medium text-white">+ New task</span>
+      </div>
+      <div className="mt-4 flex min-w-max gap-3">
+        {columns.map((column, columnIndex) => (
+          <div key={column.title} className="flex w-[8.8rem] shrink-0 flex-col">
+            <div className="mb-2 flex items-center justify-between px-1">
+              <div className="flex items-center gap-1.5">
+                <span className="size-1.5 rounded-full" style={{ backgroundColor: column.color }} />
+                <p className="text-[8px] font-semibold uppercase tracking-[0.1em] text-neutral-600">{column.title}</p>
+                <span className="text-[8px] font-light text-neutral-400">{column.tasks.length}</span>
+              </div>
+              <span className="text-[11px] font-light text-neutral-400">+</span>
+            </div>
+            <div className="flex min-h-[13.5rem] flex-col gap-2 rounded-2xl bg-neutral-50/80 p-2">
+              {column.tasks.map(([title, project, due], index) => (
+                <div key={title} className="rounded-2xl bg-white px-2.5 py-2.5 shadow-[0_3px_12px_rgba(15,23,42,0.08)]">
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="flex min-w-0 items-center gap-1"><i className="size-1.5 shrink-0 rounded-full" style={{ backgroundColor: index === 0 ? "#ceff00" : "#6eadc0" }} /><span className="truncate text-[7px] font-light text-neutral-400">{project}</span></span>
+                    <span className="text-[8px] text-[#ff6b2c]">⚑</span>
+                  </div>
+                  <div className="my-2 h-px bg-neutral-100" />
+                  <p className="line-clamp-2 text-[10px] font-light leading-snug text-neutral-700">{title}</p>
+                  <div className="mt-3 flex items-center justify-between"><span className="flex size-4 items-center justify-center rounded-full bg-neutral-900 text-[6px] font-semibold text-white">{["ML", "RK", "TS", "AD"][(columnIndex + index) % 4]}</span><span className={cn("text-[7px]", due === "Done" ? "text-emerald-500" : "text-neutral-400")}>{due}</span></div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ProjectsTimelineVisual() {
+  const rows = [
+    { label: "Northstar web app", subLabel: "4/7 tasks · 57%", color: "#4285F4", bar: { left: "5%", width: "51%" } },
+    { label: "Harbor site build", subLabel: "2/5 tasks · 40%", color: "#65a30d", bar: { left: "24%", width: "43%" } },
+    { label: "Clover mobile app", subLabel: "17/17 tasks · 100%", color: "#ef4444" },
+    { label: "Email operations", subLabel: "37/39 tasks · 95%", color: "#10b981", bar: { left: "48%", width: "35%" } },
+    { label: "General objectives", subLabel: "15/16 tasks · 94%", color: "#fdba74" },
+    { label: "Platform rollout", subLabel: "1/1 tasks · 100%", color: "#22d3ee" },
+  ];
+
+  return (
+    <div className="relative aspect-[5/4] overflow-hidden rounded-[28px] bg-white p-4 shadow-[0_18px_40px_-24px_rgba(0,0,0,0.25)] md:p-5">
+      <div className="flex items-center justify-between pb-4">
+        <div className="flex items-center gap-2">
+          <span className="rounded-full bg-white px-2.5 py-1.5 text-[8px] font-semibold uppercase tracking-wide text-neutral-700 shadow-[0_4px_12px_rgba(15,23,42,0.09)]">▤&nbsp; Gantt</span>
+          <span className="px-1.5 py-1 text-[8px] font-medium uppercase tracking-wide text-neutral-400">☷&nbsp; List</span>
+          <span className="ml-1 rounded-full bg-white px-2.5 py-1.5 text-[8px] font-semibold uppercase tracking-wide text-neutral-700 shadow-[0_4px_12px_rgba(15,23,42,0.09)]">By Project</span>
+          <span className="px-1 text-[8px] font-medium uppercase tracking-wide text-neutral-400">By Task</span>
+          <span className="text-sm font-light text-neutral-400">♢</span>
+        </div>
+        <div className="flex items-center gap-2 text-[8px] font-semibold uppercase tracking-wide text-neutral-400"><span className="text-sm font-light">‹</span><span><i className="mr-1 inline-block size-1.5 rounded-full bg-[#4285F4]" />Today</span><span className="text-sm font-light">›</span></div>
+      </div>
+      <div className="grid grid-cols-[8rem_1fr] border-y border-[#e4e9f0]">
+        <div className="border-r border-[#e4e9f0]" />
+        <div>
+          <div className="grid grid-cols-7 border-b border-[#e4e9f0] text-center text-[8px] font-medium uppercase tracking-[0.08em] text-neutral-400"><span className="col-span-5 border-r border-[#e4e9f0] px-2 py-1.5 text-left">September 2026</span><span className="col-span-2 px-2 py-1.5 text-left">October</span></div>
+          <div className="grid grid-cols-7 text-center text-[8px] text-neutral-400">
+            {["Fri 18", "Sat 19", "Sun 20", "Mon 21", "Tue 22", "Wed 23", "Thu 24"].map((day, index) => <span key={day} className={cn("border-r border-[#edf0f4] py-2 last:border-r-0", index === 0 && "bg-[#4285F4]/10 text-[#4285F4]")}>{day}</span>)}
+          </div>
+        </div>
+      </div>
+      <div className="relative">
+        <div className="pointer-events-none absolute bottom-0 left-[calc(8rem+14.28%)] top-0 z-10 w-px bg-[#4285F4] opacity-70" />
+        {rows.map((row) => (
+          <div key={row.label} className="grid h-10 grid-cols-[8rem_1fr] border-b border-[#e4e9f0] last:border-b-0">
+            <div className="flex min-w-0 items-center gap-2 border-r border-[#e4e9f0] px-2"><span className="size-1.5 shrink-0 rounded-full" style={{ backgroundColor: row.color }} /><span className="min-w-0"><span className="block truncate text-[9px] font-semibold text-neutral-700">{row.label}</span><span className="block truncate text-[7px] font-light text-neutral-400">{row.subLabel}</span></span></div>
+            <div className="relative grid grid-cols-7">
+              {[0, 1, 2, 3, 4, 5, 6].map((day) => <span key={day} className={cn("border-r border-[#edf0f4] last:border-r-0", day > 4 && "bg-[#fafbfc]")} />)}
+              {row.bar ? (
+                <span className="absolute top-1/2 flex h-5 -translate-y-1/2 items-center rounded-full px-2 text-[7px] font-semibold text-white/85" style={{ left: row.bar.left, width: row.bar.width, backgroundColor: row.color }}>{row.label}</span>
+              ) : (
+                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[7px] font-light text-neutral-300">no dates</span>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ProjectsGithubVisual() {
+  return (
+    <div className="relative aspect-[5/4] overflow-hidden rounded-[28px] bg-white p-5 shadow-[0_18px_40px_-24px_rgba(0,0,0,0.25)]">
+      <div className="mx-auto max-w-[20rem]">
+        <div className="inline-flex items-center gap-1.5 text-[9px] font-light text-neutral-500"><ArrowLeft className="size-3" /> Back to settings</div>
+        <div className="mt-5 flex items-center gap-3">
+          <Github className="size-8 text-neutral-900" />
+          <div><p className="text-[8px] font-medium uppercase tracking-[0.14em] text-neutral-500">Connection</p><p className="mt-0.5 text-xl font-semibold tracking-tight text-neutral-900">GitHub</p></div>
+        </div>
+        <div className="mt-5 rounded-[22px] bg-white/80 px-4 py-4 shadow-[0_8px_28px_rgba(15,23,42,0.07),inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-xl">
+          <p className="text-[11px] font-medium text-neutral-900">Connected</p>
+          <p className="mt-2 text-[10px] font-light text-neutral-500">acme-dev</p>
+          <p className="mt-1 text-[8px] font-light text-neutral-400">Connected Sep 18, 2026</p>
+          <span className="mt-5 inline-flex items-center rounded-full border border-rose-300/70 bg-rose-50/80 px-3 py-1.5 text-[9px] font-medium text-rose-700"><Unplug className="mr-1.5 size-3" />Disconnect</span>
+        </div>
+        <div className="mt-4 border-t border-neutral-100 pt-3">
+          <p className="px-1 text-[8px] font-medium uppercase tracking-[0.14em] text-neutral-500">Linked task branch</p>
+          <div className="mt-2 flex items-center gap-2 rounded-2xl bg-white px-3 py-2.5 text-[9px] shadow-[0_8px_28px_rgba(15,23,42,0.07),inset_0_1px_0_rgba(255,255,255,0.95)]"><Github className="size-3.5 text-neutral-700" /><span className="min-w-0 flex-1 truncate font-medium text-neutral-800">acme/web-platform · feature/task-flow</span><GitBranch className="size-3 text-neutral-400" /></div>
+        </div>
+      </div>
+    </div>
   );
 }
 
