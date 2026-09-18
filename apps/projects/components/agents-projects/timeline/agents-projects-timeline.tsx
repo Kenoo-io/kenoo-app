@@ -169,6 +169,17 @@ interface TaskGanttRow extends BaseGanttRow {
 
 type AnyGanttRow = ProjectGanttRow | TaskGanttRow;
 
+type ProjectsTimelineCacheEntry = {
+  projects: Project[];
+  tasks: ProjectTask[];
+};
+
+const projectsTimelineCache = new Map<string, ProjectsTimelineCacheEntry>();
+
+function getProjectsTimelineCacheKey(userId: string, accountId: string) {
+  return `${userId}:${accountId}`;
+}
+
 /* ─── Task status icon ───────────────────────────────────────────────────── */
 function TaskStatusIcon({ status }: { status: TaskStatus }) {
   if (status === "completed")
@@ -748,9 +759,24 @@ function AgentsProjectsTimelineContent({
 }: AgentsProjectsTimelineProps) {
   const { user } = useAuth();
   const { activeAccountId, loading: accountLoading } = useActiveAccount();
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [tasks, setTasks] = useState<ProjectTask[]>([]);
-  const [loading, setLoading] = useState(true);
+  const initialCachedData =
+    user && activeAccountId
+      ? projectsTimelineCache.get(
+          getProjectsTimelineCacheKey(user.id, activeAccountId)
+        )
+      : undefined;
+  const [projects, setProjects] = useState<Project[]>(
+    () => initialCachedData?.projects ?? []
+  );
+  const [tasks, setTasks] = useState<ProjectTask[]>(
+    () => initialCachedData?.tasks ?? []
+  );
+  const [loading, setLoading] = useState(() => !initialCachedData);
+  const loadedCacheKeyRef = useRef<string | null>(
+    user && activeAccountId
+      ? getProjectsTimelineCacheKey(user.id, activeAccountId)
+      : null
+  );
   /* view controls */
   const [viewMode, setViewMode] = useState<ViewMode>("gantt");
   const [ganttMode, setGanttMode] = useState<GanttMode>("project");
@@ -778,11 +804,22 @@ function AgentsProjectsTimelineContent({
   /* Load data */
   const loadData = useCallback(async () => {
     if (!user || !activeAccountId || accountLoading) {
+      loadedCacheKeyRef.current = null;
       setTasks([]);
       setProjects([]);
       setLoading(false);
       return;
     }
+    const cacheKey = getProjectsTimelineCacheKey(user.id, activeAccountId);
+    const cached = projectsTimelineCache.get(cacheKey);
+    if (cached) {
+      loadedCacheKeyRef.current = cacheKey;
+      setProjects(cached.projects);
+      setTasks(cached.tasks);
+      setLoading(false);
+      return;
+    }
+    loadedCacheKeyRef.current = null;
     setLoading(true);
     try {
       const supabase = getSupabaseClient();
@@ -838,12 +875,16 @@ function AgentsProjectsTimelineContent({
       });
 
       const loadedTasks = filterTasksVisibleToUser(mappedTasks, user.id);
-      setTasks(
-        loadedTasks.map((t) => ({
+      const tasksWithProjects = loadedTasks.map((t) => ({
           ...t,
           project: projectMap.get(t.project_id),
-        }))
-      );
+        }));
+      projectsTimelineCache.set(cacheKey, {
+        projects: loadedProjects,
+        tasks: tasksWithProjects,
+      });
+      loadedCacheKeyRef.current = cacheKey;
+      setTasks(tasksWithProjects);
     } catch {
       setTasks([]);
     } finally {
@@ -854,6 +895,16 @@ function AgentsProjectsTimelineContent({
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    if (!user || !activeAccountId) return;
+    const cacheKey = getProjectsTimelineCacheKey(user.id, activeAccountId);
+    if (loadedCacheKeyRef.current !== cacheKey) return;
+    projectsTimelineCache.set(
+      cacheKey,
+      { projects, tasks }
+    );
+  }, [user, activeAccountId, projects, tasks]);
 
   useEffect(() => {
     hasInitializedTimeline.current = false;
