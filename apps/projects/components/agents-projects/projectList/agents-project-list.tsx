@@ -673,7 +673,7 @@ function AgentsProjectsListContent({
       const { data: taskCounts } = await supabase
         .from("project_tasks")
         .select(
-          "project_id, status, is_private, assignee_id, assigned_by, task_assignees:project_task_assignees(user_id)"
+          "project_id, status, is_private, assigned_by, task_assignees:project_task_assignees(user_id)"
         )
         .in("project_id", projectIds);
       const countMap = new Map<string, { total: number; done: number }>();
@@ -684,17 +684,11 @@ function AgentsProjectsListContent({
           }
         ).task_assignees;
         const fromJoin = (links ?? []).map((l) => l.user_id).filter(Boolean);
-        const assignee_ids =
-          fromJoin.length > 0
-            ? fromJoin
-            : t.assignee_id
-              ? [t.assignee_id as string]
-              : [];
+        const assignee_ids = fromJoin;
         if (
           !isTaskVisibleToUser(
             {
               is_private: Boolean(t.is_private),
-              assignee_id: (t.assignee_id as string | null) ?? null,
               assigned_by: (t.assigned_by as string | null) ?? null,
               assignee_ids,
             },

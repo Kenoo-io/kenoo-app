@@ -10,7 +10,6 @@ type TaskRow = {
   status: string;
   completed_at: string | null;
   project_id: string;
-  assignee_id: string | null;
   projects: { account_id: string; name: string | null } | { account_id: string; name: string | null }[] | null;
 };
 
@@ -40,7 +39,7 @@ export async function notifyTaskAssigneesWhenBlockerCompletes({
 
   const { data: blocker, error: blockerError } = await admin
     .from("project_tasks")
-    .select("id, title, status, completed_at, project_id, assignee_id, projects(account_id, name)")
+    .select("id, title, status, completed_at, project_id, projects(account_id, name)")
     .eq("id", taskId)
     .maybeSingle();
   const completedBlocker = blocker as TaskRow | null;
@@ -56,7 +55,7 @@ export async function notifyTaskAssigneesWhenBlockerCompletes({
 
   const dependentIds = [...new Set((dependencies as DependencyRow[]).map((row) => row.blocking_task_id))];
   const [{ data: dependentTasks, error: dependentTasksError }, { data: allDependencies, error: allDependenciesError }, { data: assigneeLinks, error: assigneeLinksError }] = await Promise.all([
-    admin.from("project_tasks").select("id, title, status, completed_at, project_id, assignee_id, projects(account_id, name)").in("id", dependentIds),
+    admin.from("project_tasks").select("id, title, status, completed_at, project_id, projects(account_id, name)").in("id", dependentIds),
     admin.from("project_task_dependencies").select("blocking_task_id, blocker_task_id").in("blocking_task_id", dependentIds),
     admin.from("project_task_assignees").select("task_id, user_id").in("task_id", dependentIds),
   ]);
@@ -77,9 +76,6 @@ export async function notifyTaskAssigneesWhenBlockerCompletes({
   const completedBlockerIds = new Set((blockerStatuses ?? []).filter((row) => row.status === "completed").map((row) => row.id as string));
 
   const assigneesByTask = new Map<string, Set<string>>();
-  for (const task of (dependentTasks ?? []) as TaskRow[]) {
-    if (task.assignee_id) assigneesByTask.set(task.id, new Set([task.assignee_id]));
-  }
   for (const link of assigneeLinks ?? []) {
     const ids = assigneesByTask.get(link.task_id as string) ?? new Set<string>();
     ids.add(link.user_id as string);

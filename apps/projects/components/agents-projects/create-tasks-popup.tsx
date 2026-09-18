@@ -848,7 +848,6 @@ export function CreateTasksPopup({
       const taskTitle = form.title.trim();
       const previousAssigneeIds = existing ? getTaskAssigneeIds(existing) : [];
       const assigneeIds = [...new Set(form.assignee_ids.filter(Boolean))];
-      const primaryAssigneeId = assigneeIds[0] ?? null;
       const assignedBy = resolveAssignedBy(assigneeIds, actorUserId);
       const newlyAdded = assigneeIds.filter(
         (id) => !previousAssigneeIds.includes(id) && id !== actorUserId
@@ -867,7 +866,6 @@ export function CreateTasksPopup({
         due_date: form.due_date || null,
         priority: form.priority ? parseInt(form.priority, 10) : null,
         project_id: form.project_id,
-        assignee_id: primaryAssigneeId,
         is_private: !form.is_public,
       };
       if (form.status === "completed") {

@@ -3,7 +3,7 @@ import { getTaskAssigneeIds } from "./task-assignee";
 
 export type TaskVisibilityFields = Pick<
   ProjectTask,
-  "is_private" | "assignee_id" | "assigned_by" | "assignees"
+  "is_private" | "assigned_by" | "assignees"
 > & {
   assignee_ids?: string[] | null;
 };
@@ -22,7 +22,6 @@ export function isTaskVisibleToUser(
     task.assignee_ids ??
     getTaskAssigneeIds({
       assignees: task.assignees,
-      assignee_id: task.assignee_id,
     });
   if (assigneeIds.includes(viewerUserId)) return true;
   return task.assigned_by === viewerUserId;

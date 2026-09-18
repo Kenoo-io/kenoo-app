@@ -2,16 +2,14 @@ import type { BoardTaskScope } from "./types";
 
 export type TaskScopeMetaRow = {
   project_id: string;
-  assignee_id: string | null;
   assigned_by: string | null;
   is_private: boolean;
-  /** Assignees from join table; falls back to assignee_id when missing. */
+  /** Assignees from the task-assignee join table. */
   assignee_ids?: string[];
 };
 
 function rowAssigneeIds(row: TaskScopeMetaRow): string[] {
-  if (row.assignee_ids && row.assignee_ids.length > 0) return row.assignee_ids;
-  return row.assignee_id ? [row.assignee_id] : [];
+  return row.assignee_ids ?? [];
 }
 
 /** Scope flags for a set of projects (pass all accessible ids, or one selected project). */
@@ -70,10 +68,9 @@ export function parseBoardTaskScope(param: string | null): BoardTaskScope {
   if (param === "assigned") return "assigned";
   if (param === "mine" || param === "owned") return "mine";
   if (param === "project" || param === "all") return "project";
-  return "project";
+  return "mine";
 }
 
 export function defaultBoardTaskScope(options: BoardTaskScope[]): BoardTaskScope {
-  if (options.includes("project")) return "project";
-  return options[0] ?? "mine";
+  return options.includes("mine") ? "mine" : (options[0] ?? "mine");
 }

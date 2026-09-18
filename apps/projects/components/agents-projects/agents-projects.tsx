@@ -141,7 +141,6 @@ type HubTask = Pick<
   | "title"
   | "status"
   | "due_date"
-  | "assignee_id"
   | "assignees"
   | "assigned_by"
   | "is_private"
@@ -515,7 +514,7 @@ function AgentsProjectsContent({ analyticsData: _analyticsData }: AgentsProjects
         supabase
           .from("project_tasks")
           .select(
-            "id, project_id, title, status, due_date, assignee_id, assigned_by, is_private, priority, updated_at, completed_at, task_assignees:project_task_assignees(user_id)"
+            "id, project_id, title, status, due_date, assigned_by, is_private, priority, updated_at, completed_at, task_assignees:project_task_assignees(user_id)"
           )
           .in("project_id", projectIds),
         supabase
@@ -531,12 +530,7 @@ function AgentsProjectsContent({ analyticsData: _analyticsData }: AgentsProjects
           }
         ).task_assignees;
         const fromJoin = (links ?? []).map((l) => l.user_id).filter(Boolean);
-        const assignee_ids =
-          fromJoin.length > 0
-            ? fromJoin
-            : row.assignee_id
-              ? [row.assignee_id as string]
-              : [];
+        const assignee_ids = fromJoin;
         const { task_assignees: _ta, ...rest } = row as Record<string, unknown> & {
           task_assignees?: unknown;
         };
@@ -654,7 +648,7 @@ function AgentsProjectsContent({ analyticsData: _analyticsData }: AgentsProjects
       .filter((t) => {
         if (!user?.id) return false;
         return (
-          t.assignee_ids ?? (t.assignee_id ? [t.assignee_id] : [])
+          t.assignee_ids ?? []
         ).includes(user.id);
       })
       .sort((a, b) => {
@@ -689,7 +683,7 @@ function AgentsProjectsContent({ analyticsData: _analyticsData }: AgentsProjects
     const mine = openTasks.filter((t) => {
       if (!user?.id) return false;
       return (
-        t.assignee_ids ?? (t.assignee_id ? [t.assignee_id] : [])
+        t.assignee_ids ?? []
       ).includes(user.id);
     });
     const seen = new Set<string>();
@@ -707,7 +701,7 @@ function AgentsProjectsContent({ analyticsData: _analyticsData }: AgentsProjects
     const counts = new Map<string, number>();
     for (const t of tasks) {
       if (t.status === "completed") continue;
-      const ids = t.assignee_ids ?? (t.assignee_id ? [t.assignee_id] : []);
+      const ids = t.assignee_ids ?? [];
       for (const id of ids) {
         counts.set(id, (counts.get(id) ?? 0) + 1);
       }
@@ -1106,7 +1100,7 @@ function AgentsProjectsContent({ analyticsData: _analyticsData }: AgentsProjects
                             const project = projectById.get(task.project_id);
                             const assigneeIds =
                               task.assignee_ids ??
-                              (task.assignee_id ? [task.assignee_id] : []);
+                              [];
                             const assignee =
                               allMembers.find((m) => m.id === assigneeIds[0]) ??
                               project?.members[0];
