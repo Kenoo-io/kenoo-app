@@ -749,10 +749,35 @@ function HealthMetricTile({
 function HealthScene({ compact }: { compact?: boolean }) {
   if (compact) {
     return (
-      <div className="grid grid-cols-2 gap-2 p-3">
-        {HEALTH_CORE_CARDS.slice(0, 4).map((card) => (
-          <HealthMetricTile key={card.title} card={card} compact />
-        ))}
+      <div className="grid h-full grid-cols-[1.1fr_1fr] items-center gap-2 p-3">
+        <div className="flex items-center justify-center">
+          <div className="relative flex size-[9.25rem] items-center justify-center">
+            <div className="absolute inset-2 rounded-full bg-[radial-gradient(circle,rgba(255,113,48,0.14),rgba(255,255,255,0)_67%)]" />
+            <svg viewBox="0 0 200 200" className="size-full -rotate-90" aria-hidden>
+              <circle cx="100" cy="100" r="82" fill="none" stroke="#e7e7e5" strokeWidth="13" />
+              <circle
+                cx="100"
+                cy="100"
+                r="82"
+                fill="none"
+                stroke="#ceff00"
+                strokeWidth="13"
+                strokeLinecap="round"
+                strokeDasharray={`${2 * Math.PI * 82}`}
+                strokeDashoffset={`${2 * Math.PI * 82 * 0.32}`}
+              />
+            </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <p className="text-2xl font-semibold tracking-tight text-neutral-900">842</p>
+              <p className="text-[9px] text-neutral-400">Remaining</p>
+            </div>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {HEALTH_CORE_CARDS.slice(0, 4).map((card) => (
+            <HealthMetricTile key={card.title} card={card} compact />
+          ))}
+        </div>
       </div>
     );
   }
@@ -760,7 +785,7 @@ function HealthScene({ compact }: { compact?: boolean }) {
   return (
     <div className="grid h-full grid-cols-1 gap-3 md:grid-cols-2">
       <div className="hidden items-center justify-center md:flex">
-        <div className="relative flex h-[220px] w-[220px] items-center justify-center">
+        <div className="relative flex h-[300px] w-[300px] items-center justify-center">
           <div
             className="absolute inset-6 rounded-full"
             style={{
@@ -790,10 +815,10 @@ function HealthScene({ compact }: { compact?: boolean }) {
             />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <p className="text-3xl font-semibold tracking-tight tabular-nums text-neutral-900">
+            <p className="text-4xl font-semibold tracking-tight tabular-nums text-neutral-900">
               842
             </p>
-            <p className="text-[11px] text-neutral-400">Remaining</p>
+            <p className="text-sm text-neutral-400">Remaining</p>
           </div>
         </div>
       </div>

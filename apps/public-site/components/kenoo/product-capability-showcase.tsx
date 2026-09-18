@@ -193,35 +193,65 @@ function CapabilityVisual({
 
 function ProjectsBoardVisual() {
   const columns = [
-    { title: "Planned", color: "#c4b5fd", tasks: ["Finalize scope", "Schedule kickoff"] },
-    { title: "In progress", color: "#7c5ce0", tasks: ["Design review", "Build task flow"] },
-    { title: "Complete", color: "#34d399", tasks: ["Set project goals", "Assign owners"] },
+    {
+      title: "To Do",
+      color: "#a3a3a3",
+      tasks: [
+        ["Review launch brief", "Growth", "Sep 18"],
+        ["Confirm partner list", "WALLS Team", "Sep 20"],
+      ],
+    },
+    {
+      title: "In Progress",
+      color: "#6eadc0",
+      tasks: [
+        ["Kenoo CRM Outreach Adjustments", "WALLS Team", "Sep 16"],
+        ["Build Projects landing page", "Web platform", "Today"],
+      ],
+    },
+    {
+      title: "In Review",
+      color: "#e0a800",
+      tasks: [["Check mobile task flow", "Product", "Sep 19"]],
+    },
+    {
+      title: "Completed",
+      color: "#10b981",
+      tasks: [["Set up project workspace", "Operations", "Done"]],
+    },
   ];
 
   return (
-    <div className="relative aspect-[5/4] overflow-hidden rounded-[28px] bg-[#fafafa] p-4 shadow-[0_18px_40px_-24px_rgba(0,0,0,0.25)] md:p-5">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-neutral-400">Projects</p>
-          <p className="mt-1 text-sm font-semibold text-neutral-900">Product launch</p>
+    <div className="relative aspect-[5/4] overflow-hidden rounded-[28px] bg-white p-4 shadow-[0_18px_40px_-24px_rgba(0,0,0,0.25)] md:p-5">
+      <div className="flex items-center gap-2 border-b border-neutral-100 pb-3">
+        <div className="relative min-w-0 flex-1 border-b border-neutral-200 pb-1.5 pl-4">
+          <span className="absolute left-0 top-0.5 text-xs text-neutral-300">⌕</span>
+          <span className="text-[9px] font-light text-neutral-400">Search tasks…</span>
         </div>
-        <span className="rounded-full bg-violet-50 px-2.5 py-1 text-[10px] font-medium text-violet-700">68% complete</span>
+        <span className="rounded-full border border-neutral-200 bg-white px-2 py-1 text-[8px] font-medium text-neutral-600">Kanban</span>
+        <span className="rounded-full bg-black px-2 py-1 text-[8px] font-medium text-white">+ New task</span>
       </div>
-      <div className="mt-4 grid grid-cols-3 gap-2.5">
-        {columns.map((column) => (
-          <div key={column.title} className="min-w-0 rounded-2xl bg-neutral-100/80 p-2 md:p-2.5">
-            <div className="flex items-center gap-1.5">
-              <span className="size-1.5 rounded-full" style={{ backgroundColor: column.color }} />
-              <p className="truncate text-[8px] font-medium uppercase tracking-[0.1em] text-neutral-500 md:text-[9px]">{column.title}</p>
+      <div className="mt-4 flex min-w-max gap-3">
+        {columns.map((column, columnIndex) => (
+          <div key={column.title} className="flex w-[8.8rem] shrink-0 flex-col">
+            <div className="mb-2 flex items-center justify-between px-1">
+              <div className="flex items-center gap-1.5">
+                <span className="size-1.5 rounded-full" style={{ backgroundColor: column.color }} />
+                <p className="text-[8px] font-semibold uppercase tracking-[0.1em] text-neutral-600">{column.title}</p>
+                <span className="text-[8px] font-light text-neutral-400">{column.tasks.length}</span>
+              </div>
+              <span className="text-[11px] font-light text-neutral-400">+</span>
             </div>
-            <div className="mt-2 space-y-2">
-              {column.tasks.map((task, index) => (
-                <div key={task} className="rounded-xl border border-neutral-200/80 bg-white px-2 py-2 shadow-sm">
-                  <p className="line-clamp-2 text-[9px] font-medium leading-snug text-neutral-700">{task}</p>
-                  <div className="mt-2 flex items-center justify-between">
-                    <span className="size-3 rounded-full bg-neutral-100" />
-                    {index === 0 ? <CalendarDays className="size-2.5 text-neutral-400" /> : <CheckCircle2 className="size-2.5 text-emerald-500" />}
+            <div className="flex min-h-[13.5rem] flex-col gap-2 rounded-2xl bg-neutral-50/80 p-2">
+              {column.tasks.map(([title, project, due], index) => (
+                <div key={title} className="rounded-2xl bg-white px-2.5 py-2.5 shadow-[0_3px_12px_rgba(15,23,42,0.08)]">
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="flex min-w-0 items-center gap-1"><i className="size-1.5 shrink-0 rounded-full" style={{ backgroundColor: index === 0 ? "#ceff00" : "#6eadc0" }} /><span className="truncate text-[7px] font-light text-neutral-400">{project}</span></span>
+                    <span className="text-[8px] text-[#ff6b2c]">⚑</span>
                   </div>
+                  <div className="my-2 h-px bg-neutral-100" />
+                  <p className="line-clamp-2 text-[10px] font-light leading-snug text-neutral-700">{title}</p>
+                  <div className="mt-3 flex items-center justify-between"><span className="flex size-4 items-center justify-center rounded-full bg-neutral-900 text-[6px] font-semibold text-white">{["ML", "RK", "TS", "AD"][(columnIndex + index) % 4]}</span><span className={cn("text-[7px]", due === "Done" ? "text-emerald-500" : "text-neutral-400")}>{due}</span></div>
                 </div>
               ))}
             </div>

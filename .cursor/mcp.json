@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "kenoo": {
+      "command": "pnpm",
+      "args": ["--filter", "@walls/mcp", "exec", "tsx", "src/index.ts", "--stdio"]
+    }
+  }
+}
