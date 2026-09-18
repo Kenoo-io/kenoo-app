@@ -3,6 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { ArrowLeft, Check, ChevronDown, Loader2 } from "lucide-react";
+import { useAuth } from "@walls/auth";
 
 import {
   DropdownMenu,
@@ -11,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { wallsToast } from "@/components/ui/walls-toast";
+import { useActiveAccount } from "@/components/active-account-context";
 import { cn } from "@/lib/utils";
 
 type NotificationPreferences = {
@@ -18,9 +20,9 @@ type NotificationPreferences = {
   taskBlockerCompletedEmail: boolean;
 };
 
-// This lives for the lifetime of the Projects app session. Settings are scoped to
-// the signed-in account and every successful mutation below writes through to it.
-let cachedPreferences: NotificationPreferences | null = null;
+// This lives for the lifetime of the Projects app session. Each entry is scoped
+// to a user and account, and successful mutations write through to that entry.
+const preferencesCache = new Map<string, NotificationPreferences>();
 
 function NotificationChannelSelect({
   notifyEmail,
@@ -82,9 +84,18 @@ function NotificationChannelSelect({
 }
 
 export function NotificationsPage() {
-  const [taskAssignedEmail, setTaskAssignedEmail] = React.useState(() => cachedPreferences?.taskAssignedEmail ?? false);
-  const [taskBlockerCompletedEmail, setTaskBlockerCompletedEmail] = React.useState(() => cachedPreferences?.taskBlockerCompletedEmail ?? false);
-  const [loading, setLoading] = React.useState(() => cachedPreferences === null);
+  const { user, isLoading: authLoading } = useAuth();
+  const { activeAccountId, loading: accountLoading } = useActiveAccount();
+  const cacheKey = user && activeAccountId ? `${user.id}:${activeAccountId}` : null;
+
+  return <NotificationsPageContent key={cacheKey ?? "loading"} cacheKey={cacheKey} loadingContext={authLoading || accountLoading} />;
+}
+
+function NotificationsPageContent({ cacheKey, loadingContext }: { cacheKey: string | null; loadingContext: boolean }) {
+  const initialPreferences = cacheKey ? preferencesCache.get(cacheKey) : undefined;
+  const [taskAssignedEmail, setTaskAssignedEmail] = React.useState(() => initialPreferences?.taskAssignedEmail ?? false);
+  const [taskBlockerCompletedEmail, setTaskBlockerCompletedEmail] = React.useState(() => initialPreferences?.taskBlockerCompletedEmail ?? false);
+  const [loading, setLoading] = React.useState(() => !initialPreferences);
   const [savingPreferences, setSavingPreferences] = React.useState<Set<"taskAssigned" | "taskBlockerCompleted">>(new Set());
 
   function setPreferenceSaving(preference: "taskAssigned" | "taskBlockerCompleted", saving: boolean) {
@@ -99,7 +110,7 @@ export function NotificationsPage() {
   React.useEffect(() => {
     let active = true;
 
-    if (cachedPreferences) return;
+    if (loadingContext || !cacheKey || preferencesCache.has(cacheKey)) return;
 
     void fetch("/api/settings/notifications")
       .then(async (response) => {
@@ -107,7 +118,7 @@ export function NotificationsPage() {
         return response.json() as Promise<NotificationPreferences>;
       })
       .then((data) => {
-        cachedPreferences = data;
+        preferencesCache.set(cacheKey, data);
         if (active) setTaskAssignedEmail(data.taskAssignedEmail);
         if (active) setTaskBlockerCompletedEmail(data.taskBlockerCompletedEmail);
       })
@@ -118,15 +129,16 @@ export function NotificationsPage() {
         if (active) setLoading(false);
       });
     return () => { active = false; };
-  }, []);
+  }, [cacheKey, loadingContext]);
 
   function cachePreference(preference: keyof NotificationPreferences, notifyEmail: boolean) {
-    cachedPreferences = {
+    if (!cacheKey) return;
+    preferencesCache.set(cacheKey, {
       taskAssignedEmail,
       taskBlockerCompletedEmail,
-      ...cachedPreferences,
+      ...preferencesCache.get(cacheKey),
       [preference]: notifyEmail,
-    };
+    });
   }
 
   async function updateTaskAssignedEmail(notifyEmail: boolean) {
