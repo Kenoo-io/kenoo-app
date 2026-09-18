@@ -65,6 +65,10 @@ import {
   resolveActorDisplayName,
 } from "@/lib/user-notifications";
 import { loadAccessibleProjects as fetchAccessibleProjects } from "./load-accessible-projects";
+import {
+  getTaskAssigneeIds,
+  syncProjectTaskAssignees,
+} from "./task-assignee";
 
 /* ─── Schedule drafts (optional time chunks, separate from due date) ───── */
 interface ScheduleDraft {
@@ -566,7 +570,7 @@ export function CreateTasksPopup({
         due_date: existing.due_date ?? "",
         priority: existing.priority?.toString() ?? "3",
         project_id: existing.project_id,
-        assignee_id: existing.assignee_id ?? "",
+        assignee_id: getTaskAssigneeIds(existing)[0] ?? "",
         is_public: existing.is_private === false,
       });
       const loaded = (existing.schedules ?? [])
@@ -992,7 +996,7 @@ export function CreateTasksPopup({
       const actorUserId = currentUserId ?? authUser?.id ?? null;
       const actorName = await resolveActorDisplayName(supabase, actorUserId);
       const taskTitle = form.title.trim();
-      const previousAssigneeId = existing?.assignee_id ?? null;
+      const previousAssigneeId = getTaskAssigneeIds(existing ?? {})[0] ?? null;
       const payload: Record<string, unknown> = {
         title: form.title.trim(),
         description: form.description.trim() || null,
@@ -1000,7 +1004,6 @@ export function CreateTasksPopup({
         due_date: form.due_date || null,
         priority: form.priority ? parseInt(form.priority, 10) : null,
         project_id: form.project_id,
-        assignee_id: form.assignee_id || null,
         is_private: !form.is_public,
       };
       if (threadId) payload.thread_id = threadId;
@@ -1008,9 +1011,10 @@ export function CreateTasksPopup({
       const assigneeId = form.assignee_id || null;
       const assigneeChanged = assigneeId !== previousAssigneeId;
       const shouldNotifyAssignee = !!assigneeId && assigneeChanged;
+      const assignedBy = resolveAssignedBy(assigneeId, actorUserId);
 
       if (assigneeChanged) {
-        payload.assigned_by = resolveAssignedBy(assigneeId, actorUserId);
+        payload.assigned_by = assignedBy;
       }
 
       let taskId = existing?.id ?? null;
@@ -1021,6 +1025,13 @@ export function CreateTasksPopup({
           .update(payload)
           .eq("id", existing.id);
         if (err) throw err;
+
+        await syncProjectTaskAssignees(
+          supabase,
+          existing.id,
+          assigneeId ? [assigneeId] : [],
+          assignedBy
+        );
 
         if (shouldNotifyAssignee && assigneeId) {
           await notifyTaskAssignee(supabase, {
@@ -1034,7 +1045,7 @@ export function CreateTasksPopup({
           });
         }
       } else {
-        payload.assigned_by = resolveAssignedBy(assigneeId, actorUserId);
+        payload.assigned_by = assignedBy;
         const { data: newTask, error: err } = await supabase
           .from("project_tasks")
           .insert(payload)
@@ -1042,6 +1053,15 @@ export function CreateTasksPopup({
           .single();
         if (err) throw err;
         taskId = newTask?.id ?? null;
+
+        if (taskId) {
+          await syncProjectTaskAssignees(
+            supabase,
+            taskId,
+            assigneeId ? [assigneeId] : [],
+            assignedBy
+          );
+        }
 
         if (shouldNotifyAssignee && assigneeId && newTask?.id) {
           await notifyTaskAssignee(supabase, {

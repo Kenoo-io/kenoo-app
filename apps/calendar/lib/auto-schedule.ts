@@ -506,12 +506,12 @@ export async function loadBusyIntervals(options: {
 
   // Existing task time blocks for the assignee (avoid double-booking work)
   const { data: assigneeTasks } = await supabase
-    .from("project_tasks")
-    .select("id")
-    .eq("assignee_id", assigneeId);
+    .from("project_task_assignees")
+    .select("task_id")
+    .eq("user_id", assigneeId);
 
   const taskIds = (assigneeTasks || [])
-    .map((t) => t.id as string)
+    .map((t) => t.task_id as string)
     .filter((id) => (excludeTaskId ? id !== excludeTaskId : true));
 
   if (taskIds.length > 0) {
