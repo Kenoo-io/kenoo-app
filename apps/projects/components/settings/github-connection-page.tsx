@@ -7,6 +7,7 @@ import { AlertCircle, ArrowLeft, CheckCircle2, Github, Unplug } from "lucide-rea
 
 import { setCachedGitHubConnection, useGitHubConnection } from "@/lib/github-connection";
 import { Button } from "@/components/ui/button";
+import { GitHubAutomationSettings } from "@/components/settings/github-automation-settings";
 
 function connectionErrorMessage(error: string) {
   switch (error) {
@@ -149,6 +150,7 @@ export function GitHubConnectionPage() {
             </>
           )}
         </section>
+        {connection ? <GitHubAutomationSettings connectionId={connection.id} /> : null}
       </div>
     </main>
   );

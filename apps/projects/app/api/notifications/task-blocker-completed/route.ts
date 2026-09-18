@@ -17,8 +17,12 @@ export async function POST(request: Request) {
   const headerStore = await headers();
   const origin = process.env.NEXT_PUBLIC_PROJECTS_URL?.replace(/\/$/, "")
     || `${headerStore.get("x-forwarded-proto") || "http"}://${headerStore.get("host")}`;
-  // Temporary testing mode: let a user receive the notification after they
-  // complete their own blocker. Restore `skipUserId: user.id` before release.
-  const result = await notifyTaskAssigneesWhenBlockerCompletes({ taskId: body.taskId, origin });
+  // The person who completes a blocker already knows it was cleared; only
+  // notify other assignees of dependent work.
+  const result = await notifyTaskAssigneesWhenBlockerCompletes({
+    taskId: body.taskId,
+    origin,
+    skipUserId: user.id,
+  });
   return NextResponse.json(result);
 }
