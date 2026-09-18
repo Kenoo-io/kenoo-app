@@ -1261,7 +1261,7 @@ function AgentsProjectsKanbanContent({
         const { data } = await supabase
           .from("project_tasks")
           .select(
-            "project_id, assignee_id, assigned_by, is_private, task_assignees:project_task_assignees(user_id)"
+            "project_id, assigned_by, is_private, task_assignees:project_task_assignees(user_id)"
           )
           .in("project_id", projectIds);
         metaRows = (data ?? []).map((row) => {
@@ -1271,15 +1271,9 @@ function AgentsProjectsKanbanContent({
             }
           ).task_assignees;
           const fromJoin = (links ?? []).map((l) => l.user_id).filter(Boolean);
-          const assignee_ids =
-            fromJoin.length > 0
-              ? fromJoin
-              : row.assignee_id
-                ? [row.assignee_id as string]
-                : [];
+          const assignee_ids = fromJoin;
           return {
             project_id: row.project_id as string,
-            assignee_id: (row.assignee_id as string | null) ?? null,
             assigned_by: (row.assigned_by as string | null) ?? null,
             is_private: Boolean(row.is_private),
             assignee_ids,
@@ -1321,7 +1315,7 @@ function AgentsProjectsKanbanContent({
           .select("task_id")
           .eq("user_id", user.id);
         const mineTaskIds = [
-          ...new Set((assigneeLinks ?? []).map((r) => r.task_id as string)),
+          ...new Set((assigneeLinks ?? []).map((row) => row.task_id as string)),
         ];
         if (mineTaskIds.length > 0) {
           const { data } = await supabase
@@ -1681,50 +1675,9 @@ function AgentsProjectsKanbanContent({
     <>
       <div className="flex h-full overflow-hidden">
         <div className="flex-1 w-full flex flex-col min-h-0">
-          {/* Toolbar: search, actions, My Tasks / All Projects */}
+          {/* Toolbar: task actions, search, and view selector */}
           <div className="relative z-30 flex-shrink-0 app-sidebar-pad pr-4 pt-4 pb-4">
-            <div className="flex items-center gap-3 flex-wrap">
-              <div className="relative flex-1 max-w-sm min-w-[12rem]">
-                <Search className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
-                <input
-                  type="text"
-                  placeholder="Search tasks…"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className={cn(
-                    "w-full pl-6 pr-3 py-2 text-sm bg-transparent border-0 border-b focus:outline-none transition-colors placeholder:text-neutral-300 font-light rounded-none",
-                    search ? "border-b-[var(--kenoo-sky)]" : "border-neutral-200",
-                    "focus:border-b-[var(--kenoo-sky)]"
-                  )}
-                />
-              </div>
-
-              <SegmentToggle
-                aria-label="Task view"
-                value={viewMode}
-                onChange={(value) => handleViewModeChange(value)}
-                options={[
-                  {
-                    value: "kanban",
-                    label: "Kanban",
-                    icon: <Columns3 className="h-3.5 w-3.5 shrink-0 text-neutral-400" strokeWidth={1.5} />,
-                  },
-                  {
-                    value: "list",
-                    label: "List",
-                    icon: <LayoutList className="h-3.5 w-3.5 shrink-0 text-neutral-400" strokeWidth={1.5} />,
-                  },
-                ]}
-              />
-
-              <KanbanPlusButton
-                title="New task"
-                onClick={() => {
-                  setEditTask(null);
-                  setTaskFormOpen(true);
-                }}
-              />
-
+            <div className="flex items-center gap-3">
               <ProjectsBoardFilters
                 projects={projects}
                 projectFilter={projectFilter}
@@ -1741,6 +1694,49 @@ function AgentsProjectsKanbanContent({
                 dueDateFilter={dueDateFilter}
                 onDueDateFilterChange={setDueDateFilter}
               />
+
+              <KanbanPlusButton
+                title="New task"
+                onClick={() => {
+                  setEditTask(null);
+                  setTaskFormOpen(true);
+                }}
+              />
+
+              <div className="relative flex-1 max-w-sm min-w-[12rem]">
+                <Search className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
+                <input
+                  type="text"
+                  placeholder="Search tasks…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className={cn(
+                    "w-full pl-6 pr-3 py-2 text-sm bg-transparent border-0 border-b focus:outline-none transition-colors placeholder:text-neutral-300 font-light rounded-none",
+                    search ? "border-b-[var(--kenoo-sky)]" : "border-neutral-200",
+                    "focus:border-b-[var(--kenoo-sky)]"
+                  )}
+                />
+              </div>
+
+              <div className="ml-auto mr-6 shrink-0">
+                <SegmentToggle
+                  aria-label="Task view"
+                  value={viewMode}
+                  onChange={(value) => handleViewModeChange(value)}
+                  options={[
+                    {
+                      value: "kanban",
+                      label: "Kanban",
+                      icon: <Columns3 className="h-3.5 w-3.5 shrink-0 text-neutral-400" strokeWidth={1.5} />,
+                    },
+                    {
+                      value: "list",
+                      label: "List",
+                      icon: <LayoutList className="h-3.5 w-3.5 shrink-0 text-neutral-400" strokeWidth={1.5} />,
+                    },
+                  ]}
+                />
+              </div>
             </div>
           </div>
 

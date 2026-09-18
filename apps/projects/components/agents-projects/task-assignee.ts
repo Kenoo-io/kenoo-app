@@ -74,18 +74,13 @@ export function extractTaskAssignees(
 
 export function getTaskAssigneeIds(task: {
   assignees?: TaskAssignee[] | null;
-  assignee_id?: string | null;
 }): string[] {
-  if (task.assignees && task.assignees.length > 0) {
-    return task.assignees.map((a) => a.id);
-  }
-  return task.assignee_id ? [task.assignee_id] : [];
+  return task.assignees?.map((assignee) => assignee.id) ?? [];
 }
 
 export function isUserTaskAssignee(
   task: {
     assignees?: TaskAssignee[] | null;
-    assignee_id?: string | null;
   },
   userId: string | null | undefined
 ): boolean {
@@ -112,16 +107,12 @@ export function mapProjectTaskRow(
     rawStatus === "done" ? "completed" : rawStatus
   ) as TaskStatus;
 
-  const assigneeId =
-    (rest.assignee_id as string | null | undefined) ?? primary?.id ?? null;
-
   return {
     ...(rest as Omit<
       ProjectTask,
-      "project" | "assignee" | "assignees" | "status" | "assignee_id"
+      "project" | "assignee" | "assignees" | "status"
     >),
     status,
-    assignee_id: assigneeId,
     assignee: primary,
     assignees,
   };
@@ -129,7 +120,7 @@ export function mapProjectTaskRow(
 
 /** Select fragment for task queries that need assignees on cards. */
 export const PROJECT_TASK_SELECT_WITH_ASSIGNEE =
-  "id, project_id, title, description, status, due_date, priority, position, parent_task_id, created_at, updated_at, completed_at, start_date, assignee_id, assigned_by, is_private, estimated_minutes, actual_minutes, metadata, assignee:users!assignee_id(id, first_name, last_name, email, avatar_url), task_assignees:project_task_assignees(user_id, user:users!project_task_assignees_user_id_fkey(id, first_name, last_name, email, avatar_url))";
+  "id, project_id, title, description, status, due_date, priority, position, parent_task_id, created_at, updated_at, completed_at, start_date, assigned_by, is_private, estimated_minutes, actual_minutes, metadata, task_assignees:project_task_assignees(user_id, user:users!project_task_assignees_user_id_fkey(id, first_name, last_name, email, avatar_url))";
 
 type AssigneesClient = {
   from: (table: string) => any;

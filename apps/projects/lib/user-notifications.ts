@@ -202,7 +202,6 @@ type TaskCompletionNotifyRow = {
   id: string;
   title: string;
   project_id: string;
-  assignee_id: string | null;
   assigned_by: string | null;
   assignees?: { id: string }[] | null;
   projects?: { name: string } | { name: string }[] | null;
@@ -220,8 +219,7 @@ function taskHasAssignee(
   task: TaskCompletionNotifyRow,
   userId: string
 ): boolean {
-  if (task.assignees?.some((a) => a.id === userId)) return true;
-  return task.assignee_id === userId;
+  return task.assignees?.some((assignee) => assignee.id === userId) ?? false;
 }
 
 /** Notify `assigned_by` when the assignee marks a task complete. */

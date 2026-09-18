@@ -7,7 +7,7 @@ import {
   loadAccessibleProjects,
 } from "./load-accessible-projects";
 import { Button } from "@/components/ui/button";
-import { Plus, ChevronDown, Filter, X } from "lucide-react";
+import { Plus, ChevronDown, Filter, ListFilter, X } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -98,8 +98,8 @@ export function ProjectsBoardFilters({
 
   const showTaskScopeDropdown =
     !!onTaskScopeFilterChange && taskScopeOptions.length > 1;
-  const defaultTaskScope = taskScopeOptions.includes("project")
-    ? "project"
+  const defaultTaskScope = taskScopeOptions.includes("mine")
+    ? "mine"
     : (taskScopeOptions[0] ?? "mine");
   const hasActiveFilters =
     projectFilter !== "all" ||
@@ -334,12 +334,14 @@ export function ProjectsBoardFilters({
         aria-label="Open task filters"
         aria-pressed={isOpen}
         className={cn(
-          "group flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-neutral-500 transition-all duration-300 hover:bg-neutral-100",
+          "group relative flex h-10 w-10 shrink-0 items-center justify-center bg-transparent p-0 text-neutral-500 shadow-none outline-none ring-0",
           hasActiveFilters && "shadow-[0_0_0_1px_rgba(110,173,192,0.4),0_0_12px_rgba(110,173,192,0.4)]",
           className,
         )}
       >
-        <Filter className="h-[18px] w-[18px] stroke-[1.5]" />
+        <div className="relative z-10 flex items-center justify-center rounded-full border-0 p-3 transition-all duration-300 ease-in-out group-hover:bg-neutral-100">
+          <ListFilter className="h-[18px] w-[18px] stroke-[1.5]" />
+        </div>
       </button>
 
       {filterPanel && typeof document !== "undefined"
