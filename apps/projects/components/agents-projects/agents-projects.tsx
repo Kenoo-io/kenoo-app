@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@walls/auth";
@@ -161,6 +161,17 @@ type MemberUser = {
 };
 
 type ProjectWithHub = ProjectWithStats & { members: MemberUser[] };
+
+type ProjectsDashboardCacheEntry = {
+  projects: ProjectWithHub[];
+  tasks: HubTask[];
+};
+
+const projectsDashboardCache = new Map<string, ProjectsDashboardCacheEntry>();
+
+function getProjectsDashboardCacheKey(userId: string, accountId: string) {
+  return `${userId}:${accountId}`;
+}
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -431,25 +442,58 @@ function AgentsProjectsContent({ analyticsData: _analyticsData }: AgentsProjects
   const router = useRouter();
   const { user, isLoading: authLoading } = useAuth();
   const { activeAccount, activeAccountId, loading: accountLoading } = useActiveAccount();
-  const [projects, setProjects] = useState<ProjectWithHub[]>([]);
-  const [tasks, setTasks] = useState<HubTask[]>([]);
-  const [loading, setLoading] = useState(true);
+  const initialCachedData =
+    user && activeAccountId
+      ? projectsDashboardCache.get(
+          getProjectsDashboardCacheKey(user.id, activeAccountId)
+        )
+      : undefined;
+  const [projects, setProjects] = useState<ProjectWithHub[]>(
+    () => initialCachedData?.projects ?? []
+  );
+  const [tasks, setTasks] = useState<HubTask[]>(
+    () => initialCachedData?.tasks ?? []
+  );
+  const [loading, setLoading] = useState(() => !initialCachedData);
+  const loadedCacheKeyRef = useRef<string | null>(
+    user && activeAccountId
+      ? getProjectsDashboardCacheKey(user.id, activeAccountId)
+      : null
+  );
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [formOpen, setFormOpen] = useState(false);
   const [editProject, setEditProject] = useState<Project | null>(null);
   const [taskFormOpen, setTaskFormOpen] = useState(false);
   const [copiedId, setCopiedId] = useState(false);
 
-  const refresh = useCallback(() => setRefreshTrigger((r) => r + 1), []);
+  const refresh = useCallback(() => {
+    if (user && activeAccountId) {
+      projectsDashboardCache.delete(
+        getProjectsDashboardCacheKey(user.id, activeAccountId)
+      );
+    }
+    setRefreshTrigger((r) => r + 1);
+  }, [user, activeAccountId]);
 
   const loadProjects = useCallback(async () => {
     if (authLoading || accountLoading) return;
     if (!user || !activeAccountId) {
+      loadedCacheKeyRef.current = null;
       setProjects([]);
       setTasks([]);
       setLoading(false);
       return;
     }
+    const cacheKey = getProjectsDashboardCacheKey(user.id, activeAccountId);
+    const cached = projectsDashboardCache.get(cacheKey);
+    if (cached) {
+      loadedCacheKeyRef.current = cacheKey;
+      setProjects(cached.projects);
+      setTasks(cached.tasks);
+      setLoading(false);
+      return;
+    }
+    loadedCacheKeyRef.current = null;
     setLoading(true);
     try {
       const supabase = getSupabaseClient();
@@ -536,17 +580,21 @@ function AgentsProjectsContent({ analyticsData: _analyticsData }: AgentsProjects
         for (const u of usersData ?? []) userMap.set(u.id, u as MemberUser);
       }
 
-      setTasks(visibleTasks);
-      setProjects(
-        rows.map((p) => ({
+      const loadedProjects = rows.map((p) => ({
           ...p,
           task_count: countMap.get(p.id)?.total ?? 0,
           done_count: countMap.get(p.id)?.done ?? 0,
           members: (membersByProject.get(p.id) ?? [])
             .map((id) => userMap.get(id))
             .filter((u): u is MemberUser => !!u),
-        }))
-      );
+        }));
+      projectsDashboardCache.set(cacheKey, {
+        projects: loadedProjects,
+        tasks: visibleTasks,
+      });
+      loadedCacheKeyRef.current = cacheKey;
+      setTasks(visibleTasks);
+      setProjects(loadedProjects);
     } catch {
       setProjects([]);
       setTasks([]);
@@ -559,6 +607,16 @@ function AgentsProjectsContent({ analyticsData: _analyticsData }: AgentsProjects
     if (authLoading || accountLoading) return;
     loadProjects();
   }, [loadProjects, authLoading, accountLoading]);
+
+  useEffect(() => {
+    if (!user || !activeAccountId) return;
+    const cacheKey = getProjectsDashboardCacheKey(user.id, activeAccountId);
+    if (loadedCacheKeyRef.current !== cacheKey) return;
+    projectsDashboardCache.set(
+      cacheKey,
+      { projects, tasks }
+    );
+  }, [user, activeAccountId, projects, tasks]);
 
   const showLoading = authLoading || accountLoading || loading;
 

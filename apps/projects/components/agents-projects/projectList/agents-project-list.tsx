@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@walls/auth";
 import { getSupabaseClient } from "@walls/auth";
@@ -127,6 +127,22 @@ function renderMarkdownPreview(
 
 /* ─── Types ──────────────────────────────────────────────────────────────── */
 type SortKey = "name" | "priority" | "due_date" | "progress";
+
+const projectsListCache = new Map<string, ProjectWithStats[]>();
+
+function getProjectsListCacheKey({
+  userId,
+  accountId,
+  search,
+  status,
+}: {
+  userId: string;
+  accountId: string;
+  search: string;
+  status: string;
+}) {
+  return `${userId}:${accountId}:${search}:${status}`;
+}
 
 const GROUP_ORDER: ProjectStatus[] = [
   "active",
@@ -560,11 +576,34 @@ function AgentsProjectsListContent({
 }: AgentsProjectsListProps) {
   const { user, isLoading: authLoading } = useAuth();
   const { activeAccountId, loading: accountLoading } = useActiveAccount();
-  const [projects, setProjects] = useState<ProjectWithStats[]>([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const initialCachedProjects =
+    user && activeAccountId
+      ? projectsListCache.get(
+          getProjectsListCacheKey({
+            userId: user.id,
+            accountId: activeAccountId,
+            search: "",
+            status: "",
+          })
+        )
+      : undefined;
+  const [projects, setProjects] = useState<ProjectWithStats[]>(
+    () => initialCachedProjects ?? []
+  );
+  const [loading, setLoading] = useState(() => !initialCachedProjects);
+  const loadedCacheKeyRef = useRef<string | null>(
+    user && activeAccountId
+      ? getProjectsListCacheKey({
+          userId: user.id,
+          accountId: activeAccountId,
+          search: "",
+          status: "",
+        })
+      : null
+  );
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [sortBy, setSortBy] = useState<SortKey>("priority");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
@@ -581,10 +620,25 @@ function AgentsProjectsListContent({
   const loadProjects = useCallback(async () => {
     if (authLoading || accountLoading) return;
     if (!user || !activeAccountId) {
+      loadedCacheKeyRef.current = null;
       setProjects([]);
       setLoading(false);
       return;
     }
+    const cacheKey = getProjectsListCacheKey({
+      userId: user.id,
+      accountId: activeAccountId,
+      search: debouncedSearch,
+      status: statusFilter,
+    });
+    const cached = projectsListCache.get(cacheKey);
+    if (cached) {
+      loadedCacheKeyRef.current = cacheKey;
+      setProjects(cached);
+      setLoading(false);
+      return;
+    }
+    loadedCacheKeyRef.current = null;
     setLoading(true);
     try {
       const supabase = getSupabaseClient();
@@ -655,13 +709,14 @@ function AgentsProjectsListContent({
         entry.total += 1;
         if (t.status === "completed") entry.done += 1;
       }
-      setProjects(
-        rows.map((p) => ({
+      const loadedProjects = rows.map((p) => ({
           ...p,
           task_count: countMap.get(p.id)?.total ?? 0,
           done_count: countMap.get(p.id)?.done ?? 0,
-        }))
-      );
+        }));
+      projectsListCache.set(cacheKey, loadedProjects);
+      loadedCacheKeyRef.current = cacheKey;
+      setProjects(loadedProjects);
     } catch {
       setProjects([]);
     } finally {
@@ -674,7 +729,34 @@ function AgentsProjectsListContent({
     loadProjects();
   }, [loadProjects, authLoading, accountLoading]);
 
-  const refresh = () => setRefreshTrigger((r) => r + 1);
+  useEffect(() => {
+    if (!user || !activeAccountId) return;
+    const cacheKey = getProjectsListCacheKey({
+      userId: user.id,
+      accountId: activeAccountId,
+      search: debouncedSearch,
+      status: statusFilter,
+    });
+    if (loadedCacheKeyRef.current !== cacheKey) return;
+    projectsListCache.set(
+      cacheKey,
+      projects
+    );
+  }, [user, activeAccountId, debouncedSearch, statusFilter, projects]);
+
+  const refresh = () => {
+    if (user && activeAccountId) {
+      projectsListCache.delete(
+        getProjectsListCacheKey({
+          userId: user.id,
+          accountId: activeAccountId,
+          search: debouncedSearch,
+          status: statusFilter,
+        })
+      );
+    }
+    setRefreshTrigger((r) => r + 1);
+  };
 
   const handleSort = (key: SortKey) => {
     if (sortBy === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
