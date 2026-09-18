@@ -53,6 +53,16 @@ const MARQUEE: Record<DashboardPreviewSlug, string[]> = {
     "Apple Health",
     "Progress",
   ],
+  projects: [
+    "Projects",
+    "Tasks",
+    "Boards",
+    "Timeline",
+    "Owners",
+    "Due dates",
+    "GitHub",
+    "Progress",
+  ],
 };
 
 const marqueeVariants = {

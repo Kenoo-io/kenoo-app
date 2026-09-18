@@ -7,9 +7,12 @@ import {
   ArrowRight,
   Building2,
   Calendar,
+  CalendarDays,
+  CheckCircle2,
   CircleDollarSign,
   Handshake,
   Heart,
+  GitBranch,
   Layers,
   Link2,
   Mail,
@@ -60,6 +63,8 @@ const ICON_MAP: Record<CapabilityFeatureIcon, LucideIcon> = {
   utensils: UtensilsCrossed,
   target: Target,
   heart: Heart,
+  calendar: CalendarDays,
+  check: CheckCircle2,
 };
 
 const floatEase = [0.22, 1, 0.36, 1] as const;
@@ -179,7 +184,105 @@ function CapabilityVisual({
       {visual === "health-energy" ? <HealthEnergyVisual /> : null}
       {visual === "health-meals" ? <HealthMealsVisual /> : null}
       {visual === "health-pulse" ? <HealthPulseVisual accent={accent} /> : null}
+      {visual === "projects-board" ? <ProjectsBoardVisual /> : null}
+      {visual === "projects-timeline" ? <ProjectsTimelineVisual /> : null}
+      {visual === "projects-github" ? <ProjectsGithubVisual /> : null}
     </motion.div>
+  );
+}
+
+function ProjectsBoardVisual() {
+  const columns = [
+    { title: "Planned", color: "#c4b5fd", tasks: ["Finalize scope", "Schedule kickoff"] },
+    { title: "In progress", color: "#7c5ce0", tasks: ["Design review", "Build task flow"] },
+    { title: "Complete", color: "#34d399", tasks: ["Set project goals", "Assign owners"] },
+  ];
+
+  return (
+    <div className="relative aspect-[5/4] overflow-hidden rounded-[28px] bg-[#fafafa] p-4 shadow-[0_18px_40px_-24px_rgba(0,0,0,0.25)] md:p-5">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-neutral-400">Projects</p>
+          <p className="mt-1 text-sm font-semibold text-neutral-900">Product launch</p>
+        </div>
+        <span className="rounded-full bg-violet-50 px-2.5 py-1 text-[10px] font-medium text-violet-700">68% complete</span>
+      </div>
+      <div className="mt-4 grid grid-cols-3 gap-2.5">
+        {columns.map((column) => (
+          <div key={column.title} className="min-w-0 rounded-2xl bg-neutral-100/80 p-2 md:p-2.5">
+            <div className="flex items-center gap-1.5">
+              <span className="size-1.5 rounded-full" style={{ backgroundColor: column.color }} />
+              <p className="truncate text-[8px] font-medium uppercase tracking-[0.1em] text-neutral-500 md:text-[9px]">{column.title}</p>
+            </div>
+            <div className="mt-2 space-y-2">
+              {column.tasks.map((task, index) => (
+                <div key={task} className="rounded-xl border border-neutral-200/80 bg-white px-2 py-2 shadow-sm">
+                  <p className="line-clamp-2 text-[9px] font-medium leading-snug text-neutral-700">{task}</p>
+                  <div className="mt-2 flex items-center justify-between">
+                    <span className="size-3 rounded-full bg-neutral-100" />
+                    {index === 0 ? <CalendarDays className="size-2.5 text-neutral-400" /> : <CheckCircle2 className="size-2.5 text-emerald-500" />}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ProjectsTimelineVisual() {
+  const rows = [
+    { label: "Discovery", left: "8%", width: "28%", color: "#c4b5fd" },
+    { label: "Build", left: "31%", width: "42%", color: "#7c5ce0" },
+    { label: "Launch", left: "66%", width: "25%", color: "#a78bfa" },
+  ];
+
+  return (
+    <div className="relative aspect-[5/4] overflow-hidden rounded-[28px] bg-[#fafafa] p-5 shadow-[0_18px_40px_-24px_rgba(0,0,0,0.25)]">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-neutral-400">Timeline</p>
+          <p className="mt-1 text-sm font-semibold text-neutral-900">September plan</p>
+        </div>
+        <CalendarDays className="size-4 text-violet-500" />
+      </div>
+      <div className="mt-5 grid grid-cols-4 border-b border-neutral-200 pb-2 pl-20 text-[9px] font-medium uppercase tracking-[0.1em] text-neutral-400">
+        <span>Week 1</span><span>Week 2</span><span>Week 3</span><span>Week 4</span>
+      </div>
+      <div className="mt-3 space-y-3">
+        {rows.map((row) => (
+          <div key={row.label} className="grid grid-cols-[5rem_1fr] items-center gap-2">
+            <p className="truncate text-[10px] font-medium text-neutral-600">{row.label}</p>
+            <div className="relative h-7 rounded-lg bg-neutral-100/80">
+              <div className="absolute top-1.5 h-4 rounded-md" style={{ left: row.left, width: row.width, backgroundColor: row.color }} />
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="absolute bottom-5 right-5 rounded-2xl border border-white/70 bg-white/90 px-3 py-2 shadow-lg backdrop-blur">
+        <p className="text-[9px] font-medium text-neutral-800">3 milestones this month</p>
+      </div>
+    </div>
+  );
+}
+
+function ProjectsGithubVisual() {
+  return (
+    <div className="relative aspect-[5/4] overflow-hidden rounded-[28px] bg-[#fafafa] p-5 shadow-[0_18px_40px_-24px_rgba(0,0,0,0.25)]">
+      <div className="flex items-center gap-2.5">
+        <span className="flex size-9 items-center justify-center rounded-xl bg-violet-100 text-violet-700"><GitBranch className="size-4" /></span>
+        <div><p className="text-[10px] font-medium uppercase tracking-[0.16em] text-neutral-400">GitHub connection</p><p className="mt-0.5 text-sm font-semibold text-neutral-900">Web platform</p></div>
+      </div>
+      <div className="mt-5 rounded-2xl border border-neutral-200/80 bg-white p-3 shadow-sm">
+        <div className="flex items-center justify-between"><p className="text-[11px] font-semibold text-neutral-800">Build task flow</p><span className="rounded-full bg-violet-50 px-2 py-0.5 text-[9px] font-medium text-violet-700">In progress</span></div>
+        <div className="mt-3 flex items-center gap-2 rounded-xl bg-neutral-50 px-2.5 py-2"><GitBranch className="size-3.5 text-neutral-500" /><span className="font-mono text-[10px] text-neutral-600">feature/task-flow</span></div>
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-3">
+        {["Repository linked", "Branch ready"].map((label, index) => <div key={label} className="rounded-2xl border border-neutral-200/80 bg-white px-3 py-3 shadow-sm"><CheckCircle2 className={cn("size-4", index === 0 ? "text-emerald-500" : "text-violet-500")} /><p className="mt-2 text-[10px] font-medium text-neutral-700">{label}</p></div>)}
+      </div>
+    </div>
   );
 }
 

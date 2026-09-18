@@ -6,10 +6,13 @@ import type { LucideIcon } from "lucide-react";
 import {
   Activity,
   Building2,
+  CalendarDays,
+  CheckCircle2,
   ChevronLeft,
   CircleDollarSign,
   Handshake,
   LayoutDashboard,
+  ListTodo,
   Mail,
   Megaphone,
   MousePointerClick,
@@ -25,12 +28,13 @@ import {
 
 import { cn } from "@/lib/utils";
 
-export type DashboardPreviewSlug = "adpilot" | "crm" | "health";
+export type DashboardPreviewSlug = "adpilot" | "crm" | "health" | "projects";
 
 const HOST: Record<DashboardPreviewSlug, string> = {
   adpilot: "adpilot.kenoo.io",
   crm: "crm.kenoo.io",
   health: "health.kenoo.io",
+  projects: "projects.kenoo.io",
 };
 
 const ADPILOT_NAV: { icon: LucideIcon; label: string }[] = [
@@ -58,10 +62,19 @@ const HEALTH_NAV: { icon: LucideIcon; label: string }[] = [
   { icon: Settings, label: "Settings" },
 ];
 
+const PROJECTS_NAV: { icon: LucideIcon; label: string }[] = [
+  { icon: LayoutDashboard, label: "Overview" },
+  { icon: ListTodo, label: "Tasks" },
+  { icon: CalendarDays, label: "Timeline" },
+  { icon: Users, label: "Team" },
+  { icon: Settings, label: "Settings" },
+];
+
 const NAV: Record<DashboardPreviewSlug, { icon: LucideIcon; label: string }[]> = {
   adpilot: ADPILOT_NAV,
   crm: CRM_NAV,
   health: HEALTH_NAV,
+  projects: PROJECTS_NAV,
 };
 
 const GLASS =
@@ -146,10 +159,6 @@ export function DashboardPreview({
             </motion.span>
           </AnimatePresence>
         </span>
-        <span className="ml-auto hidden items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.14em] text-emerald-700 sm:inline-flex">
-          <span className="size-1.5 rounded-full bg-emerald-500" />
-          Live
-        </span>
       </div>
       <div className="relative min-h-[300px] overflow-hidden bg-white md:min-h-[440px]">
         <AppRail items={NAV[slug]} />
@@ -220,7 +229,73 @@ function DashboardScene({
 }) {
   if (slug === "crm") return <CrmScene compact={compact} />;
   if (slug === "health") return <HealthScene compact={compact} />;
+  if (slug === "projects") return <ProjectsScene compact={compact} />;
   return <AdPilotScene compact={compact} />;
+}
+
+function ProjectsScene({ compact }: { compact?: boolean }) {
+  const columns = [
+    {
+      title: "Planned",
+      color: "#c4b5fd",
+      tasks: ["Confirm launch scope", "Outline client handoff"],
+    },
+    {
+      title: "In progress",
+      color: "#8b5cf6",
+      tasks: ["Build campaign dashboard", "Review navigation"],
+    },
+    {
+      title: "Done",
+      color: "#34d399",
+      tasks: ["Project kickoff", "Assign owners"],
+    },
+  ];
+
+  return (
+    <div className={cn("space-y-3", compact && "p-3")}>
+      {compact ? null : (
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-neutral-400">
+              Product launch
+            </p>
+            <p className="mt-0.5 text-lg font-semibold tracking-tight text-neutral-900">
+              September priorities
+            </p>
+          </div>
+          <span className="rounded-full bg-violet-50 px-2.5 py-1 text-[10px] font-medium text-violet-700">
+            68% complete
+          </span>
+        </div>
+      )}
+      <div className="grid grid-cols-3 gap-2.5">
+        {columns.map((column) => (
+          <div key={column.title} className="min-w-0 rounded-2xl bg-neutral-50 p-2 md:p-3">
+            <div className="flex items-center gap-1.5">
+              <span className="size-1.5 rounded-full" style={{ backgroundColor: column.color }} />
+              <p className="truncate text-[9px] font-medium uppercase tracking-[0.1em] text-neutral-500 md:text-[10px]">
+                {column.title}
+              </p>
+            </div>
+            <div className="mt-2 space-y-2">
+              {column.tasks.map((task, index) => (
+                <div key={task} className="rounded-xl border border-neutral-200/80 bg-white px-2 py-2 shadow-sm">
+                  <p className="line-clamp-2 text-[9px] font-medium leading-snug text-neutral-700 md:text-[10px]">
+                    {task}
+                  </p>
+                  <div className="mt-2 flex items-center justify-between">
+                    <span className="size-3 rounded-full bg-neutral-100" />
+                    {index === 0 ? <CalendarDays className="size-2.5 text-neutral-400" /> : <CheckCircle2 className="size-2.5 text-emerald-500" />}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function AdPilotScene({ compact }: { compact?: boolean }) {

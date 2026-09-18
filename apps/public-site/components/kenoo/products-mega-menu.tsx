@@ -67,7 +67,7 @@ export function ProductsMegaMenu({
                     Featured apps
                   </p>
                   <h3 className="mt-2 font-display text-xl font-semibold tracking-[-0.03em] text-kenoo-ink">
-                    AdPilot, CRM, and Health
+                    AdPilot, CRM, Health, and Projects
                   </h3>
                 </div>
                 <Link
@@ -81,8 +81,8 @@ export function ProductsMegaMenu({
               </div>
 
               {loading && apps.length === 0 ? (
-                <div className="mt-6 grid grid-cols-1 gap-2 sm:grid-cols-3">
-                  {Array.from({ length: 3 }).map((_, index) => (
+                <div className="mt-6 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                  {Array.from({ length: 4 }).map((_, index) => (
                     <div
                       key={index}
                       className="h-[5.5rem] animate-pulse rounded-2xl bg-kenoo-subtle/80"
@@ -90,7 +90,7 @@ export function ProductsMegaMenu({
                   ))}
                 </div>
               ) : (
-                <ul className="mt-6 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                <ul className="mt-6 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
                   {apps.map((app) => (
                     <li key={app.id}>
                       <Link
@@ -132,7 +132,7 @@ export function MobileProductsList({
   if (loading && apps.length === 0) {
     return (
       <div className="mb-2 ml-2 space-y-1 border-l border-kenoo-border pl-3">
-        {Array.from({ length: 3 }).map((_, index) => (
+        {Array.from({ length: 4 }).map((_, index) => (
           <div
             key={index}
             className="h-10 animate-pulse rounded-xl bg-kenoo-subtle/80"
