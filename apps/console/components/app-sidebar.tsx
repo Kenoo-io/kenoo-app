@@ -10,6 +10,7 @@ import {
 } from "@walls/ui/dropdown-menu";
 import { cn } from "@walls/utils";
 import {
+  Activity,
   ChevronsUpDown,
   Home,
   LayoutGrid,
@@ -48,6 +49,7 @@ const navItems = [
   { href: "/users", label: "Users", icon: UserCircle },
   { href: "/apps", label: "Apps", icon: LayoutGrid },
   { href: "/jobs", label: "Jobs", icon: ListTodo },
+  { href: "/monitoring", label: "Monitoring", icon: Activity },
   { href: "/teams", label: "Teams", icon: Users },
 ] as const;
 

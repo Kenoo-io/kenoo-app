@@ -7,6 +7,7 @@ const PUBLIC_PATHS = [
   "/reset-password",
   "/create-password",
   "/setup-profile",
+  "/mcp/authorize",
 ];
 
 export async function middleware(request: NextRequest) {
@@ -25,7 +26,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Refresh auth cookies on public auth pages and API routes (host-only on localhost).
-  let response = NextResponse.next({
+  const response = NextResponse.next({
     request: {
       headers: request.headers,
     },

@@ -4,6 +4,7 @@ import { motion, useReducedMotion } from "framer-motion";
 import type { LucideIcon } from "lucide-react";
 import {
   Activity,
+  ArrowLeft,
   ArrowRight,
   Building2,
   Calendar,
@@ -13,6 +14,7 @@ import {
   Handshake,
   Heart,
   GitBranch,
+  Github,
   Layers,
   Link2,
   Mail,
@@ -27,6 +29,7 @@ import {
   Target,
   TrendingUp,
   UtensilsCrossed,
+  Unplug,
   Users,
   Wallet,
   X,
@@ -264,35 +267,50 @@ function ProjectsBoardVisual() {
 
 function ProjectsTimelineVisual() {
   const rows = [
-    { label: "Discovery", left: "8%", width: "28%", color: "#c4b5fd" },
-    { label: "Build", left: "31%", width: "42%", color: "#7c5ce0" },
-    { label: "Launch", left: "66%", width: "25%", color: "#a78bfa" },
+    { label: "Northstar web app", subLabel: "4/7 tasks · 57%", color: "#4285F4", bar: { left: "5%", width: "51%" } },
+    { label: "Harbor site build", subLabel: "2/5 tasks · 40%", color: "#65a30d", bar: { left: "24%", width: "43%" } },
+    { label: "Clover mobile app", subLabel: "17/17 tasks · 100%", color: "#ef4444" },
+    { label: "Email operations", subLabel: "37/39 tasks · 95%", color: "#10b981", bar: { left: "48%", width: "35%" } },
+    { label: "General objectives", subLabel: "15/16 tasks · 94%", color: "#fdba74" },
+    { label: "Platform rollout", subLabel: "1/1 tasks · 100%", color: "#22d3ee" },
   ];
 
   return (
-    <div className="relative aspect-[5/4] overflow-hidden rounded-[28px] bg-[#fafafa] p-5 shadow-[0_18px_40px_-24px_rgba(0,0,0,0.25)]">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-neutral-400">Timeline</p>
-          <p className="mt-1 text-sm font-semibold text-neutral-900">September plan</p>
+    <div className="relative aspect-[5/4] overflow-hidden rounded-[28px] bg-white p-4 shadow-[0_18px_40px_-24px_rgba(0,0,0,0.25)] md:p-5">
+      <div className="flex items-center justify-between pb-4">
+        <div className="flex items-center gap-2">
+          <span className="rounded-full bg-white px-2.5 py-1.5 text-[8px] font-semibold uppercase tracking-wide text-neutral-700 shadow-[0_4px_12px_rgba(15,23,42,0.09)]">▤&nbsp; Gantt</span>
+          <span className="px-1.5 py-1 text-[8px] font-medium uppercase tracking-wide text-neutral-400">☷&nbsp; List</span>
+          <span className="ml-1 rounded-full bg-white px-2.5 py-1.5 text-[8px] font-semibold uppercase tracking-wide text-neutral-700 shadow-[0_4px_12px_rgba(15,23,42,0.09)]">By Project</span>
+          <span className="px-1 text-[8px] font-medium uppercase tracking-wide text-neutral-400">By Task</span>
+          <span className="text-sm font-light text-neutral-400">♢</span>
         </div>
-        <CalendarDays className="size-4 text-violet-500" />
+        <div className="flex items-center gap-2 text-[8px] font-semibold uppercase tracking-wide text-neutral-400"><span className="text-sm font-light">‹</span><span><i className="mr-1 inline-block size-1.5 rounded-full bg-[#4285F4]" />Today</span><span className="text-sm font-light">›</span></div>
       </div>
-      <div className="mt-5 grid grid-cols-4 border-b border-neutral-200 pb-2 pl-20 text-[9px] font-medium uppercase tracking-[0.1em] text-neutral-400">
-        <span>Week 1</span><span>Week 2</span><span>Week 3</span><span>Week 4</span>
+      <div className="grid grid-cols-[8rem_1fr] border-y border-[#e4e9f0]">
+        <div className="border-r border-[#e4e9f0]" />
+        <div>
+          <div className="grid grid-cols-7 border-b border-[#e4e9f0] text-center text-[8px] font-medium uppercase tracking-[0.08em] text-neutral-400"><span className="col-span-5 border-r border-[#e4e9f0] px-2 py-1.5 text-left">September 2026</span><span className="col-span-2 px-2 py-1.5 text-left">October</span></div>
+          <div className="grid grid-cols-7 text-center text-[8px] text-neutral-400">
+            {["Fri 18", "Sat 19", "Sun 20", "Mon 21", "Tue 22", "Wed 23", "Thu 24"].map((day, index) => <span key={day} className={cn("border-r border-[#edf0f4] py-2 last:border-r-0", index === 0 && "bg-[#4285F4]/10 text-[#4285F4]")}>{day}</span>)}
+          </div>
+        </div>
       </div>
-      <div className="mt-3 space-y-3">
+      <div className="relative">
+        <div className="pointer-events-none absolute bottom-0 left-[calc(8rem+14.28%)] top-0 z-10 w-px bg-[#4285F4] opacity-70" />
         {rows.map((row) => (
-          <div key={row.label} className="grid grid-cols-[5rem_1fr] items-center gap-2">
-            <p className="truncate text-[10px] font-medium text-neutral-600">{row.label}</p>
-            <div className="relative h-7 rounded-lg bg-neutral-100/80">
-              <div className="absolute top-1.5 h-4 rounded-md" style={{ left: row.left, width: row.width, backgroundColor: row.color }} />
+          <div key={row.label} className="grid h-10 grid-cols-[8rem_1fr] border-b border-[#e4e9f0] last:border-b-0">
+            <div className="flex min-w-0 items-center gap-2 border-r border-[#e4e9f0] px-2"><span className="size-1.5 shrink-0 rounded-full" style={{ backgroundColor: row.color }} /><span className="min-w-0"><span className="block truncate text-[9px] font-semibold text-neutral-700">{row.label}</span><span className="block truncate text-[7px] font-light text-neutral-400">{row.subLabel}</span></span></div>
+            <div className="relative grid grid-cols-7">
+              {[0, 1, 2, 3, 4, 5, 6].map((day) => <span key={day} className={cn("border-r border-[#edf0f4] last:border-r-0", day > 4 && "bg-[#fafbfc]")} />)}
+              {row.bar ? (
+                <span className="absolute top-1/2 flex h-5 -translate-y-1/2 items-center rounded-full px-2 text-[7px] font-semibold text-white/85" style={{ left: row.bar.left, width: row.bar.width, backgroundColor: row.color }}>{row.label}</span>
+              ) : (
+                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[7px] font-light text-neutral-300">no dates</span>
+              )}
             </div>
           </div>
         ))}
-      </div>
-      <div className="absolute bottom-5 right-5 rounded-2xl border border-white/70 bg-white/90 px-3 py-2 shadow-lg backdrop-blur">
-        <p className="text-[9px] font-medium text-neutral-800">3 milestones this month</p>
       </div>
     </div>
   );
@@ -300,17 +318,23 @@ function ProjectsTimelineVisual() {
 
 function ProjectsGithubVisual() {
   return (
-    <div className="relative aspect-[5/4] overflow-hidden rounded-[28px] bg-[#fafafa] p-5 shadow-[0_18px_40px_-24px_rgba(0,0,0,0.25)]">
-      <div className="flex items-center gap-2.5">
-        <span className="flex size-9 items-center justify-center rounded-xl bg-violet-100 text-violet-700"><GitBranch className="size-4" /></span>
-        <div><p className="text-[10px] font-medium uppercase tracking-[0.16em] text-neutral-400">GitHub connection</p><p className="mt-0.5 text-sm font-semibold text-neutral-900">Web platform</p></div>
-      </div>
-      <div className="mt-5 rounded-2xl border border-neutral-200/80 bg-white p-3 shadow-sm">
-        <div className="flex items-center justify-between"><p className="text-[11px] font-semibold text-neutral-800">Build task flow</p><span className="rounded-full bg-violet-50 px-2 py-0.5 text-[9px] font-medium text-violet-700">In progress</span></div>
-        <div className="mt-3 flex items-center gap-2 rounded-xl bg-neutral-50 px-2.5 py-2"><GitBranch className="size-3.5 text-neutral-500" /><span className="font-mono text-[10px] text-neutral-600">feature/task-flow</span></div>
-      </div>
-      <div className="mt-3 grid grid-cols-2 gap-3">
-        {["Repository linked", "Branch ready"].map((label, index) => <div key={label} className="rounded-2xl border border-neutral-200/80 bg-white px-3 py-3 shadow-sm"><CheckCircle2 className={cn("size-4", index === 0 ? "text-emerald-500" : "text-violet-500")} /><p className="mt-2 text-[10px] font-medium text-neutral-700">{label}</p></div>)}
+    <div className="relative aspect-[5/4] overflow-hidden rounded-[28px] bg-white p-5 shadow-[0_18px_40px_-24px_rgba(0,0,0,0.25)]">
+      <div className="mx-auto max-w-[20rem]">
+        <div className="inline-flex items-center gap-1.5 text-[9px] font-light text-neutral-500"><ArrowLeft className="size-3" /> Back to settings</div>
+        <div className="mt-5 flex items-center gap-3">
+          <Github className="size-8 text-neutral-900" />
+          <div><p className="text-[8px] font-medium uppercase tracking-[0.14em] text-neutral-500">Connection</p><p className="mt-0.5 text-xl font-semibold tracking-tight text-neutral-900">GitHub</p></div>
+        </div>
+        <div className="mt-5 rounded-[22px] bg-white/80 px-4 py-4 shadow-[0_8px_28px_rgba(15,23,42,0.07),inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-xl">
+          <p className="text-[11px] font-medium text-neutral-900">Connected</p>
+          <p className="mt-2 text-[10px] font-light text-neutral-500">acme-dev</p>
+          <p className="mt-1 text-[8px] font-light text-neutral-400">Connected Sep 18, 2026</p>
+          <span className="mt-5 inline-flex items-center rounded-full border border-rose-300/70 bg-rose-50/80 px-3 py-1.5 text-[9px] font-medium text-rose-700"><Unplug className="mr-1.5 size-3" />Disconnect</span>
+        </div>
+        <div className="mt-4 border-t border-neutral-100 pt-3">
+          <p className="px-1 text-[8px] font-medium uppercase tracking-[0.14em] text-neutral-500">Linked task branch</p>
+          <div className="mt-2 flex items-center gap-2 rounded-2xl bg-white px-3 py-2.5 text-[9px] shadow-[0_8px_28px_rgba(15,23,42,0.07),inset_0_1px_0_rgba(255,255,255,0.95)]"><Github className="size-3.5 text-neutral-700" /><span className="min-w-0 flex-1 truncate font-medium text-neutral-800">acme/web-platform · feature/task-flow</span><GitBranch className="size-3 text-neutral-400" /></div>
+        </div>
       </div>
     </div>
   );
