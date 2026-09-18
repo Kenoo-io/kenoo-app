@@ -7,7 +7,6 @@ import {
   Activity,
   Building2,
   CalendarDays,
-  CheckCircle2,
   ChevronLeft,
   CircleDollarSign,
   Handshake,
@@ -16,6 +15,7 @@ import {
   Mail,
   Megaphone,
   MousePointerClick,
+  Plus,
   Settings,
   ShoppingBag,
   SlidersHorizontal,
@@ -234,66 +234,98 @@ function DashboardScene({
 }
 
 function ProjectsScene({ compact }: { compact?: boolean }) {
-  const columns = [
+  const todayTasks = [
     {
-      title: "Planned",
-      color: "#c4b5fd",
-      tasks: ["Confirm launch scope", "Outline client handoff"],
+      title: "Kenoo CRM Outreach Adjustments",
+      project: "WALLS Team Projects",
+      members: ["C", "A", "J"],
+      progress: "18/20",
     },
     {
-      title: "In progress",
-      color: "#8b5cf6",
-      tasks: ["Build campaign dashboard", "Review navigation"],
+      title: "Get Parita Access to Projects System",
+      project: "Email tasks",
+      members: ["C"],
+      progress: "37/39",
     },
     {
-      title: "Done",
-      color: "#34d399",
-      tasks: ["Project kickoff", "Assign owners"],
+      title: "Contact Vercel Support",
+      project: "Email tasks",
+      members: ["C"],
+      progress: "37/39",
     },
   ];
 
   return (
-    <div className={cn("space-y-3", compact && "p-3")}>
+    <div className={cn("space-y-3", compact ? "p-3" : "p-1.5")}>
       {compact ? null : (
-        <div className="flex items-center justify-between">
+        <div className={cn("flex items-center justify-between rounded-[22px] px-4 py-3.5", GLASS)}>
           <div>
-            <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-neutral-400">
-              Product launch
-            </p>
-            <p className="mt-0.5 text-lg font-semibold tracking-tight text-neutral-900">
-              September priorities
-            </p>
+            <p className="text-base font-semibold tracking-tight text-neutral-900">WALLS Entertainment Hub</p>
+            <p className="mt-0.5 text-[9px] font-light text-neutral-400">Organization workspace <span className="mx-1.5 text-neutral-300">|</span> <span className="font-mono">ID 54B2EB74AD</span></p>
           </div>
-          <span className="rounded-full bg-violet-50 px-2.5 py-1 text-[10px] font-medium text-violet-700">
-            68% complete
-          </span>
-        </div>
-      )}
-      <div className="grid grid-cols-3 gap-2.5">
-        {columns.map((column) => (
-          <div key={column.title} className="min-w-0 rounded-2xl bg-neutral-50 p-2 md:p-3">
-            <div className="flex items-center gap-1.5">
-              <span className="size-1.5 rounded-full" style={{ backgroundColor: column.color }} />
-              <p className="truncate text-[9px] font-medium uppercase tracking-[0.1em] text-neutral-500 md:text-[10px]">
-                {column.title}
-              </p>
-            </div>
-            <div className="mt-2 space-y-2">
-              {column.tasks.map((task, index) => (
-                <div key={task} className="rounded-xl border border-neutral-200/80 bg-white px-2 py-2 shadow-sm">
-                  <p className="line-clamp-2 text-[9px] font-medium leading-snug text-neutral-700 md:text-[10px]">
-                    {task}
-                  </p>
-                  <div className="mt-2 flex items-center justify-between">
-                    <span className="size-3 rounded-full bg-neutral-100" />
-                    {index === 0 ? <CalendarDays className="size-2.5 text-neutral-400" /> : <CheckCircle2 className="size-2.5 text-emerald-500" />}
-                  </div>
-                </div>
+          <div className="flex items-center gap-2">
+            <div className="hidden -space-x-1.5 sm:flex">
+              {["C", "A", "J"].map((initials, index) => (
+                <span key={initials} className={cn("flex size-6 items-center justify-center rounded-full border-2 border-white text-[8px] font-semibold", index === 0 ? "bg-neutral-900 text-white" : "bg-neutral-100 text-neutral-500")}>{initials}</span>
               ))}
             </div>
+            <span className="hidden h-7 items-center gap-1 rounded-full border border-neutral-200 bg-white px-2.5 text-[9px] font-medium text-neutral-600 sm:inline-flex"><Plus className="size-3" /> New Task</span>
+            <span className="inline-flex h-7 items-center gap-1 rounded-full bg-black px-2.5 text-[9px] font-medium text-white"><Plus className="size-3" /> New Project</span>
           </div>
-        ))}
+        </div>
+      )}
+      <div className={cn("grid gap-3", compact ? "grid-cols-2" : "grid-cols-[1.48fr_0.98fr]")}>
+        <div className={cn("rounded-[22px] p-3.5", GLASS)}>
+          <div className="flex items-center justify-between">
+            <p className="text-[12px] font-semibold tracking-tight text-neutral-900">Today Task</p>
+            <span className="text-[9px] font-medium text-neutral-400">See All&nbsp; ›</span>
+          </div>
+          <div className={cn("mt-3 grid gap-2", compact ? "grid-cols-1" : "grid-cols-3")}>
+            {todayTasks.map((task) => (
+              <div key={task.title} className="flex min-w-0 flex-col rounded-[18px] border border-emerald-100 bg-[linear-gradient(145deg,rgba(214,246,237,0.78),rgba(249,253,252,0.95))] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
+                <p className="line-clamp-2 text-[9px] font-semibold leading-snug tracking-tight text-neutral-800 md:text-[10px]">{task.title}</p>
+                <p className="mt-1 truncate text-[8px] font-light text-neutral-500">{task.project}</p>
+                <div className="mt-auto pt-4">
+                  <div className="flex -space-x-1.5">{task.members.map((member, index) => <span key={`${member}-${index}`} className={cn("flex size-4 items-center justify-center rounded-full border border-white text-[6px] font-semibold", index === 0 ? "bg-neutral-900 text-white" : index === 1 ? "bg-amber-100 text-amber-800" : "bg-neutral-200 text-neutral-600")}>{member}</span>)}</div>
+                  <div className="mt-3 flex items-center gap-1.5"><div className="h-1 min-w-0 flex-1 overflow-hidden rounded-full bg-emerald-100"><span className="block h-full w-[88%] rounded-full bg-gradient-to-r from-emerald-200 to-emerald-600" /></div><span className="text-[8px] font-semibold text-neutral-600">{task.progress}</span></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className={cn("rounded-[22px] p-3.5", GLASS)}>
+          <div className="flex items-center justify-between"><p className="text-[12px] font-semibold tracking-tight text-neutral-900">Task Status</p><span className="text-[8px] text-neutral-400">Total 173</span></div>
+          <div className="mt-3 flex items-center justify-between gap-2">
+            <div className="space-y-2 text-[9px] text-neutral-500"><p className="whitespace-nowrap"><span className="mr-2 inline-block size-2 rounded-full bg-[#e4fb4c]" />Done <b className="ml-1 text-neutral-800">97%</b></p><p className="whitespace-nowrap"><span className="mr-2 inline-block size-2 rounded-full bg-[#ff6b2c]" />In Progress <b className="ml-1 text-neutral-800">0%</b></p><p className="whitespace-nowrap"><span className="mr-2 inline-block size-2 rounded-full bg-[#6eadc0]" />Backlog <b className="ml-1 text-neutral-800">3%</b></p></div>
+            <div className="relative flex size-[5.5rem] shrink-0 items-center justify-center rounded-full border-[10px] border-[#e4fb4c] after:absolute after:inset-[7px] after:rounded-full after:border-[8px] after:border-[#f0f2f7] after:content-['']"><span className="relative z-10 size-[2.3rem] rounded-full border-[8px] border-[#f0f2f7] bg-white" /></div>
+          </div>
+        </div>
       </div>
+      {compact ? null : (
+        <div className="grid grid-cols-3 gap-3">
+          <div className={cn("min-h-[8.5rem] rounded-[22px] p-3.5", GLASS)}>
+            <div className="flex items-center justify-between"><p className="text-[12px] font-semibold tracking-tight text-neutral-900">Team Workload</p><span className="text-[9px] font-medium text-neutral-400">See All&nbsp; ›</span></div>
+            <div className="mt-5 flex items-center gap-3">
+              <span className="flex size-8 items-center justify-center rounded-full bg-neutral-900 text-[10px] font-semibold text-white">C</span>
+              <div className="min-w-0"><p className="truncate text-[10px] font-semibold text-neutral-800">Jordan Lee</p><p className="mt-0.5 text-[8px] text-neutral-400">Current workload</p></div>
+              <p className="ml-auto whitespace-nowrap text-[9px] text-neutral-400"><b className="text-neutral-800">6</b> open tasks</p>
+            </div>
+          </div>
+          <div className={cn("min-h-[8.5rem] rounded-[22px] p-3.5", GLASS)}>
+            <div className="flex items-center justify-between"><p className="text-[12px] font-semibold tracking-tight text-neutral-900">Tracker Detail</p><span className="text-[9px] font-medium text-neutral-400">See All&nbsp; ›</span></div>
+            <div className="mt-3 flex items-center gap-3 text-[8px] text-neutral-500"><span><i className="mr-1 inline-block size-1.5 rounded-sm bg-[#e4fb4c]" />Done</span><span><i className="mr-1 inline-block size-1.5 rounded-sm bg-[#6eadc0]" />Active</span></div>
+            <div className="mt-2 flex h-14 items-end gap-2 border-b border-dashed border-neutral-200 px-2">
+              {[18, 28, 16, 41, 23, 32, 19].map((height, index) => <span key={index} className="flex-1 rounded-t-md bg-[#e4fb4c]" style={{ height }} />)}
+            </div>
+          </div>
+          <div className={cn("min-h-[8.5rem] rounded-[22px] p-3.5", GLASS)}>
+            <div className="flex items-center justify-between"><p className="text-[12px] font-semibold tracking-tight text-neutral-900">Needs Attention</p><span className="text-[9px] font-medium text-neutral-400">See All&nbsp; ›</span></div>
+            <div className="mt-3 space-y-2">
+              {["Kenoo CRM Outreach Adjustments", "Contact Vercel Support"].map((task, index) => <div key={task} className="flex items-center gap-2 rounded-xl bg-white/75 px-2 py-1.5 shadow-sm"><span className={cn("flex size-5 items-center justify-center rounded-full text-[7px] font-semibold", index === 0 ? "bg-neutral-900 text-white" : "bg-neutral-200 text-neutral-600")}>C</span><div className="min-w-0"><p className="truncate text-[9px] font-semibold text-neutral-700">{task}</p><p className="mt-0.5 text-[7px] uppercase tracking-wide text-neutral-400">To do</p></div><span className="ml-auto text-[7px] text-neutral-400">Sep 9</span></div>)}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
