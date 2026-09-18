@@ -35,11 +35,15 @@ Configure the GitHub App registration as follows:
 - Set the GitHub App **Webhook secret** to the exact server-only
   `GITHUB_WEBHOOK_SECRET` value. The endpoint rejects deliveries that do not
   carry a valid `X-Hub-Signature-256` signature.
-- Subscribe to the **Installation**, **Pull request**, **Push**, and **Delete**
-  events. Pull-request deliveries record merges; Delete deliveries distinguish a
-  branch removed before merge (disconnect it) from GitHub's normal post-merge
-  cleanup (retain it as history). The existing read-only **Contents** and
-  **Pull requests** permissions are sufficient for these subscriptions.
+- Subscribe to the **Installation**, **Pull request**, **Push**, **Delete**, and
+  **Deployment status** events. Pull-request deliveries record merges and can
+  complete linked tasks when their configured completion branch is merged into.
+  Deployment-status deliveries can complete tasks for repositories configured
+  to use a successful deployment environment instead. Delete deliveries
+  distinguish a branch removed before merge (disconnect it) from GitHub's
+  normal post-merge cleanup (retain it as history). The existing read-only
+  **Contents** and **Pull requests** permissions are sufficient for these
+  subscriptions.
   `installation_repositories` deliveries are sent to GitHub Apps automatically.
 - The endpoint currently handles installation lifecycle events (suspension,
   restoration, and removal) and accepts GitHub's automatic repository-access

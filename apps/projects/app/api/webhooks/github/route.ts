@@ -17,6 +17,19 @@ type Payload = {
   deployment_status?: { state?: string; environment?: string };
 };
 
+type TaskBranchRow = { task_id: string; connection_id: string };
+type RepositoryAutomation = {
+  connection_id: string;
+  repository_full_name: string;
+  completion_mode: "merge" | "deployment";
+  completion_branch: string | null;
+  deployment_environment: string | null;
+};
+
+function normalizeBranch(ref: string | undefined) {
+  return ref?.replace(/^refs\/heads\//, "");
+}
+
 function validSignature(body: string, signature: string | null) {
   const secret = process.env.GITHUB_WEBHOOK_SECRET;
   if (!secret || !signature?.startsWith("sha256=")) return false;
@@ -31,7 +44,7 @@ async function transition(event: string | null, payload: Payload) {
   let branch: string | undefined;
   let status: "in_progress" | "in_review" | "completed" | undefined;
   if (event === "push") {
-    branch = payload.ref?.replace(/^refs\/heads\//, "");
+    branch = normalizeBranch(payload.ref);
     // Creating a branch points it at an existing commit and produces a push
     // webhook with no commits. It is only setup, not work in progress.
     status = branch && (payload.commits?.length ?? 0) > 0
@@ -41,23 +54,65 @@ async function transition(event: string | null, payload: Payload) {
   if (event === "pull_request") {
     branch = payload.pull_request?.head?.ref;
     if (payload.action === "opened") status = "in_review";
-    // Ready for QA is not a task status yet; staging merges stay In Review.
-    if (payload.pull_request?.merged && payload.pull_request.base?.ref === "staging") status = "in_review";
   }
-  if (event === "deployment_status" && payload.deployment_status?.state === "success" && /^(production|prod)$/i.test(payload.deployment_status.environment ?? payload.deployment?.environment ?? "")) {
-    branch = payload.deployment?.ref;
-    // Deployment notifications without a ref cannot be safely associated with
-    // one task branch, so they never complete every task in a repository.
-    status = branch ? "completed" : undefined;
+  if (event === "deployment_status" && payload.deployment_status?.state === "success") {
+    branch = normalizeBranch(payload.deployment?.ref);
   }
-  if (!status) return;
+  if (!branch) return;
   const admin = createAdminClient();
-  let query = admin.from("project_task_github_branches").select("task_id").eq("repository_full_name", repository);
-  if (branch) query = query.eq("branch_name", branch);
+  const query = admin.from("project_task_github_branches").select("task_id, connection_id")
+    .eq("repository_full_name", repository).eq("branch_name", branch);
   const { data, error } = await query;
   if (error) throw error;
-  const taskIds = (data ?? []).map((row) => row.task_id as string);
+  const taskBranches = (data ?? []) as TaskBranchRow[];
+  const taskIds = taskBranches.map((row) => row.task_id);
   if (!taskIds.length) return;
+
+  if (event === "pull_request" && payload.pull_request?.merged) {
+    const connectionIds = [...new Set(taskBranches.map((row) => row.connection_id))];
+    const { data: automations, error: automationsError } = await admin
+      .from("project_github_repository_automations")
+      .select("connection_id, repository_full_name, completion_mode, completion_branch, deployment_environment")
+      .eq("repository_full_name", repository)
+      .in("connection_id", connectionIds);
+    if (automationsError) throw automationsError;
+    const automationByConnection = new Map((automations ?? []).map((row) => [row.connection_id as string, row as RepositoryAutomation]));
+    const mergeTarget = payload.pull_request.base?.ref;
+    const completedTaskIds = taskBranches
+      .filter((taskBranch) => {
+        const automation = automationByConnection.get(taskBranch.connection_id);
+        return (automation?.completion_mode ?? "merge") === "merge"
+          && (automation?.completion_branch ?? "main") === mergeTarget;
+      })
+      .map((taskBranch) => taskBranch.task_id);
+    if (!completedTaskIds.length) return;
+    status = "completed";
+    taskIds.splice(0, taskIds.length, ...completedTaskIds);
+  }
+
+  if (event === "deployment_status" && payload.deployment_status?.state === "success") {
+    const connectionIds = [...new Set(taskBranches.map((row) => row.connection_id))];
+    const { data: automations, error: automationsError } = await admin
+      .from("project_github_repository_automations")
+      .select("connection_id, repository_full_name, completion_mode, completion_branch, deployment_environment")
+      .eq("repository_full_name", repository)
+      .in("connection_id", connectionIds);
+    if (automationsError) throw automationsError;
+    const automationByConnection = new Map((automations ?? []).map((row) => [row.connection_id as string, row as RepositoryAutomation]));
+    const environment = payload.deployment_status.environment ?? payload.deployment?.environment;
+    const completedTaskIds = taskBranches
+      .filter((taskBranch) => {
+        const automation = automationByConnection.get(taskBranch.connection_id);
+        return (automation?.completion_mode ?? "merge") === "deployment"
+          && (automation?.deployment_environment ?? "production") === environment;
+      })
+      .map((taskBranch) => taskBranch.task_id);
+    if (!completedTaskIds.length) return;
+    status = "completed";
+    taskIds.splice(0, taskIds.length, ...completedTaskIds);
+  }
+
+  if (!status) return;
   const previouslyCompletedIds = status === "completed"
     ? (await admin.from("project_tasks").select("id").in("id", taskIds).eq("status", "completed")).data?.map((row) => row.id as string) ?? []
     : [];
