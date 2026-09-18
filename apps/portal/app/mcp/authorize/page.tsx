@@ -63,6 +63,9 @@ export default function McpAuthorizePage() {
   const [accounts, setAccounts] = React.useState<Account[]>([]);
   const [selectedAccountId, setSelectedAccountId] = React.useState<string | null>(null);
   const [clientName, setClientName] = React.useState("Your AI assistant");
+  const [authorizationId, setAuthorizationId] = React.useState<string | null>(null);
+  const [clientId, setClientId] = React.useState<string | null>(null);
+  const [requestedScopes, setRequestedScopes] = React.useState<string[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [reviewing, setReviewing] = React.useState(false);
@@ -82,6 +85,30 @@ export default function McpAuthorizePage() {
         return;
       }
 
+      const requestedAuthorizationId = new URLSearchParams(window.location.search).get("authorization_id");
+      if (!requestedAuthorizationId) {
+        setError("This connection request is missing its authorization details. Start the connection again from your AI assistant.");
+        setLoading(false);
+        return;
+      }
+
+      const { data: authorization, error: authorizationError } = await supabase.auth.oauth.getAuthorizationDetails(requestedAuthorizationId);
+      if (authorizationError || !authorization) {
+        setError("This connection request has expired. Start it again from your AI assistant.");
+        setLoading(false);
+        return;
+      }
+
+      if ("redirect_url" in authorization) {
+        window.location.assign(authorization.redirect_url);
+        return;
+      }
+
+      setAuthorizationId(authorization.authorization_id);
+      setClientId(authorization.client.id);
+      setClientName(authorization.client.name || clientNameFromLocation());
+      setRequestedScopes(authorization.scope.split(" ").filter(Boolean));
+
       const response = await fetch("/api/accounts");
       if (!response.ok) {
         setError("We couldn't load your Kenoo accounts. Please try again.");
@@ -99,6 +126,54 @@ export default function McpAuthorizePage() {
   }, []);
 
   const selectedAccount = accounts.find((account) => account.id === selectedAccountId) ?? null;
+
+  const approveConnection = async () => {
+    if (!authorizationId || !clientId || !selectedAccount) return;
+
+    setError(null);
+    const supabase = getSupabaseClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      setError("Your session ended. Sign in and start the connection again.");
+      return;
+    }
+
+    const { error: authorizationWriteError } = await supabase
+      .from("account_authorizations")
+      .upsert(
+        {
+          account_id: selectedAccount.id,
+          user_id: user.id,
+          authorization_server: "supabase",
+          client_id: clientId,
+          client_name: clientName,
+          resource: "mcp",
+          scopes: requestedScopes,
+          metadata: { clientUri: null },
+          revoked_at: null,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id,authorization_server,client_id,resource" },
+      );
+
+    if (authorizationWriteError) {
+      setError("We couldn't save the selected account. Please try again.");
+      return;
+    }
+
+    const { data: approval, error: approvalError } = await supabase.auth.oauth.approveAuthorization(
+      authorizationId,
+      { skipBrowserRedirect: true },
+    );
+    if (approvalError || !approval) {
+      setError("We couldn't complete the connection. Please try again.");
+      return;
+    }
+
+    window.location.assign(approval.redirect_url);
+  };
 
   if (loading) {
     return (
@@ -157,12 +232,16 @@ export default function McpAuthorizePage() {
                 </ul>
               </div>
 
+              {requestedScopes.length ? (
+                <p className="mt-4 text-xs text-kenoo-muted">Requested permissions: {requestedScopes.join(", ")}</p>
+              ) : null}
+
               <p className="mt-7 rounded-xl bg-kenoo-subtle px-4 py-3 text-sm leading-6 text-kenoo-muted">
-                You can review or revoke this connection from Portal at any time.
+                This client will access only this account. You can review or revoke the connection from Portal at any time.
               </p>
 
-              <Button type="button" className="mt-7 w-full" disabled>
-                OAuth connection setup coming next
+              <Button type="button" className="mt-7 w-full" onClick={() => void approveConnection()}>
+                Allow access
               </Button>
             </section>
           ) : (
@@ -177,7 +256,7 @@ export default function McpAuthorizePage() {
                     Choose an account
                   </h1>
                   <p className="mt-2 text-sm leading-6 text-kenoo-muted">
-                    Choose the Kenoo account {clientName} can access. You can create another connection for a different account later.
+                    Choose the Kenoo account {clientName} can access. This connection will be limited to the account you select.
                   </p>
                 </div>
               </div>

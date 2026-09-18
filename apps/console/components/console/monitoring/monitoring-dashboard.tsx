@@ -31,8 +31,30 @@ type MonitoringData = {
   providers: Array<{
     id: string;
     name: string;
-    status: "not_connected";
+    status: "not_connected" | "connected" | "error";
     detail: string;
+    data?: {
+      monthToDateCost: number | null;
+      forecastCost: number | null;
+      currency: string;
+      costsByService: Array<{ service: string; amount: number }>;
+      services: Array<{
+        name: string;
+        status: string;
+        desiredCount: number;
+        runningCount: number;
+        pendingCount: number;
+        cpuUtilization: number | null;
+        memoryUtilization: number | null;
+      }>;
+      queues: Array<{
+        name: string;
+        visibleMessages: number;
+        inFlightMessages: number;
+        oldestMessageAgeSeconds: number | null;
+      }>;
+      warnings: string[];
+    };
   }>;
 };
 
@@ -58,6 +80,19 @@ function duration(milliseconds: number | null) {
 function refreshedAt(iso: string | undefined) {
   if (!iso) return "Loading…";
   return `Updated ${new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
+}
+
+function money(amount: number | null, currency = "USD") {
+  if (amount == null) return "—";
+  try {
+    return new Intl.NumberFormat("en-US", { style: "currency", currency, maximumFractionDigits: 2 }).format(amount);
+  } catch {
+    return `${currency} ${amount.toFixed(2)}`;
+  }
+}
+
+function percent(value: number | null) {
+  return value == null ? "—" : `${value.toFixed(1)}%`;
 }
 
 export function MonitoringDashboard() {
@@ -188,16 +223,49 @@ export function MonitoringDashboard() {
         <p className="mt-1 text-sm text-neutral-500">External feeds appear here only after a server-side, read-only connection is configured.</p>
         <div className="mt-5 grid gap-3 md:grid-cols-2">
           {data?.providers.map((provider) => (
-            <div key={provider.id} className="rounded-lg border border-dashed border-neutral-300 p-4">
+            <div key={provider.id} className={`rounded-lg border p-4 ${provider.status === "connected" ? "border-emerald-200" : provider.status === "error" ? "border-rose-200" : "border-dashed border-neutral-300"}`}>
               <div className="flex items-center justify-between gap-3">
                 <p className="text-sm font-semibold text-neutral-900">{provider.name}</p>
-                <span className="rounded-full bg-neutral-100 px-2.5 py-1 text-xs font-medium text-neutral-600">Awaiting connection</span>
+                <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${provider.status === "connected" ? "bg-emerald-100 text-emerald-700" : provider.status === "error" ? "bg-rose-100 text-rose-700" : "bg-neutral-100 text-neutral-600"}`}>
+                  {provider.status === "connected" ? "Connected" : provider.status === "error" ? "Connection error" : "Awaiting connection"}
+                </span>
               </div>
               <p className="mt-2 text-sm leading-5 text-neutral-500">{provider.detail}</p>
+              {provider.id === "aws" && provider.data ? <AwsSummary data={provider.data} /> : null}
             </div>
           )) ?? <div className="h-24 animate-pulse rounded-lg bg-neutral-100" />}
         </div>
       </section>
+    </div>
+  );
+}
+
+function AwsSummary({ data }: { data: NonNullable<MonitoringData["providers"][number]["data"]> }) {
+  return (
+    <div className="mt-4 space-y-4 border-t border-neutral-100 pt-4">
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <p className="text-xs text-neutral-500">Month to date</p>
+          <p className="mt-1 text-sm font-semibold text-neutral-950">{money(data.monthToDateCost, data.currency)}</p>
+        </div>
+        <div>
+          <p className="text-xs text-neutral-500">Month forecast</p>
+          <p className="mt-1 text-sm font-semibold text-neutral-950">{money(data.forecastCost, data.currency)}</p>
+        </div>
+      </div>
+      {data.services.map((service) => (
+        <div key={service.name} className="rounded-md bg-neutral-50 p-3 text-xs text-neutral-600">
+          <p className="font-medium text-neutral-900">ECS · {service.name}</p>
+          <p className="mt-1">{service.runningCount}/{service.desiredCount} tasks running · CPU {percent(service.cpuUtilization)} · Memory {percent(service.memoryUtilization)}</p>
+        </div>
+      ))}
+      {data.queues.map((queue) => (
+        <div key={queue.name} className="rounded-md bg-neutral-50 p-3 text-xs text-neutral-600">
+          <p className="font-medium text-neutral-900">SQS · {queue.name}</p>
+          <p className="mt-1">{queue.visibleMessages} waiting · {queue.inFlightMessages} in flight{queue.oldestMessageAgeSeconds == null ? "" : ` · oldest ${Math.round(queue.oldestMessageAgeSeconds / 60)} min`}</p>
+        </div>
+      ))}
+      {data.warnings.map((warning) => <p key={warning} className="text-xs leading-5 text-amber-700">{warning}</p>)}
     </div>
   );
 }

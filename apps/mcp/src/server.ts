@@ -9,21 +9,21 @@ function text(value: unknown) {
   };
 }
 
-async function resolveAccountId(identity: KenooIdentity, requestedAccountId?: string) {
-  let memberships = identity.supabase
-    .from("account_users")
-    .select("account_id, is_default")
+async function resolveAccountId(identity: KenooIdentity) {
+  if (!identity.clientId) return null;
+
+  const { data, error } = await identity.supabase
+    .from("account_authorizations")
+    .select("account_id")
     .eq("user_id", identity.user.id)
-    .order("is_default", { ascending: false });
-
-  if (requestedAccountId) {
-    memberships = memberships.eq("account_id", requestedAccountId);
-  }
-
-  const { data, error } = await memberships.limit(1);
+    .eq("authorization_server", "supabase")
+    .eq("client_id", identity.clientId)
+    .eq("resource", "mcp")
+    .is("revoked_at", null)
+    .maybeSingle();
   if (error) throw error;
 
-  return data?.[0]?.account_id ?? null;
+  return data?.account_id ?? null;
 }
 
 export function createKenooMcpServer(identity: KenooIdentity) {
@@ -48,20 +48,14 @@ export function createKenooMcpServer(identity: KenooIdentity) {
   server.registerTool(
     "kenoo_list_my_accounts",
     {
-      title: "List my Kenoo accounts",
-      description: "List Kenoo accounts available to the authenticated user.",
+      title: "Get connected Kenoo account",
+      description: "Return the single Kenoo account selected when this connection was authorized.",
       annotations: { readOnlyHint: true },
       inputSchema: {},
     },
     async () => {
-      const { data, error } = await identity.supabase
-        .from("account_users")
-        .select("account_id, is_default")
-        .eq("user_id", identity.user.id)
-        .order("is_default", { ascending: false });
-
-      if (error) throw error;
-      return text({ accounts: data ?? [] });
+      const accountId = await resolveAccountId(identity);
+      return text({ accountId, connected: Boolean(accountId) });
     },
   );
 
@@ -70,17 +64,16 @@ export function createKenooMcpServer(identity: KenooIdentity) {
     {
       title: "List my projects",
       description:
-        "List projects the authenticated user owns or belongs to. Results are scoped to one Kenoo account.",
+        "List projects the authenticated user owns or belongs to. Results are scoped to the Kenoo account selected during authorization.",
       annotations: { readOnlyHint: true },
       inputSchema: {
-        accountId: z.string().uuid().optional().describe("A Kenoo account ID. Defaults to the user's default account."),
         limit: z.number().int().min(1).max(100).optional().describe("Maximum projects to return. Defaults to 25."),
       },
     },
-    async ({ accountId: requestedAccountId, limit = 25 }) => {
-      const accountId = await resolveAccountId(identity, requestedAccountId);
+    async ({ limit = 25 }) => {
+      const accountId = await resolveAccountId(identity);
       if (!accountId) {
-        return text({ projects: [], message: "No accessible Kenoo account was found." });
+        return text({ projects: [], message: "This connection does not have a selected Kenoo account." });
       }
 
       const { data: memberRows, error: memberError } = await identity.supabase

@@ -2,11 +2,14 @@ import {
   CloudWatchClient,
   GetMetricDataCommand,
   type MetricDataQuery,
+  type MetricDataResult,
 } from "@aws-sdk/client-cloudwatch";
 import {
   CostExplorerClient,
   GetCostAndUsageCommand,
   GetCostForecastCommand,
+  type GetCostAndUsageCommandOutput,
+  type GetCostForecastCommandOutput,
 } from "@aws-sdk/client-cost-explorer";
 import { DescribeServicesCommand, ECSClient } from "@aws-sdk/client-ecs";
 import { GetQueueAttributesCommand, SQSClient } from "@aws-sdk/client-sqs";
@@ -24,6 +27,14 @@ type AwsMonitoringConfig = {
   queueUrls: string[];
   credentials: AwsCredentials;
 };
+
+type CostTelemetry = [
+  PromiseSettledResult<GetCostAndUsageCommandOutput>,
+  PromiseSettledResult<GetCostForecastCommandOutput>,
+];
+
+let costCache: { expiresAt: number; telemetry: CostTelemetry } | null = null;
+let pendingCostTelemetry: Promise<CostTelemetry> | null = null;
 
 export type AwsMonitoringData = {
   monthToDateCost: number | null;
@@ -96,8 +107,36 @@ function nameFromQueueUrl(queueUrl: string) {
   }
 }
 
-function latestMetricValue(results: { Values?: number[] }[], id: string) {
+function latestMetricValue(results: MetricDataResult[], id: string) {
   return results.find((result) => result.Id === id)?.Values?.[0] ?? null;
+}
+
+async function getCostTelemetry(costExplorer: CostExplorerClient, now: Date): Promise<CostTelemetry> {
+  if (costCache && costCache.expiresAt > Date.now()) return costCache.telemetry;
+  if (pendingCostTelemetry) return pendingCostTelemetry;
+
+  const startOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  pendingCostTelemetry = Promise.allSettled([
+    costExplorer.send(new GetCostAndUsageCommand({
+      TimePeriod: { Start: dateOnly(startOfMonth), End: dateOnly(new Date(now.getTime() + 24 * 60 * 60 * 1000)) },
+      Granularity: "MONTHLY",
+      Metrics: ["UnblendedCost"],
+      GroupBy: [{ Type: "DIMENSION", Key: "SERVICE" }],
+    })),
+    costExplorer.send(new GetCostForecastCommand({
+      TimePeriod: { Start: dateOnly(now), End: dateOnly(firstDayOfNextMonth(now)) },
+      Granularity: "MONTHLY",
+      Metric: "UNBLENDED_COST",
+    })),
+  ]);
+
+  try {
+    const telemetry = await pendingCostTelemetry;
+    costCache = { telemetry, expiresAt: Date.now() + 4 * 60 * 60 * 1000 };
+    return telemetry;
+  } finally {
+    pendingCostTelemetry = null;
+  }
 }
 
 export function awsMonitoringIsConfigured() {
@@ -114,21 +153,11 @@ export async function getAwsMonitoring(): Promise<AwsMonitoringData> {
   const sqs = new SQSClient(clientOptions);
   const cloudWatch = new CloudWatchClient(clientOptions);
   const now = new Date();
-  const startOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
   const warnings: string[] = [];
 
-  const [costResult, forecastResult, ecsResult, queueResults] = await Promise.allSettled([
-    costExplorer.send(new GetCostAndUsageCommand({
-      TimePeriod: { Start: dateOnly(startOfMonth), End: dateOnly(new Date(now.getTime() + 24 * 60 * 60 * 1000)) },
-      Granularity: "MONTHLY",
-      Metrics: ["UnblendedCost"],
-      GroupBy: [{ Type: "DIMENSION", Key: "SERVICE" }],
-    })),
-    costExplorer.send(new GetCostForecastCommand({
-      TimePeriod: { Start: dateOnly(now), End: dateOnly(firstDayOfNextMonth(now)) },
-      Granularity: "MONTHLY",
-      Metric: "UNBLENDED_COST",
-    })),
+  const [[costResult, forecastResult], [ecsResult, queueResults]] = await Promise.all([
+    getCostTelemetry(costExplorer, now),
+    Promise.allSettled([
     config.services.length
       ? ecs.send(new DescribeServicesCommand({ cluster: config.cluster, services: config.services }))
       : Promise.resolve({ services: [] }),
@@ -138,11 +167,11 @@ export async function getAwsMonitoring(): Promise<AwsMonitoringData> {
         AttributeNames: [
           "ApproximateNumberOfMessages",
           "ApproximateNumberOfMessagesNotVisible",
-          "ApproximateAgeOfOldestMessage",
         ],
       }));
       return { QueueUrl, attributes: response.Attributes ?? {} };
     })),
+    ]),
   ]);
 
   if (costResult.status === "rejected") warnings.push("AWS cost data is unavailable. Confirm Cost Explorer is enabled and this role can read it.");
@@ -150,8 +179,9 @@ export async function getAwsMonitoring(): Promise<AwsMonitoringData> {
   if (ecsResult.status === "rejected") warnings.push("ECS service data is unavailable. Check the cluster, service names, and IAM permissions.");
   if (queueResults.status === "rejected") warnings.push("SQS queue data is unavailable. Check the queue URLs and IAM permissions.");
 
-  const metricQueries: MetricDataQuery[] = ecsResult.status === "fulfilled"
-    ? (ecsResult.value.services ?? []).flatMap((service, index) => {
+  const metricQueries: MetricDataQuery[] = [
+    ...(ecsResult.status === "fulfilled"
+      ? (ecsResult.value.services ?? []).flatMap((service, index) => {
         const name = service.serviceName;
         if (!name) return [];
         const dimensions = [
@@ -171,7 +201,23 @@ export async function getAwsMonitoring(): Promise<AwsMonitoringData> {
           },
         ];
       })
-    : [];
+      : []),
+    ...(queueResults.status === "fulfilled"
+      ? queueResults.value.map(({ QueueUrl }, index) => ({
+          Id: `queueage${index}`,
+          MetricStat: {
+            Metric: {
+              Namespace: "AWS/SQS",
+              MetricName: "ApproximateAgeOfOldestMessage",
+              Dimensions: [{ Name: "QueueName", Value: nameFromQueueUrl(QueueUrl) }],
+            },
+            Period: 300,
+            Stat: "Maximum",
+          },
+          ReturnData: true,
+        }))
+      : []),
+  ];
 
   const metricsResult = metricQueries.length
     ? await cloudWatch.send(new GetMetricDataCommand({
@@ -180,7 +226,7 @@ export async function getAwsMonitoring(): Promise<AwsMonitoringData> {
         ScanBy: "TimestampDescending",
         MetricDataQueries: metricQueries,
       })).catch(() => {
-        warnings.push("CloudWatch CPU and memory metrics are unavailable.");
+        warnings.push("CloudWatch resource metrics are unavailable.");
         return null;
       })
     : null;
@@ -216,11 +262,11 @@ export async function getAwsMonitoring(): Promise<AwsMonitoringData> {
       memoryUtilization: latestMetricValue(metricResults, `memory${index}`),
     })),
     queues: queueResults.status === "fulfilled"
-      ? queueResults.value.map(({ QueueUrl, attributes }) => ({
+      ? queueResults.value.map(({ QueueUrl, attributes }, index) => ({
           name: nameFromQueueUrl(QueueUrl),
           visibleMessages: Number(attributes.ApproximateNumberOfMessages ?? 0),
           inFlightMessages: Number(attributes.ApproximateNumberOfMessagesNotVisible ?? 0),
-          oldestMessageAgeSeconds: numberOrNull(attributes.ApproximateAgeOfOldestMessage),
+          oldestMessageAgeSeconds: latestMetricValue(metricResults, `queueage${index}`),
         }))
       : [],
     warnings,

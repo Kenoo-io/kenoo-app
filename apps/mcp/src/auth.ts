@@ -2,6 +2,7 @@ import { createClient, type SupabaseClient, type User } from "@supabase/supabase
 
 export type KenooIdentity = {
   accessToken: string;
+  clientId: string | null;
   supabase: SupabaseClient;
   user: User;
 };
@@ -44,5 +45,16 @@ export async function authenticateKenooUser(
     throw new Error("The supplied access token is invalid or has expired.");
   }
 
-  return { accessToken, supabase, user: data.user };
+  const claimsResult = await supabase.auth.getClaims(accessToken);
+  if (claimsResult.error || !claimsResult.data) {
+    throw new Error("The supplied access token could not be verified.");
+  }
+
+  const clientId = claimsResult.data.claims.client_id;
+  return {
+    accessToken,
+    clientId: typeof clientId === "string" ? clientId : null,
+    supabase,
+    user: data.user,
+  };
 }

@@ -14,8 +14,9 @@ Copy the root environment values into `apps/mcp/.env` or use the root
 pnpm --filter @walls/mcp dev
 ```
 
-The local HTTP endpoint is `http://localhost:3002/mcp`. Send a normal Supabase
-user access token in `Authorization: Bearer <token>`.
+The local HTTP endpoint is `http://localhost:3002/mcp`. It only accepts OAuth
+access tokens issued to an MCP client in HTTP mode. Stdio is development-only
+and uses the explicit `MCP_DEV_ACCESS_TOKEN` environment variable.
 
 For a local editor integration, set `MCP_DEV_ACCESS_TOKEN` and run
 `pnpm --filter @walls/mcp start:stdio` after building.
@@ -32,10 +33,23 @@ sam build --template-file apps/mcp/infrastructure/template.yaml
 sam deploy --guided
 ```
 
-The production integration must add a Kenoo OAuth authorization server and
-issue short-lived user tokens with explicit MCP scopes before exposing the
-endpoint to third-party clients. Supply only the Supabase URL and anonymous key
-to the Lambda stack; never the service-role key.
+## OAuth setup
+
+Kenoo uses Supabase's OAuth 2.1 authorization server. Before the first
+production deployment, an operator must enable **Auth → OAuth Server** in the
+Supabase dashboard and set its Authorization Path to `/mcp/authorize` (with
+`https://portal.kenoo.com` as the Site URL). Supabase then provides discovery,
+authorization-code exchange, token refresh, consent, revocation, and dynamic
+client registration for compatible MCP clients.
+
+The Portal authorization screen displays every account the person can access,
+records the selected account in the reusable `account_authorizations` table,
+then lets Supabase complete the OAuth redirect. A connection is restricted to
+that selected account; the MCP independently verifies the signed OAuth
+`client_id` and looks up the matching authorization before servicing a tool.
+
+Supply only the Supabase URL and anonymous key to the Lambda stack; never the
+service-role key.
 
 Do not add a Supabase service-role key to this app. Do not expose generic SQL
 or unrestricted database tools. Add one tool at a time through the same Kenoo

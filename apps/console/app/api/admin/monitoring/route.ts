@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 
+import {
+  awsMonitoringIsConfigured,
+  getAwsMonitoring,
+} from "@/lib/aws-monitoring";
 import { requireAdminCaller } from "@/lib/require-admin";
 
 export const runtime = "nodejs";
@@ -108,6 +112,31 @@ export async function GET() {
     ? "attention"
     : "healthy";
 
+  const aws = awsMonitoringIsConfigured()
+    ? await getAwsMonitoring()
+        .then((data) => ({
+          id: "aws" as const,
+          name: "Amazon Web Services",
+          status: "connected" as const,
+          detail: "Live read-only cost and infrastructure data.",
+          data,
+        }))
+        .catch((error) => {
+          console.error("[monitoring] Failed to load AWS telemetry", error);
+          return {
+            id: "aws" as const,
+            name: "Amazon Web Services",
+            status: "error" as const,
+            detail: "The connection is configured, but AWS did not return monitoring data. Check the role policy and connection settings.",
+          };
+        })
+    : {
+        id: "aws" as const,
+        name: "Amazon Web Services",
+        status: "not_connected" as const,
+        detail: "Cost, ECS, SQS, and CloudWatch feeds are awaiting a read-only monitoring role.",
+      };
+
   return NextResponse.json({
     generatedAt: now.toISOString(),
     overallStatus: status,
@@ -125,12 +154,7 @@ export async function GET() {
       failuresByType: Object.fromEntries(failuresByType),
     },
     providers: [
-      {
-        id: "aws",
-        name: "Amazon Web Services",
-        status: "not_connected",
-        detail: "Cost, ECS, SQS, and CloudWatch feeds are awaiting a read-only monitoring role.",
-      },
+      aws,
       {
         id: "hetzner",
         name: "Hetzner Cloud",

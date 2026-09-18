@@ -49,6 +49,10 @@ async function handleMcpRequest(request: Request, response: Response) {
 
   try {
     const identity = await authenticateKenooUser(accessToken);
+    if (!identity.clientId) {
+      response.status(401).json({ error: "An OAuth access token issued to an MCP client is required." });
+      return;
+    }
     const server = createKenooMcpServer(identity);
     // Stateless transport lets any Lambda invocation serve any request; no
     // session affinity or in-memory state is required to scale horizontally.
