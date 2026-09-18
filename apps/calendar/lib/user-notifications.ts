@@ -168,7 +168,6 @@ type TaskCompletionNotifyRow = {
   id: string;
   title: string;
   project_id: string;
-  assignee_id: string | null;
   assigned_by: string | null;
   projects?: { name: string } | { name: string }[] | null;
 };
@@ -234,9 +233,6 @@ export async function notifyAssignersForCompletedTasks(
   await Promise.all(
     tasks.map((task) => {
       if (!task.assigned_by || task.assigned_by === completerUserId) {
-        return Promise.resolve();
-      }
-      if (task.assignee_id !== completerUserId) {
         return Promise.resolve();
       }
       return notifyTaskAssignerOnComplete(supabase, {

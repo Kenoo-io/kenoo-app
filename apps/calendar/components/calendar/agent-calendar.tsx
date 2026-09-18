@@ -27,6 +27,7 @@ import {
   type RecurringInstanceOverrideRow,
 } from '@/lib/calendar-recurring';
 import { filterTasksVisibleToUser } from '@/components/agents-projects/task-visibility';
+import { mapProjectTaskRow } from '@/components/agents-projects/task-assignee';
 import { isAllDayEvent } from '@/lib/calendar-all-day';
 import { CreateTasksPopup } from '@/components/agents-projects/create-tasks-popup';
 import {
@@ -36,7 +37,7 @@ import {
 import type { Project, ProjectTask, ProjectTaskSchedule } from '@/components/agents-projects/types';
 
 const PROJECT_TASK_SELECT =
-  'id, title, description, status, start_date, due_date, priority, project_id, assignee_id, assigned_by, is_private, created_at, updated_at, completed_at, parent_task_id, position, estimated_minutes, actual_minutes, metadata, projects(id, name, color)';
+  'id, title, description, status, start_date, due_date, priority, project_id, assigned_by, is_private, created_at, updated_at, completed_at, parent_task_id, position, estimated_minutes, actual_minutes, metadata, projects(id, name, color), task_assignees:project_task_assignees(user_id, user:users!project_task_assignees_user_id_fkey(id, first_name, last_name, email, avatar_url))';
 
 const PROJECT_TASK_SCHEDULE_SELECT =
   'id, created_at, updated_at, task_id, start_time, end_time, position, notes, created_by, is_blocking';
@@ -60,7 +61,9 @@ function mapRowToProjectTask(row: Record<string, unknown>): ProjectTask {
   const schedules = Array.isArray(schedulesRaw)
     ? (schedulesRaw as NonNullable<ProjectTask['schedules']>)
     : [];
+  const mapped = mapProjectTaskRow(row);
   return {
+    ...mapped,
     id: row.id as string,
     created_at: (row.created_at as string) ?? new Date().toISOString(),
     updated_at: (row.updated_at as string) ?? new Date().toISOString(),
@@ -68,13 +71,11 @@ function mapRowToProjectTask(row: Record<string, unknown>): ProjectTask {
     parent_task_id: (row.parent_task_id as string | null) ?? null,
     title: row.title as string,
     description: (row.description as string | null) ?? null,
-    status: row.status as ProjectTask['status'],
     start_date: (row.start_date as string | null) ?? null,
     due_date: (row.due_date as string | null) ?? null,
     completed_at: (row.completed_at as string | null) ?? null,
     position: (row.position as number | null) ?? null,
     priority: (row.priority as number | null) ?? null,
-    assignee_id: (row.assignee_id as string | null) ?? null,
     assigned_by: (row.assigned_by as string | null) ?? null,
     is_private: (row.is_private as boolean) ?? false,
     estimated_minutes: (row.estimated_minutes as number | null) ?? null,

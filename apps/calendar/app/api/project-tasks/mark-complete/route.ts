@@ -29,13 +29,23 @@ export async function POST(request: NextRequest) {
     const supabaseAdmin = createAdminClient();
     const assigneeId = user.id;
 
+    const { data: assignedRows } = await supabaseAdmin
+      .from("project_task_assignees")
+      .select("task_id")
+      .eq("user_id", assigneeId)
+      .in("task_id", taskIds);
+
+    const assignedTaskIds = (assignedRows ?? []).map((row) => row.task_id as string);
+    if (assignedTaskIds.length === 0) {
+      return NextResponse.json({ success: true });
+    }
+
     const { data: tasksToComplete } = await supabaseAdmin
       .from("project_tasks")
       .select(
-        "id, title, project_id, assignee_id, assigned_by, status, projects(name)",
+        "id, title, project_id, assigned_by, status, projects(name)",
       )
-      .in("id", taskIds)
-      .eq("assignee_id", assigneeId)
+      .in("id", assignedTaskIds)
       .neq("status", "completed");
 
     const { error } = await supabaseAdmin
@@ -44,8 +54,7 @@ export async function POST(request: NextRequest) {
         status: "completed",
         completed_at: new Date().toISOString(),
       })
-      .in("id", taskIds)
-      .eq("assignee_id", assigneeId);
+      .in("id", assignedTaskIds);
 
     if (error) {
       return NextResponse.json(

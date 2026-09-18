@@ -84,8 +84,10 @@ export interface ProjectTask {
   completed_at: string | null;
   position: number | null;
   priority: number | null;
-  assignee_id: string | null;
+  /** First assignee, provided for card display convenience. */
   assignee?: TaskAssignee | null;
+  /** All tagged assignees for this task. */
+  assignees?: TaskAssignee[];
   assigned_by: string | null;
   is_private: boolean;
   estimated_minutes: number | null;

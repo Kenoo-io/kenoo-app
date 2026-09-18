@@ -136,6 +136,19 @@ export default function TaskList({ userId, onRefresh, onOpenThread }: TaskListPr
     setLoading(true);
     try {
       const supabase = getSupabaseClient();
+      const { data: assignedRows, error: assignedError } = await supabase
+        .from("project_task_assignees")
+        .select("task_id")
+        .eq("user_id", userId);
+
+      if (assignedError) throw assignedError;
+
+      const assignedTaskIds = (assignedRows ?? []).map((row) => row.task_id as string);
+      if (assignedTaskIds.length === 0) {
+        setTasks([]);
+        return;
+      }
+
       const { data: taskRows, error: taskError } = await supabase
         .from("project_tasks")
         .select(`
@@ -152,14 +165,13 @@ export default function TaskList({ userId, onRefresh, onOpenThread }: TaskListPr
           completed_at,
           position,
           priority,
-          assignee_id,
           estimated_minutes,
           actual_minutes,
           metadata,
           thread_id,
           projects ( id, name, color )
         `)
-        .eq("assignee_id", userId)
+        .in("id", assignedTaskIds)
         .neq("status", "completed")
         .order("due_date", { ascending: true, nullsFirst: false })
         .order("created_at", { ascending: false });
