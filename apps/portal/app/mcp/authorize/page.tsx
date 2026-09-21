@@ -29,12 +29,22 @@ type AccountResponse = {
 };
 
 const KNOWN_CLIENT_LOGOS = [
-  { matches: /chatgpt|openai/i, name: "OpenAI", src: "https://cdn.simpleicons.org/openai/111111" },
-  { matches: /claude|anthropic/i, name: "Anthropic", src: "https://cdn.simpleicons.org/anthropic/111111" },
+  { matches: /chatgpt|openai/i, name: "OpenAI", src: "https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg" },
+  { matches: /claude|anthropic/i, name: "Claude", src: "https://cdn.simpleicons.org/claude/ffffff" },
   { matches: /cursor/i, name: "Cursor", src: "https://cdn.simpleicons.org/cursor/111111" },
 ] as const;
 
-function ClientLogo({ clientName }: { clientName: string }) {
+const PREVIEW_CLIENTS = ["ChatGPT", "Claude", "Cursor"] as const;
+
+function isClaudeClient(clientName: string) {
+  return /claude|anthropic/i.test(clientName);
+}
+
+function isCursorClient(clientName: string) {
+  return /cursor/i.test(clientName);
+}
+
+function ClientLogo({ clientName, compact = false }: { clientName: string; compact?: boolean }) {
   const [failed, setFailed] = React.useState(false);
   const client = KNOWN_CLIENT_LOGOS.find((knownClient) => knownClient.matches.test(clientName));
 
@@ -42,7 +52,19 @@ function ClientLogo({ clientName }: { clientName: string }) {
 
   return (
     // eslint-disable-next-line @next/next/no-img-element -- known public brand mark, selected from a fixed allowlist
-    <img src={client.src} alt={`${client.name} logo`} className="h-8 w-8 object-contain" onError={() => setFailed(true)} />
+    <img
+      src={client.src}
+      alt={`${client.name} logo`}
+      className={cn(
+        "h-full w-full rounded-2xl",
+        isClaudeClient(clientName)
+          ? (compact ? "object-contain p-0.5" : "object-contain p-2")
+          : isCursorClient(clientName)
+            ? (compact ? "object-contain p-0.5" : "object-contain p-1.5")
+            : "object-cover",
+      )}
+      onError={() => setFailed(true)}
+    />
   );
 }
 
@@ -152,6 +174,7 @@ export default function McpAuthorizePage() {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [previewMode, setPreviewMode] = React.useState(false);
+  const [previewClient, setPreviewClient] = React.useState<(typeof PREVIEW_CLIENTS)[number]>("ChatGPT");
 
   React.useEffect(() => {
     const load = async () => {
@@ -229,6 +252,7 @@ export default function McpAuthorizePage() {
   }, []);
 
   const selectedAccount = accounts.find((account) => account.id === selectedAccountId) ?? null;
+  const displayClientName = previewMode ? previewClient : clientName;
 
   const approveConnection = async () => {
     if (previewMode) {
@@ -322,16 +346,21 @@ export default function McpAuthorizePage() {
                 <img src="/icon.png" alt="Kenoo" className="h-full w-full rounded-2xl object-cover" />
               </span>
               <span className="text-xl text-kenoo-muted" aria-hidden>↔</span>
-              <span className="flex h-16 w-16 items-center justify-center rounded-2xl border border-neutral-200/90 bg-[var(--kenoo-white)] text-kenoo-ink shadow-[0_4px_14px_rgba(15,23,42,0.08),inset_0_1px_0_rgba(255,255,255,0.9)]">
-                <ClientLogo clientName={clientName} />
+              <span className={cn(
+                "flex h-16 w-16 items-center justify-center rounded-2xl border text-kenoo-ink",
+                isClaudeClient(displayClientName)
+                  ? "border-[#c96f55] bg-[#d97757] shadow-[0_4px_14px_rgba(15,23,42,0.08)]"
+                  : "border-neutral-200/90 bg-[var(--kenoo-white)] shadow-[0_4px_14px_rgba(15,23,42,0.08),inset_0_1px_0_rgba(255,255,255,0.9)]",
+              )}>
+                <ClientLogo clientName={displayClientName} />
               </span>
             </div>
 
             <h1 id="mcp-authorize-title" className="mt-6 text-center font-display text-xl font-semibold tracking-[-0.04em] text-kenoo-ink">
-              Authorize {clientName}
+              Authorize {displayClientName}
             </h1>
             <p className="mx-auto mt-1.5 max-w-xs text-center text-[13px] leading-5 text-kenoo-muted">
-              {clientName} wants to access your selected Kenoo account.
+              {displayClientName} wants to access your selected Kenoo account.
             </p>
 
             {error ? <p className="mt-6 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p> : null}
@@ -356,7 +385,7 @@ export default function McpAuthorizePage() {
             <div className="mt-7">
               <p className="text-xs font-semibold uppercase tracking-[0.1em] text-kenoo-muted">Permissions</p>
               <p className="mt-2 text-[12px] leading-[1.15rem] text-kenoo-muted">
-                Authorizing {clientName} grants access to the following data for this account. Only continue if you trust this app.
+                Authorizing {displayClientName} grants access to the following data for this account. Only continue if you trust this app.
               </p>
               <div className="mt-4 rounded-xl border border-neutral-200/90 bg-neutral-100 px-4 py-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
                 <div className="flex items-start justify-between gap-3">
@@ -373,13 +402,39 @@ export default function McpAuthorizePage() {
             </div>
 
             <Button type="button" className="mt-8 w-full bg-black text-white shadow-[0_4px_14px_rgba(0,0,0,0.16)] hover:bg-black/90" disabled={!selectedAccount} onClick={() => void approveConnection()}>
-              Authorize {clientName}
+              Authorize {displayClientName}
             </Button>
             <button type="button" onClick={() => window.history.back()} className="mt-3 w-full text-center text-sm font-medium text-kenoo-muted transition hover:text-kenoo-ink">
               Cancel
             </button>
           </section>
         </div>
+        {previewMode ? (
+          <div className="mt-4 flex items-center justify-center gap-2">
+            <span className="text-xs font-medium text-kenoo-muted">Preview as</span>
+            <div className="inline-flex rounded-full border border-white/70 bg-white/60 p-1 shadow-[0_4px_14px_rgba(15,23,42,0.06)] backdrop-blur-xl">
+              {PREVIEW_CLIENTS.map((client) => {
+                const selected = previewClient === client;
+                return (
+                  <button
+                    key={client}
+                    type="button"
+                    onClick={() => setPreviewClient(client)}
+                    className={cn(
+                      "flex h-7 items-center gap-1.5 rounded-full px-2.5 text-xs font-medium transition",
+                      selected ? "bg-[var(--kenoo-white)] text-kenoo-ink shadow-sm" : "text-kenoo-muted hover:text-kenoo-ink",
+                    )}
+                  >
+                    <span className={cn("flex h-4 w-4 items-center justify-center overflow-hidden rounded-full", isClaudeClient(client) && "bg-[#d97757]")}>
+                      <ClientLogo clientName={client} compact />
+                    </span>
+                    {client}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
       </main>
     </AuthShell>
   );
