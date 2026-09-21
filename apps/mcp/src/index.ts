@@ -33,7 +33,7 @@ function authorizationServerUrl() {
 }
 
 function authenticationChallenge(request: Request) {
-  return `Bearer resource_metadata="${protectedResourceMetadataUrl(request)}"`;
+  return `Bearer resource_metadata="${protectedResourceMetadataUrl(request)}", error="invalid_token", error_description="Connect your Kenoo account to continue"`;
 }
 
 function parseArguments(argv: string[]): StartOptions {
@@ -56,31 +56,31 @@ async function startStdio() {
 
   const { StdioServerTransport } = await import("@modelcontextprotocol/sdk/server/stdio.js");
   const identity = await authenticateKenooUser(accessToken);
-  const server = createKenooMcpServer(identity);
+  const server = createKenooMcpServer(identity, "Bearer");
   await server.connect(new StdioServerTransport());
   console.error("[kenoo-mcp] stdio transport ready");
 }
 
 async function handleMcpRequest(request: Request, response: Response) {
   const accessToken = extractBearerToken(request.header("authorization"));
-  if (!accessToken) {
-    response
-      .set("WWW-Authenticate", authenticationChallenge(request))
-      .status(401)
-      .json({ error: "Bearer authentication is required." });
-    return;
+  const challenge = authenticationChallenge(request);
+  let identity = null;
+
+  if (accessToken) {
+    try {
+      identity = await authenticateKenooUser(accessToken);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to verify the supplied access token.";
+      console.warn("[kenoo-mcp] authentication failed", { message });
+    }
   }
 
   try {
-    const identity = await authenticateKenooUser(accessToken);
-    if (!identity.clientId) {
-      response
-        .set("WWW-Authenticate", authenticationChallenge(request))
-        .status(401)
-        .json({ error: "An OAuth access token issued to an MCP client is required." });
-      return;
+    if (!identity?.clientId) {
+      identity = null;
     }
-    const server = createKenooMcpServer(identity);
+    if (!identity) response.set("WWW-Authenticate", challenge);
+    const server = createKenooMcpServer(identity, challenge);
     // Stateless transport lets any Lambda invocation serve any request; no
     // session affinity or in-memory state is required to scale horizontally.
     const transport = new StreamableHTTPServerTransport({
@@ -96,9 +96,9 @@ async function handleMcpRequest(request: Request, response: Response) {
     await transport.handleRequest(request, response, request.body);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to process the MCP request.";
-    console.warn("[kenoo-mcp] authentication failed", { message });
+    console.warn("[kenoo-mcp] MCP request failed", { message });
     response
-      .set("WWW-Authenticate", authenticationChallenge(request))
+      .set("WWW-Authenticate", challenge)
       .status(401)
       .json({ error: message });
   }
