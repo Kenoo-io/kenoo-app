@@ -28,6 +28,24 @@ type AccountResponse = {
   activeAccountId: string | null;
 };
 
+const KNOWN_CLIENT_LOGOS = [
+  { matches: /chatgpt|openai/i, name: "OpenAI", src: "https://cdn.simpleicons.org/openai/111111" },
+  { matches: /claude|anthropic/i, name: "Anthropic", src: "https://cdn.simpleicons.org/anthropic/111111" },
+  { matches: /cursor/i, name: "Cursor", src: "https://cdn.simpleicons.org/cursor/111111" },
+] as const;
+
+function ClientLogo({ clientName }: { clientName: string }) {
+  const [failed, setFailed] = React.useState(false);
+  const client = KNOWN_CLIENT_LOGOS.find((knownClient) => knownClient.matches.test(clientName));
+
+  if (!client || failed) return <Bot className="h-7 w-7" strokeWidth={1.7} aria-label="AI assistant" />;
+
+  return (
+    // eslint-disable-next-line @next/next/no-img-element -- known public brand mark, selected from a fixed allowlist
+    <img src={client.src} alt={`${client.name} logo`} className="h-8 w-8 object-contain" onError={() => setFailed(true)} />
+  );
+}
+
 function McpAccountSelector({
   accounts,
   selectedAccountId,
@@ -286,7 +304,7 @@ export default function McpAuthorizePage() {
               </span>
               <span className="text-xl text-kenoo-muted" aria-hidden>↔</span>
               <span className="flex h-16 w-16 items-center justify-center rounded-2xl border border-neutral-200/90 bg-[var(--kenoo-white)] text-kenoo-ink shadow-[0_4px_14px_rgba(15,23,42,0.08),inset_0_1px_0_rgba(255,255,255,0.9)]">
-                <Bot className="h-7 w-7" strokeWidth={1.7} />
+                <ClientLogo clientName={clientName} />
               </span>
             </div>
 
