@@ -45,7 +45,6 @@ jobs:
       - name: Deploy MCP stack
         env:
           MCP_DOMAIN_NAME: ${{ vars.MCP_DOMAIN_NAME }}
-          MCP_HOSTED_ZONE_ID: ${{ vars.MCP_HOSTED_ZONE_ID }}
           MCP_CERTIFICATE_ARN: ${{ vars.MCP_CERTIFICATE_ARN }}
           MCP_SUPABASE_URL: ${{ secrets.MCP_SUPABASE_URL }}
           MCP_SUPABASE_ANON_KEY: ${{ secrets.MCP_SUPABASE_ANON_KEY }}
@@ -59,7 +58,6 @@ jobs:
             --no-fail-on-empty-changeset \
             --parameter-overrides \
               McpDomainName="$MCP_DOMAIN_NAME" \
-              McpHostedZoneId="$MCP_HOSTED_ZONE_ID" \
               McpCertificateArn="$MCP_CERTIFICATE_ARN" \
               SupabaseUrl="$MCP_SUPABASE_URL" \
               SupabaseAnonKey="$MCP_SUPABASE_ANON_KEY"
