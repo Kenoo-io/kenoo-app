@@ -254,6 +254,10 @@ export default function McpAuthorizePage() {
   const selectedAccount = accounts.find((account) => account.id === selectedAccountId) ?? null;
   const displayClientName = previewMode ? previewClient : clientName;
 
+  React.useEffect(() => {
+    document.title = `Authorize ${displayClientName}`;
+  }, [displayClientName]);
+
   const approveConnection = async () => {
     if (previewMode) {
       return;
