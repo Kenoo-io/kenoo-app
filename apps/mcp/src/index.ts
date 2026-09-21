@@ -47,10 +47,10 @@ function normalizeMcpAcceptHeader(request: Request) {
 }
 
 function normalizeMcpContentType(request: Request) {
-  // ChatGPT's initial MCP probe may omit Content-Type despite sending a JSON-RPC
-  // body. `/mcp` accepts JSON only, so declare the protocol's required media
-  // type before the SDK validates it.
-  if (!request.header("content-type")) {
+  // ChatGPT labels its initial JSON-RPC probe as application/octet-stream.
+  // `/mcp` accepts JSON only, so declare the protocol's required media type
+  // before the SDK validates an otherwise valid JSON-RPC body.
+  if (!request.header("content-type")?.toLowerCase().startsWith("application/json")) {
     request.headers["content-type"] = "application/json";
   }
 }
