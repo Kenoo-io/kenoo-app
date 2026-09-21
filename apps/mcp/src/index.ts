@@ -5,7 +5,7 @@ import dotenv from "dotenv";
 import express, { type Request, type Response } from "express";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 
-import { authenticateKenooUser, extractBearerToken } from "./auth.js";
+import { authenticateKenooUser, extractBearerToken, getSupabaseConfiguration } from "./auth.js";
 import { createKenooMcpServer } from "./server.js";
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
@@ -14,6 +14,27 @@ dotenv.config({ path: path.join(repositoryRoot, ".env.local") });
 dotenv.config({ path: path.join(repositoryRoot, ".env") });
 
 type StartOptions = { http: boolean; port: number };
+
+function publicMcpUrl(request: Request) {
+  const configuredUrl = process.env.MCP_PUBLIC_URL?.trim().replace(/\/$/, "");
+  if (configuredUrl) return `${configuredUrl}/mcp`;
+
+  return `${request.protocol}://${request.get("host")}/mcp`;
+}
+
+function protectedResourceMetadataUrl(request: Request) {
+  const resourceUrl = publicMcpUrl(request);
+  return new URL("/.well-known/oauth-protected-resource/mcp", resourceUrl).toString();
+}
+
+function authorizationServerUrl() {
+  const { url } = getSupabaseConfiguration();
+  return new URL("/auth/v1", url).toString().replace(/\/$/, "");
+}
+
+function authenticationChallenge(request: Request) {
+  return `Bearer resource_metadata="${protectedResourceMetadataUrl(request)}"`;
+}
 
 function parseArguments(argv: string[]): StartOptions {
   const options: StartOptions = { http: false, port: 3002 };
@@ -43,14 +64,20 @@ async function startStdio() {
 async function handleMcpRequest(request: Request, response: Response) {
   const accessToken = extractBearerToken(request.header("authorization"));
   if (!accessToken) {
-    response.status(401).json({ error: "Bearer authentication is required." });
+    response
+      .set("WWW-Authenticate", authenticationChallenge(request))
+      .status(401)
+      .json({ error: "Bearer authentication is required." });
     return;
   }
 
   try {
     const identity = await authenticateKenooUser(accessToken);
     if (!identity.clientId) {
-      response.status(401).json({ error: "An OAuth access token issued to an MCP client is required." });
+      response
+        .set("WWW-Authenticate", authenticationChallenge(request))
+        .status(401)
+        .json({ error: "An OAuth access token issued to an MCP client is required." });
       return;
     }
     const server = createKenooMcpServer(identity);
@@ -69,7 +96,10 @@ async function handleMcpRequest(request: Request, response: Response) {
     await transport.handleRequest(request, response, request.body);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to process the MCP request.";
-    response.status(401).json({ error: message });
+    response
+      .set("WWW-Authenticate", authenticationChallenge(request))
+      .status(401)
+      .json({ error: message });
   }
 }
 
@@ -80,6 +110,13 @@ async function startHttp(port: number) {
 
   app.get("/health", (_request, response) => {
     response.json({ ok: true, service: "kenoo-mcp", version: "0.1.0" });
+  });
+  app.get("/.well-known/oauth-protected-resource/mcp", (request, response) => {
+    response.json({
+      resource: publicMcpUrl(request),
+      authorization_servers: [authorizationServerUrl()],
+      bearer_methods_supported: ["header"],
+    });
   });
   app.all("/mcp", handleMcpRequest);
 

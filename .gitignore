@@ -10,6 +10,7 @@ out
 dist
 build
 .turbo
+.aws-sam
 
 # env (root .env holds secrets — use .env.example as template)
 .env
