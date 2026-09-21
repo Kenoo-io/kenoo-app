@@ -46,6 +46,15 @@ function normalizeMcpAcceptHeader(request: Request) {
   }
 }
 
+function normalizeMcpContentType(request: Request) {
+  // ChatGPT's initial MCP probe may omit Content-Type despite sending a JSON-RPC
+  // body. `/mcp` accepts JSON only, so declare the protocol's required media
+  // type before the SDK validates it.
+  if (!request.header("content-type")) {
+    request.headers["content-type"] = "application/json";
+  }
+}
+
 function parseArguments(argv: string[]): StartOptions {
   const options: StartOptions = { http: false, port: 3002 };
   for (let index = 2; index < argv.length; index += 1) {
@@ -73,6 +82,7 @@ async function startStdio() {
 
 async function handleMcpRequest(request: Request, response: Response) {
   normalizeMcpAcceptHeader(request);
+  normalizeMcpContentType(request);
   const accessToken = extractBearerToken(request.header("authorization"));
   const challenge = authenticationChallenge(request);
   let identity = null;
@@ -120,12 +130,15 @@ async function startHttp(port: number) {
   app.disable("x-powered-by");
   app.use(express.json({ limit: "1mb" }));
   app.use((request, response, next) => {
+    const accept = request.header("accept") ?? null;
+    const contentType = request.header("content-type") ?? null;
     response.on("finish", () => {
       console.info("[kenoo-mcp] request", {
         method: request.method,
         path: request.path,
         status: response.statusCode,
-        accept: request.header("accept") ?? null,
+        accept,
+        contentType,
         hasBearerToken: Boolean(extractBearerToken(request.header("authorization"))),
       });
     });
