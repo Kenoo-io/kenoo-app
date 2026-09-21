@@ -100,17 +100,37 @@ Resources:
       AccessLogSettings:
         DestinationArn: !GetAtt McpApiAccessLogGroup.Arn
         Format: '{"requestId":"$context.requestId","requestTime":"$context.requestTime","httpMethod":"$context.httpMethod","routeKey":"$context.routeKey","status":"$context.status","responseLength":"$context.responseLength","integrationError":"$context.integrationErrorMessage"}'
-      Domain:
-        DomainName: !Ref McpDomainName
-        CertificateArn: !If [HasRoute53HostedZone, !Ref McpCertificate, !Ref McpCertificateArn]
-        EndpointConfiguration: REGIONAL
-        SecurityPolicy: TLS_1_2
-        Route53: !If
-          - HasRoute53HostedZone
-          - HostedZoneId: !Ref McpHostedZoneId
-          - !Ref AWS::NoValue
       Tags:
         service: kenoo-mcp
+
+  McpCustomDomain:
+    Type: AWS::ApiGatewayV2::DomainName
+    Properties:
+      DomainName: !Ref McpDomainName
+      DomainNameConfigurations:
+        - CertificateArn: !If [HasRoute53HostedZone, !Ref McpCertificate, !Ref McpCertificateArn]
+          EndpointType: REGIONAL
+          SecurityPolicy: TLS_1_2
+      Tags:
+        service: kenoo-mcp
+
+  McpApiMapping:
+    Type: AWS::ApiGatewayV2::ApiMapping
+    Properties:
+      ApiId: !Ref KenooMcpApi
+      DomainName: !Ref McpCustomDomain
+      Stage: "$default"
+
+  McpRoute53Alias:
+    Type: AWS::Route53::RecordSet
+    Condition: HasRoute53HostedZone
+    Properties:
+      HostedZoneId: !Ref McpHostedZoneId
+      Name: !Ref McpDomainName
+      Type: A
+      AliasTarget:
+        DNSName: !GetAtt McpCustomDomain.RegionalDomainName
+        HostedZoneId: !GetAtt McpCustomDomain.RegionalHostedZoneId
 
   KenooMcp:
     Type: AWS::Serverless::Function
@@ -169,3 +189,6 @@ Outputs:
   CertificateArn:
     Description: ACM certificate used by the MCP custom domain.
     Value: !If [HasRoute53HostedZone, !Ref McpCertificate, !Ref McpCertificateArn]
+  ApiGatewayDomainTarget:
+    Description: Regional API Gateway hostname for an external-DNS CNAME record.
+    Value: !GetAtt McpCustomDomain.RegionalDomainName
