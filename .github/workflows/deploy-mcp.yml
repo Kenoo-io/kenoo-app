@@ -22,6 +22,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Show OIDC identity claims
+        run: |
+          token="$(curl --fail-with-body --silent --show-error \
+            -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=sts.amazonaws.com" | jq -r '.value')"
+          payload="$(TOKEN="$token" node -e 'process.stdout.write(Buffer.from(process.env.TOKEN.split(".")[1], "base64url").toString("utf8"))')"
+          printf '%s' "$payload" | jq '{aud, sub, repository, ref, environment, job_workflow_ref}'
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
