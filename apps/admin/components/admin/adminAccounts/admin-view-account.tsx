@@ -13,6 +13,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { PageBody } from "@/components/admin/page-shell";
 import { cn } from "@/lib/utils";
+import { resolveAppIconUrl } from "@/lib/app-icon";
 
 export type AccountDetail = {
   id: string;
@@ -28,7 +29,13 @@ export type AccountDetail = {
   phone: string | null;
   personal_owner_id: string | null;
   member_count: number;
-  app_access?: { id: string; slug: string; name: string; icon_url: string | null }[];
+  app_access?: {
+    id: string;
+    slug: string;
+    name: string;
+    icon_url: string | null;
+    kenoo_icon_urls: string | null;
+  }[];
 };
 
 interface AdminAccountDetailProps {
@@ -135,9 +142,12 @@ export function AdminAccountDetail({ account }: AdminAccountDetailProps) {
                   key={app.id}
                   className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
                 >
-                  {app.icon_url ? (
+                  {resolveAppIconUrl(app.kenoo_icon_urls, app.icon_url) ? (
                     <Image
-                      src={app.icon_url}
+                      src={resolveAppIconUrl(
+                        app.kenoo_icon_urls,
+                        app.icon_url,
+                      )!}
                       alt=""
                       width={36}
                       height={36}

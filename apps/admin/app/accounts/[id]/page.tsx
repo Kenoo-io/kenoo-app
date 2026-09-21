@@ -40,7 +40,7 @@ export default async function AdminAccountDetailPage({
   const [{ data: accessRows }, { count: memberCount }] = await Promise.all([
     supabase
       .from("account_app_access")
-      .select("app_id, apps(id, slug, name, icon_url)")
+      .select("app_id, apps(id, slug, name, icon_url, kenoo_icon_urls)")
       .eq("account_id", id),
     supabase
       .from("account_users")
@@ -59,6 +59,7 @@ export default async function AdminAccountDetailPage({
           slug: app.slug as string,
           name: app.name as string,
           icon_url: (app.icon_url as string | null) ?? null,
+          kenoo_icon_urls: (app.kenoo_icon_urls as string | null) ?? null,
         };
       })
       .filter(Boolean) ?? [];

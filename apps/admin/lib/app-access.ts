@@ -16,6 +16,7 @@ type AppRow = {
   slug: string;
   name: string;
   icon_url: string | null;
+  kenoo_icon_urls: string | null;
 };
 
 function mapApp(row: AppRow): AppAccessRecord {
@@ -24,6 +25,7 @@ function mapApp(row: AppRow): AppAccessRecord {
     slug: row.slug,
     name: row.name,
     iconUrl: row.icon_url,
+    kenooIconUrl: row.kenoo_icon_urls,
   };
 }
 
@@ -31,7 +33,7 @@ export async function listManagedApps(): Promise<AppAccessRecord[]> {
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("apps")
-    .select("id, slug, name, icon_url")
+    .select("id, slug, name, icon_url, kenoo_icon_urls")
     .eq("is_active", true)
     .order("name", { ascending: true });
 

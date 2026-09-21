@@ -3,6 +3,7 @@ export type AppAccessRecord = {
   slug: string;
   name: string;
   iconUrl: string | null;
+  kenooIconUrl: string | null;
 };
 
 /** Internal Kenoo surfaces — never grantable from organization settings. */
