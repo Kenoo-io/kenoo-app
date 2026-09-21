@@ -96,6 +96,7 @@ async function handleMcpRequest(request: Request, response: Response) {
     await transport.handleRequest(request, response, request.body);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to process the MCP request.";
+    console.warn("[kenoo-mcp] authentication failed", { message });
     response
       .set("WWW-Authenticate", authenticationChallenge(request))
       .status(401)
@@ -107,6 +108,17 @@ async function startHttp(port: number) {
   const app = express();
   app.disable("x-powered-by");
   app.use(express.json({ limit: "1mb" }));
+  app.use((request, response, next) => {
+    response.on("finish", () => {
+      console.info("[kenoo-mcp] request", {
+        method: request.method,
+        path: request.path,
+        status: response.statusCode,
+        hasBearerToken: Boolean(extractBearerToken(request.header("authorization"))),
+      });
+    });
+    next();
+  });
 
   app.get("/health", (_request, response) => {
     response.json({ ok: true, service: "kenoo-mcp", version: "0.1.0" });
