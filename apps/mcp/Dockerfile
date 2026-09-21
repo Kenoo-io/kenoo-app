@@ -12,7 +12,7 @@ RUN pnpm install --frozen-lockfile --filter @walls/mcp...
 
 COPY apps/mcp apps/mcp
 RUN pnpm --filter @walls/mcp build \
-  && pnpm --filter @walls/mcp --prod deploy /runtime
+  && pnpm --filter @walls/mcp --prod deploy --legacy /runtime
 
 FROM node:22-bookworm-slim
 WORKDIR /app
