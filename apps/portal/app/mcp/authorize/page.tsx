@@ -293,7 +293,26 @@ export default function McpAuthorizePage() {
   }
 
   return (
-    <AuthShell>
+    <AuthShell
+      background={
+        <>
+          <div
+            className="absolute inset-0"
+            style={{
+              background:
+                "radial-gradient(ellipse 55% 45% at 8% 72%, rgba(11,110,255,0.16), transparent 58%), radial-gradient(ellipse 50% 40% at 92% 28%, rgba(91,184,168,0.16), transparent 55%), radial-gradient(ellipse 40% 30% at 50% 100%, rgba(17,17,17,0.04), transparent 50%), linear-gradient(180deg, #f4f5f4 0%, #fbfbfb 50%, #f1f2f1 100%)",
+            }}
+          />
+          <div
+            className="absolute inset-0 opacity-[0.28]"
+            style={{
+              backgroundImage:
+                "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E\")",
+            }}
+          />
+        </>
+      }
+    >
       <main className="w-full text-left">
         <div className="rounded-2xl border border-neutral-200/90 bg-[var(--kenoo-white)] px-6 py-8 shadow-[0_8px_28px_rgba(15,23,42,0.07)] transition-shadow duration-200 hover:shadow-[0_10px_32px_rgba(15,23,42,0.1)] sm:px-8 sm:py-9">
           <section aria-labelledby="mcp-authorize-title">
