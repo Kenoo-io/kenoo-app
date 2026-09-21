@@ -443,7 +443,7 @@ export const FEATURED_PRODUCTS: FeaturedProduct[] = [
     name: "Health",
     tagline: "Stay sharp for the work that matters",
     description:
-      "A personal health monitor for operators who refuse to burn out. Meals, movement, and goals - so you show up clear-headed, not just more productive.",
+      "Health tracking for busy people. Keep meals, movement, and goals in one place, build routines that support your energy, and avoid burnout.",
     overview:
       "High-output work is easy to optimize. Taking care of yourself is easier to forget. Kenoo Health is the reminder built into the suite: log meals, track activities, set simple goals, and optionally sync from fitness providers - so life balance stays visible next to the work, not buried under it. We’re not a heartless output machine. Peak performance starts with people who are still standing.",
     icon: "https://assest.kenoo.io/app-icons/health.png",

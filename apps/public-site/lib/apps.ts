@@ -27,6 +27,9 @@ const HIDDEN_SLUGS = new Set([
   PLATFORM_APP_SLUG,
 ]);
 const FEATURED_SLUG_SET = new Set<string>(FEATURED_PRODUCT_SLUGS);
+const HEALTH_MENU_DESCRIPTION = FEATURED_PRODUCTS.find(
+  (product) => product.slug === "health",
+)?.description;
 
 type AppsRow = {
   id: string;
@@ -88,7 +91,11 @@ export function mapAppsRows(rows: AppsRow[]): PublicApp[] {
       id: row.id,
       slug: row.slug,
       name: row.name,
-      description: row.description,
+      // Keep Health's nav message in sync with its marketing page. The app
+      // registry description is intentionally short, which makes this card
+      // noticeably smaller than the other featured products.
+      description:
+        row.slug === "health" ? HEALTH_MENU_DESCRIPTION ?? row.description : row.description,
       icon: iconForApp(row.slug, row.kenoo_icon_urls, row.icon_url),
       href: marketingPathForSlug(row.slug),
       appHref: appHrefForApp(row),
