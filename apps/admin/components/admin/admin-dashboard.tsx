@@ -7,6 +7,7 @@ import { LayoutGrid, User, UserPlus } from "lucide-react";
 import { getSupabaseClient } from "@/lib/auth";
 import { useActiveAccount } from "@/components/active-account-context";
 import { PageShell } from "@/components/admin/page-shell";
+import { resolveAppIconUrl } from "@/lib/app-icon";
 
 type MemberRow = {
   id: string;
@@ -25,6 +26,7 @@ type AppAccessRow = {
   slug: string;
   name: string;
   icon_url: string | null;
+  kenoo_icon_urls: string | null;
 };
 
 function memberDisplayName(member: MemberRow): string {
@@ -67,7 +69,7 @@ export function AdminDashboard() {
             .order("created_at", { ascending: false }),
           supabase
             .from("account_app_access")
-            .select("app_id, apps(id, slug, name, icon_url)")
+            .select("app_id, apps(id, slug, name, icon_url, kenoo_icon_urls)")
             .eq("account_id", accountId),
         ]);
 
@@ -100,6 +102,8 @@ export function AdminDashboard() {
                   slug: app.slug as string,
                   name: app.name as string,
                   icon_url: (app.icon_url as string | null) ?? null,
+                  kenoo_icon_urls:
+                    (app.kenoo_icon_urls as string | null) ?? null,
                 };
               })
               .filter((app): app is AppAccessRow => app !== null),
@@ -257,10 +261,16 @@ export function AdminDashboard() {
                     className="flex items-center gap-3 border-b border-neutral-100 px-5 py-3 last:border-0"
                   >
                     <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg bg-neutral-100">
-                      {app.icon_url ? (
+                      {resolveAppIconUrl(
+                        app.kenoo_icon_urls,
+                        app.icon_url,
+                      ) ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
-                          src={app.icon_url}
+                          src={resolveAppIconUrl(
+                            app.kenoo_icon_urls,
+                            app.icon_url,
+                          )!}
                           alt=""
                           className="h-full w-full object-cover"
                         />

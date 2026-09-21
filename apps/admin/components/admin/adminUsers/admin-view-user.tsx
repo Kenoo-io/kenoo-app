@@ -19,6 +19,7 @@ import {
 import { Skeleton } from "@walls/ui/skeleton";
 import { PageBody } from "@/components/admin/page-shell";
 import { cn } from "@/lib/utils";
+import { resolveAppIconUrl } from "@/lib/app-icon";
 import type { AppAccessRecord } from "@/lib/app-access-shared";
 import type { AccountMemberRecord, AccountRole } from "@/lib/accounts-shared";
 import { canManageAccountMembers } from "@/lib/accounts-shared";
@@ -29,10 +30,12 @@ function displayName(member: AccountMemberRecord): string {
 }
 
 function AppIcon({ app, size = 20 }: { app: AppAccessRecord; size?: number }) {
-  if (app.iconUrl) {
+  const iconUrl = resolveAppIconUrl(app.kenooIconUrl, app.iconUrl);
+
+  if (iconUrl) {
     return (
       <Image
-        src={app.iconUrl}
+        src={iconUrl}
         alt=""
         width={size}
         height={size}
