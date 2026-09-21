@@ -111,13 +111,17 @@ async function startHttp(port: number) {
   app.get("/health", (_request, response) => {
     response.json({ ok: true, service: "kenoo-mcp", version: "0.1.0" });
   });
-  app.get("/.well-known/oauth-protected-resource/mcp", (request, response) => {
+  const protectedResourceMetadata = (request: Request, response: Response) => {
     response.json({
       resource: publicMcpUrl(request),
       authorization_servers: [authorizationServerUrl()],
       bearer_methods_supported: ["header"],
     });
-  });
+  };
+  // Serve both discovery forms. The resource-specific form is canonical for
+  // /mcp, while some OAuth clients probe the root well-known path first.
+  app.get("/.well-known/oauth-protected-resource", protectedResourceMetadata);
+  app.get("/.well-known/oauth-protected-resource/mcp", protectedResourceMetadata);
   app.all("/mcp", handleMcpRequest);
 
   app.listen(port, () => {
