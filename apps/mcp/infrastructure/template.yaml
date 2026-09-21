@@ -3,6 +3,18 @@ Transform: AWS::Serverless-2016-10-31
 Description: Kenoo MCP — stateless Streamable HTTP endpoint on AWS Lambda.
 
 Parameters:
+  McpDomainName:
+    Type: String
+    Default: mcp.kenoo.io
+    Description: Public custom domain for the Kenoo MCP service.
+  McpHostedZoneId:
+    Type: String
+    Default: ""
+    Description: Optional Route 53 hosted-zone ID for the domain containing McpDomainName.
+  McpCertificateArn:
+    Type: String
+    Default: ""
+    Description: Existing ACM certificate ARN when DNS is managed outside Route 53.
   SupabaseUrl:
     Type: String
     Description: Kenoo Supabase project URL.
@@ -10,28 +22,109 @@ Parameters:
     Type: String
     NoEcho: true
     Description: Kenoo Supabase anonymous key. The service-role key is intentionally never used here.
+  McpReservedConcurrency:
+    Type: Number
+    Default: 50
+    MinValue: 1
+    MaxValue: 1000
+    Description: Maximum concurrent Lambda requests. This protects Supabase without keeping instances warm.
+  McpApiRateLimit:
+    Type: Number
+    Default: 50
+    MinValue: 1
+    Description: Target maximum requests per second accepted by API Gateway.
+  McpApiBurstLimit:
+    Type: Number
+    Default: 100
+    MinValue: 1
+    Description: Short request burst API Gateway may accept before throttling.
+  LogRetentionDays:
+    Type: Number
+    Default: 14
+    AllowedValues: [1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365]
+    Description: Retention period for application and API access logs.
+
+Rules:
+  CertificateSourceIsConfigured:
+    Assertions:
+      - Assert: !Or
+          - !Not [!Equals [!Ref McpHostedZoneId, ""]]
+          - !Not [!Equals [!Ref McpCertificateArn, ""]]
+        AssertDescription: Provide McpHostedZoneId so the stack can create a certificate, or provide an existing validated McpCertificateArn.
+
+Conditions:
+  HasRoute53HostedZone: !Not [!Equals [!Ref McpHostedZoneId, ""]]
 
 Globals:
   Function:
     Architectures: [arm64]
     MemorySize: 512
     Timeout: 28
-    Tracing: Active
+    Tracing: PassThrough
 
 Resources:
+  McpCertificate:
+    Type: AWS::CertificateManager::Certificate
+    Condition: HasRoute53HostedZone
+    Properties:
+      DomainName: !Ref McpDomainName
+      ValidationMethod: DNS
+      DomainValidationOptions:
+        - DomainName: !Ref McpDomainName
+          HostedZoneId: !Ref McpHostedZoneId
+      Tags:
+        - Key: service
+          Value: kenoo-mcp
+
+  McpFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${AWS::StackName}-kenoo-mcp"
+      RetentionInDays: !Ref LogRetentionDays
+
+  McpApiAccessLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/apigateway/${AWS::StackName}-kenoo-mcp"
+      RetentionInDays: !Ref LogRetentionDays
+
   KenooMcpApi:
     Type: AWS::Serverless::HttpApi
     Properties:
+      Name: kenoo-mcp
       StageName: "$default"
+      DisableExecuteApiEndpoint: true
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: !Ref McpApiBurstLimit
+        ThrottlingRateLimit: !Ref McpApiRateLimit
+      AccessLogSettings:
+        DestinationArn: !GetAtt McpApiAccessLogGroup.Arn
+        Format: '{"requestId":"$context.requestId","requestTime":"$context.requestTime","httpMethod":"$context.httpMethod","routeKey":"$context.routeKey","status":"$context.status","responseLength":"$context.responseLength","integrationError":"$context.integrationErrorMessage"}'
+      Domain:
+        DomainName: !Ref McpDomainName
+        CertificateArn: !If [HasRoute53HostedZone, !Ref McpCertificate, !Ref McpCertificateArn]
+        EndpointConfiguration: REGIONAL
+        SecurityPolicy: TLS_1_2
+        Route53: !If
+          - HasRoute53HostedZone
+          - HostedZoneId: !Ref McpHostedZoneId
+          - !Ref AWS::NoValue
+      Tags:
+        service: kenoo-mcp
 
   KenooMcp:
     Type: AWS::Serverless::Function
+    DependsOn: McpFunctionLogGroup
     Metadata:
       DockerContext: ../../..
       Dockerfile: apps/mcp/Dockerfile
       DockerTag: kenoo-mcp
     Properties:
       PackageType: Image
+      FunctionName: !Sub "${AWS::StackName}-kenoo-mcp"
+      ReservedConcurrentExecutions: !Ref McpReservedConcurrency
+      Tags:
+        service: kenoo-mcp
       Events:
         Mcp:
           Type: HttpApi
@@ -45,6 +138,12 @@ Resources:
             ApiId: !Ref KenooMcpApi
             Path: /mcp
             Method: GET
+        OAuthProtectedResourceMetadata:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref KenooMcpApi
+            Path: /.well-known/oauth-protected-resource/mcp
+            Method: GET
         Health:
           Type: HttpApi
           Properties:
@@ -55,8 +154,18 @@ Resources:
         Variables:
           NEXT_PUBLIC_SUPABASE_URL: !Ref SupabaseUrl
           NEXT_PUBLIC_SUPABASE_ANON_KEY: !Ref SupabaseAnonKey
+          MCP_PUBLIC_URL: !Sub "https://${McpDomainName}"
 
 Outputs:
   McpEndpoint:
-    Description: Public MCP endpoint. Put this behind mcp.kenoo.com after OAuth is configured.
-    Value: !Sub "https://${KenooMcpApi}.execute-api.${AWS::Region}.amazonaws.com/mcp"
+    Description: Canonical public MCP endpoint.
+    Value: !Sub "https://${McpDomainName}/mcp"
+  OAuthProtectedResourceMetadataUrl:
+    Description: OAuth Protected Resource Metadata endpoint used by MCP clients.
+    Value: !Sub "https://${McpDomainName}/.well-known/oauth-protected-resource/mcp"
+  HealthCheckUrl:
+    Description: Unauthenticated health-check endpoint.
+    Value: !Sub "https://${McpDomainName}/health"
+  CertificateArn:
+    Description: ACM certificate used by the MCP custom domain.
+    Value: !If [HasRoute53HostedZone, !Ref McpCertificate, !Ref McpCertificateArn]

@@ -21,24 +21,82 @@ and uses the explicit `MCP_DEV_ACCESS_TOKEN` environment variable.
 For a local editor integration, set `MCP_DEV_ACCESS_TOKEN` and run
 `pnpm --filter @walls/mcp start:stdio` after building.
 
-## Production shape
+## Production deployment
 
-Deploy the HTTP transport as a stateless service at `https://mcp.kenoo.com/mcp`.
-`infrastructure/template.yaml` packages the service as an arm64 Lambda
-container behind API Gateway HTTP API; it does not provision anything until an
-operator deploys it with AWS credentials.
+Deploy the HTTP transport as a stateless service at `https://mcp.kenoo.io/mcp`.
+`infrastructure/template.yaml` creates the complete AWS runtime:
+
+- An ACM certificate and custom domain for `mcp.kenoo.io`. If its DNS is in
+  Route 53, the stack also validates the certificate and creates the alias
+  record automatically.
+- API Gateway HTTP API with TLS 1.2, access logs, API-level throttling, and its
+  default `execute-api` domain disabled.
+- An arm64 Lambda container with no provisioned concurrency, a reserved
+  concurrency ceiling, and finite log retention.
+
+The stack is intentionally not placed in a VPC. The MCP calls Supabase's public
+HTTPS APIs, and a NAT gateway would introduce a fixed monthly cost without
+helping this service.
+
+Before first deployment, choose one certificate path:
+
+- **Route 53 DNS:** provide `McpHostedZoneId`; the stack creates and validates
+  the ACM certificate and DNS alias itself.
+- **External DNS:** create and DNS-validate an ACM certificate for
+  `mcp.kenoo.io` in `us-east-2`, create the DNS record with your provider, and
+  provide its ARN as `McpCertificateArn`.
+
+Deploy from the repository root:
 
 ```bash
 sam build --template-file apps/mcp/infrastructure/template.yaml
-sam deploy --guided
+sam deploy \
+  --template-file .aws-sam/build/template.yaml \
+  --stack-name kenoo-mcp \
+  --resolve-image-repos \
+  --capabilities CAPABILITY_IAM \
+  --guided
 ```
 
-## OAuth setup
+The first deployment prompts for the certificate configuration, Supabase URL,
+and Supabase anonymous key. It creates the ECR image repository automatically.
+Keep the default 50 concurrent Lambda requests and 50 requests/second API limit
+until tool usage establishes a reason to raise them. Neither setting provisions
+warm instances or creates idle compute charges.
+
+### External DNS (Kenoo.io)
+
+`kenoo.io` is currently managed outside Route 53. Create an ACM public
+certificate for `mcp.kenoo.io` in `us-east-2`, add the CNAME validation record
+that ACM provides at the DNS provider, and wait for its status to become
+`Issued`. Supply that certificate ARN as `McpCertificateArn`; do not supply a
+Route 53 hosted-zone ID. The DNS record that points `mcp.kenoo.io` to API
+Gateway must also be created at the DNS provider after the stack creates the
+custom domain.
+
+## Continuous deployment
+
+`.github/workflows/deploy-mcp.yml` deploys the stack on changes to `apps/mcp`
+after these repository settings are configured:
+
+- GitHub variable `AWS_DEPLOY_ROLE_ARN` (already used by the existing AWS
+  deployment workflow).
+- GitHub variable `MCP_DOMAIN_NAME=mcp.kenoo.io`.
+- GitHub variable `MCP_CERTIFICATE_ARN` with the issued `mcp.kenoo.io` ACM
+  certificate ARN.
+- GitHub secret `MCP_SUPABASE_URL`.
+- GitHub secret `MCP_SUPABASE_ANON_KEY`.
+
+`MCP_HOSTED_ZONE_ID` is only needed if DNS is later moved to Route 53. The AWS
+deployment role needs permission to manage the SAM/CloudFormation stack, ECR,
+Lambda, API Gateway, CloudWatch Logs, and IAM roles that SAM creates.
+
+## Supabase OAuth setup
 
 Kenoo uses Supabase's OAuth 2.1 authorization server. Before the first
 production deployment, an operator must enable **Auth → OAuth Server** in the
 Supabase dashboard and set its Authorization Path to `/mcp/authorize` (with
-`https://portal.kenoo.com` as the Site URL). Supabase then provides discovery,
+`https://portal.kenoo.io` as the Site URL). Supabase then provides discovery,
 authorization-code exchange, token refresh, consent, revocation, and dynamic
 client registration for compatible MCP clients.
 
@@ -54,3 +112,19 @@ service-role key.
 Do not add a Supabase service-role key to this app. Do not expose generic SQL
 or unrestricted database tools. Add one tool at a time through the same Kenoo
 domain authorization rules used by the web applications.
+
+## Production verification
+
+After CloudFormation reports success, verify the public service before adding
+it to an AI client:
+
+```bash
+curl -fsS https://mcp.kenoo.io/health
+curl -fsS https://mcp.kenoo.io/.well-known/oauth-protected-resource/mcp
+curl -i https://mcp.kenoo.io/mcp
+```
+
+The last request must return `401` and include a `WWW-Authenticate` header
+with `resource_metadata`. Then enable the Supabase OAuth server, dynamic client
+registration, and `/mcp/authorize` authorization path before scanning tools in
+ChatGPT or signing in from Claude.
