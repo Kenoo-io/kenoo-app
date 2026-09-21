@@ -37,13 +37,12 @@ function authenticationChallenge(request: Request) {
 }
 
 function normalizeMcpAcceptHeader(request: Request) {
-  const accept = request.header("accept");
-  // ChatGPT currently initiates a JSON-RPC MCP request with an application/json
-  // accept header. The SDK requires text/event-stream to be listed too, even
-  // though this stateless endpoint replies with JSON. Preserve the caller's
-  // preferences while declaring the compatible streaming representation.
-  if (accept?.includes("application/json") && !accept.includes("text/event-stream")) {
-    request.headers.accept = `${accept}, text/event-stream`;
+  const accept = request.header("accept") ?? "*/*";
+  // ChatGPT currently initializes MCP with Accept: */*. The SDK requires both
+  // explicit representations even though this stateless endpoint replies with
+  // JSON. Preserve the caller's preferences and add the compatible types.
+  if (!accept.includes("application/json") || !accept.includes("text/event-stream")) {
+    request.headers.accept = `${accept}, application/json, text/event-stream`;
   }
 }
 
