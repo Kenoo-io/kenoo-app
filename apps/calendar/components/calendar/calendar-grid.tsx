@@ -1193,7 +1193,10 @@ export function CalendarGrid({ selectedDate, onDateSelect, allEvents, onTaskDrop
           </div>
         )}
 
-        <ScrollArea ref={viewportRef} className="h-full min-h-0 flex-1 overscroll-contain">
+        <ScrollArea
+          ref={viewportRef}
+          className="h-full min-h-0 flex-1 overscroll-none [&_[data-radix-scroll-area-viewport]]:overscroll-none"
+        >
           <div 
             className="relative" 
             style={{ height: `${gridHeight}px` }}
