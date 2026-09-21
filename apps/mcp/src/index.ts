@@ -36,6 +36,17 @@ function authenticationChallenge(request: Request) {
   return `Bearer resource_metadata="${protectedResourceMetadataUrl(request)}", error="invalid_token", error_description="Connect your Kenoo account to continue"`;
 }
 
+function normalizeMcpAcceptHeader(request: Request) {
+  const accept = request.header("accept");
+  // ChatGPT currently initiates a JSON-RPC MCP request with an application/json
+  // accept header. The SDK requires text/event-stream to be listed too, even
+  // though this stateless endpoint replies with JSON. Preserve the caller's
+  // preferences while declaring the compatible streaming representation.
+  if (accept?.includes("application/json") && !accept.includes("text/event-stream")) {
+    request.headers.accept = `${accept}, text/event-stream`;
+  }
+}
+
 function parseArguments(argv: string[]): StartOptions {
   const options: StartOptions = { http: false, port: 3002 };
   for (let index = 2; index < argv.length; index += 1) {
@@ -62,6 +73,7 @@ async function startStdio() {
 }
 
 async function handleMcpRequest(request: Request, response: Response) {
+  normalizeMcpAcceptHeader(request);
   const accessToken = extractBearerToken(request.header("authorization"));
   const challenge = authenticationChallenge(request);
   let identity = null;
@@ -114,6 +126,7 @@ async function startHttp(port: number) {
         method: request.method,
         path: request.path,
         status: response.statusCode,
+        accept: request.header("accept") ?? null,
         hasBearerToken: Boolean(extractBearerToken(request.header("authorization"))),
       });
     });
