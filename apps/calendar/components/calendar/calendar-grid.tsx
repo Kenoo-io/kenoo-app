@@ -89,6 +89,8 @@ function getEventTitleTextClass(maxLines: number): string {
 
 interface ParsedTimedEvent {
   event: Event;
+  /** Unique per visible-day fragment of an event that crosses midnight. */
+  segmentKey: string;
   dayOffset: number;
   startTime: DateTime;
   endTime: DateTime;
@@ -111,30 +113,51 @@ function layoutTimedEventsForWeek(
 ): PositionedTimedEvent[] {
   const weekStartDt = DateTime.fromJSDate(weekStart).setZone(viewerZone).startOf('day');
 
+  const weekEndDt = weekStartDt.plus({ days: numDays });
+
+  // A timed event belongs in every day column it overlaps. Rendering the
+  // whole duration in its start-day column makes an 8 PM–8 AM event run down
+  // through the following morning while leaving that morning's column empty.
   const parsed = events
-    .map((event): ParsedTimedEvent | null => {
+    .flatMap((event): ParsedTimedEvent[] => {
       const startTime = toEventDateTime(event.startTime, viewerZone);
       const endTime = toEventDateTime(event.endTime, viewerZone);
-      if (!startTime.isValid || !endTime.isValid) return null;
+      if (!startTime.isValid || !endTime.isValid || endTime <= startTime) return [];
 
-      const dayOffset = Math.floor(startTime.startOf('day').diff(weekStartDt, 'days').days);
-      if (dayOffset < 0 || dayOffset >= numDays) return null;
+      // The interval is [start, end), so an event ending exactly at midnight
+      // does not create an empty card on the following day.
+      const visibleStart = startTime > weekStartDt ? startTime : weekStartDt;
+      const visibleEnd = endTime < weekEndDt ? endTime : weekEndDt;
+      if (visibleEnd <= visibleStart) return [];
 
-      const topMinutes = startTime.hour * 60 + startTime.minute;
-      const durationMinutes = Math.max(endTime.diff(startTime, 'minutes').minutes, 15);
+      const segments: ParsedTimedEvent[] = [];
+      let dayStart = visibleStart.startOf('day');
+      while (dayStart < visibleEnd) {
+        const dayEnd = dayStart.plus({ days: 1 });
+        const segmentStart = visibleStart > dayStart ? visibleStart : dayStart;
+        const segmentEnd = visibleEnd < dayEnd ? visibleEnd : dayEnd;
 
-      return {
-        event,
-        dayOffset,
-        startTime,
-        endTime,
-        topMinutes,
-        durationMinutes,
-        startMs: startTime.toMillis(),
-        endMs: endTime.toMillis(),
-      };
+        if (segmentEnd > segmentStart) {
+          const dayOffset = Math.floor(dayStart.diff(weekStartDt, 'days').days);
+          segments.push({
+            event,
+            segmentKey: `${event.id}-${dayStart.toISODate()}`,
+            dayOffset,
+            startTime: segmentStart,
+            endTime: segmentEnd,
+            topMinutes: segmentStart.hour * 60 + segmentStart.minute,
+            durationMinutes: Math.max(segmentEnd.diff(segmentStart, 'minutes').minutes, 15),
+            startMs: segmentStart.toMillis(),
+            endMs: segmentEnd.toMillis(),
+          });
+        }
+
+        dayStart = dayEnd;
+      }
+
+      return segments;
     })
-    .filter((event): event is ParsedTimedEvent => event !== null);
+    ;
 
   const byDay = new Map<number, ParsedTimedEvent[]>();
   for (const event of parsed) {
@@ -1170,7 +1193,10 @@ export function CalendarGrid({ selectedDate, onDateSelect, allEvents, onTaskDrop
           </div>
         )}
 
-        <ScrollArea ref={viewportRef} className="h-full min-h-0 flex-1 overscroll-contain">
+        <ScrollArea
+          ref={viewportRef}
+          className="h-full min-h-0 flex-1 overscroll-none [&_[data-radix-scroll-area-viewport]]:overscroll-none"
+        >
           <div 
             className="relative" 
             style={{ height: `${gridHeight}px` }}
@@ -1257,6 +1283,7 @@ export function CalendarGrid({ selectedDate, onDateSelect, allEvents, onTaskDrop
               {/* Events */}
               {positionedTimedEvents.map(({
                 event,
+                segmentKey,
                 dayOffset,
                 column,
                 totalColumns,
@@ -1300,7 +1327,7 @@ export function CalendarGrid({ selectedDate, onDateSelect, allEvents, onTaskDrop
 
                 return (
                   <TimedEventBlock
-                    key={event.id}
+                    key={segmentKey}
                     event={event}
                     left={left}
                     top={top}

@@ -1,0 +1,10 @@
+[mcp_servers.kenoo]
+command = "pnpm"
+args = [
+    "--filter",
+    "@walls/mcp",
+    "exec",
+    "tsx",
+    "src/index.ts",
+    "--stdio",
+]
