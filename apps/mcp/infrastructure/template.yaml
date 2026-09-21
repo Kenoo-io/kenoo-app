@@ -22,12 +22,6 @@ Parameters:
     Type: String
     NoEcho: true
     Description: Kenoo Supabase anonymous key. The service-role key is intentionally never used here.
-  McpReservedConcurrency:
-    Type: Number
-    Default: 5
-    MinValue: 1
-    MaxValue: 1000
-    Description: Maximum concurrent Lambda requests. This protects Supabase without keeping instances warm.
   McpApiRateLimit:
     Type: Number
     Default: 50
@@ -142,7 +136,6 @@ Resources:
     Properties:
       PackageType: Image
       FunctionName: !Sub "${AWS::StackName}-kenoo-mcp"
-      ReservedConcurrentExecutions: !Ref McpReservedConcurrency
       Tags:
         service: kenoo-mcp
       Events:
