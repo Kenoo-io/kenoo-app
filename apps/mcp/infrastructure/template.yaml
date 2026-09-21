@@ -157,6 +157,12 @@ Resources:
             ApiId: !Ref KenooMcpApi
             Path: /.well-known/oauth-protected-resource/mcp
             Method: GET
+        OAuthProtectedResourceMetadataRoot:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref KenooMcpApi
+            Path: /.well-known/oauth-protected-resource
+            Method: GET
         Health:
           Type: HttpApi
           Properties:
