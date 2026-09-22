@@ -9,7 +9,7 @@ import React, {
 } from "react";
 import { useAuth } from "@walls/auth";
 import { getSupabaseClient } from "@walls/auth";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   ChevronLeft,
   ChevronRight,
@@ -18,10 +18,10 @@ import {
   Circle,
   Timer,
   AlertTriangle,
-  LayoutList,
   GanttChartSquare,
   X,
-  ChevronDown,
+  Minus,
+  Plus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useActiveAccount } from "@/components/active-account-context";
@@ -47,10 +47,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Slider } from "@walls/ui/slider";
 import {
   addDays,
-  addWeeks,
-  subWeeks,
   differenceInDays,
   format,
   isToday,
@@ -63,18 +62,48 @@ import {
 } from "date-fns";
 
 /* ─── Constants ──────────────────────────────────────────────────────────── */
-const DAY_WIDTH = 72; // px per day column (wider for readability)
-const ROW_HEIGHT = 80; // px per row (taller project/task containers)
-const LABEL_WIDTH = 220; // px for left label column
+const DEFAULT_DAY_WIDTH = 72;
+const MIN_DAY_WIDTH = 28;
+const MAX_DAY_WIDTH = 96;
+const ROW_HEIGHT = 124; // px per row
+const BAR_HEIGHT = 68; // px for the project/task bar
 
 /* ─── Helpers ────────────────────────────────────────────────────────────── */
 function parseDateSafe(d: string | null): Date | null {
   if (!d) return null;
   try {
-    return startOfDay(parseISO(d));
+    const parsed = startOfDay(parseISO(d));
+    if (!Number.isNaN(parsed.getTime())) return parsed;
   } catch {
-    return null;
+    // Fall through to the native parser for timestamp values that are not
+    // accepted by date-fns' strict ISO parser.
   }
+
+  const fallback = startOfDay(new Date(d));
+  return Number.isNaN(fallback.getTime()) ? null : fallback;
+}
+
+/**
+ * Resolve the full date range shown for a project row. Project dates are the
+ * baseline, and task dates expand either edge when they fall outside it.
+ * A task with only one date contributes that date to both sides of its range.
+ */
+function getProjectDateRange(
+  project: Project,
+  projectTasks: ProjectTask[],
+): { start: Date | null; end: Date | null } {
+  let start = parseDateSafe(project.start_date);
+  let end = parseDateSafe(project.due_date);
+
+  for (const task of projectTasks) {
+    const taskStart = parseDateSafe(task.start_date || task.due_date);
+    const taskEnd = parseDateSafe(task.due_date || task.start_date);
+
+    if (taskStart && (!start || taskStart < start)) start = taskStart;
+    if (taskEnd && (!end || taskEnd > end)) end = taskEnd;
+  }
+
+  return { start, end };
 }
 
 function isOverdue(date: string | null): boolean {
@@ -88,28 +117,31 @@ function isDueSoon(date: string | null): boolean {
   return diff >= 0 && diff < 3 * 24 * 60 * 60 * 1000;
 }
 
-/** Start at the latest unfinished item that has reached today; otherwise today. */
-function getTimelineStart(tasks: ProjectTask[]): Date {
+/** Start the scrollable canvas at the earliest date the user can access. */
+function getTimelineContentStart(
+  projects: Project[],
+  tasks: ProjectTask[],
+): Date {
   const today = startOfDay(new Date());
-  let latestIncompleteDate: Date | null = null;
+  let earliestDate: Date | null = null;
 
+  for (const project of projects) {
+    for (const value of [project.start_date, project.due_date]) {
+      const date = parseDateSafe(value);
+      if (date && (!earliestDate || date < earliestDate)) earliestDate = date;
+    }
+  }
   for (const task of tasks) {
-    if (task.status === "completed") continue;
-    const taskDate = parseDateSafe(task.due_date ?? task.start_date);
-    if (
-      taskDate &&
-      taskDate <= today &&
-      (!latestIncompleteDate || taskDate > latestIncompleteDate)
-    ) {
-      latestIncompleteDate = taskDate;
+    for (const value of [task.start_date, task.due_date]) {
+      const date = parseDateSafe(value);
+      if (date && (!earliestDate || date < earliestDate)) earliestDate = date;
     }
   }
 
-  return latestIncompleteDate ?? today;
+  return earliestDate && earliestDate < today ? earliestDate : today;
 }
 
 /* ─── View mode types ─────────────────────────────────────────────────────── */
-type ViewMode = "gantt" | "list";
 type GanttMode = "project" | "task";
 
 /* ─── Gantt bar positioning ───────────────────────────────────────────────── */
@@ -123,7 +155,8 @@ function getBarPosition(
   startDate: Date | null,
   endDate: Date | null,
   timelineStart: Date,
-  totalDays: number
+  totalDays: number,
+  dayWidth: number,
 ): BarPosition | null {
   if (!startDate && !endDate) return null;
 
@@ -140,8 +173,8 @@ function getBarPosition(
   const clamped = clampedLeft !== rawLeft || clampedRight !== rawRight;
 
   return {
-    left: clampedLeft * DAY_WIDTH,
-    width: Math.max((clampedRight - clampedLeft) * DAY_WIDTH, DAY_WIDTH / 2),
+    left: clampedLeft * dayWidth,
+    width: Math.max((clampedRight - clampedLeft) * dayWidth, dayWidth / 2),
     clamped,
   };
 }
@@ -334,10 +367,10 @@ function TaskDetailDialog({
 /* ─── Gantt grid header (dates) ──────────────────────────────────────────── */
 function GanttHeader({
   days,
-  timelineStart,
+  dayWidth,
 }: {
   days: Date[];
-  timelineStart: Date;
+  dayWidth: number;
 }) {
   // Group days by month
   const months: { label: string; count: number }[] = [];
@@ -356,16 +389,11 @@ function GanttHeader({
     <div className="border-b border-[#e4e9f0] bg-white">
       {/* Month row */}
       <div className="flex">
-        {/* Sticky label column header to align with project names */}
-        <div
-          className="sticky left-0 z-20 shrink-0 border-r border-[#e4e9f0] bg-white"
-          style={{ width: LABEL_WIDTH, minWidth: LABEL_WIDTH }}
-        />
         {months.map((m) => (
           <div
             key={m.label}
             className="border-r border-[#edf0f4] px-2 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-neutral-400 last:border-r-0"
-            style={{ width: m.count * DAY_WIDTH }}
+            style={{ width: m.count * dayWidth }}
           >
             {m.label}
           </div>
@@ -373,11 +401,6 @@ function GanttHeader({
       </div>
       {/* Day row */}
       <div className="flex">
-        {/* Sticky label column header spacer */}
-        <div
-          className="sticky left-0 z-20 shrink-0 border-r border-[#e4e9f0] bg-white"
-          style={{ width: LABEL_WIDTH, minWidth: LABEL_WIDTH }}
-        />
         {days.map((d) => {
           const today = isToday(d);
           const isSun = d.getDay() === 0;
@@ -390,7 +413,7 @@ function GanttHeader({
                 (isSat || isSun) ? "bg-[#fafbfc]" : "",
                 today ? "bg-[#4285F4]/10" : ""
               )}
-              style={{ width: DAY_WIDTH, minWidth: DAY_WIDTH }}
+              style={{ width: dayWidth, minWidth: dayWidth }}
             >
               <span
                 className={cn(
@@ -423,12 +446,11 @@ function GanttRow({
   label,
   color,
   barPos,
-  status,
-  priority,
   isCompleted,
   isOverdueFlag,
   totalDays,
   days,
+  dayWidth,
   onClick,
   index,
   subLabel,
@@ -436,18 +458,15 @@ function GanttRow({
   label: string;
   color: string;
   barPos: BarPosition | null;
-  status?: TaskStatus;
-  priority?: number | null;
   isCompleted: boolean;
   isOverdueFlag: boolean;
   totalDays: number;
   days: Date[];
+  dayWidth: number;
   onClick?: () => void;
   index: number;
   subLabel?: string;
 }) {
-  const priorityCfg = priority ? PRIORITY_CONFIG[priority] : null;
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 4 }}
@@ -462,45 +481,10 @@ function GanttRow({
       style={{ height: ROW_HEIGHT }}
       onClick={onClick}
     >
-      {/* Label - sticky like talent names in scouter table */}
-      <div
-        className="sticky left-0 z-20 flex shrink-0 items-center gap-3 border-r border-[#e4e9f0] bg-white px-4 group-hover:bg-[#fafbfc]"
-        style={{ width: LABEL_WIDTH, minWidth: LABEL_WIDTH }}
-      >
-        {status && <TaskStatusIcon status={status} />}
-        {!status && (
-          <span
-            className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-            style={{ backgroundColor: color }}
-          />
-        )}
-        <div className="flex flex-col min-w-0">
-          <span
-            className={cn(
-              "text-sm font-semibold text-neutral-800 truncate",
-              isCompleted && "line-through text-neutral-400"
-            )}
-          >
-            {label}
-          </span>
-          {subLabel && (
-            <span className="text-xs text-neutral-400 font-light truncate">
-              {subLabel}
-            </span>
-          )}
-        </div>
-        {priorityCfg && (
-          <Flag
-            className="h-3 w-3 flex-shrink-0 ml-auto"
-            style={{ color: priorityCfg.color }}
-          />
-        )}
-      </div>
-
       {/* Grid + bar */}
       <div
-        className="relative flex-1 flex"
-        style={{ width: totalDays * DAY_WIDTH }}
+        className="relative flex w-full"
+        style={{ width: totalDays * dayWidth }}
       >
         {/* Day columns */}
         {days.map((d) => {
@@ -515,7 +499,7 @@ function GanttRow({
                 (isSat || isSun) ? "bg-[#fafbfc]" : "",
                 today ? "bg-[#4285F4]/5" : ""
               )}
-              style={{ width: DAY_WIDTH }}
+              style={{ width: dayWidth }}
             />
           );
         })}
@@ -524,23 +508,39 @@ function GanttRow({
         {barPos && (
           <div
             className={cn(
-              "absolute top-1/2 -translate-y-1/2 rounded-full flex items-center px-3 gap-1 overflow-hidden",
+              "absolute top-1/2 -translate-y-1/2 overflow-hidden rounded-xl border border-neutral-200/80 bg-white/95",
               "transition-all duration-150",
-              onClick ? "group-hover:brightness-90" : ""
+              onClick ? "group-hover:-translate-y-[calc(50%+1px)] group-hover:shadow-md" : ""
             )}
             style={{
               left: barPos.left,
               width: barPos.width,
-              height: 28,
-              backgroundColor: color,
+              height: BAR_HEIGHT,
+              boxShadow: "0 4px 14px rgba(15, 23, 42, 0.08)",
               opacity: isCompleted ? 0.5 : 1,
             }}
+            title={label}
           >
-            {barPos.width > 50 && (
-              <span className="text-xs font-semibold text-white/80 truncate leading-none">
-                {label}
-              </span>
-            )}
+            <span
+              className="absolute top-1/2 flex -translate-y-1/2 items-center gap-3 whitespace-nowrap"
+              style={{
+                left: `max(16px, calc(var(--timeline-scroll-left, 0px) - ${barPos.left}px + 16px))`,
+              }}
+            >
+              <span
+                className="h-7 w-1 shrink-0 rounded-full"
+                style={{ backgroundColor: color }}
+                aria-hidden
+              />
+              {barPos.width > 50 && (
+                <span className="flex min-w-0 flex-col justify-center truncate leading-tight">
+                  <span className="truncate text-xs font-semibold text-neutral-800">{label}</span>
+                  {subLabel && (
+                    <span className="truncate text-[10px] font-light text-neutral-400">{subLabel}</span>
+                  )}
+                </span>
+              )}
+            </span>
           </div>
         )}
 
@@ -561,10 +561,12 @@ function GanttRow({
 function TodayMarker({
   timelineStart,
   totalDays,
+  dayWidth,
   totalHeight,
 }: {
   timelineStart: Date;
   totalDays: number;
+  dayWidth: number;
   totalHeight: number;
 }) {
   const today = startOfDay(new Date());
@@ -574,7 +576,7 @@ function TodayMarker({
   return (
     <div
       className="absolute top-0 bottom-0 z-20 pointer-events-none"
-      style={{ left: LABEL_WIDTH + offset * DAY_WIDTH + DAY_WIDTH / 2, width: 1.5 }}
+      style={{ left: offset * dayWidth + dayWidth / 2, width: 1.5 }}
     >
       <div className="h-full bg-[#4285F4] opacity-70" />
       <div
@@ -585,168 +587,7 @@ function TodayMarker({
   );
 }
 
-/* ─── List view row ───────────────────────────────────────────────────────── */
-function ListRow({
-  task,
-  index,
-  onClick,
-}: {
-  task: ProjectTask;
-  index: number;
-  onClick: (t: ProjectTask) => void;
-}) {
-  const statusCfg = TASK_STATUS_CONFIG[task.status];
-  const priorityCfg = task.priority ? PRIORITY_CONFIG[task.priority] : null;
-  const overdue = isOverdue(task.due_date) && task.status !== "completed";
-  const soon = isDueSoon(task.due_date) && task.status !== "completed";
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, x: -6 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.15, delay: index * 0.02 }}
-      onClick={() => onClick(task)}
-      className={cn(
-        "flex items-center gap-3 px-4 py-3 rounded-2xl border cursor-pointer transition-all hover:shadow-sm",
-        task.status === "completed"
-          ? "bg-neutral-50/60 border-neutral-100"
-          : overdue
-          ? "bg-red-50/40 border-red-100 hover:bg-red-50/60"
-          : "bg-white border-neutral-100 hover:bg-neutral-50"
-      )}
-    >
-      <TaskStatusIcon status={task.status} />
-
-      <div className="flex-1 min-w-0">
-        <p
-          className={cn(
-            "text-sm font-semibold text-neutral-800 leading-snug truncate",
-            task.status === "completed" && "line-through text-neutral-400"
-          )}
-        >
-          {task.title}
-        </p>
-        {task.project && (
-          <p className="text-[10px] text-neutral-400 font-light truncate flex items-center gap-1 mt-0.5">
-            <span
-              className="w-1.5 h-1.5 rounded-full inline-block flex-shrink-0"
-              style={{ backgroundColor: task.project.color ?? "#ceff00" }}
-            />
-            {task.project.name}
-          </p>
-        )}
-      </div>
-
-      <span
-        className={cn(
-          "text-[10px] font-medium px-2 py-0.5 rounded-full uppercase tracking-wider flex-shrink-0 hidden sm:block",
-          statusCfg.badge
-        )}
-      >
-        {statusCfg.label}
-      </span>
-
-      {priorityCfg && (
-        <Flag className="h-3.5 w-3.5 flex-shrink-0 hidden sm:block" style={{ color: priorityCfg.color }} />
-      )}
-
-      <div className="flex-shrink-0 flex flex-col items-end gap-0.5">
-        {task.start_date && (
-          <span className="text-[10px] text-neutral-400 font-light hidden sm:block">
-            {format(parseISO(task.start_date), "MMM d")} →
-          </span>
-        )}
-        {task.due_date ? (
-          <span
-            className={cn(
-              "text-xs font-light",
-              overdue ? "text-red-500" : soon ? "text-amber-500" : "text-neutral-400"
-            )}
-          >
-            {overdue ? "Overdue · " : soon ? "Soon · " : ""}
-            {format(parseISO(task.due_date), "MMM d")}
-          </span>
-        ) : (
-          <span className="text-xs text-neutral-300 font-light">—</span>
-        )}
-      </div>
-    </motion.div>
-  );
-}
-
-/* ─── Project list group ─────────────────────────────────────────────────── */
-function ProjectListGroup({
-  project,
-  tasks,
-  onTaskClick,
-}: {
-  project: Project;
-  tasks: ProjectTask[];
-  onTaskClick: (t: ProjectTask) => void;
-}) {
-  const [open, setOpen] = useState(true);
-  const cfg = PROJECT_STATUS_CONFIG[project.status];
-  const done = tasks.filter((t) => t.status === "completed").length;
-  const pct = tasks.length === 0 ? 0 : Math.round((done / tasks.length) * 100);
-
-  return (
-    <div className="mb-5">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center gap-3 mb-2.5 group"
-      >
-        <ChevronDown
-          className={cn(
-            "h-3.5 w-3.5 text-neutral-400 transition-transform",
-            !open && "-rotate-90"
-          )}
-        />
-        <span
-          className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-          style={{ backgroundColor: project.color ?? cfg.accent }}
-        />
-        <span className="text-xs font-black uppercase tracking-tight text-neutral-800 truncate flex-1 text-left">
-          {project.name}
-        </span>
-        <span className={cn("text-[10px] font-medium px-2 py-0.5 rounded-full uppercase tracking-wider flex-shrink-0", cfg.badge)}>
-          {cfg.label}
-        </span>
-        <div className="flex items-center gap-2 ml-auto flex-shrink-0">
-          <div className="w-20 h-1 rounded-full bg-neutral-200 overflow-hidden hidden sm:block">
-            <div
-              className="h-full rounded-full transition-all"
-              style={{ width: `${pct}%`, backgroundColor: project.color ?? "#ceff00" }}
-            />
-          </div>
-          <span className="text-[10px] text-neutral-400 tabular-nums">{done}/{tasks.length}</span>
-        </div>
-      </button>
-
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            className="pl-6 flex flex-col gap-2 overflow-hidden"
-          >
-            {tasks.length === 0 ? (
-              <p className="text-xs text-neutral-400 font-light py-2">No tasks.</p>
-            ) : (
-              tasks.map((t, i) => (
-                <ListRow key={t.id} task={t} index={i} onClick={onTaskClick} />
-              ))
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
-/* ─── Toolbar segmented toggles (chevron/Today styling + toggle group) ───── */
-/** Fixed toolbar row height — keeps Gantt/List from shifting when nav appears. */
+/* ─── Toolbar layout ─────────────────────────────────────────────────────── */
 const TIMELINE_TOOLBAR_ROW_H = "h-10";
 
 /* ─── Main component ─────────────────────────────────────────────────────── */
@@ -778,7 +619,6 @@ function AgentsProjectsTimelineContent({
       : null
   );
   /* view controls */
-  const [viewMode, setViewMode] = useState<ViewMode>("gantt");
   const [ganttMode, setGanttMode] = useState<GanttMode>("project");
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [projectFilter, setProjectFilter] = useState<string>("all");
@@ -787,19 +627,30 @@ function AgentsProjectsTimelineContent({
   /* gantt scroll / range */
   const scrollRef = useRef<HTMLDivElement>(null);
   const hasInitializedTimeline = useRef(false);
-  const [rangeStart, setRangeStart] = useState<Date>(() => startOfDay(new Date()));
-  const TOTAL_DAYS = 90;
+  const [timelineStart, setTimelineStart] = useState<Date>(() => startOfDay(new Date()));
+  const [dayWidth, setDayWidth] = useState(DEFAULT_DAY_WIDTH);
+  const totalDays = useMemo(
+    () => Math.max(90, differenceInDays(startOfDay(new Date()), timelineStart) + 90),
+    [timelineStart]
+  );
 
   const days = useMemo(() => {
-    return Array.from({ length: TOTAL_DAYS }, (_, i) => addDays(rangeStart, i));
-  }, [rangeStart]);
+    return Array.from({ length: totalDays }, (_, i) => addDays(timelineStart, i));
+  }, [timelineStart, totalDays]);
 
   /* Keep the selected starting date at the left edge of the viewport. */
   useEffect(() => {
-    if (viewMode === "gantt" && scrollRef.current) {
-      scrollRef.current.scrollLeft = 0;
+    if (scrollRef.current) {
+      scrollRef.current.scrollLeft = Math.max(
+        0,
+        differenceInDays(startOfDay(new Date()), timelineStart) * dayWidth
+      );
+      scrollRef.current.style.setProperty(
+        "--timeline-scroll-left",
+        `${scrollRef.current.scrollLeft}px`
+      );
     }
-  }, [viewMode, rangeStart]);
+  }, [timelineStart, dayWidth]);
 
   /* Load data */
   const loadData = useCallback(async () => {
@@ -816,8 +667,6 @@ function AgentsProjectsTimelineContent({
       loadedCacheKeyRef.current = cacheKey;
       setProjects(cached.projects);
       setTasks(cached.tasks);
-      setLoading(false);
-      return;
     }
     loadedCacheKeyRef.current = null;
     setLoading(true);
@@ -880,6 +729,10 @@ function AgentsProjectsTimelineContent({
       });
       loadedCacheKeyRef.current = cacheKey;
       setTasks(tasksWithProjects);
+      // Re-anchor the visible window to the fresh dates. Otherwise a cached
+      // snapshot can leave newly dated tasks outside the current 90-day view.
+      setTimelineStart(getTimelineContentStart(loadedProjects, tasksWithProjects));
+      hasInitializedTimeline.current = true;
     } catch {
       setTasks([]);
     } finally {
@@ -907,9 +760,9 @@ function AgentsProjectsTimelineContent({
 
   useEffect(() => {
     if (loading || hasInitializedTimeline.current) return;
-    setRangeStart(getTimelineStart(tasks));
+    setTimelineStart(getTimelineContentStart(projects, tasks));
     hasInitializedTimeline.current = true;
-  }, [loading, tasks]);
+  }, [loading, projects, tasks]);
 
   /* Status change */
   const handleStatusChange = async (task: ProjectTask, status: TaskStatus) => {
@@ -963,10 +816,11 @@ function AgentsProjectsTimelineContent({
   const ganttRows: AnyGanttRow[] = useMemo(() => {
     if (ganttMode === "project") {
       return filteredProjects.map<ProjectGanttRow>((p) => {
-        const projectTasks = filteredTasks.filter((t) => t.project_id === p.id);
-        const start = parseDateSafe(p.start_date);
-        const end = parseDateSafe(p.due_date);
-        const barPos = getBarPosition(start, end, rangeStart, TOTAL_DAYS);
+        // Project duration should describe the whole project, even when the
+        // task list is narrowed by a status filter.
+        const projectTasks = tasks.filter((t) => t.project_id === p.id);
+        const { start, end } = getProjectDateRange(p, projectTasks);
+        const barPos = getBarPosition(start, end, timelineStart, totalDays, dayWidth);
         const done = projectTasks.filter((t) => t.status === "completed").length;
         const pct = projectTasks.length === 0 ? 0 : Math.round((done / projectTasks.length) * 100);
         return {
@@ -975,7 +829,8 @@ function AgentsProjectsTimelineContent({
           color: p.color ?? "#ceff00",
           barPos,
           isCompleted: p.status === "completed",
-          isOverdueFlag: isOverdue(p.due_date) && p.status !== "completed",
+          isOverdueFlag:
+            end ? isOverdue(end.toISOString()) && p.status !== "completed" : false,
           subLabel: `${done}/${projectTasks.length} tasks · ${pct}%`,
         };
       });
@@ -983,7 +838,7 @@ function AgentsProjectsTimelineContent({
     return filteredTasks.map<TaskGanttRow>((t) => {
       const start = parseDateSafe(t.start_date);
       const end = parseDateSafe(t.due_date);
-      const barPos = getBarPosition(start, end, rangeStart, TOTAL_DAYS);
+      const barPos = getBarPosition(start, end, timelineStart, totalDays, dayWidth);
       return {
         id: t.id,
         label: t.title,
@@ -997,7 +852,7 @@ function AgentsProjectsTimelineContent({
         task: t,
       };
     });
-  }, [ganttMode, filteredProjects, filteredTasks, rangeStart]);
+  }, [ganttMode, filteredProjects, filteredTasks, timelineStart, totalDays, tasks, dayWidth]);
 
   const ganttHeight = ganttRows.length * ROW_HEIGHT;
 
@@ -1013,61 +868,8 @@ function AgentsProjectsTimelineContent({
                 "app-sidebar-pad mb-5 flex items-center gap-2.5 pt-3 pr-8",
               )}
             >
-              <div
-                className={cn(
-                  "flex shrink-0 items-center",
-                  TIMELINE_TOOLBAR_ROW_H
-                )}
-              >
-                <SegmentToggle<ViewMode>
-                  className="w-[12.25rem] [&>button]:flex-1"
-                  aria-label="Timeline view"
-                  value={viewMode}
-                  onChange={(v) => setViewMode(v)}
-                  options={[
-                    {
-                      value: "gantt",
-                      label: "Gantt",
-                      icon: (
-                        <GanttChartSquare
-                          className="h-3.5 w-3.5 shrink-0 text-neutral-400"
-                          strokeWidth={1.5}
-                        />
-                      ),
-                    },
-                    {
-                      value: "list",
-                      label: "List",
-                      icon: (
-                        <LayoutList
-                          className="h-3.5 w-3.5 shrink-0 text-neutral-400"
-                          strokeWidth={1.5}
-                        />
-                      ),
-                    },
-                  ]}
-                />
-
-                <motion.div
-                  className={cn("flex shrink-0 items-center overflow-visible", TIMELINE_TOOLBAR_ROW_H)}
-                  initial={false}
-                  animate={
-                    viewMode === "gantt"
-                      ? { width: "auto", opacity: 1, marginLeft: 10 }
-                      : { width: 0, opacity: 0, marginLeft: 0 }
-                  }
-                  transition={{
-                    duration: 0.22,
-                    ease: [0.4, 0, 0.2, 1],
-                  }}
-                  aria-hidden={viewMode !== "gantt"}
-                >
-                  <div
-                    className={cn(
-                      "w-max shrink-0 whitespace-nowrap",
-                      viewMode !== "gantt" && "pointer-events-none"
-                    )}
-                  >
+              <div className={cn("flex shrink-0 items-center gap-2", TIMELINE_TOOLBAR_ROW_H)}>
+                  <div className="w-max shrink-0 whitespace-nowrap">
                     <SegmentToggle<GanttMode>
                       aria-label="Gantt grouping"
                       value={ganttMode}
@@ -1078,7 +880,6 @@ function AgentsProjectsTimelineContent({
                       ]}
                     />
                   </div>
-                </motion.div>
                 <div className="ml-2 shrink-0">
                   <ProjectsHeader
                     filterOnly
@@ -1097,6 +898,20 @@ function AgentsProjectsTimelineContent({
                   TIMELINE_TOOLBAR_ROW_H
                 )}
               >
+                <div className="flex shrink-0 items-center gap-2 rounded-full border border-neutral-200/80 bg-white/80 px-3 py-2 shadow-sm">
+                  <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-neutral-400">Scale</span>
+                  <Minus className="h-3 w-3 text-[var(--kenoo-sky)]" aria-hidden />
+                  <Slider
+                    aria-label="Timeline scale"
+                    min={MIN_DAY_WIDTH}
+                    max={MAX_DAY_WIDTH}
+                    step={1}
+                    value={[dayWidth]}
+                    onValueChange={(value) => setDayWidth(value[0] ?? dayWidth)}
+                    className="w-28"
+                  />
+                  <Plus className="h-3 w-3 text-[var(--kenoo-sky)]" aria-hidden />
+                </div>
                 {statusFilter && (
                   <button
                     type="button"
@@ -1109,33 +924,12 @@ function AgentsProjectsTimelineContent({
                 )}
               </div>
 
-              <motion.div
-                className={cn(
-                  "flex shrink-0 items-center justify-end overflow-hidden",
-                  TIMELINE_TOOLBAR_ROW_H
-                )}
-                initial={false}
-                animate={
-                  viewMode === "gantt"
-                    ? { width: "auto", opacity: 1 }
-                    : { width: 0, opacity: 0 }
-                }
-                transition={{
-                  duration: 0.22,
-                  ease: [0.4, 0, 0.2, 1],
-                }}
-                aria-hidden={viewMode !== "gantt"}
-              >
-                <div
-                  className={cn(
-                    "flex w-max shrink-0 items-center gap-1.5 whitespace-nowrap",
-                    viewMode !== "gantt" && "pointer-events-none"
-                  )}
-                >
+              <div className={cn("flex shrink-0 items-center justify-end", TIMELINE_TOOLBAR_ROW_H)}>
+                <div className="flex w-max shrink-0 items-center gap-1.5 whitespace-nowrap">
                   <button
                     type="button"
                     className="flex cursor-pointer items-center justify-center border-none bg-transparent p-0 hover:bg-transparent group"
-                    onClick={() => setRangeStart((d) => subWeeks(d, 4))}
+                    onClick={() => scrollRef.current?.scrollBy({ left: -28 * dayWidth, behavior: "smooth" })}
                   >
                     <div className="relative z-10 flex h-7 w-7 items-center justify-center rounded-full border border-transparent transition-all duration-300 ease-in-out group-hover:bg-neutral-100">
                       <ChevronLeft className="h-4 w-4 text-neutral-500" />
@@ -1145,7 +939,15 @@ function AgentsProjectsTimelineContent({
                     type="button"
                     className="flex cursor-pointer items-center justify-center border-none bg-transparent p-0 hover:bg-transparent group"
                     onClick={() => {
-                      setRangeStart(startOfDay(new Date()));
+                      if (scrollRef.current) {
+                        scrollRef.current.scrollTo({
+                          left: Math.max(
+                            0,
+                            differenceInDays(startOfDay(new Date()), timelineStart) * dayWidth
+                          ),
+                          behavior: "smooth",
+                        });
+                      }
                     }}
                   >
                     <div className="relative z-10 flex h-7 items-center gap-2 rounded-full border border-transparent px-3 text-xs font-medium uppercase tracking-wider text-neutral-500 transition-all duration-300 ease-in-out group-hover:bg-neutral-100">
@@ -1159,22 +961,21 @@ function AgentsProjectsTimelineContent({
                   <button
                     type="button"
                     className="flex cursor-pointer items-center justify-center border-none bg-transparent p-0 hover:bg-transparent group"
-                    onClick={() => setRangeStart((d) => addWeeks(d, 4))}
+                    onClick={() => scrollRef.current?.scrollBy({ left: 28 * dayWidth, behavior: "smooth" })}
                   >
                     <div className="relative z-10 flex h-7 w-7 items-center justify-center rounded-full border border-transparent transition-all duration-300 ease-in-out group-hover:bg-neutral-100">
                       <ChevronRight className="h-4 w-4 text-neutral-500" />
                     </div>
                   </button>
                 </div>
-              </motion.div>
+              </div>
             </div>
           </div>
 
           {/* Scrollable content area - fills remaining space */}
           <div className="flex-1 min-h-0 overflow-hidden">
             {/* ── GANTT VIEW ── */}
-            {viewMode === "gantt" && (
-              <div className="app-sidebar-pad h-full flex flex-col pr-8">
+            <div className="app-sidebar-pad h-full flex flex-col pr-8">
                 {loading ? (
                   <div className="space-y-2">
                     {Array.from({ length: 8 }).map((_, i) => (
@@ -1198,22 +999,29 @@ function AgentsProjectsTimelineContent({
                         position: sticky left relative to horizontal scroll. */}
                     <div
                       ref={scrollRef}
+                      onScroll={(event) => {
+                        event.currentTarget.style.setProperty(
+                          "--timeline-scroll-left",
+                          `${event.currentTarget.scrollLeft}px`
+                        );
+                      }}
                       className="overflow-auto overscroll-none flex-1 min-h-0 flex flex-col"
                     >
                       <div
                         style={{
-                          width: LABEL_WIDTH + TOTAL_DAYS * DAY_WIDTH,
-                          minWidth: LABEL_WIDTH + TOTAL_DAYS * DAY_WIDTH,
+                          width: totalDays * dayWidth,
+                          minWidth: totalDays * dayWidth,
                         }}
                         className="flex flex-col"
                       >
                         <div className="sticky top-0 z-30 shrink-0 bg-white shadow-[0_1px_0_#e4e9f0]">
-                          <GanttHeader days={days} timelineStart={rangeStart} />
+                          <GanttHeader days={days} dayWidth={dayWidth} />
                         </div>
                         <div className="relative flex-shrink-0">
                           <TodayMarker
-                            timelineStart={rangeStart}
-                            totalDays={TOTAL_DAYS}
+                            timelineStart={timelineStart}
+                            totalDays={totalDays}
+                            dayWidth={dayWidth}
                             totalHeight={ganttHeight}
                           />
                           {ganttRows.map((row, i) => {
@@ -1226,12 +1034,11 @@ function AgentsProjectsTimelineContent({
                                 label={row.label}
                                 color={row.color}
                                 barPos={row.barPos}
-                                status={isTaskRow(row) ? row.status : undefined}
-                                priority={isTaskRow(row) ? row.priority : undefined}
                                 isCompleted={row.isCompleted}
                                 isOverdueFlag={row.isOverdueFlag}
-                                totalDays={TOTAL_DAYS}
+                                totalDays={totalDays}
                                 days={days}
+                                dayWidth={dayWidth}
                                 subLabel={row.subLabel}
                                 onClick={
                                   isTaskRow(row)
@@ -1247,41 +1054,6 @@ function AgentsProjectsTimelineContent({
                   </div>
                 )}
               </div>
-            )}
-
-            {/* ── LIST VIEW ── */}
-            {viewMode === "list" && (
-              <div className="app-sidebar-pad h-full overflow-y-auto overscroll-none pb-6 pr-8">
-                {loading ? (
-                  <div className="space-y-2">
-                    {Array.from({ length: 8 }).map((_, i) => (
-                      <div key={i} className="h-14 rounded-2xl bg-neutral-100 animate-pulse" />
-                    ))}
-                  </div>
-                ) : filteredTasks.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center min-h-[240px] text-center">
-                    <div className="w-14 h-14 rounded-full bg-neutral-100 flex items-center justify-center mb-3">
-                      <LayoutList className="h-7 w-7 text-neutral-300" />
-                    </div>
-                    <p className="text-sm text-neutral-500 font-medium">No tasks found</p>
-                    <p className="text-xs text-neutral-400 mt-1">Try adjusting your filters.</p>
-                  </div>
-                ) : (
-                  filteredProjects.map((p) => {
-                    const pTasks = filteredTasks.filter((t) => t.project_id === p.id);
-                    if (pTasks.length === 0) return null;
-                    return (
-                      <ProjectListGroup
-                        key={p.id}
-                        project={p}
-                        tasks={pTasks}
-                        onTaskClick={setViewTask}
-                      />
-                    );
-                  })
-                )}
-              </div>
-            )}
           </div>
         </div>
       </div>
