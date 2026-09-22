@@ -15,11 +15,17 @@ The server exposes account-scoped Kenoo and AdPilot tools:
 - `adpilot_get_best_performing_ads`
 - `adpilot_get_audience_breakdown` for age, gender, age/gender, and country
 - `adpilot_get_saturation` for reach, audience estimates, and frequency buckets
+- `adpilot_list_automation_profiles`, `adpilot_get_automation`, and
+  `adpilot_set_automation` for account-scoped AdPilot rules on campaigns and
+  ad sets, including enable/disable, profile selection, budget bounds,
+  cooldown, and supported stop-loss settings
 
 `rangeDays: 1` represents the latest daily metric window available in the
 warehouse. It is not a rolling wall-clock 24-hour query. AdPilot write tools
 that can affect provider delivery or spend should be added through audited,
-explicit mutation endpoints rather than direct generic database writes.
+explicit mutation endpoints rather than direct generic database writes. The
+current automation mutation changes AdPilot's rules state; it does not directly
+pause or edit provider campaigns.
 
 ## Local development
 

@@ -171,6 +171,7 @@ export default function McpAuthorizePage() {
   const [authorizationId, setAuthorizationId] = React.useState<string | null>(null);
   const [clientId, setClientId] = React.useState<string | null>(null);
   const [requestedScopes, setRequestedScopes] = React.useState<string[]>([]);
+  const [showFullPermissions, setShowFullPermissions] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
   const [authorizing, setAuthorizing] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -401,13 +402,34 @@ export default function McpAuthorizePage() {
               <div className="mt-4 rounded-xl border border-neutral-200/90 bg-neutral-100 px-4 py-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-sm font-medium text-kenoo-ink">Account, organizations, and projects</p>
-                    <p className="mt-1 text-xs leading-5 text-kenoo-muted">View information available to the selected account.</p>
+                    <p className="text-sm font-medium text-kenoo-ink">Kenoo account, projects, and AdPilot</p>
                   </div>
-                  <span className="rounded-full border border-neutral-200 bg-[var(--kenoo-white)] px-2 py-0.5 text-[10px] font-semibold tracking-[0.08em] text-kenoo-muted">READ</span>
+                  <span className="shrink-0 rounded-full border border-[#f1d56a] bg-[#fff7d6] px-2 py-0.5 text-[10px] font-semibold tracking-[0.08em] text-[#806400]">READ &amp; WRITE</span>
                 </div>
-                {requestedScopes.length ? (
-                  <p className="mt-3 border-t border-kenoo-border pt-3 text-xs text-kenoo-muted">Requested scopes: {requestedScopes.join(", ")}</p>
+                <button
+                  type="button"
+                  aria-expanded={showFullPermissions}
+                  aria-controls="mcp-full-permissions"
+                  onClick={() => setShowFullPermissions((shown) => !shown)}
+                  className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-kenoo-muted transition hover:text-kenoo-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-kenoo-ink/20"
+                >
+                  {showFullPermissions ? "Show less" : "Show full permissions"}
+                  <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", showFullPermissions && "rotate-180")} />
+                </button>
+                {showFullPermissions ? (
+                  <div id="mcp-full-permissions" className="mt-3 space-y-3 border-t border-neutral-200 pt-3 text-xs leading-5 text-kenoo-muted">
+                    <div>
+                      <p className="font-semibold text-kenoo-ink">Read</p>
+                      <p>View the selected account, accessible projects and tasks, campaigns, ad sets, ads, advertising performance, audience breakdowns, saturation data, and AdPilot automation profiles and settings.</p>
+                    </div>
+                    <div>
+                      <p className="font-semibold text-kenoo-ink">Write</p>
+                      <p>Create projects and tasks. Enable or disable AdPilot automation, choose a rule profile, and update supported automation settings and budget bounds for campaigns and ad sets.</p>
+                    </div>
+                    {requestedScopes.length ? (
+                      <p className="border-t border-neutral-200 pt-3">OAuth scopes: {requestedScopes.join(", ")}</p>
+                    ) : null}
+                  </div>
                 ) : null}
               </div>
             </div>
