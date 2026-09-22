@@ -4,11 +4,11 @@ import { useAuth } from "@walls/auth";
 import { cn } from "@walls/utils";
 import { AnimatePresence, motion } from "framer-motion";
 import {
+  ClipboardCheck,
+  CalendarRange,
   ChevronLeft,
   FolderKanban,
-  GanttChartSquare,
   LayoutDashboard,
-  LayoutList,
   Lock,
   Settings,
 } from "lucide-react";
@@ -19,9 +19,9 @@ import { useAppSidebar } from "./app-sidebar-context";
 
 const navItems = [
   { href: "/", label: "Overview", icon: LayoutDashboard },
-  { href: "/tasks", label: "Tasks", icon: FolderKanban },
-  { href: "/timeline", label: "Timeline", icon: GanttChartSquare },
-  { href: "/projects", label: "Projects", icon: LayoutList },
+  { href: "/projects", label: "Projects", icon: FolderKanban },
+  { href: "/tasks", label: "Tasks", icon: ClipboardCheck },
+  { href: "/timeline", label: "Timeline", icon: CalendarRange },
   { href: "/settings", label: "Settings", icon: Settings },
 ] as const;
 

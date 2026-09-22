@@ -371,6 +371,12 @@ interface ProjectsHeaderProps {
   hideBoardFilters?: boolean;
   /** Render only the filter trigger, for toolbars that own its placement. */
   filterOnly?: boolean;
+  /** Render only the new-item trigger, for toolbars that own its placement. */
+  newOnly?: boolean;
+  /** Keep the filter panel available without rendering its trigger in the header. */
+  hideHeaderFilter?: boolean;
+  /** Keep the new-item menu available without rendering its trigger in the header. */
+  hideHeaderNewActions?: boolean;
 }
 
 export function ProjectsHeader({
@@ -387,6 +393,9 @@ export function ProjectsHeader({
   onStatusFilterChange,
   hideBoardFilters = false,
   filterOnly = false,
+  newOnly = false,
+  hideHeaderFilter = false,
+  hideHeaderNewActions = false,
 }: ProjectsHeaderProps) {
   const { user } = useAuth();
   const { activeAccountId, loading: accountLoading } = useActiveAccount();
@@ -544,17 +553,45 @@ export function ProjectsHeader({
       aria-label="Open project filters"
       aria-pressed={headerFiltersOpen}
       className={cn(
-        "flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-neutral-500 transition-all duration-300 hover:bg-neutral-100",
+        "group relative flex h-10 w-10 shrink-0 items-center justify-center bg-transparent p-0 text-neutral-500 shadow-none outline-none ring-0",
         hasHeaderFilters && "shadow-[0_0_0_1px_rgba(110,173,192,0.4),0_0_12px_rgba(110,173,192,0.4)]",
       )}
     >
-      <Filter className="h-[18px] w-[18px] stroke-[1.5]" />
+      <div className="relative z-10 flex items-center justify-center rounded-full border-0 p-3 transition-all duration-300 ease-in-out group-hover:bg-neutral-100">
+        <ListFilter className="h-[18px] w-[18px] stroke-[1.5]" />
+      </div>
     </button>
+  );
+
+  const newButton = (
+    (onNewProject || onNewTask) && (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            title="New"
+            className="w-10 h-10 p-0 text-slate-600 hover:bg-transparent flex items-center justify-center shadow-none relative group flex-shrink-0 outline-none ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none focus:ring-0"
+          >
+            <div className="relative">
+              <div className="relative z-10 p-3 rounded-full border-0 transition-all duration-300 ease-in-out group-hover:bg-neutral-100">
+                <Plus className="h-[18px] w-[18px] stroke-[1.5] text-neutral-500" />
+              </div>
+            </div>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="min-w-[10rem] rounded-xl">
+          {onNewProject && <DropdownMenuItem onSelect={onNewProject} className="cursor-pointer focus:bg-neutral-100">New project</DropdownMenuItem>}
+          {onNewTask && <DropdownMenuItem onSelect={onNewTask} className="cursor-pointer focus:bg-neutral-100">New task</DropdownMenuItem>}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    )
   );
 
   if (filterOnly) {
     return <>{filterButton}{typeof document !== "undefined" ? createPortal(headerFilterPanel, document.body) : null}</>;
   }
+
+  if (newOnly) return newButton;
 
   return (
     <>
@@ -579,7 +616,7 @@ export function ProjectsHeader({
               </span>
             )}
 
-            {!showBoardFiltersInHeader && !hideBoardFilters && (showProjectFilter || showStatusFilter)
+            {!hideHeaderFilter && !showBoardFiltersInHeader && !hideBoardFilters && (showProjectFilter || showStatusFilter)
               ? filterButton
               : null}
           </div>
@@ -587,41 +624,7 @@ export function ProjectsHeader({
 
         {/* Right: new dropdown */}
         <div className="flex items-center gap-2 flex-shrink-0">
-          {(onNewProject || onNewTask) && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  title="New"
-                  className="w-10 h-10 p-0 text-slate-600 hover:bg-transparent flex items-center justify-center shadow-none relative group flex-shrink-0 outline-none ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none focus:ring-0"
-                >
-                  <div className="relative">
-                    <div className="relative z-10 p-3 rounded-full border-0 transition-all duration-300 ease-in-out group-hover:bg-neutral-100">
-                      <Plus className="h-[18px] w-[18px] stroke-[1.5] text-neutral-500" />
-                    </div>
-                  </div>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="min-w-[10rem] rounded-xl">
-                {onNewProject && (
-                  <DropdownMenuItem
-                    onSelect={onNewProject}
-                    className="cursor-pointer focus:bg-neutral-100"
-                  >
-                    New project
-                  </DropdownMenuItem>
-                )}
-                {onNewTask && (
-                  <DropdownMenuItem
-                    onSelect={onNewTask}
-                    className="cursor-pointer focus:bg-neutral-100"
-                  >
-                    New task
-                  </DropdownMenuItem>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
+          {!hideHeaderNewActions && newButton}
         </div>
       </div>
     </div>

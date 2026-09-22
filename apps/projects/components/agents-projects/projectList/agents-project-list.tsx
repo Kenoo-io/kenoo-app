@@ -4,16 +4,17 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@walls/auth";
 import { getSupabaseClient } from "@walls/auth";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   FolderOpen,
   Plus,
   X,
   Calendar,
   ChevronRight,
-  ArrowUp,
-  ArrowDown,
   Search,
+  ChevronUp,
+  ChevronDown,
+  ChevronsUpDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useActiveAccount } from "@/components/active-account-context";
@@ -128,6 +129,26 @@ function renderMarkdownPreview(
 /* ─── Types ──────────────────────────────────────────────────────────────── */
 type SortKey = "name" | "priority" | "due_date" | "progress";
 
+type ProjectListColumn = "name" | "status" | "progress" | "tasks" | "due_date" | "actions";
+
+const PROJECT_LIST_COLUMN_WIDTHS: Record<ProjectListColumn, number> = {
+  name: 320,
+  status: 150,
+  progress: 180,
+  tasks: 110,
+  due_date: 145,
+  actions: 130,
+};
+
+const PROJECT_LIST_MIN_COLUMN_WIDTHS: Record<ProjectListColumn, number> = {
+  name: 260,
+  status: 125,
+  progress: 150,
+  tasks: 100,
+  due_date: 110,
+  actions: 120,
+};
+
 const projectsListCache = new Map<string, ProjectWithStats[]>();
 
 function getProjectsListCacheKey({
@@ -144,82 +165,111 @@ function getProjectsListCacheKey({
   return `${userId}:${accountId}:${search}:${status}`;
 }
 
-const GROUP_ORDER: ProjectStatus[] = [
-  "active",
-  "planning",
-  "on_hold",
-  "completed",
-  "cancelled",
-];
-
-const DEFAULT_COLLAPSED_GROUPS = new Set<ProjectStatus>([
-  "on_hold",
-  "completed",
-  "cancelled",
-]);
-
-/* ─── Status label (dot + text for category group headings) ──────────────── */
-function StatusBadge({ status }: { status: ProjectStatus }) {
-  const cfg = PROJECT_STATUS_CONFIG[status] ?? {
-    label: status,
-    badge: "bg-neutral-100 text-neutral-600",
-    accent: "rgb(163 163 163)",
-  };
-  return (
-    <span className="inline-flex items-center gap-2 flex-shrink-0">
-      <span
-        className="h-1.5 w-1.5 rounded-full flex-shrink-0"
-        style={{ backgroundColor: cfg.accent }}
-        aria-hidden
-      />
-      <span className="text-sm font-light text-neutral-600">{cfg.label}</span>
-    </span>
-  );
-}
-
 /* ─── Column headers ────────────────────────────────────────────────────── */
 function ColumnHeaders({
   sortBy,
   sortDir,
   onSort,
+  columnWidths,
+  resizingColumn,
+  onResizeStart,
+  onResizeMove,
+  onResizeEnd,
 }: {
   sortBy: SortKey;
   sortDir: "asc" | "desc";
   onSort: (key: SortKey) => void;
+  columnWidths: Record<ProjectListColumn, number>;
+  resizingColumn: ProjectListColumn | null;
+  onResizeStart: (event: React.PointerEvent<HTMLDivElement>, key: ProjectListColumn) => void;
+  onResizeMove: (event: React.PointerEvent<HTMLDivElement>) => void;
+  onResizeEnd: () => void;
 }) {
-  const SortIcon = ({ k }: { k: SortKey }) =>
-    sortBy === k ? (
-      sortDir === "asc" ? (
-        <ArrowUp className="h-3 w-3" />
-      ) : (
-        <ArrowDown className="h-3 w-3" />
-      )
-    ) : null;
-
-  const headerBtn = (key: SortKey, label: string, extraClass?: string) => (
+  const headerBtn = (key: SortKey, column: ProjectListColumn, label: string) => {
+    const active = sortBy === key;
+    const SortIcon = active ? (sortDir === "asc" ? ChevronUp : ChevronDown) : ChevronsUpDown;
+    return (
     <button
+      type="button"
       onClick={() => onSort(key)}
       className={cn(
-        "flex items-center gap-1 text-xs text-neutral-400 uppercase tracking-wide hover:text-neutral-600 transition-colors",
-        sortBy === key && "text-neutral-700 font-medium",
-        extraClass
+        "relative flex shrink-0 items-center gap-1.5 px-4 text-[11px] font-normal uppercase tracking-[0.16em] transition-colors",
+        active ? "text-neutral-800" : "text-neutral-500 hover:text-neutral-800"
       )}
+      style={{ width: columnWidths[column] }}
     >
       {label}
-      <SortIcon k={key} />
+      <SortIcon className={cn("h-3 w-3", !active && "text-neutral-300")} strokeWidth={1.7} />
+      <ColumnResizeHandle
+        column={column}
+        resizingColumn={resizingColumn}
+        onResizeStart={onResizeStart}
+        onResizeMove={onResizeMove}
+        onResizeEnd={onResizeEnd}
+      />
     </button>
+    );
+  };
+
+  const staticHeader = (column: ProjectListColumn, label: string) => (
+    <div
+      className="relative flex shrink-0 items-center px-4 text-[11px] font-normal uppercase tracking-[0.16em] text-neutral-500"
+      style={{ width: columnWidths[column] }}
+    >
+      {label}
+      <ColumnResizeHandle
+        column={column}
+        resizingColumn={resizingColumn}
+        onResizeStart={onResizeStart}
+        onResizeMove={onResizeMove}
+        onResizeEnd={onResizeEnd}
+      />
+    </div>
   );
 
   return (
-    <div className="sticky top-0 z-10 flex items-center gap-8 border-b border-neutral-100 bg-kenoo-white px-5 py-2">
-      <div className="w-1 flex-shrink-0" />
-      <div className="flex-1 min-w-0">{headerBtn("name", "Name")}</div>
-      <div className="mr-36 hidden w-40 shrink-0 pl-1 sm:flex">{headerBtn("progress", "Progress")}</div>
-      <div className="hidden w-24 shrink-0 text-left md:block">
-        <span className="text-xs text-neutral-400 uppercase tracking-wide">Tasks</span>
-      </div>
-      <div className="ml-16 hidden w-36 shrink-0 pl-1 lg:flex">{headerBtn("due_date", "Due Date")}</div>
-      <div className="w-32 shrink-0 pl-6" />
+    <div className="sticky top-0 z-10 flex min-w-max items-center border-b border-neutral-300 bg-kenoo-white py-2">
+      {headerBtn("name", "name", "Project")}
+      {staticHeader("status", "Status")}
+      {headerBtn("progress", "progress", "Progress")}
+      {staticHeader("tasks", "Tasks")}
+      {headerBtn("due_date", "due_date", "Due date")}
+      {staticHeader("actions", "")}
+    </div>
+  );
+}
+
+function ColumnResizeHandle({
+  column,
+  resizingColumn,
+  onResizeStart,
+  onResizeMove,
+  onResizeEnd,
+}: {
+  column: ProjectListColumn;
+  resizingColumn: ProjectListColumn | null;
+  onResizeStart: (event: React.PointerEvent<HTMLDivElement>, key: ProjectListColumn) => void;
+  onResizeMove: (event: React.PointerEvent<HTMLDivElement>) => void;
+  onResizeEnd: () => void;
+}) {
+  return (
+    <div
+      role="separator"
+      aria-orientation="vertical"
+      aria-label={`Resize ${column} column`}
+      onPointerDown={(event) => onResizeStart(event, column)}
+      onPointerMove={onResizeMove}
+      onPointerUp={onResizeEnd}
+      onPointerCancel={onResizeEnd}
+      onClick={(event) => event.stopPropagation()}
+      className="absolute right-0 top-0 z-20 h-full w-3 cursor-col-resize touch-none"
+    >
+      <div
+        className={cn(
+          "absolute right-0 top-0 h-full w-px transition-colors",
+          resizingColumn === column ? "bg-neutral-500" : "bg-neutral-300 group-hover:bg-neutral-400"
+        )}
+      />
     </div>
   );
 }
@@ -260,9 +310,11 @@ interface ProjectRowProps {
   project: ProjectWithStats;
   index: number;
   onEdit: (p: Project) => void;
+  columnWidths: Record<ProjectListColumn, number>;
+  tableWidth: number;
 }
 
-function ProjectRow({ project, index, onEdit }: ProjectRowProps) {
+function ProjectRow({ project, index, onEdit, columnWidths, tableWidth }: ProjectRowProps) {
   const cfg = PROJECT_STATUS_CONFIG[project.status];
   const pct =
     project.task_count === 0
@@ -280,22 +332,14 @@ function ProjectRow({ project, index, onEdit }: ProjectRowProps) {
       tabIndex={0}
       onClick={() => onEdit(project)}
       onKeyDown={(e) => e.key === "Enter" && onEdit(project)}
-      className="group flex items-center gap-8 px-3 py-2.5 rounded-2xl hover:bg-neutral-100/80 transition-all cursor-pointer"
+      className="group flex min-w-max cursor-pointer items-stretch border-b border-neutral-300 bg-kenoo-white transition-colors duration-200 hover:bg-gray-200/60 focus-visible:bg-gray-200/60 focus-visible:outline-none"
+      style={{ minWidth: tableWidth }}
     >
-      {/* Color accent */}
-      <div
-        className="w-1 h-9 rounded-full flex-shrink-0"
-        style={{ background: project.color ?? cfg.accent }}
-      />
-
       {/* Name + description */}
-      <div className="flex-1 min-w-0">
+      <div className="flex shrink-0 items-center gap-2 px-6 py-3" style={{ width: columnWidths.name }}>
+        <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: project.color ?? cfg.accent }} aria-hidden />
+        <div className="min-w-0 flex-1">
         <div className="flex min-w-0 items-center gap-2">
-          <span
-            className="h-2 w-2 shrink-0 rounded-full"
-            style={{ backgroundColor: project.color ?? cfg.accent }}
-            aria-hidden
-          />
           <span className="min-w-0 flex-1 truncate text-sm font-light text-neutral-600">
             {project.name}
           </span>
@@ -322,10 +366,16 @@ function ProjectRow({ project, index, onEdit }: ProjectRowProps) {
             )}
           </div>
         )}
+        </div>
+      </div>
+
+      <div className="flex shrink-0 items-center gap-2 overflow-hidden px-4 py-3" style={{ width: columnWidths.status }}>
+        <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: cfg.accent }} />
+        <span className="truncate text-sm font-light text-neutral-600">{cfg.label}</span>
       </div>
 
       {/* Progress bar */}
-      <div className="mr-36 hidden w-40 shrink-0 items-center gap-2.5 pl-1 sm:flex">
+      <div className="flex shrink-0 items-center gap-2.5 px-4 py-3" style={{ width: columnWidths.progress }}>
         <div className="min-w-0 flex-1 h-1 rounded-full bg-neutral-200 overflow-hidden">
           <div
             className={cn(
@@ -341,18 +391,19 @@ function ProjectRow({ project, index, onEdit }: ProjectRowProps) {
       </div>
 
       {/* Task count */}
-      <span className="hidden w-24 shrink-0 text-left text-xs tabular-nums text-neutral-400 md:block">
+      <span className="flex shrink-0 items-center px-4 py-3 text-left text-sm font-light tabular-nums text-neutral-500" style={{ width: columnWidths.tasks }}>
         {project.done_count}/{project.task_count}
       </span>
 
       {/* Due date */}
-      <div className="ml-16 hidden w-36 shrink-0 pl-1 lg:flex">
+      <div className="flex shrink-0 items-center overflow-hidden px-4 py-3" style={{ width: columnWidths.due_date }}>
         <DueDateLabel date={project.due_date} status={project.status} />
       </div>
 
       {/* Actions — visible on hover */}
       <div
-        className="flex w-32 shrink-0 justify-end pl-6 opacity-0 transition-opacity group-hover:opacity-100"
+        className="flex shrink-0 items-center justify-end px-4 py-3 opacity-0 transition-opacity group-hover:opacity-100"
+        style={{ width: columnWidths.actions }}
         onClick={(e) => e.stopPropagation()}
       >
         <button
@@ -364,69 +415,6 @@ function ProjectRow({ project, index, onEdit }: ProjectRowProps) {
         </button>
       </div>
     </motion.div>
-  );
-}
-
-/* ─── Status group ───────────────────────────────────────────────────────── */
-interface StatusGroupProps {
-  status: ProjectStatus;
-  projects: ProjectWithStats[];
-  onEdit: (p: Project) => void;
-}
-
-function StatusGroup({ status, projects, onEdit }: StatusGroupProps) {
-  const [collapsed, setCollapsed] = useState(DEFAULT_COLLAPSED_GROUPS.has(status));
-  const totalTasks = projects.reduce((s, p) => s + p.task_count, 0);
-  const doneTasks = projects.reduce((s, p) => s + p.done_count, 0);
-  const groupPct =
-    totalTasks === 0 ? 0 : Math.round((doneTasks / totalTasks) * 100);
-
-  return (
-    <div className="mb-3">
-      <button
-        onClick={() => setCollapsed((c) => !c)}
-        className="flex items-center gap-2 py-2 px-3 w-full rounded-xl hover:bg-neutral-50 transition-colors text-left"
-      >
-        <ChevronRight
-          className={cn(
-            "h-3.5 w-3.5 text-neutral-400 transition-transform duration-200 flex-shrink-0",
-            !collapsed && "rotate-90"
-          )}
-        />
-        <StatusBadge status={status} />
-        <span className="text-sm font-light text-neutral-600 tabular-nums">
-          ({projects.length})
-        </span>
-        {totalTasks > 0 && (
-          <span className="text-xs text-neutral-400 font-light ml-auto tabular-nums">
-            {groupPct}% complete
-          </span>
-        )}
-      </button>
-
-      <AnimatePresence initial={false}>
-        {!collapsed && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
-            className="overflow-hidden"
-          >
-            <div className="flex flex-col gap-0.5 pl-5 pt-0.5 pb-1">
-              {projects.map((project, index) => (
-                <ProjectRow
-                  key={project.id}
-                  project={project}
-                  index={index}
-                  onEdit={onEdit}
-                />
-              ))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
   );
 }
 
@@ -470,12 +458,24 @@ function ProjectsListSkeleton() {
 function SearchToolbar({
   search,
   onSearch,
+  statusFilter,
+  onStatusFilterChange,
+  onNewProject,
 }: {
   search: string;
   onSearch: (v: string) => void;
+  statusFilter: string;
+  onStatusFilterChange: (v: string) => void;
+  onNewProject: () => void;
 }) {
   return (
     <div className="flex items-center gap-3 flex-wrap mb-5">
+      <ProjectsHeader
+        filterOnly
+        statusFilter={statusFilter}
+        onStatusFilterChange={onStatusFilterChange}
+      />
+      <ProjectsHeader newOnly onNewProject={onNewProject} />
       <div className="relative flex-1 max-w-sm">
         <Search className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
         <input
@@ -605,8 +605,15 @@ function AgentsProjectsListContent({
       : null
   );
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [sortBy, setSortBy] = useState<SortKey>("priority");
+  const [sortBy, setSortBy] = useState<SortKey>("name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [columnWidths, setColumnWidths] = useState(PROJECT_LIST_COLUMN_WIDTHS);
+  const [resizingColumn, setResizingColumn] = useState<ProjectListColumn | null>(null);
+  const resizeRef = useRef<{
+    key: ProjectListColumn;
+    startX: number;
+    startWidth: number;
+  } | null>(null);
 
   const [formOpen, setFormOpen] = useState(false);
   const [editProject, setEditProject] = useState<Project | null>(null);
@@ -760,6 +767,36 @@ function AgentsProjectsListContent({
     }
   };
 
+  const handleResizeStart = (
+    event: React.PointerEvent<HTMLDivElement>,
+    key: ProjectListColumn
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    resizeRef.current = {
+      key,
+      startX: event.clientX,
+      startWidth: columnWidths[key],
+    };
+    setResizingColumn(key);
+  };
+
+  const handleResizeMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    const resize = resizeRef.current;
+    if (!resize) return;
+    const nextWidth = Math.max(
+      PROJECT_LIST_MIN_COLUMN_WIDTHS[resize.key],
+      resize.startWidth + event.clientX - resize.startX
+    );
+    setColumnWidths((current) => ({ ...current, [resize.key]: nextWidth }));
+  };
+
+  const handleResizeEnd = () => {
+    resizeRef.current = null;
+    setResizingColumn(null);
+  };
+
   const sortProjects = useCallback(
     (list: ProjectWithStats[]): ProjectWithStats[] =>
       [...list].sort((a, b) => {
@@ -800,14 +837,11 @@ function AgentsProjectsListContent({
   };
 
   const sortedProjects = sortProjects(projects);
-  const showGroups = !statusFilter && !debouncedSearch;
-
-  const groupedProjects = GROUP_ORDER.map((status) => ({
-    status,
-    items: sortedProjects.filter((p) => p.status === status),
-  })).filter((g) => g.items.length > 0);
-
   const showLoading = authLoading || loading;
+  const tableWidth = Object.values(columnWidths).reduce(
+    (total, width) => total + width,
+    0
+  );
 
   return (
     <>
@@ -816,6 +850,8 @@ function AgentsProjectsListContent({
           <div className="app-sidebar-pad flex flex-1 flex-col min-h-0 overflow-hidden pr-4 md:pr-6">
             <div className="relative z-50 flex-shrink-0">
               <ProjectsHeader
+                hideHeaderFilter
+                hideHeaderNewActions
                 onNewProject={() => {
                   setEditProject(null);
                   setFormOpen(true);
@@ -831,6 +867,12 @@ function AgentsProjectsListContent({
                 <SearchToolbar
                   search={search}
                   onSearch={setSearch}
+                  statusFilter={statusFilter}
+                  onStatusFilterChange={setStatusFilter}
+                  onNewProject={() => {
+                    setEditProject(null);
+                    setFormOpen(true);
+                  }}
                 />
               </div>
 
@@ -842,6 +884,11 @@ function AgentsProjectsListContent({
                       sortBy={sortBy}
                       sortDir={sortDir}
                       onSort={handleSort}
+                      columnWidths={columnWidths}
+                      resizingColumn={resizingColumn}
+                      onResizeStart={handleResizeStart}
+                      onResizeMove={handleResizeMove}
+                      onResizeEnd={handleResizeEnd}
                     />
                     <ProjectsListSkeleton />
                   </>
@@ -876,30 +923,24 @@ function AgentsProjectsListContent({
                       sortBy={sortBy}
                       sortDir={sortDir}
                       onSort={handleSort}
+                      columnWidths={columnWidths}
+                      resizingColumn={resizingColumn}
+                      onResizeStart={handleResizeStart}
+                      onResizeMove={handleResizeMove}
+                      onResizeEnd={handleResizeEnd}
                     />
-                    {showGroups ? (
-                      <div>
-                        {groupedProjects.map(({ status, items }) => (
-                          <StatusGroup
-                            key={status}
-                            status={status}
-                            projects={items}
-                            onEdit={openEdit}
-                          />
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="flex flex-col gap-0.5">
-                        {sortedProjects.map((project, index) => (
-                          <ProjectRow
-                            key={project.id}
-                            project={project}
-                            index={index}
-                            onEdit={openEdit}
-                          />
-                        ))}
-                      </div>
-                    )}
+                    <div className="min-w-max bg-kenoo-white" style={{ minWidth: tableWidth }}>
+                      {sortedProjects.map((project, index) => (
+                        <ProjectRow
+                          key={project.id}
+                          project={project}
+                          index={index}
+                          onEdit={openEdit}
+                          columnWidths={columnWidths}
+                          tableWidth={tableWidth}
+                        />
+                      ))}
+                    </div>
                   </>
                 )}
               </div>
