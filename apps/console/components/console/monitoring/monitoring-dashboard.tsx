@@ -253,6 +253,24 @@ function AwsSummary({ data }: { data: NonNullable<MonitoringData["providers"][nu
           <p className="mt-1 text-sm font-semibold text-neutral-950">{money(data.forecastCost, data.currency)}</p>
         </div>
       </div>
+      <div className="rounded-md border border-neutral-200 p-3">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs font-medium text-neutral-900">AWS service costs</p>
+          <p className="text-[11px] text-neutral-500">Month to date</p>
+        </div>
+        {data.costsByService.length ? (
+          <div className="mt-2 divide-y divide-neutral-100">
+            {data.costsByService.map((cost) => (
+              <div key={cost.service} className="flex items-center justify-between gap-3 py-2 text-xs">
+                <span className="min-w-0 truncate text-neutral-600" title={cost.service}>{cost.service}</span>
+                <span className="shrink-0 font-medium text-neutral-900">{money(cost.amount, data.currency)}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="mt-2 text-xs leading-5 text-neutral-500">Service-level costs will appear after Cost Explorer finishes preparing its data.</p>
+        )}
+      </div>
       {data.services.map((service) => (
         <div key={service.name} className="rounded-md bg-neutral-50 p-3 text-xs text-neutral-600">
           <p className="font-medium text-neutral-900">ECS · {service.name}</p>

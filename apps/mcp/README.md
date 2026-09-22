@@ -5,6 +5,22 @@ tools to AI clients. It does not use a Supabase service-role key: every tool
 request is executed with the connected user's Supabase access token, so RLS
 remains the authorization boundary.
 
+## Current tools
+
+The server exposes account-scoped Kenoo and AdPilot tools:
+
+- `kenoo_get_current_user`, `kenoo_list_my_accounts`, and `kenoo_list_projects`
+- `kenoo_list_tasks`, `kenoo_create_project`, and `kenoo_create_task`
+- `adpilot_list_entities` for campaigns, ad sets, and ads with aggregated metrics
+- `adpilot_get_best_performing_ads`
+- `adpilot_get_audience_breakdown` for age, gender, age/gender, and country
+- `adpilot_get_saturation` for reach, audience estimates, and frequency buckets
+
+`rangeDays: 1` represents the latest daily metric window available in the
+warehouse. It is not a rolling wall-clock 24-hour query. AdPilot write tools
+that can affect provider delivery or spend should be added through audited,
+explicit mutation endpoints rather than direct generic database writes.
+
 ## Local development
 
 Copy the root environment values into `apps/mcp/.env` or use the root

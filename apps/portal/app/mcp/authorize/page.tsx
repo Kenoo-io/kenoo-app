@@ -172,6 +172,7 @@ export default function McpAuthorizePage() {
   const [clientId, setClientId] = React.useState<string | null>(null);
   const [requestedScopes, setRequestedScopes] = React.useState<string[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [authorizing, setAuthorizing] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [previewMode, setPreviewMode] = React.useState(false);
   const [previewClient, setPreviewClient] = React.useState<(typeof PREVIEW_CLIENTS)[number]>("ChatGPT");
@@ -260,11 +261,14 @@ export default function McpAuthorizePage() {
 
   const approveConnection = async () => {
     if (previewMode) {
+      setAuthorizing(true);
+      window.setTimeout(() => setAuthorizing(false), 1000);
       return;
     }
 
     if (!authorizationId || !clientId || !selectedAccount) return;
 
+    setAuthorizing(true);
     setError(null);
     const supabase = getSupabaseClient();
     const {
@@ -272,6 +276,7 @@ export default function McpAuthorizePage() {
     } = await supabase.auth.getUser();
     if (!user) {
       setError("Your session ended. Sign in and start the connection again.");
+      setAuthorizing(false);
       return;
     }
 
@@ -295,6 +300,7 @@ export default function McpAuthorizePage() {
 
     if (authorizationWriteError) {
       setError("We couldn't save the selected account. Please try again.");
+      setAuthorizing(false);
       return;
     }
 
@@ -304,6 +310,7 @@ export default function McpAuthorizePage() {
     );
     if (approvalError || !approval) {
       setError("We couldn't complete the connection. Please try again.");
+      setAuthorizing(false);
       return;
     }
 
@@ -405,8 +412,8 @@ export default function McpAuthorizePage() {
               </div>
             </div>
 
-            <Button type="button" className="mt-8 w-full bg-black text-white shadow-[0_4px_14px_rgba(0,0,0,0.16)] hover:bg-black/90" disabled={!selectedAccount} onClick={() => void approveConnection()}>
-              Authorize {displayClientName}
+            <Button type="button" className="mt-8 w-full bg-black text-white shadow-[0_4px_14px_rgba(0,0,0,0.16)] hover:bg-black/90" disabled={!selectedAccount || authorizing} onClick={() => void approveConnection()}>
+              {authorizing ? <Loader2 className="h-4 w-4 animate-spin" aria-label="Authorizing" /> : `Authorize ${displayClientName}`}
             </Button>
             <button type="button" onClick={() => window.history.back()} className="mt-3 w-full text-center text-sm font-medium text-kenoo-muted transition hover:text-kenoo-ink">
               Cancel
