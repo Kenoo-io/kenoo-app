@@ -481,13 +481,13 @@ export function EntityStatusBadge({
     return (
       <span
         className={cn(
-          "inline-flex items-center gap-1.5 text-xs font-light whitespace-nowrap",
+          "inline-flex min-w-0 max-w-full items-center gap-1.5 overflow-hidden text-xs font-light whitespace-nowrap",
           textClass,
           className,
         )}
       >
         <StatusDot active={active} />
-        <span>{label}</span>
+        <span className="min-w-0 truncate">{label}</span>
       </span>
     );
   }
@@ -500,7 +500,7 @@ export function EntityStatusBadge({
           disabled={saving}
           onClick={(event) => event.stopPropagation()}
           className={cn(
-            "inline-flex items-center gap-1.5 rounded-lg px-1.5 py-0.5 -mx-1.5 text-xs font-light whitespace-nowrap transition",
+            "inline-flex min-w-0 max-w-full items-center gap-1.5 overflow-hidden rounded-lg px-1.5 py-0.5 -mx-1.5 text-xs font-light whitespace-nowrap transition",
             "hover:bg-black/[0.04] disabled:opacity-60",
             "outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0",
             open && "bg-black/[0.04]",
@@ -510,7 +510,7 @@ export function EntityStatusBadge({
           aria-label={`Status: ${label}. Change delivery status.`}
         >
           <StatusDot active={active} />
-          <span>{saving ? "Saving…" : label}</span>
+          <span className="min-w-0 truncate">{saving ? "Saving…" : label}</span>
           <ChevronDown
             className={cn(
               "h-3 w-3 shrink-0 text-neutral-400 transition-transform",

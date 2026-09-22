@@ -366,6 +366,8 @@ export async function listCampaignPerformance(input: {
   search?: string;
   accountId?: string;
   objective?: DashboardObjectiveBucket;
+  provider?: string;
+  status?: "active" | "paused";
   page?: number;
   pageSize?: number;
   rangeDays?: number;
@@ -639,6 +641,18 @@ export async function listCampaignPerformance(input: {
 
   if (input.objective) {
     rows = rows.filter((row) => row.objectiveBucket === input.objective);
+  }
+
+  if (input.provider) {
+    rows = rows.filter((row) => row.provider === input.provider);
+  }
+
+  if (input.status) {
+    rows = rows.filter((row) =>
+      input.status === "active"
+        ? ["active", "enabled", "eligible", "learning"].includes((row.status ?? "").toLowerCase())
+        : !["active", "enabled", "eligible", "learning"].includes((row.status ?? "").toLowerCase()),
+    );
   }
 
   if (search) {

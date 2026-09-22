@@ -399,7 +399,7 @@ export function CampaignDetailPage() {
                       key={adSet.id}
                       className="border-b border-neutral-100 transition-colors hover:bg-kenoo-white"
                     >
-                      <td className="py-4 pr-4">
+                      <td className="overflow-hidden py-4 pr-4">
                         <div className="flex min-w-0 items-center gap-2">
                           <Link
                             href={`/campaigns/${campaignId}/ad-sets/${adSet.id}`}
@@ -411,7 +411,7 @@ export function CampaignDetailPage() {
                           <LearningBadge status={adSet.learningStatus} />
                         </div>
                       </td>
-                      <td className="py-4 pr-4">
+                      <td className="overflow-hidden py-4 pr-4">
                         <EntityStatusBadge
                           status={adSet.status}
                           entityId={adSet.id}
@@ -431,7 +431,7 @@ export function CampaignDetailPage() {
                           }
                         />
                       </td>
-                      <td className="py-4 pr-4 text-xs font-light whitespace-nowrap text-neutral-500 tabular-nums">
+                      <td className="overflow-hidden py-4 pr-4 text-xs font-light whitespace-nowrap text-neutral-500 tabular-nums">
                         <AnimatedMetricValue
                           value={
                             adSet.dailyBudgetMicros != null &&
@@ -446,15 +446,15 @@ export function CampaignDetailPage() {
                           </span>
                         ) : null}
                       </td>
-                      <td className="py-4 pr-4 text-xs font-medium whitespace-nowrap text-neutral-800 tabular-nums">
+                      <td className="overflow-hidden py-4 pr-4 text-xs font-medium whitespace-nowrap text-neutral-800 tabular-nums">
                         <AnimatedMetricValue
                           value={formatCurrencyFromMicros(adSet.spendMicros)}
                         />
                       </td>
-                      <td className="py-4 pr-4 text-xs font-light whitespace-nowrap text-neutral-500 tabular-nums">
+                      <td className="overflow-hidden py-4 pr-4 text-xs font-light whitespace-nowrap text-neutral-500 tabular-nums">
                         <AnimatedMetricValue value={formatPercent(adSet.ctr)} />
                       </td>
-                      <td className="py-4 pr-4 text-xs font-light whitespace-nowrap text-neutral-500 tabular-nums">
+                      <td className="overflow-hidden py-4 pr-4 text-xs font-light whitespace-nowrap text-neutral-500 tabular-nums">
                         {formatRoas(adSet.roas)}
                       </td>
                     </tr>

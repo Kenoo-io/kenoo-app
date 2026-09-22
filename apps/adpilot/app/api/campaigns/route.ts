@@ -44,6 +44,10 @@ export async function GET(request: Request) {
     objectiveParam && OBJECTIVE_BUCKETS.has(objectiveParam as DashboardObjectiveBucket)
       ? (objectiveParam as DashboardObjectiveBucket)
       : undefined;
+  const providerParam = searchParams.get("provider") ?? undefined;
+  const provider = providerParam === "meta" || providerParam === "google" ? providerParam : undefined;
+  const statusParam = searchParams.get("status") ?? undefined;
+  const status = statusParam === "active" || statusParam === "paused" ? statusParam : undefined;
   const page = Number(searchParams.get("page") ?? "0");
   const rangeParam = searchParams.get("range") ?? "30d";
   const rangeDays = RANGE_DAYS[rangeParam] ?? 30;
@@ -63,6 +67,8 @@ export async function GET(request: Request) {
       search,
       accountId,
       objective,
+    provider,
+    status,
       page: Number.isFinite(page) ? page : 0,
       rangeDays,
       sortBy,
