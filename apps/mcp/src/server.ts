@@ -4,11 +4,57 @@ import { z } from "zod";
 
 import type { KenooIdentity } from "./auth.js";
 
-function text(value: unknown) {
+function text(value: Record<string, unknown>) {
   return {
     content: [{ type: "text" as const, text: JSON.stringify(value, null, 2) }],
+    structuredContent: value,
   };
 }
+
+// Keep the structured result shapes explicit so MCP clients can validate tool
+// responses and models can reliably use one tool's result in a later call.
+const CURRENT_USER_OUTPUT_SCHEMA = {
+  id: z.string(),
+  email: z.string().nullable(),
+  createdAt: z.string().nullable(),
+};
+const CONNECTED_ACCOUNT_OUTPUT_SCHEMA = {
+  accountId: z.string().uuid().nullable(),
+  connected: z.boolean(),
+};
+const PROJECTS_OUTPUT_SCHEMA = {
+  accountId: z.string().uuid().nullable(),
+  projects: z.array(z.record(z.unknown())),
+  message: z.string().optional(),
+};
+const AD_PERFORMANCE_OUTPUT_SCHEMA = {
+  accountId: z.string().uuid(),
+  rangeDays: z.number().int(),
+  entities: z.array(z.record(z.unknown())),
+};
+const AUDIENCE_BREAKDOWN_OUTPUT_SCHEMA = {
+  accountId: z.string().uuid(),
+  breakdownType: z.enum(["gender", "age", "age_gender", "country"]),
+  rangeDays: z.number().int(),
+  entityId: z.string().uuid().nullable(),
+  breakdown: z.array(z.record(z.unknown())),
+};
+const SATURATION_OUTPUT_SCHEMA = {
+  accountId: z.string().uuid(),
+  entity: z.record(z.unknown()),
+  rangeDays: z.number().int(),
+  frequency: z.array(z.record(z.unknown())),
+};
+const TASKS_OUTPUT_SCHEMA = {
+  accountId: z.string().uuid(),
+  tasks: z.array(z.record(z.unknown())),
+};
+const CREATE_PROJECT_OUTPUT_SCHEMA = {
+  project: z.record(z.unknown()),
+};
+const CREATE_TASK_OUTPUT_SCHEMA = {
+  task: z.record(z.unknown()),
+};
 
 const OAUTH_SECURITY_SCHEMES = [{ type: "oauth2", scopes: ["openid", "profile", "email"] }];
 
@@ -17,6 +63,13 @@ function authenticationRequired(challenge: string) {
     content: [{ type: "text" as const, text: "Authentication required. Connect your Kenoo account to continue." }],
     isError: true,
     _meta: { "mcp/www_authenticate": [challenge] },
+  };
+}
+
+function toolError(message: string) {
+  return {
+    content: [{ type: "text" as const, text: message }],
+    isError: true,
   };
 }
 
@@ -211,6 +264,7 @@ export function createKenooMcpServer(identity: KenooIdentity | null, authChallen
       // adds this as a top-level field for clients that support the current spec.
       _meta: { securitySchemes: OAUTH_SECURITY_SCHEMES },
       inputSchema: {},
+      outputSchema: CURRENT_USER_OUTPUT_SCHEMA,
     },
     async () => {
       if (!identity) return authenticationRequired(authChallenge);
@@ -230,6 +284,7 @@ export function createKenooMcpServer(identity: KenooIdentity | null, authChallen
       annotations: { readOnlyHint: true },
       _meta: { securitySchemes: OAUTH_SECURITY_SCHEMES },
       inputSchema: {},
+      outputSchema: CONNECTED_ACCOUNT_OUTPUT_SCHEMA,
     },
     async () => {
       if (!identity) return authenticationRequired(authChallenge);
@@ -249,6 +304,7 @@ export function createKenooMcpServer(identity: KenooIdentity | null, authChallen
       inputSchema: {
         limit: z.number().int().min(1).max(100).optional().describe("Maximum projects to return. Defaults to 25."),
       },
+      outputSchema: PROJECTS_OUTPUT_SCHEMA,
     },
     async ({ limit = 25 }) => {
       if (!identity) return authenticationRequired(authChallenge);
@@ -293,6 +349,7 @@ export function createKenooMcpServer(identity: KenooIdentity | null, authChallen
         search: z.string().optional(),
         limit: z.number().int().min(1).max(100).default(25),
       },
+      outputSchema: AD_PERFORMANCE_OUTPUT_SCHEMA,
     },
     async ({ entityType = "campaign", rangeDays = 7, search, limit = 25 }) => {
       if (!identity) return authenticationRequired(authChallenge);
@@ -312,6 +369,7 @@ export function createKenooMcpServer(identity: KenooIdentity | null, authChallen
         search: z.string().optional(),
         limit: z.number().int().min(1).max(100).default(10),
       },
+      outputSchema: AD_PERFORMANCE_OUTPUT_SCHEMA,
     },
     async ({ rangeDays = 7, search, limit = 10 }) => {
       if (!identity) return authenticationRequired(authChallenge);
@@ -332,6 +390,7 @@ export function createKenooMcpServer(identity: KenooIdentity | null, authChallen
         entityId: z.string().uuid().optional(),
         limit: z.number().int().min(1).max(100).default(100),
       },
+      outputSchema: AUDIENCE_BREAKDOWN_OUTPUT_SCHEMA,
     },
     async ({ breakdownType = "gender", rangeDays = 30, entityId, limit = 100 }) => {
       if (!identity) return authenticationRequired(authChallenge);
@@ -372,6 +431,7 @@ export function createKenooMcpServer(identity: KenooIdentity | null, authChallen
       annotations: { readOnlyHint: true },
       _meta: { securitySchemes: OAUTH_SECURITY_SCHEMES },
       inputSchema: { entityId: z.string().uuid(), rangeDays: z.number().int().min(1).max(30).default(7) },
+      outputSchema: SATURATION_OUTPUT_SCHEMA,
     },
     async ({ entityId, rangeDays = 7 }) => {
       if (!identity) return authenticationRequired(authChallenge);
@@ -381,7 +441,7 @@ export function createKenooMcpServer(identity: KenooIdentity | null, authChallen
         identity.supabase.from("ad_metrics_frequency_breakdowns").select("frequency_value, reach").eq("account_id", accountId).eq("entity_id", entityId).eq("range_days", rangeDays),
       ]);
       if (entityError) throw entityError; if (frequencyError) throw frequencyError;
-      if (!entity) return text({ error: "Entity not found" });
+      if (!entity) return toolError("Entity not found");
       return text({ accountId, entity, rangeDays, frequency: frequency ?? [] });
     },
   );
@@ -394,6 +454,7 @@ export function createKenooMcpServer(identity: KenooIdentity | null, authChallen
       annotations: { readOnlyHint: true },
       _meta: { securitySchemes: OAUTH_SECURITY_SCHEMES },
       inputSchema: { projectId: z.string().uuid().optional(), status: z.string().optional(), limit: z.number().int().min(1).max(100).default(50) },
+      outputSchema: TASKS_OUTPUT_SCHEMA,
     },
     async ({ projectId, status, limit = 50 }) => {
       if (!identity) return authenticationRequired(authChallenge);
@@ -415,6 +476,7 @@ export function createKenooMcpServer(identity: KenooIdentity | null, authChallen
       annotations: { readOnlyHint: false, destructiveHint: false },
       _meta: { securitySchemes: OAUTH_SECURITY_SCHEMES },
       inputSchema: { name: z.string().min(1).max(200), description: z.string().max(5000).optional(), status: z.enum(["planning", "active", "on_hold", "completed", "cancelled"]).default("planning"), dueDate: z.string().optional() },
+      outputSchema: CREATE_PROJECT_OUTPUT_SCHEMA,
     },
     async ({ name, description, status = "planning", dueDate }) => {
       if (!identity) return authenticationRequired(authChallenge);
@@ -434,12 +496,13 @@ export function createKenooMcpServer(identity: KenooIdentity | null, authChallen
       annotations: { readOnlyHint: false, destructiveHint: false },
       _meta: { securitySchemes: OAUTH_SECURITY_SCHEMES },
       inputSchema: { projectId: z.string().uuid(), title: z.string().min(1).max(300), description: z.string().max(10000).optional(), status: z.enum(["todo", "in_progress", "in_review", "on_hold", "blocked", "completed", "cancelled"]).default("todo"), dueDate: z.string().optional(), priority: z.number().int().min(0).max(5).optional() },
+      outputSchema: CREATE_TASK_OUTPUT_SCHEMA,
     },
     async ({ projectId, title, description, status = "todo", dueDate, priority }) => {
       if (!identity) return authenticationRequired(authChallenge);
       const accountId = await requireAccountForApp(identity, "projects");
       const projectIds = await listAccessibleProjectIds(identity, accountId);
-      if (!projectIds.includes(projectId)) return text({ error: "Project not found or not accessible" });
+      if (!projectIds.includes(projectId)) return toolError("Project not found or not accessible");
       const { data, error } = await identity.supabase.from("project_tasks").insert({ project_id: projectId, title, description: description ?? null, status, due_date: dueDate ?? null, priority: priority ?? null, assigned_by: identity.user.id, is_private: false }).select("id, project_id, title, description, status, due_date, priority, created_at, updated_at").single();
       if (error) throw error;
       return text({ task: data });
@@ -456,6 +519,7 @@ export function createKenooMcpServer(identity: KenooIdentity | null, authChallen
         title: "Get current Kenoo user",
         description: "Return the identity associated with the authenticated Kenoo account.",
         inputSchema: { type: "object", properties: {} },
+        outputSchema: { type: "object", properties: { id: { type: "string" }, email: { type: ["string", "null"] }, createdAt: { type: ["string", "null"] } }, required: ["id", "email", "createdAt"] },
         annotations: { readOnlyHint: true },
         securitySchemes: OAUTH_SECURITY_SCHEMES,
         _meta: { securitySchemes: OAUTH_SECURITY_SCHEMES },
@@ -465,6 +529,7 @@ export function createKenooMcpServer(identity: KenooIdentity | null, authChallen
         title: "Get connected Kenoo account",
         description: "Return the single Kenoo account selected when this connection was authorized.",
         inputSchema: { type: "object", properties: {} },
+        outputSchema: { type: "object", properties: { accountId: { type: ["string", "null"], format: "uuid" }, connected: { type: "boolean" } }, required: ["accountId", "connected"] },
         annotations: { readOnlyHint: true },
         securitySchemes: OAUTH_SECURITY_SCHEMES,
         _meta: { securitySchemes: OAUTH_SECURITY_SCHEMES },
@@ -477,6 +542,7 @@ export function createKenooMcpServer(identity: KenooIdentity | null, authChallen
           type: "object",
           properties: { limit: { type: "integer", minimum: 1, maximum: 100 } },
         },
+        outputSchema: { type: "object", properties: { accountId: { type: ["string", "null"], format: "uuid" }, projects: { type: "array", items: { type: "object", additionalProperties: true } }, message: { type: "string" } }, required: ["accountId", "projects"] },
         annotations: { readOnlyHint: true },
         securitySchemes: OAUTH_SECURITY_SCHEMES,
         _meta: { securitySchemes: OAUTH_SECURITY_SCHEMES },
@@ -486,6 +552,7 @@ export function createKenooMcpServer(identity: KenooIdentity | null, authChallen
         title: "List AdPilot performance",
         description: "List campaigns, ad sets, or ads with aggregated performance for a requested period.",
         inputSchema: { type: "object", properties: { entityType: { type: "string", enum: ["campaign", "ad_group", "ad"], default: "campaign" }, rangeDays: { type: "integer", minimum: 1, maximum: 90, default: 7 }, search: { type: "string" }, limit: { type: "integer", minimum: 1, maximum: 100, default: 25 } } },
+        outputSchema: { type: "object", properties: { accountId: { type: "string", format: "uuid" }, rangeDays: { type: "integer" }, entities: { type: "array", items: { type: "object", additionalProperties: true } } }, required: ["accountId", "rangeDays", "entities"] },
         annotations: { readOnlyHint: true }, securitySchemes: OAUTH_SECURITY_SCHEMES, _meta: { securitySchemes: OAUTH_SECURITY_SCHEMES },
       },
       {
@@ -493,6 +560,7 @@ export function createKenooMcpServer(identity: KenooIdentity | null, authChallen
         title: "Find best-performing ads",
         description: "Find the best-performing individual ads ranked by ROAS and spend.",
         inputSchema: { type: "object", properties: { rangeDays: { type: "integer", minimum: 1, maximum: 90, default: 7 }, search: { type: "string" }, limit: { type: "integer", minimum: 1, maximum: 100, default: 10 } } },
+        outputSchema: { type: "object", properties: { accountId: { type: "string", format: "uuid" }, rangeDays: { type: "integer" }, entities: { type: "array", items: { type: "object", additionalProperties: true } } }, required: ["accountId", "rangeDays", "entities"] },
         annotations: { readOnlyHint: true }, securitySchemes: OAUTH_SECURITY_SCHEMES, _meta: { securitySchemes: OAUTH_SECURITY_SCHEMES },
       },
       {
@@ -500,6 +568,7 @@ export function createKenooMcpServer(identity: KenooIdentity | null, authChallen
         title: "Get AdPilot audience breakdown",
         description: "Return age, gender, age/gender, or country performance breakdowns.",
         inputSchema: { type: "object", properties: { breakdownType: { type: "string", enum: ["gender", "age", "age_gender", "country"], default: "gender" }, rangeDays: { type: "integer", minimum: 1, maximum: 90, default: 30 }, entityId: { type: "string", format: "uuid" }, limit: { type: "integer", minimum: 1, maximum: 100, default: 100 } } },
+        outputSchema: { type: "object", properties: { accountId: { type: "string", format: "uuid" }, breakdownType: { type: "string", enum: ["gender", "age", "age_gender", "country"] }, rangeDays: { type: "integer" }, entityId: { type: ["string", "null"], format: "uuid" }, breakdown: { type: "array", items: { type: "object", additionalProperties: true } } }, required: ["accountId", "breakdownType", "rangeDays", "entityId", "breakdown"] },
         annotations: { readOnlyHint: true }, securitySchemes: OAUTH_SECURITY_SCHEMES, _meta: { securitySchemes: OAUTH_SECURITY_SCHEMES },
       },
       {
@@ -507,6 +576,7 @@ export function createKenooMcpServer(identity: KenooIdentity | null, authChallen
         title: "Get AdPilot saturation",
         description: "Return reach, estimated audience size, and frequency distribution for an entity.",
         inputSchema: { type: "object", properties: { entityId: { type: "string", format: "uuid" }, rangeDays: { type: "integer", minimum: 1, maximum: 30, default: 7 } }, required: ["entityId"] },
+        outputSchema: { type: "object", properties: { accountId: { type: "string", format: "uuid" }, entity: { type: "object", additionalProperties: true }, rangeDays: { type: "integer" }, frequency: { type: "array", items: { type: "object", additionalProperties: true } } }, required: ["accountId", "entity", "rangeDays", "frequency"] },
         annotations: { readOnlyHint: true }, securitySchemes: OAUTH_SECURITY_SCHEMES, _meta: { securitySchemes: OAUTH_SECURITY_SCHEMES },
       },
       {
@@ -514,6 +584,7 @@ export function createKenooMcpServer(identity: KenooIdentity | null, authChallen
         title: "List project tasks",
         description: "List tasks visible to the authenticated user in the selected account.",
         inputSchema: { type: "object", properties: { projectId: { type: "string", format: "uuid" }, status: { type: "string" }, limit: { type: "integer", minimum: 1, maximum: 100, default: 50 } } },
+        outputSchema: { type: "object", properties: { accountId: { type: "string", format: "uuid" }, tasks: { type: "array", items: { type: "object", additionalProperties: true } } }, required: ["accountId", "tasks"] },
         annotations: { readOnlyHint: true }, securitySchemes: OAUTH_SECURITY_SCHEMES, _meta: { securitySchemes: OAUTH_SECURITY_SCHEMES },
       },
       {
@@ -521,6 +592,7 @@ export function createKenooMcpServer(identity: KenooIdentity | null, authChallen
         title: "Create project",
         description: "Create a project in the selected Kenoo account.",
         inputSchema: { type: "object", properties: { name: { type: "string", minLength: 1, maxLength: 200 }, description: { type: "string", maxLength: 5000 }, status: { type: "string", enum: ["planning", "active", "on_hold", "completed", "cancelled"], default: "planning" }, dueDate: { type: "string" } }, required: ["name"] },
+        outputSchema: { type: "object", properties: { project: { type: "object", additionalProperties: true } }, required: ["project"] },
         annotations: { readOnlyHint: false, destructiveHint: false }, securitySchemes: OAUTH_SECURITY_SCHEMES, _meta: { securitySchemes: OAUTH_SECURITY_SCHEMES },
       },
       {
@@ -528,6 +600,7 @@ export function createKenooMcpServer(identity: KenooIdentity | null, authChallen
         title: "Create project task",
         description: "Create a task in a project the authenticated user can access.",
         inputSchema: { type: "object", properties: { projectId: { type: "string", format: "uuid" }, title: { type: "string", minLength: 1, maxLength: 300 }, description: { type: "string", maxLength: 10000 }, status: { type: "string", enum: ["todo", "in_progress", "in_review", "on_hold", "blocked", "completed", "cancelled"], default: "todo" }, dueDate: { type: "string" }, priority: { type: "integer", minimum: 0, maximum: 5 } }, required: ["projectId", "title"] },
+        outputSchema: { type: "object", properties: { task: { type: "object", additionalProperties: true } }, required: ["task"] },
         annotations: { readOnlyHint: false, destructiveHint: false }, securitySchemes: OAUTH_SECURITY_SCHEMES, _meta: { securitySchemes: OAUTH_SECURITY_SCHEMES },
       },
     ],
