@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useActiveAccount } from "@/components/active-account-context";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ProjectsHeader } from "../projects-header";
 import {
   Project,
@@ -129,11 +130,12 @@ function renderMarkdownPreview(
 /* ─── Types ──────────────────────────────────────────────────────────────── */
 type SortKey = "name" | "priority" | "due_date" | "progress";
 
-type ProjectListColumn = "name" | "status" | "progress" | "tasks" | "due_date" | "actions";
+type ProjectListColumn = "name" | "status" | "members" | "progress" | "tasks" | "due_date" | "actions";
 
 const PROJECT_LIST_COLUMN_WIDTHS: Record<ProjectListColumn, number> = {
   name: 320,
   status: 150,
+  members: 190,
   progress: 180,
   tasks: 110,
   due_date: 145,
@@ -143,13 +145,35 @@ const PROJECT_LIST_COLUMN_WIDTHS: Record<ProjectListColumn, number> = {
 const PROJECT_LIST_MIN_COLUMN_WIDTHS: Record<ProjectListColumn, number> = {
   name: 260,
   status: 125,
+  members: 160,
   progress: 150,
   tasks: 100,
   due_date: 110,
   actions: 120,
 };
 
-const projectsListCache = new Map<string, ProjectWithStats[]>();
+type ProjectListMember = {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  email: string;
+  avatar_url: string | null;
+};
+
+type ProjectListProject = ProjectWithStats & { members: ProjectListMember[] };
+
+function memberName(member: ProjectListMember) {
+  const name = `${member.first_name ?? ""} ${member.last_name ?? ""}`.trim();
+  return name || member.email.split("@")[0] || "User";
+}
+
+function memberInitials(member: ProjectListMember) {
+  const first = member.first_name?.[0] ?? "";
+  const last = member.last_name?.[0] ?? "";
+  return (first || last ? `${first}${last}` : member.email?.[0] ?? "U").toUpperCase();
+}
+
+const projectsListCache = new Map<string, ProjectListProject[]>();
 
 function getProjectsListCacheKey({
   userId,
@@ -231,6 +255,7 @@ function ColumnHeaders({
     <div className="sticky top-0 z-10 flex min-w-max items-center border-b border-neutral-300 bg-kenoo-white py-2">
       {headerBtn("name", "name", "Project")}
       {staticHeader("status", "Status")}
+      {staticHeader("members", "Members")}
       {headerBtn("progress", "progress", "Progress")}
       {staticHeader("tasks", "Tasks")}
       {headerBtn("due_date", "due_date", "Due date")}
@@ -307,7 +332,7 @@ function DueDateLabel({
 
 /* ─── Project row ────────────────────────────────────────────────────────── */
 interface ProjectRowProps {
-  project: ProjectWithStats;
+  project: ProjectListProject;
   index: number;
   onEdit: (p: Project) => void;
   columnWidths: Record<ProjectListColumn, number>;
@@ -372,6 +397,32 @@ function ProjectRow({ project, index, onEdit, columnWidths, tableWidth }: Projec
       <div className="flex shrink-0 items-center gap-2 overflow-hidden px-4 py-3" style={{ width: columnWidths.status }}>
         <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: cfg.accent }} />
         <span className="truncate text-sm font-light text-neutral-600">{cfg.label}</span>
+      </div>
+
+      <div className="flex shrink-0 items-center overflow-hidden px-4 py-3" style={{ width: columnWidths.members }}>
+        {project.members.length > 0 ? (
+          <div className="flex items-center -space-x-1.5">
+            {project.members.slice(0, 5).map((member) => (
+              <Avatar
+                key={member.id}
+                className="h-6 w-6 border-2 border-kenoo-white shadow-sm"
+                title={memberName(member)}
+              >
+                {member.avatar_url ? <AvatarImage src={member.avatar_url} alt="" /> : null}
+                <AvatarFallback className="bg-neutral-100 text-[9px] font-medium text-neutral-600">
+                  {memberInitials(member)}
+                </AvatarFallback>
+              </Avatar>
+            ))}
+            {project.members.length > 5 ? (
+              <div className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-kenoo-white bg-[#1F1B2E] text-[9px] font-semibold text-white shadow-sm">
+                +{project.members.length - 5}
+              </div>
+            ) : null}
+          </div>
+        ) : (
+          <span className="text-xs font-light text-neutral-300">—</span>
+        )}
       </div>
 
       {/* Progress bar */}
@@ -590,7 +641,7 @@ function AgentsProjectsListContent({
           })
         )
       : undefined;
-  const [projects, setProjects] = useState<ProjectWithStats[]>(
+  const [projects, setProjects] = useState<ProjectListProject[]>(
     () => initialCachedProjects ?? []
   );
   const [loading, setLoading] = useState(() => !initialCachedProjects);
@@ -677,12 +728,50 @@ function AgentsProjectsListContent({
         return;
       }
       const projectIds = rows.map((p) => p.id);
-      const { data: taskCounts } = await supabase
-        .from("project_tasks")
-        .select(
-          "project_id, status, is_private, assigned_by, task_assignees:project_task_assignees(user_id)"
-        )
-        .in("project_id", projectIds);
+      const [{ data: taskCounts }, { data: projectMemberRows }] = await Promise.all([
+        supabase
+          .from("project_tasks")
+          .select(
+            "project_id, status, is_private, assigned_by, task_assignees:project_task_assignees(user_id)"
+          )
+          .in("project_id", projectIds),
+        supabase
+          .from("project_members")
+          .select("project_id, user_id")
+          .in("project_id", projectIds),
+      ]);
+
+      const memberLinks = (projectMemberRows ?? []) as { project_id: string; user_id: string }[];
+      const memberIds = [
+        ...new Set([
+          ...memberLinks.map((member) => member.user_id),
+          ...rows.map((project) => project.owner_id).filter((id): id is string => Boolean(id)),
+        ]),
+      ];
+      const { data: memberUsers } = memberIds.length
+        ? await supabase
+            .from("users")
+            .select("id, first_name, last_name, email, avatar_url")
+            .in("id", memberIds)
+        : { data: [] };
+      const membersById = new Map(
+        ((memberUsers ?? []) as ProjectListMember[]).map((member) => [member.id, member]),
+      );
+      const membersByProject = new Map<string, ProjectListMember[]>();
+      for (const project of rows) {
+        const ids = [
+          ...new Set([
+            ...memberLinks
+              .filter((member) => member.project_id === project.id)
+              .map((member) => member.user_id),
+            project.owner_id,
+          ].filter((id): id is string => Boolean(id))),
+        ];
+        membersByProject.set(
+          project.id,
+          ids.map((id) => membersById.get(id)).filter((member): member is ProjectListMember => Boolean(member)),
+        );
+      }
       const countMap = new Map<string, { total: number; done: number }>();
       for (const t of taskCounts ?? []) {
         const links = (
@@ -714,6 +803,7 @@ function AgentsProjectsListContent({
           ...p,
           task_count: countMap.get(p.id)?.total ?? 0,
           done_count: countMap.get(p.id)?.done ?? 0,
+          members: membersByProject.get(p.id) ?? [],
         }));
       projectsListCache.set(cacheKey, loadedProjects);
       loadedCacheKeyRef.current = cacheKey;
@@ -798,7 +888,7 @@ function AgentsProjectsListContent({
   };
 
   const sortProjects = useCallback(
-    (list: ProjectWithStats[]): ProjectWithStats[] =>
+    (list: ProjectListProject[]): ProjectListProject[] =>
       [...list].sort((a, b) => {
         let cmp = 0;
         switch (sortBy) {
