@@ -1582,3 +1582,1191 @@ For CI servers and headless environments, generate a new token with firebase log
 For CI servers and headless environments, generate a new token with firebase login:ci
 [debug] [2026-09-21T19:13:46.471Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
 [debug] [2026-09-21T19:13:46.471Z] > authorizing via signed-in user (caleb@wallsentertainment.com)
+[debug] [2026-09-22T02:14:00.800Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:00.804Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:00.805Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T02:14:00.805Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T02:14:00.805Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T02:14:00.827Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:00.827Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:00.828Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T02:14:00.828Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T02:14:00.828Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T02:14:00.829Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:00.829Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:00.829Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T02:14:00.829Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T02:14:00.829Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T02:14:00.830Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:00.830Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:00.830Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T02:14:00.830Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T02:14:00.830Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T02:14:00.831Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:00.831Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:00.831Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T02:14:00.831Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T02:14:00.831Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T02:14:00.842Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:00.842Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:00.842Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T02:14:00.842Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T02:14:00.842Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T02:14:00.843Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:00.843Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:00.843Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T02:14:00.843Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T02:14:00.843Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T02:14:00.844Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:00.844Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:00.844Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T02:14:00.844Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T02:14:00.844Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T02:14:00.844Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:00.844Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:00.844Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T02:14:00.845Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T02:14:00.845Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T02:14:00.845Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:00.845Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:00.845Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T02:14:00.845Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T02:14:00.845Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T02:14:01.061Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T02:14:01.061Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T02:14:01.061Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T02:14:01.062Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T02:14:01.062Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T02:14:01.062Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T02:14:01.062Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T02:14:01.062Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T02:14:01.099Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T02:14:01.099Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T02:14:01.100Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T02:14:01.101Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T02:14:01.107Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T02:14:01.107Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T02:14:01.108Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T02:14:01.108Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T02:14:01.108Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T02:14:01.108Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T02:14:01.108Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T02:14:01.108Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T02:14:01.110Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-09-22T02:14:01.110Z] > authorizing via signed-in user (caleb@wallsentertainment.com)
+[debug] [2026-09-22T02:14:23.756Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:23.755Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:23.759Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:23.760Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T02:14:23.761Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T02:14:23.761Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T02:14:23.792Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:23.792Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:23.792Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T02:14:23.792Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T02:14:23.792Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T02:14:23.793Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:23.793Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:23.793Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T02:14:23.794Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T02:14:23.794Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T02:14:23.795Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:23.795Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:23.795Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T02:14:23.795Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T02:14:23.796Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T02:14:23.796Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:23.796Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:23.796Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T02:14:23.796Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T02:14:23.796Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T02:14:23.759Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:23.760Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T02:14:23.761Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T02:14:23.761Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T02:14:23.791Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:23.792Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:23.792Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T02:14:23.792Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T02:14:23.792Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T02:14:23.793Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:23.793Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:23.793Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T02:14:23.793Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T02:14:23.794Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T02:14:23.796Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:23.796Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:23.796Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T02:14:23.796Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T02:14:23.796Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T02:14:23.797Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:23.797Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:23.797Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T02:14:23.797Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T02:14:23.797Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T02:14:23.808Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:23.809Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:23.809Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T02:14:23.809Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T02:14:23.809Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T02:14:23.809Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:23.809Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:23.810Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T02:14:23.810Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T02:14:23.810Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T02:14:23.810Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:23.810Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:23.810Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T02:14:23.811Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T02:14:23.811Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T02:14:23.812Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:23.812Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:23.812Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T02:14:23.812Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T02:14:23.812Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T02:14:23.813Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:23.813Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:23.813Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T02:14:23.813Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T02:14:23.813Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T02:14:23.808Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:23.809Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:23.809Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T02:14:23.809Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T02:14:23.809Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T02:14:23.810Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:23.810Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:23.810Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T02:14:23.810Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T02:14:23.810Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T02:14:23.810Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:23.810Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:23.810Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T02:14:23.811Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T02:14:23.811Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T02:14:23.812Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:23.812Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:23.812Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T02:14:23.812Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T02:14:23.812Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T02:14:23.813Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:23.813Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T02:14:23.813Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T02:14:23.813Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T02:14:23.813Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T02:14:24.039Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T02:14:24.039Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T02:14:24.039Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T02:14:24.039Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T02:14:24.039Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T02:14:24.039Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T02:14:24.039Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T02:14:24.039Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T02:14:24.039Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T02:14:24.039Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T02:14:24.040Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T02:14:24.040Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T02:14:24.040Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T02:14:24.040Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T02:14:24.040Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T02:14:24.040Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T02:14:24.040Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T02:14:24.040Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T02:14:24.040Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T02:14:24.040Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T02:14:24.040Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T02:14:24.040Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T02:14:24.040Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T02:14:24.040Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T02:14:24.040Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T02:14:24.040Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T02:14:24.040Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T02:14:24.040Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T02:14:24.041Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T02:14:24.041Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T02:14:24.041Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T02:14:24.041Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T02:14:24.041Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T02:14:24.041Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T02:14:24.041Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T02:14:24.041Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T02:14:24.041Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T02:14:24.041Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T02:14:24.043Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-09-22T02:14:24.043Z] > authorizing via signed-in user (caleb@wallsentertainment.com)
+[debug] [2026-09-22T02:14:24.041Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T02:14:24.041Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T02:14:24.043Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-09-22T02:14:24.043Z] > authorizing via signed-in user (caleb@wallsentertainment.com)
+[debug] [2026-09-22T13:26:21.537Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:26:21.538Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:26:21.539Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:26:21.539Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:26:21.539Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:26:21.558Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:26:21.558Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:26:21.558Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:26:21.558Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:26:21.558Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:26:21.559Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:26:21.559Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:26:21.559Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:26:21.559Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:26:21.560Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:26:21.560Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:26:21.560Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:26:21.560Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:26:21.560Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:26:21.560Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:26:21.561Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:26:21.561Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:26:21.561Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:26:21.561Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:26:21.561Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:26:21.566Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:26:21.567Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:26:21.567Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:26:21.567Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:26:21.567Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:26:21.567Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:26:21.567Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:26:21.567Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:26:21.567Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:26:21.567Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:26:21.568Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:26:21.568Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:26:21.568Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:26:21.568Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:26:21.568Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:26:21.568Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:26:21.569Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:26:21.569Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:26:21.569Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:26:21.569Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:26:21.569Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:26:21.569Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:26:21.569Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:26:21.569Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:26:21.569Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:26:21.739Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:26:21.739Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:26:21.740Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:26:21.740Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:26:21.740Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:26:21.740Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:26:21.744Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:26:21.744Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:26:21.744Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:26:21.744Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:26:21.745Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:26:21.745Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:26:21.745Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:26:21.745Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:26:21.748Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:26:21.748Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:26:21.748Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:26:21.748Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:26:21.749Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-09-22T13:26:21.749Z] > authorizing via signed-in user (caleb@wallsentertainment.com)
+[debug] [2026-09-22T13:26:21.752Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:26:21.752Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:26:24.629Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:26:24.630Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:26:24.630Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:26:24.631Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:26:24.631Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:26:24.653Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:26:24.653Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:26:24.653Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:26:24.653Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:26:24.653Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:26:24.654Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:26:24.654Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:26:24.654Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:26:24.654Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:26:24.654Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:26:24.655Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:26:24.655Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:26:24.655Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:26:24.655Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:26:24.655Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:26:24.656Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:26:24.656Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:26:24.656Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:26:24.656Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:26:24.656Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:26:24.671Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:26:24.671Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:26:24.671Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:26:24.672Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:26:24.672Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:26:24.675Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:26:24.675Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:26:24.675Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:26:24.675Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:26:24.675Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:26:24.678Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:26:24.679Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:26:24.679Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:26:24.679Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:26:24.680Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:26:24.682Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:26:24.682Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:26:24.682Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:26:24.683Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:26:24.683Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:26:24.685Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:26:24.685Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:26:24.685Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:26:24.685Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:26:24.686Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:26:24.848Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:26:24.849Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:26:24.853Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:26:24.853Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:26:24.856Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:26:24.857Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:26:24.857Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:26:24.857Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:26:24.857Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:26:24.857Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:26:24.865Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:26:24.865Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:26:24.866Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:26:24.866Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:26:24.868Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:26:24.868Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:26:24.879Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:26:24.879Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:26:24.880Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:26:24.880Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:26:24.881Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-09-22T13:26:24.881Z] > authorizing via signed-in user (caleb@wallsentertainment.com)
+[debug] [2026-09-22T13:27:06.522Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:27:06.527Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:27:06.527Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:27:06.528Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:27:06.528Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:27:06.549Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:27:06.549Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:27:06.549Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:27:06.549Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:27:06.549Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:27:06.550Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:27:06.550Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:27:06.550Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:27:06.551Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:27:06.551Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:27:06.551Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:27:06.551Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:27:06.551Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:27:06.551Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:27:06.551Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:27:06.552Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:27:06.552Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:27:06.552Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:27:06.552Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:27:06.552Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:27:06.559Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:27:06.559Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:27:06.559Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:27:06.559Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:27:06.559Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:27:06.560Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:27:06.560Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:27:06.560Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:27:06.560Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:27:06.560Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:27:06.561Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:27:06.561Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:27:06.561Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:27:06.561Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:27:06.561Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:27:06.561Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:27:06.561Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:27:06.561Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:27:06.561Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:27:06.561Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:27:06.562Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:27:06.562Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:27:06.562Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:27:06.562Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:27:06.562Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:27:06.780Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:27:06.780Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:27:06.780Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:27:06.781Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:27:06.782Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:27:06.782Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:27:06.783Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:27:06.783Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:27:06.783Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:27:06.783Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:27:06.784Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:27:06.784Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:27:06.784Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:27:06.785Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:27:06.785Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:27:06.785Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:27:06.788Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:27:06.788Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:27:06.789Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-09-22T13:27:06.789Z] > authorizing via signed-in user (caleb@wallsentertainment.com)
+[debug] [2026-09-22T13:27:06.804Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:27:06.804Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:29:46.941Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:29:46.945Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:29:46.945Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:29:46.945Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:29:46.946Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:29:46.967Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:29:46.967Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:29:46.967Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:29:46.967Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:29:46.967Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:29:46.968Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:29:46.968Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:29:46.968Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:29:46.968Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:29:46.968Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:29:46.969Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:29:46.969Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:29:46.969Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:29:46.969Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:29:46.969Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:29:46.970Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:29:46.970Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:29:46.970Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:29:46.970Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:29:46.970Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:29:46.977Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:29:46.977Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:29:46.977Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:29:46.977Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:29:46.977Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:29:46.978Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:29:46.978Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:29:46.978Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:29:46.978Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:29:46.978Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:29:46.978Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:29:46.978Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:29:46.978Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:29:46.979Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:29:46.979Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:29:46.979Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:29:46.979Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:29:46.979Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:29:46.979Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:29:46.979Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:29:46.979Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:29:46.979Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:29:46.979Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:29:46.980Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:29:46.980Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:29:47.232Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:29:47.233Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:29:47.233Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:29:47.233Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:29:47.233Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:29:47.233Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:29:47.233Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:29:47.233Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:29:47.234Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:29:47.234Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:29:47.237Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:29:47.237Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:29:47.237Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:29:47.238Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:29:47.244Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:29:47.244Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:29:47.245Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:29:47.245Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:29:47.247Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:29:47.247Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:29:47.248Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-09-22T13:29:47.248Z] > authorizing via signed-in user (caleb@wallsentertainment.com)
+[debug] [2026-09-22T13:30:31.519Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:30:31.523Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:30:31.524Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:30:31.524Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:30:31.524Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:30:31.545Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:30:31.546Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:30:31.546Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:30:31.546Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:30:31.546Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:30:31.547Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:30:31.547Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:30:31.547Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:30:31.547Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:30:31.547Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:30:31.548Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:30:31.548Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:30:31.548Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:30:31.548Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:30:31.548Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:30:31.549Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:30:31.549Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:30:31.549Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:30:31.549Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:30:31.549Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:30:31.558Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:30:31.558Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:30:31.558Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:30:31.558Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:30:31.558Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:30:31.559Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:30:31.559Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:30:31.559Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:30:31.559Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:30:31.559Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:30:31.559Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:30:31.559Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:30:31.559Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:30:31.560Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:30:31.560Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:30:31.560Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:30:31.560Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:30:31.560Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:30:31.560Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:30:31.560Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:30:31.561Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:30:31.561Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:30:31.561Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:30:31.561Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:30:31.561Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:30:31.787Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:30:31.787Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:30:31.789Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:30:31.789Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:30:31.789Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:30:31.789Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:30:31.790Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:30:31.790Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:30:31.791Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:30:31.791Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:30:31.791Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:30:31.791Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:30:31.791Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:30:31.791Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:30:31.792Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-09-22T13:30:31.793Z] > authorizing via signed-in user (caleb@wallsentertainment.com)
+[debug] [2026-09-22T13:30:31.793Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:30:31.793Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:30:31.793Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:30:31.793Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:30:31.795Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:30:31.796Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:31:25.179Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:31:25.183Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:31:25.183Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:31:25.184Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:31:25.184Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:31:25.206Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:31:25.206Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:31:25.206Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:31:25.207Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:31:25.207Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:31:25.208Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:31:25.208Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:31:25.208Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:31:25.208Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:31:25.208Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:31:25.209Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:31:25.209Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:31:25.209Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:31:25.209Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:31:25.209Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:31:25.209Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:31:25.209Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:31:25.210Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:31:25.210Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:31:25.210Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:31:25.219Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:31:25.219Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:31:25.219Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:31:25.219Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:31:25.219Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:31:25.220Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:31:25.220Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:31:25.220Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:31:25.220Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:31:25.220Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:31:25.221Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:31:25.221Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:31:25.221Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:31:25.221Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:31:25.221Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:31:25.221Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:31:25.221Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:31:25.221Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:31:25.221Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:31:25.221Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:31:25.222Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:31:25.222Z] Checked if tokens are valid: false, expires at: 1787253039717
+[debug] [2026-09-22T13:31:25.222Z] > refreshing access token with scopes: []
+[debug] [2026-09-22T13:31:25.222Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-22T13:31:25.222Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-22T13:31:25.378Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:31:25.378Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:31:25.378Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:31:25.378Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:31:25.385Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:31:25.385Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:31:25.392Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:31:25.392Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:31:25.393Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:31:25.393Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:31:25.393Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:31:25.393Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:31:25.401Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:31:25.401Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:31:25.401Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:31:25.401Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:31:25.405Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:31:25.405Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:31:25.414Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-22T13:31:25.414Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-09-22T13:31:25.416Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-09-22T13:31:25.416Z] > authorizing via signed-in user (caleb@wallsentertainment.com)
