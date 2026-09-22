@@ -7,6 +7,7 @@ import { Layers, Megaphone, Shapes, type LucideIcon } from "lucide-react";
 import type { CampaignEntityType } from "@/lib/campaigns-server";
 import { MID_LEVEL_LIST_TAB_LABEL } from "@/lib/entity-labels";
 import { SegmentToggle } from "@/components/ui/segment-toggle";
+import { cn } from "@walls/utils";
 
 export const ENTITY_TABS: Array<{
   value: CampaignEntityType;
@@ -53,6 +54,7 @@ export function CampaignsHeaderToggle() {
       aria-label="Campaign entity type"
       value={entityType}
       onChange={handleEntityTypeChange}
+      activeClassName="text-[var(--kenoo-sky)]"
       options={ENTITY_TABS.map((tab) => {
         const Icon = tab.icon;
         return {
@@ -60,7 +62,12 @@ export function CampaignsHeaderToggle() {
           label: tab.label,
           icon: (
             <Icon
-              className="h-3.5 w-3.5 shrink-0 text-neutral-400"
+              className={cn(
+                "h-3.5 w-3.5 shrink-0",
+                entityType === tab.value
+                  ? "text-[var(--kenoo-sky)]/60"
+                  : "text-neutral-400",
+              )}
               strokeWidth={1.5}
             />
           ),
