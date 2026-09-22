@@ -64,6 +64,13 @@ const AUTOMATION_PROFILES_OUTPUT_SCHEMA = {
   accountId: z.string().uuid(),
   profiles: z.array(z.record(z.unknown())),
 };
+const AD_RUNTIME_OUTPUT_SCHEMA = {
+  accountId: z.string().uuid(),
+  ad: z.record(z.unknown()),
+  firstRecordedDeliveryDate: z.string().nullable(),
+  daysSinceFirstRecordedDelivery: z.number().int().nullable(),
+  dateMeaning: z.string(),
+};
 
 const OAUTH_SECURITY_SCHEMES = [{ type: "oauth2", scopes: ["openid", "profile", "email"] }];
 
@@ -732,6 +739,90 @@ export function createKenooMcpServer(identity: KenooIdentity | null, authChallen
   );
 
   server.registerTool(
+    "adpilot_get_ad_runtime",
+    {
+      title: "Get ad runtime",
+      description: "Find the earliest recorded delivery date for an ad and how many days ago that was. This is based on Kenoo's daily metrics history, so it may be later than the ad's true launch date.",
+      annotations: { readOnlyHint: true },
+      _meta: { securitySchemes: OAUTH_SECURITY_SCHEMES },
+      inputSchema: { adId: z.string().uuid() },
+      outputSchema: AD_RUNTIME_OUTPUT_SCHEMA,
+    },
+    async ({ adId }) => {
+      if (!identity) return authenticationRequired(authChallenge);
+      const accountId = await requireAccountForApp(identity, "adpilot");
+      const { data: ad, error: adError } = await identity.supabase
+        .from("ad_entities")
+        .select("id, name, provider, provider_entity_id, status, start_date, last_synced_at")
+        .eq("account_id", accountId)
+        .eq("id", adId)
+        .eq("entity_type", "ad")
+        .maybeSingle();
+      if (adError) throw adError;
+      if (!ad) return toolError("Ad not found");
+
+      const { data: firstMetric, error: metricError } = await identity.supabase
+        .from("ad_metrics_daily")
+        .select("metric_date")
+        .eq("account_id", accountId)
+        .eq("entity_id", adId)
+        .gt("impressions", 0)
+        .order("metric_date", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (metricError) throw metricError;
+
+      const firstRecordedDeliveryDate = firstMetric?.metric_date ?? ad.start_date ?? null;
+      const today = new Date();
+      const todayUtc = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
+      const firstDate = firstRecordedDeliveryDate ? new Date(`${firstRecordedDeliveryDate}T00:00:00Z`) : null;
+      const daysSinceFirstRecordedDelivery = firstDate && Number.isFinite(firstDate.getTime())
+        ? Math.max(0, Math.floor((todayUtc - firstDate.getTime()) / 86_400_000))
+        : null;
+      return text({
+        accountId,
+        ad: { id: ad.id, name: ad.name, provider: ad.provider, providerEntityId: ad.provider_entity_id, status: ad.status },
+        firstRecordedDeliveryDate,
+        daysSinceFirstRecordedDelivery,
+        dateMeaning: firstMetric
+          ? "Earliest day with recorded impressions in Kenoo's available metrics history; the ad may have started earlier."
+          : ad.start_date
+            ? "Scheduled start date from the ad record; it may not be the first day the ad actually delivered."
+            : "No delivery date is available in the ad record or daily metrics history.",
+      });
+    },
+  );
+
+  server.registerTool(
+    "adpilot_set_ad_delivery_status",
+    {
+      title: "Activate or pause an ad",
+      description: "Activate or pause the selected ad on its connected Meta or Google Ads account. This changes the ad's actual provider delivery status.",
+      annotations: { readOnlyHint: false, destructiveHint: false },
+      _meta: { securitySchemes: OAUTH_SECURITY_SCHEMES },
+      inputSchema: { adId: z.string().uuid(), status: z.enum(["ACTIVE", "PAUSED"]) },
+      outputSchema: { accountId: z.string().uuid(), adId: z.string().uuid(), status: z.string(), providerResult: z.record(z.unknown()) },
+    },
+    async ({ adId, status }) => {
+      if (!identity) return authenticationRequired(authChallenge);
+      const accountId = await requireAccountForApp(identity, "adpilot");
+      const adpilotApiUrl = process.env.MCP_ADPILOT_API_URL?.trim().replace(/\/$/, "")
+        || (process.env.NODE_ENV === "production" ? "https://adpilot.kenoo.io" : "http://localhost:3001");
+      const response = await fetch(`${adpilotApiUrl}/api/mcp/ad-delivery-status`, {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${identity.accessToken}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ adId, status }),
+      });
+      const result = await response.json().catch(() => ({})) as Record<string, unknown>;
+      if (!response.ok) return toolError(typeof result.error === "string" ? result.error : "Unable to update ad delivery status.");
+      return text({ accountId, adId, status: result.status, providerResult: (result.providerResult as Record<string, unknown>) ?? {} });
+    },
+  );
+
+  server.registerTool(
     "kenoo_list_tasks",
     {
       title: "List project tasks",
@@ -898,6 +989,22 @@ export function createKenooMcpServer(identity: KenooIdentity | null, authChallen
           required: ["entityId"],
         },
         outputSchema: { type: "object", properties: { accountId: { type: "string", format: "uuid" }, entityId: { type: "string", format: "uuid" }, automation: { type: "object", additionalProperties: true } }, required: ["accountId", "entityId", "automation"] },
+        annotations: { readOnlyHint: false, destructiveHint: false }, securitySchemes: OAUTH_SECURITY_SCHEMES, _meta: { securitySchemes: OAUTH_SECURITY_SCHEMES },
+      },
+      {
+        name: "adpilot_get_ad_runtime",
+        title: "Get ad runtime",
+        description: "Find an ad's earliest recorded delivery date and the number of days since. Based on Kenoo's available daily metrics history.",
+        inputSchema: { type: "object", properties: { adId: { type: "string", format: "uuid" } }, required: ["adId"] },
+        outputSchema: { type: "object", properties: { accountId: { type: "string", format: "uuid" }, ad: { type: "object", additionalProperties: true }, firstRecordedDeliveryDate: { type: ["string", "null"] }, daysSinceFirstRecordedDelivery: { type: ["integer", "null"] }, dateMeaning: { type: "string" } }, required: ["accountId", "ad", "firstRecordedDeliveryDate", "daysSinceFirstRecordedDelivery", "dateMeaning"] },
+        annotations: { readOnlyHint: true }, securitySchemes: OAUTH_SECURITY_SCHEMES, _meta: { securitySchemes: OAUTH_SECURITY_SCHEMES },
+      },
+      {
+        name: "adpilot_set_ad_delivery_status",
+        title: "Activate or pause an ad",
+        description: "Activate or pause the selected ad on its connected Meta or Google Ads account. This changes the ad's actual provider delivery status.",
+        inputSchema: { type: "object", properties: { adId: { type: "string", format: "uuid" }, status: { type: "string", enum: ["ACTIVE", "PAUSED"] } }, required: ["adId", "status"] },
+        outputSchema: { type: "object", properties: { accountId: { type: "string", format: "uuid" }, adId: { type: "string", format: "uuid" }, status: { type: "string" }, providerResult: { type: "object", additionalProperties: true } }, required: ["accountId", "adId", "status", "providerResult"] },
         annotations: { readOnlyHint: false, destructiveHint: false }, securitySchemes: OAUTH_SECURITY_SCHEMES, _meta: { securitySchemes: OAUTH_SECURITY_SCHEMES },
       },
       {

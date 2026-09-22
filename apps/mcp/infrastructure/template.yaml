@@ -22,6 +22,10 @@ Parameters:
     Type: String
     NoEcho: true
     Description: Kenoo Supabase anonymous key. The service-role key is intentionally never used here.
+  AdPilotApiUrl:
+    Type: String
+    Default: https://adpilot.kenoo.io
+    Description: AdPilot origin used for authenticated ad delivery status updates.
   McpApiRateLimit:
     Type: Number
     Default: 50
@@ -174,6 +178,7 @@ Resources:
           NEXT_PUBLIC_SUPABASE_URL: !Ref SupabaseUrl
           NEXT_PUBLIC_SUPABASE_ANON_KEY: !Ref SupabaseAnonKey
           MCP_PUBLIC_URL: !Sub "https://${McpDomainName}"
+          MCP_ADPILOT_API_URL: !Ref AdPilotApiUrl
 
 Outputs:
   McpEndpoint:
