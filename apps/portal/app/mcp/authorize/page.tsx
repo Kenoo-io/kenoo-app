@@ -424,7 +424,7 @@ export default function McpAuthorizePage() {
                     </div>
                     <div>
                       <p className="font-semibold text-kenoo-ink">Write</p>
-                      <p>Create projects and tasks. Enable or disable AdPilot automation, choose a rule profile, and update supported automation settings and budget bounds for campaigns and ad sets.</p>
+                      <p>Create projects and tasks. Enable or disable AdPilot automation, choose a rule profile, and update supported automation settings for campaigns and ad sets. Activate or pause individual ads on their connected Meta or Google Ads account.</p>
                     </div>
                     {requestedScopes.length ? (
                       <p className="border-t border-neutral-200 pt-3">OAuth scopes: {requestedScopes.join(", ")}</p>

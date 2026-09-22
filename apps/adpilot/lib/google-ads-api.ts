@@ -136,7 +136,7 @@ function loginCustomerCandidates(
 async function mutateOnce(
   customerId: string,
   accessToken: string,
-  collection: "campaigns" | "adGroups" | "campaignBudgets",
+  collection: "campaigns" | "adGroups" | "adGroupAds" | "campaignBudgets",
   operations: Array<Record<string, unknown>>,
   loginCustomerId: string | null,
 ): Promise<GoogleAdsMutateResponse> {
@@ -161,7 +161,7 @@ async function mutateOnce(
 async function mutateGoogleAds(
   customerId: string,
   accessToken: string,
-  collection: "campaigns" | "adGroups" | "campaignBudgets",
+  collection: "campaigns" | "adGroups" | "adGroupAds" | "campaignBudgets",
   operations: Array<Record<string, unknown>>,
   loginCustomerId?: string | null,
 ): Promise<Record<string, unknown>> {
@@ -325,6 +325,7 @@ export async function updateGoogleEntityStatus(
     customerId: string;
     entityType: string;
     providerEntityId: string;
+    parentProviderEntityId?: string | null;
     accessToken: string;
     status: GoogleAdsDeliveryStatus;
   },
@@ -345,7 +346,24 @@ export async function updateGoogleEntityStatus(
       input.status,
     );
   }
-  throw new Error("Only Google Ads campaigns and ad groups support status changes.");
+  if (input.entityType === "ad") {
+    const adGroupId = digitsOnly(input.parentProviderEntityId);
+    const adId = digitsOnly(input.providerEntityId);
+    if (!adGroupId || !adId) {
+      throw new Error("Google Ads ad is missing its parent ad group.");
+    }
+    const customerId = digitsOnly(input.customerId);
+    return mutateGoogleAds(customerId, input.accessToken, "adGroupAds", [
+      {
+        update: {
+          resourceName: `customers/${customerId}/adGroupAds/${adGroupId}~${adId}`,
+          status: googleAdsApiStatus(input.status),
+        },
+        updateMask: "status",
+      },
+    ]);
+  }
+  throw new Error("Only Google Ads campaigns, ad groups, and ads support status changes.");
 }
 
 export async function updateGoogleEntityDailyBudget(

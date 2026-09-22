@@ -1,19 +1,21 @@
 import { createAdminClient } from "@walls/supabase/admin";
 import { createClient } from "@walls/supabase/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { type AdDataScope, withAdScope } from "@/lib/ad-scope";
 import { applyProviderDeliveryStatus } from "@/lib/ad-provider-write";
 
 export type DeliveryStatus = "ACTIVE" | "PAUSED";
 
-const STATUSABLE_ENTITY_TYPES = new Set(["campaign", "ad_group"]);
+const STATUSABLE_ENTITY_TYPES = new Set(["campaign", "ad_group", "ad"]);
 
 export async function updateEntityDeliveryStatus(input: {
   scope: AdDataScope;
   entityId: string;
   status: DeliveryStatus;
-}): Promise<{ status: string }> {
-  const supabase = await createClient();
+  userClient?: SupabaseClient;
+}): Promise<{ status: string; providerResult: Record<string, unknown> }> {
+  const supabase = input.userClient ?? await createClient();
   const admin = createAdminClient();
 
   const { data: entity, error: entityError } = await withAdScope(
@@ -33,7 +35,7 @@ export async function updateEntityDeliveryStatus(input: {
     throw new Error("Only campaigns, ad sets, and ad groups support status changes.");
   }
 
-  await applyProviderDeliveryStatus({
+  const providerResult = await applyProviderDeliveryStatus({
     accountId: input.scope.accountId,
     connectionId: entity.account_connection_id as string,
     provider: (entity.provider as string | null) ?? null,
@@ -56,5 +58,5 @@ export async function updateEntityDeliveryStatus(input: {
 
   if (entityUpdateError) throw entityUpdateError;
 
-  return { status: localStatus };
+  return { status: localStatus, providerResult };
 }

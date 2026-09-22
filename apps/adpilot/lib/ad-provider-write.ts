@@ -31,6 +31,19 @@ async function parentCampaignProviderId(
   return (data.provider_entity_id as string | null) ?? null;
 }
 
+async function parentProviderEntityId(parentId: string | null, expectedType: string) {
+  if (!parentId) return null;
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("ad_entities")
+    .select("provider_entity_id, entity_type")
+    .eq("id", parentId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data || data.entity_type !== expectedType) return null;
+  return (data.provider_entity_id as string | null) ?? null;
+}
+
 export async function applyProviderDeliveryStatus(input: {
   accountId: string;
   connectionId: string;
@@ -55,6 +68,9 @@ export async function applyProviderDeliveryStatus(input: {
       customerId: digitsOnly(connection.provider_account_id),
       entityType: input.entityType,
       providerEntityId: input.providerEntityId,
+      parentProviderEntityId: input.entityType === "ad"
+        ? await parentProviderEntityId(input.parentId, "ad_group")
+        : null,
       accessToken,
       status: input.status,
     });
