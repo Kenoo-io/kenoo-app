@@ -67,12 +67,15 @@ function normalizeMcpContentType(request: Request) {
   }
 }
 
-function parseOctetStreamJson(request: Request) {
-  if (!Buffer.isBuffer(request.body)) return true;
+type ParsedMcpBody = "empty" | "invalid" | "valid";
+
+function parseOctetStreamJson(request: Request): ParsedMcpBody {
+  if (!Buffer.isBuffer(request.body)) return "valid";
+  if (request.body.length === 0) return "empty";
 
   try {
     request.body = JSON.parse(request.body.toString("utf8"));
-    return true;
+    return "valid";
   } catch (error) {
     const firstNonWhitespaceByte = request.body.find((byte: number) => !/\s/.test(String.fromCharCode(byte))) ?? null;
     console.warn("[kenoo-mcp] invalid octet-stream request body", {
@@ -80,7 +83,7 @@ function parseOctetStreamJson(request: Request) {
       firstNonWhitespaceByte,
       message: error instanceof Error ? error.message : "Unable to parse JSON.",
     });
-    return false;
+    return "invalid";
   }
 }
 
@@ -110,7 +113,15 @@ async function startStdio() {
 }
 
 async function handleMcpRequest(request: Request, response: Response) {
-  if (!parseOctetStreamJson(request)) {
+  const parsedBody = parseOctetStreamJson(request);
+  // ChatGPT sends an empty POST as a reachability probe before it starts the
+  // MCP lifecycle. Acknowledge that probe; non-empty messages still require
+  // valid JSON-RPC below.
+  if (parsedBody === "empty") {
+    response.status(200).end();
+    return;
+  }
+  if (parsedBody === "invalid") {
     response.status(400).json({ error: "MCP requests must contain a JSON-RPC body." });
     return;
   }
