@@ -7,6 +7,7 @@ import {
   AppHeader,
   type AppHeaderProps,
 } from "@walls/ui/private-app-chrome";
+import { CampaignsHeaderToggle } from "@/components/campaigns/campaigns-header-toggle";
 
 /**
  * Viewport-locked app header. Portaled to `document.body` so it never rides
@@ -22,7 +23,10 @@ export function AppTopChrome(props: AppHeaderProps) {
   if (!mounted) return null;
 
   return createPortal(
-    <AppHeader {...props} />,
+    <AppHeader
+      {...props}
+      centerContent={<CampaignsHeaderToggle />}
+    />,
     document.body,
   );
 }

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   ChevronDown,
@@ -11,13 +11,9 @@ import {
   ChevronsUpDown,
   ChevronUp,
   Filter,
-  Layers,
   ListFilter,
-  Megaphone,
   Search,
-  Shapes,
   X,
-  type LucideIcon,
 } from "lucide-react";
 
 import { cn } from "@walls/utils";
@@ -54,8 +50,14 @@ import { useResizableColumns } from "@/components/campaigns/use-resizable-column
 import { GoogleAdsIcon } from "@/components/settings/google-ads-icon";
 import { MetaIcon } from "@/components/settings/meta-icon";
 import { GOOGLE_PROVIDER, META_PROVIDER } from "@/lib/connections";
-import { MID_LEVEL_LIST_TAB_LABEL } from "@/lib/entity-labels";
-import { SegmentToggle } from "@/components/ui/segment-toggle";
+import { ENTITY_TABS } from "@/components/campaigns/campaigns-header-toggle";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const PAGE_SIZE = 25;
 const COLUMN_WIDTHS_STORAGE_KEY = "adpilot-campaigns-column-widths";
@@ -103,16 +105,6 @@ const TEXT_SORT_COLUMNS = new Set<CampaignColumnId>([
   "account",
   "status",
 ]);
-
-const ENTITY_TABS: Array<{
-  value: CampaignEntityType;
-  label: string;
-  icon: LucideIcon;
-}> = [
-  { value: "campaign", label: "Campaigns", icon: Megaphone },
-  { value: "ad_group", label: MID_LEVEL_LIST_TAB_LABEL, icon: Layers },
-  { value: "ad", label: "Ads", icon: Shapes },
-];
 
 const TIME_RANGE_OPTIONS = [
   { value: "24h", label: "Last 24 hours" },
@@ -261,8 +253,6 @@ function parentDetailHref(row: EntityPerformanceRow): string | null {
 }
 
 export function CampaignsPage() {
-  const pathname = usePathname();
-  const router = useRouter();
   const searchParams = useSearchParams();
   const initialEntityType = searchParams.get("type");
   const entityType: CampaignEntityType =
@@ -320,21 +310,6 @@ export function CampaignsPage() {
     }
     setSortColumn(columnId);
     setSortDirection(TEXT_SORT_COLUMNS.has(columnId) ? "asc" : "desc");
-  };
-
-  const handleEntityTypeChange = (nextEntityType: CampaignEntityType) => {
-    const params = new URLSearchParams(searchParams.toString());
-
-    if (nextEntityType === "campaign") {
-      params.delete("type");
-    } else if (nextEntityType === "ad_group") {
-      params.set("type", "ad_sets");
-    } else {
-      params.set("type", nextEntityType);
-    }
-
-    const query = params.toString();
-    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
   };
 
   const load = React.useCallback(async () => {
@@ -434,27 +409,6 @@ export function CampaignsPage() {
   return (
     <div className="flex h-full min-h-0 flex-col bg-kenoo-white">
       <div className="flex min-h-0 flex-1 flex-col px-6 pt-8 pb-6 md:px-10 md:pt-10">
-        <div className="mb-6 shrink-0">
-          <SegmentToggle
-            aria-label="Campaign entity type"
-            value={entityType}
-            onChange={handleEntityTypeChange}
-            options={ENTITY_TABS.map((tab) => {
-              const Icon = tab.icon;
-              return {
-                value: tab.value,
-                label: tab.label,
-                icon: (
-                  <Icon
-                    className="h-3.5 w-3.5 shrink-0 text-neutral-400"
-                    strokeWidth={1.5}
-                  />
-                ),
-              };
-            })}
-          />
-        </div>
-
         <div className="mb-5 flex shrink-0 flex-wrap items-center gap-3">
           <button
             type="button"
@@ -520,7 +474,6 @@ export function CampaignsPage() {
                     <Filter className="h-5 w-5 text-black" strokeWidth={1.5} />
                     <div>
                       <h2 className="text-lg font-semibold text-black">Filters</h2>
-                      <p className="text-xs font-light text-neutral-400">Refine your campaign view</p>
                     </div>
                   </div>
                   <button type="button" onClick={() => setFiltersOpen(false)} aria-label="Close filters" className="text-black transition-opacity hover:opacity-60">
@@ -531,33 +484,52 @@ export function CampaignsPage() {
                 <div className="flex-1 overflow-y-auto px-6 py-5">
                   <div className="space-y-6">
                     <div>
-                      <p className="mb-2 text-[10px] font-medium tracking-[0.16em] text-neutral-400 uppercase">Account</p>
-                      <select value={accountFilter} onChange={(event) => setAccountFilter(event.target.value)} className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2.5 text-sm font-light text-neutral-800 outline-none focus:border-[var(--kenoo-sky)]">
-                        <option value="">All accounts</option>
-                        {accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
-                      </select>
+                      <Select value={accountFilter || "all"} onValueChange={(value) => setAccountFilter(value === "all" ? "" : value)}>
+                        <SelectTrigger className="h-11 rounded-full border border-transparent bg-transparent px-4 text-sm font-light text-neutral-700 transition-all duration-300 hover:bg-neutral-100 focus:ring-0 focus-visible:ring-0">
+                          <span><span className="text-neutral-700">Account:</span> {selectedAccountLabel}</span>
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All accounts</SelectItem>
+                          {accounts.map((account) => <SelectItem key={account.id} value={account.id}>{account.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
                     </div>
 
                     <div>
-                      <p className="mb-2 text-[10px] font-medium tracking-[0.16em] text-neutral-400 uppercase">Outcome</p>
-                      <select value={objectiveFilter} onChange={(event) => setObjectiveFilter(event.target.value as DashboardObjectiveBucket | "")} className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2.5 text-sm font-light text-neutral-800 outline-none focus:border-[var(--kenoo-sky)]">
-                        <option value="">All outcomes</option>
-                        {objectives.map((objective) => <option key={objective.value} value={objective.value}>{objective.label}</option>)}
-                      </select>
+                      <Select value={objectiveFilter || "all"} onValueChange={(value) => setObjectiveFilter(value === "all" ? "" : value as DashboardObjectiveBucket)}>
+                        <SelectTrigger className="h-11 rounded-full border border-transparent bg-transparent px-4 text-sm font-light text-neutral-700 transition-all duration-300 hover:bg-neutral-100 focus:ring-0 focus-visible:ring-0">
+                          <span><span className="text-neutral-700">Outcome:</span> {selectedObjectiveLabel}</span>
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All outcomes</SelectItem>
+                          {objectives.map((objective) => <SelectItem key={objective.value} value={objective.value}>{objective.label}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
                     </div>
 
                     <div>
-                      <p className="mb-2 text-[10px] font-medium tracking-[0.16em] text-neutral-400 uppercase">Date range</p>
-                      <select value={timeRange} onChange={(event) => setTimeRange(event.target.value as CampaignTimeRange)} className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2.5 text-sm font-light text-neutral-800 outline-none focus:border-[var(--kenoo-sky)]">
-                        {TIME_RANGE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                      </select>
+                      <Select value={timeRange} onValueChange={(value) => setTimeRange(value as CampaignTimeRange)}>
+                        <SelectTrigger className="h-11 rounded-full border border-transparent bg-transparent px-4 text-sm font-light text-neutral-700 transition-all duration-300 hover:bg-neutral-100 focus:ring-0 focus-visible:ring-0">
+                          <span><span className="text-neutral-700">Date range:</span> {selectedTimeRangeLabel}</span>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {TIME_RANGE_OPTIONS.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
                     </div>
 
                     <div>
                       <p className="mb-2 text-[10px] font-medium tracking-[0.16em] text-neutral-400 uppercase">Platform</p>
                       <div className="grid grid-cols-3 gap-2">
-                        {[{ value: "", label: "All" }, { value: "meta", label: "Meta" }, { value: "google", label: "Google" }].map((option) => (
-                          <button key={option.value} type="button" onClick={() => setProviderFilter(option.value as "" | "meta" | "google")} className={cn("rounded-lg border px-2 py-2 text-xs font-light transition-colors", providerFilter === option.value ? "border-[var(--kenoo-sky)] bg-[var(--kenoo-sky)]/10 text-neutral-900" : "border-neutral-200 text-neutral-500 hover:bg-neutral-50")}>{option.label}</button>
+                        {[
+                          { value: "", label: "All", icon: null },
+                          { value: "meta", label: "Meta", icon: <MetaIcon className="h-4 w-4" /> },
+                          { value: "google", label: "Google", icon: <GoogleAdsIcon className="h-4 w-4" /> },
+                        ].map((option) => (
+                          <button key={option.value} type="button" onClick={() => setProviderFilter(option.value as "" | "meta" | "google")} className={cn("inline-flex items-center justify-center gap-1.5 rounded-lg border px-2 py-2 text-xs font-light transition-colors", providerFilter === option.value ? "border-[var(--kenoo-sky)] bg-[var(--kenoo-sky)]/10 text-neutral-900" : "border-neutral-200 text-neutral-500 hover:bg-neutral-50")}>
+                            {option.icon}
+                            {option.label}
+                          </button>
                         ))}
                       </div>
                     </div>
