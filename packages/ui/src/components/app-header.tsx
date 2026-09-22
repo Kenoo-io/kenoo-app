@@ -15,12 +15,14 @@ export interface AppHeaderProps extends UserProfileButtonProps {
   hidden?: boolean;
   className?: string;
   leftContent?: React.ReactNode;
+  centerContent?: React.ReactNode;
 }
 
 export default function AppHeader({
   logoHref,
   hidden = false,
   leftContent,
+  centerContent,
   className,
   dashboardPath = "/",
   ...profileProps
@@ -48,6 +50,12 @@ export default function AppHeader({
       )}
     >
       <div className="min-w-0 flex-1">{leading}</div>
+
+      {centerContent ? (
+        <div className="pointer-events-none absolute inset-y-0 left-1/2 hidden -translate-x-1/2 translate-y-0.5 items-center xl:flex">
+          <div className="pointer-events-auto">{centerContent}</div>
+        </div>
+      ) : null}
 
       <UserProfileButton dashboardPath={dashboardPath} {...profileProps} />
     </header>

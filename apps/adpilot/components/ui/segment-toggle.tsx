@@ -18,6 +18,7 @@ type SegmentToggleProps<T extends string> = {
   "aria-label": string;
   equalWidth?: boolean;
   className?: string;
+  activeClassName?: string;
 };
 
 export function SegmentToggle<T extends string>({
@@ -27,6 +28,7 @@ export function SegmentToggle<T extends string>({
   "aria-label": ariaLabel,
   equalWidth,
   className,
+  activeClassName = "text-neutral-900",
 }: SegmentToggleProps<T>) {
   const layoutId = React.useId();
 
@@ -77,7 +79,7 @@ export function SegmentToggle<T extends string>({
                 "relative z-10 flex h-8 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 text-xs font-medium uppercase tracking-wider transition-colors duration-200",
                 equalWidth && "w-full justify-center",
                 active
-                  ? "text-neutral-900"
+                  ? activeClassName
                   : "text-neutral-500 group-hover:text-neutral-700",
               )}
             >

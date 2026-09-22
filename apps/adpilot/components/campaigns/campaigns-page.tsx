@@ -10,11 +10,10 @@ import {
   ChevronRight,
   ChevronsUpDown,
   ChevronUp,
-  Layers,
-  Megaphone,
+  Filter,
+  ListFilter,
   Search,
-  Shapes,
-  type LucideIcon,
+  X,
 } from "lucide-react";
 
 import { cn } from "@walls/utils";
@@ -51,8 +50,14 @@ import { useResizableColumns } from "@/components/campaigns/use-resizable-column
 import { GoogleAdsIcon } from "@/components/settings/google-ads-icon";
 import { MetaIcon } from "@/components/settings/meta-icon";
 import { GOOGLE_PROVIDER, META_PROVIDER } from "@/lib/connections";
-import { MID_LEVEL_LIST_TAB_LABEL } from "@/lib/entity-labels";
-import { SegmentToggle } from "@/components/ui/segment-toggle";
+import { ENTITY_TABS } from "@/components/campaigns/campaigns-header-toggle";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const PAGE_SIZE = 25;
 const COLUMN_WIDTHS_STORAGE_KEY = "adpilot-campaigns-column-widths";
@@ -100,16 +105,6 @@ const TEXT_SORT_COLUMNS = new Set<CampaignColumnId>([
   "account",
   "status",
 ]);
-
-const ENTITY_TABS: Array<{
-  value: CampaignEntityType;
-  label: string;
-  icon: LucideIcon;
-}> = [
-  { value: "campaign", label: "Campaigns", icon: Megaphone },
-  { value: "ad_group", label: MID_LEVEL_LIST_TAB_LABEL, icon: Layers },
-  { value: "ad", label: "Ads", icon: Shapes },
-];
 
 const TIME_RANGE_OPTIONS = [
   { value: "24h", label: "Last 24 hours" },
@@ -260,16 +255,15 @@ function parentDetailHref(row: EntityPerformanceRow): string | null {
 export function CampaignsPage() {
   const searchParams = useSearchParams();
   const initialEntityType = searchParams.get("type");
-  const [entityType, setEntityType] = React.useState<CampaignEntityType>(() => {
-    if (
-      initialEntityType === "campaign" ||
-      initialEntityType === "ad_group" ||
-      initialEntityType === "ad"
-    ) {
-      return initialEntityType;
-    }
-    return "campaign";
-  });
+  const entityType: CampaignEntityType =
+    initialEntityType === "campaign" ||
+    initialEntityType === "ad_group" ||
+    initialEntityType === "ad_sets" ||
+    initialEntityType === "ad"
+      ? initialEntityType === "ad_sets"
+        ? "ad_group"
+        : initialEntityType
+      : "campaign";
   const [rows, setRows] = React.useState<EntityPerformanceRow[]>([]);
   const [accounts, setAccounts] = React.useState<CampaignAccountOption[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -290,6 +284,9 @@ export function CampaignsPage() {
   const [timeRange, setTimeRange] = React.useState<CampaignTimeRange>("30d");
   const [timeRangeOpen, setTimeRangeOpen] = React.useState(false);
   const timeRangeRef = React.useRef<HTMLDivElement>(null);
+  const [providerFilter, setProviderFilter] = React.useState<"" | "meta" | "google">("");
+  const [statusFilter, setStatusFilter] = React.useState<"" | "active" | "paused">("");
+  const [filtersOpen, setFiltersOpen] = React.useState(false);
   const [creativePreview, setCreativePreview] = React.useState<{
     adName: string;
     adId: string;
@@ -328,6 +325,8 @@ export function CampaignsPage() {
       if (search.trim()) params.set("search", search.trim());
       if (accountFilter) params.set("accountId", accountFilter);
       if (objectiveFilter) params.set("objective", objectiveFilter);
+      if (providerFilter) params.set("provider", providerFilter);
+      if (statusFilter) params.set("status", statusFilter);
 
       const response = await fetch(`/api/campaigns?${params.toString()}`);
       if (!response.ok) return;
@@ -350,6 +349,8 @@ export function CampaignsPage() {
     accountFilter,
     entityType,
     objectiveFilter,
+    providerFilter,
+    statusFilter,
     page,
     search,
     sortColumn,
@@ -367,6 +368,8 @@ export function CampaignsPage() {
     search,
     accountFilter,
     objectiveFilter,
+    providerFilter,
+    statusFilter,
     entityType,
     timeRange,
     sortColumn,
@@ -382,35 +385,6 @@ export function CampaignsPage() {
     }
   }, [objectiveFilter, objectives]);
 
-  React.useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (
-        accountFilterRef.current &&
-        !accountFilterRef.current.contains(event.target as Node)
-      ) {
-        setAccountFilterOpen(false);
-      }
-      if (
-        timeRangeRef.current &&
-        !timeRangeRef.current.contains(event.target as Node)
-      ) {
-        setTimeRangeOpen(false);
-      }
-      if (
-        objectiveFilterRef.current &&
-        !objectiveFilterRef.current.contains(event.target as Node)
-      ) {
-        setObjectiveFilterOpen(false);
-      }
-    }
-
-    if (accountFilterOpen || timeRangeOpen || objectiveFilterOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [accountFilterOpen, timeRangeOpen, objectiveFilterOpen]);
-
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const selectedAccountLabel = accountFilter
     ? (accounts.find((account) => account.id === accountFilter)?.name ?? "Account")
@@ -422,32 +396,173 @@ export function CampaignsPage() {
   const selectedTimeRangeLabel =
     TIME_RANGE_OPTIONS.find((option) => option.value === timeRange)?.label ??
     "Last 30 days";
+  const activeFilterCount = [accountFilter, objectiveFilter, providerFilter, statusFilter].filter(Boolean).length + (timeRange !== "30d" ? 1 : 0);
+  const hasActiveFilters = activeFilterCount > 0;
+  const resetFilters = () => {
+    setAccountFilter("");
+    setObjectiveFilter("");
+    setProviderFilter("");
+    setStatusFilter("");
+    setTimeRange("30d");
+  };
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-kenoo-white">
       <div className="flex min-h-0 flex-1 flex-col px-6 pt-8 pb-6 md:px-10 md:pt-10">
-        <div className="mb-6 shrink-0">
-          <SegmentToggle
-            aria-label="Campaign entity type"
-            value={entityType}
-            onChange={setEntityType}
-            options={ENTITY_TABS.map((tab) => {
-              const Icon = tab.icon;
-              return {
-                value: tab.value,
-                label: tab.label,
-                icon: (
-                  <Icon
-                    className="h-3.5 w-3.5 shrink-0 text-neutral-400"
-                    strokeWidth={1.5}
-                  />
-                ),
-              };
-            })}
-          />
+        <div className="mb-5 flex shrink-0 flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setFiltersOpen(true)}
+            aria-label="Open campaign filters"
+            aria-expanded={filtersOpen}
+            className={cn(
+              "group relative flex h-10 w-10 shrink-0 items-center justify-center text-neutral-500 outline-none",
+              hasActiveFilters && "text-neutral-900",
+            )}
+          >
+            <span className="relative flex items-center justify-center rounded-full p-3 transition-colors group-hover:bg-neutral-100">
+              <ListFilter className="h-[18px] w-[18px]" strokeWidth={1.5} />
+              {hasActiveFilters ? (
+                <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-[var(--kenoo-sky)]" />
+              ) : null}
+            </span>
+          </button>
+
+          <div className="relative min-w-0 max-w-sm flex-1">
+            <Search className="absolute left-0 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
+            <input
+              type="text"
+              placeholder="Search by name, account, status…"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              className={cn(
+                "w-full rounded-none border-0 border-b bg-transparent py-2 pl-6 pr-3 text-sm font-light transition-colors placeholder:text-neutral-300 focus:outline-none",
+                search ? "border-b-[var(--kenoo-sky)]" : "border-neutral-200",
+                "focus:border-b-[var(--kenoo-sky)]",
+              )}
+            />
+          </div>
+
+          {hasActiveFilters ? (
+            <button
+              type="button"
+              onClick={resetFilters}
+              className="text-xs font-light text-neutral-400 transition-colors hover:text-neutral-800"
+            >
+              Clear {activeFilterCount} filter{activeFilterCount === 1 ? "" : "s"}
+            </button>
+          ) : null}
+
+          {filtersOpen ? (
+            <>
+              <button
+                type="button"
+                aria-label="Close campaign filters"
+                onClick={() => setFiltersOpen(false)}
+                className="fixed inset-0 z-[9998] cursor-default bg-black/10"
+              />
+              <motion.aside
+                initial={{ opacity: 0, x: -28 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -28 }}
+                transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                className="fixed inset-y-0 left-0 z-[9999] flex w-80 flex-col border-r border-white/30 bg-white/90 shadow-2xl backdrop-blur-xl"
+                aria-label="Campaign filters"
+              >
+                <div className="flex items-center justify-between border-b border-black/10 p-6">
+                  <div className="flex items-center gap-3">
+                    <Filter className="h-5 w-5 text-black" strokeWidth={1.5} />
+                    <div>
+                      <h2 className="text-lg font-semibold text-black">Filters</h2>
+                    </div>
+                  </div>
+                  <button type="button" onClick={() => setFiltersOpen(false)} aria-label="Close filters" className="text-black transition-opacity hover:opacity-60">
+                    <X className="h-[18px] w-[18px]" strokeWidth={1.5} />
+                  </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto px-6 py-5">
+                  <div className="space-y-6">
+                    <div>
+                      <Select value={accountFilter || "all"} onValueChange={(value) => setAccountFilter(value === "all" ? "" : value)}>
+                        <SelectTrigger className="h-11 rounded-full border border-transparent bg-transparent px-4 text-sm font-light text-neutral-700 transition-all duration-300 hover:bg-neutral-100 focus:ring-0 focus-visible:ring-0">
+                          <span><span className="text-neutral-700">Account:</span> {selectedAccountLabel}</span>
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All accounts</SelectItem>
+                          {accounts.map((account) => <SelectItem key={account.id} value={account.id}>{account.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Select value={objectiveFilter || "all"} onValueChange={(value) => setObjectiveFilter(value === "all" ? "" : value as DashboardObjectiveBucket)}>
+                        <SelectTrigger className="h-11 rounded-full border border-transparent bg-transparent px-4 text-sm font-light text-neutral-700 transition-all duration-300 hover:bg-neutral-100 focus:ring-0 focus-visible:ring-0">
+                          <span><span className="text-neutral-700">Outcome:</span> {selectedObjectiveLabel}</span>
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All outcomes</SelectItem>
+                          {objectives.map((objective) => <SelectItem key={objective.value} value={objective.value}>{objective.label}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Select value={timeRange} onValueChange={(value) => setTimeRange(value as CampaignTimeRange)}>
+                        <SelectTrigger className="h-11 rounded-full border border-transparent bg-transparent px-4 text-sm font-light text-neutral-700 transition-all duration-300 hover:bg-neutral-100 focus:ring-0 focus-visible:ring-0">
+                          <span><span className="text-neutral-700">Date range:</span> {selectedTimeRangeLabel}</span>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {TIME_RANGE_OPTIONS.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <p className="mb-2 text-[10px] font-medium tracking-[0.16em] text-neutral-400 uppercase">Platform</p>
+                      <div className="grid grid-cols-3 gap-2">
+                        {[
+                          { value: "", label: "All", icon: null },
+                          { value: "meta", label: "Meta", icon: <MetaIcon className="h-4 w-4" /> },
+                          { value: "google", label: "Google", icon: <GoogleAdsIcon className="h-4 w-4" /> },
+                        ].map((option) => (
+                          <button key={option.value} type="button" onClick={() => setProviderFilter(option.value as "" | "meta" | "google")} className={cn("inline-flex items-center justify-center gap-1.5 rounded-lg border px-2 py-2 text-xs font-light transition-colors", providerFilter === option.value ? "border-[var(--kenoo-sky)] bg-[var(--kenoo-sky)]/10 text-neutral-900" : "border-neutral-200 text-neutral-500 hover:bg-neutral-50")}>
+                            {option.icon}
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className="mb-2 text-[10px] font-medium tracking-[0.16em] text-neutral-400 uppercase">Delivery status</p>
+                      <div className="grid grid-cols-3 gap-2">
+                        {[{ value: "", label: "All" }, { value: "active", label: "Active" }, { value: "paused", label: "Paused" }].map((option) => (
+                          <button key={option.value} type="button" onClick={() => setStatusFilter(option.value as "" | "active" | "paused")} className={cn("rounded-lg border px-2 py-2 text-xs font-light transition-colors", statusFilter === option.value ? "border-[var(--kenoo-sky)] bg-[var(--kenoo-sky)]/10 text-neutral-900" : "border-neutral-200 text-neutral-500 hover:bg-neutral-50")}>{option.label}</button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-2 border-t border-black/10 p-6">
+                  <button type="button" onClick={resetFilters} className="inline-flex h-9 items-center rounded-full px-3 text-sm font-light text-neutral-700 transition-colors hover:bg-neutral-100">Reset filters</button>
+                  <button type="button" onClick={() => setFiltersOpen(false)} className="inline-flex h-9 items-center rounded-full px-4 text-sm font-medium text-neutral-900 transition-colors hover:bg-neutral-100">Done</button>
+                </div>
+              </motion.aside>
+            </>
+          ) : null}
+
+          {!loading && totalCount > 0 ? (
+            <div className="ml-auto flex flex-shrink-0 items-center gap-2">
+              <button type="button" onClick={() => setPage((current) => Math.max(0, current - 1))} disabled={page === 0} aria-label="Previous page" className="rounded-lg p-1.5 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-700 disabled:cursor-not-allowed disabled:opacity-30"><ChevronLeft className="h-4 w-4" /></button>
+              <span className="min-w-[7.5rem] text-center text-xs font-light whitespace-nowrap text-neutral-400 tabular-nums">Page {page + 1} of {totalPages}</span>
+              <button type="button" onClick={() => setPage((current) => Math.min(totalPages - 1, current + 1))} disabled={page >= totalPages - 1} aria-label="Next page" className="rounded-lg p-1.5 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-700 disabled:cursor-not-allowed disabled:opacity-30"><ChevronRight className="h-4 w-4" /></button>
+            </div>
+          ) : null}
         </div>
 
-        <div className="mb-5 flex shrink-0 flex-wrap items-center gap-3">
+        <div className="hidden">
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-4">
             <div className="relative min-w-0 max-w-sm flex-1">
               <Search className="absolute left-0 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
@@ -832,7 +947,7 @@ export function CampaignsPage() {
                         <LearningBadge status={row.learningStatus} />
                       </div>
                     </td>
-                    <td className="py-4 pr-4 pl-3">
+                    <td className="overflow-hidden py-4 pr-4 pl-3">
                       <PlatformCell provider={row.provider} />
                     </td>
                     <td className="overflow-hidden py-4 pr-4 pl-3 text-xs font-light text-neutral-500">
@@ -854,7 +969,7 @@ export function CampaignsPage() {
                     <td className="overflow-hidden py-4 pr-4 pl-3 text-xs font-light whitespace-nowrap text-neutral-500">
                       <span className="block truncate">{row.accountName}</span>
                     </td>
-                    <td className="py-4 pr-4 pl-3">
+                    <td className="overflow-hidden py-4 pr-4 pl-3">
                       {row.entityType === "campaign" ||
                       row.entityType === "ad_group" ? (
                         <EntityStatusBadge
@@ -872,7 +987,7 @@ export function CampaignsPage() {
                         <EntityStatusBadge status={row.status} />
                       )}
                     </td>
-                    <td className="py-4 pr-4 pl-3 text-xs font-light whitespace-nowrap text-neutral-500 tabular-nums">
+                    <td className="overflow-hidden py-4 pr-4 pl-3 text-xs font-light whitespace-nowrap text-neutral-500 tabular-nums">
                       <AnimatedMetricValue
                         value={
                           row.dailyBudgetMicros != null && row.dailyBudgetMicros > 0
@@ -886,12 +1001,12 @@ export function CampaignsPage() {
                         </span>
                       ) : null}
                     </td>
-                    <td className="py-4 pr-4 pl-3 text-xs font-medium whitespace-nowrap text-neutral-800 tabular-nums">
+                    <td className="overflow-hidden py-4 pr-4 pl-3 text-xs font-medium whitespace-nowrap text-neutral-800 tabular-nums">
                       <AnimatedMetricValue
                         value={formatCurrencyFromMicros(row.spendMicros)}
                       />
                     </td>
-                    <td className="py-4 pr-4 pl-3 text-xs font-light whitespace-nowrap text-neutral-500 tabular-nums">
+                    <td className="overflow-hidden py-4 pr-4 pl-3 text-xs font-light whitespace-nowrap text-neutral-500 tabular-nums">
                       <AnimatedMetricValue
                         value={
                           row.websitePurchases === null
@@ -900,7 +1015,7 @@ export function CampaignsPage() {
                         }
                       />
                     </td>
-                    <td className="py-4 pr-4 pl-3 text-xs font-light whitespace-nowrap text-neutral-500 tabular-nums">
+                    <td className="overflow-hidden py-4 pr-4 pl-3 text-xs font-light whitespace-nowrap text-neutral-500 tabular-nums">
                       <AnimatedMetricValue
                         value={
                           row.websitePurchases === null
@@ -909,7 +1024,7 @@ export function CampaignsPage() {
                         }
                       />
                     </td>
-                    <td className="py-4 pr-4 pl-3 text-xs font-light whitespace-nowrap text-neutral-500 tabular-nums">
+                    <td className="overflow-hidden py-4 pr-4 pl-3 text-xs font-light whitespace-nowrap text-neutral-500 tabular-nums">
                       <AnimatedMetricValue
                         value={
                           row.conversionValueMicros > 0
@@ -918,18 +1033,18 @@ export function CampaignsPage() {
                         }
                       />
                     </td>
-                    <td className="py-4 pr-4 pl-3 text-xs font-light whitespace-nowrap text-neutral-500 tabular-nums">
+                    <td className="overflow-hidden py-4 pr-4 pl-3 text-xs font-light whitespace-nowrap text-neutral-500 tabular-nums">
                       <AnimatedMetricValue
                         value={formatCompactNumber(row.impressions)}
                       />
                     </td>
-                    <td className="py-4 pr-4 pl-3 text-xs font-light whitespace-nowrap text-neutral-500 tabular-nums">
+                    <td className="overflow-hidden py-4 pr-4 pl-3 text-xs font-light whitespace-nowrap text-neutral-500 tabular-nums">
                       <AnimatedMetricValue value={String(row.clicks)} />
                     </td>
-                    <td className="py-4 pr-4 pl-3 text-xs font-light whitespace-nowrap text-neutral-500 tabular-nums">
+                    <td className="overflow-hidden py-4 pr-4 pl-3 text-xs font-light whitespace-nowrap text-neutral-500 tabular-nums">
                       <AnimatedMetricValue value={formatPercent(row.ctr)} />
                     </td>
-                    <td className="py-4 pr-4 pl-3 text-xs font-light whitespace-nowrap text-neutral-500 tabular-nums">
+                    <td className="overflow-hidden py-4 pr-4 pl-3 text-xs font-light whitespace-nowrap text-neutral-500 tabular-nums">
                       {formatRoas(row.roas)}
                     </td>
                   </motion.tr>
