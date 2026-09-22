@@ -73,7 +73,13 @@ function parseOctetStreamJson(request: Request) {
   try {
     request.body = JSON.parse(request.body.toString("utf8"));
     return true;
-  } catch {
+  } catch (error) {
+    const firstNonWhitespaceByte = request.body.find((byte: number) => !/\s/.test(String.fromCharCode(byte))) ?? null;
+    console.warn("[kenoo-mcp] invalid octet-stream request body", {
+      bytes: request.body.length,
+      firstNonWhitespaceByte,
+      message: error instanceof Error ? error.message : "Unable to parse JSON.",
+    });
     return false;
   }
 }
@@ -134,6 +140,9 @@ async function handleMcpRequest(request: Request, response: Response) {
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
     });
+    transport.onerror = (error) => {
+      console.warn("[kenoo-mcp] transport error", { message: error.message });
+    };
 
     response.on("close", () => {
       void transport.close();
