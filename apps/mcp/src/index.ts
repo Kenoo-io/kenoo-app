@@ -113,6 +113,21 @@ async function startStdio() {
 }
 
 async function handleMcpRequest(request: Request, response: Response) {
+  // This transport is stateless (sessionIdGenerator: undefined) and always
+  // responds with JSON (enableJsonResponse: true), so it never opens the
+  // standalone SSE stream a GET request negotiates, and never holds session
+  // state a DELETE could tear down. Reject both up front: routing them into
+  // the SDK transport would make it try to open that SSE stream, which Lambda
+  // behind API Gateway's buffered HTTP API can't serve — it hangs until the
+  // Lambda timeout and comes back as a 500 instead of a clean, fast error.
+  if (request.method === "GET" || request.method === "DELETE") {
+    response
+      .set("Allow", "POST")
+      .status(405)
+      .json({ error: "This MCP endpoint only supports POST; it does not offer a server-push SSE stream." });
+    return;
+  }
+
   const parsedBody = parseOctetStreamJson(request);
   // ChatGPT sends an empty POST as a reachability probe before it starts the
   // MCP lifecycle. Acknowledge that probe; non-empty messages still require
