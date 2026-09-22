@@ -118,7 +118,7 @@ async function handleMcpRequest(request: Request, response: Response) {
   // MCP lifecycle. Acknowledge that probe; non-empty messages still require
   // valid JSON-RPC below.
   if (parsedBody === "empty") {
-    response.status(200).end();
+    response.status(200).json({});
     return;
   }
   if (parsedBody === "invalid") {
@@ -150,6 +150,10 @@ async function handleMcpRequest(request: Request, response: Response) {
     // session affinity or in-memory state is required to scale horizontally.
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
+      // Lambda/API Gateway is request/response infrastructure. JSON responses
+      // are valid Streamable HTTP and avoid requiring ChatGPT to hold an SSE
+      // stream open during plugin connection and tool discovery.
+      enableJsonResponse: true,
     });
     transport.onerror = (error) => {
       console.warn("[kenoo-mcp] transport error", { message: error.message });
