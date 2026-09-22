@@ -55,6 +55,15 @@ const CREATE_PROJECT_OUTPUT_SCHEMA = {
 const CREATE_TASK_OUTPUT_SCHEMA = {
   task: z.record(z.unknown()),
 };
+const AUTOMATION_OUTPUT_SCHEMA = {
+  accountId: z.string().uuid(),
+  entityId: z.string().uuid(),
+  automation: z.record(z.unknown()),
+};
+const AUTOMATION_PROFILES_OUTPUT_SCHEMA = {
+  accountId: z.string().uuid(),
+  profiles: z.array(z.record(z.unknown())),
+};
 
 const OAUTH_SECURITY_SCHEMES = [{ type: "oauth2", scopes: ["openid", "profile", "email"] }];
 
@@ -185,6 +194,118 @@ function aggregateAdMetrics(rows: Array<Record<string, unknown>>) {
     roas: spend ? totals.conversionValueMicros / 1_000_000 / spend : null,
     cpa: totals.websitePurchases ? spend / totals.websitePurchases : null,
   };
+}
+
+type AutomationSettings = {
+  aggressiveness: number;
+  maxDailyIncreasePct: number;
+  maxDailyDecreasePct: number;
+  roasFloor: number | null;
+  roasFloorInputMode: "direct" | "margin";
+  contributionMarginPct: number | null;
+  ctrFloorPct: number | null;
+  cpaCeiling: number | null;
+  roasFloorActions: Array<"stop_campaign" | "email_alert">;
+  cooldownHours: number;
+  learningPhaseProtection: boolean;
+  pauseOnFatigue: boolean;
+};
+
+const DEFAULT_AUTOMATION_SETTINGS: AutomationSettings = {
+  aggressiveness: 3,
+  maxDailyIncreasePct: 18,
+  maxDailyDecreasePct: 12,
+  roasFloor: 2.4,
+  roasFloorInputMode: "direct",
+  contributionMarginPct: 41.67,
+  ctrFloorPct: 1.2,
+  cpaCeiling: 42,
+  roasFloorActions: ["stop_campaign"],
+  cooldownHours: 24,
+  learningPhaseProtection: true,
+  pauseOnFatigue: true,
+};
+
+const AUTOMATION_PROFILE_SELECT =
+  "id, name, description, is_default, optimization_goal, settings";
+const AUTOMATION_SELECT =
+  "enabled, profile_id, settings_override, cooldown_hours, min_daily_budget_micros, max_daily_budget_micros, automation_status, last_reviewed_at, last_adjusted_at, last_error";
+
+function normalizeAutomationSettings(raw: unknown): AutomationSettings {
+  const input = raw && typeof raw === "object" ? raw as Record<string, unknown> : {};
+  const settings = { ...DEFAULT_AUTOMATION_SETTINGS } as AutomationSettings;
+  for (const key of Object.keys(DEFAULT_AUTOMATION_SETTINGS) as Array<keyof AutomationSettings>) {
+    if (key in input) (settings[key] as unknown) = input[key];
+  }
+  settings.aggressiveness = Math.min(5, Math.max(1, Math.round(Number(settings.aggressiveness) || 3)));
+  settings.cooldownHours = [24, 48, 72].reduce((best, option) =>
+    Math.abs(option - Number(settings.cooldownHours)) < Math.abs(best - Number(settings.cooldownHours)) ? option : best,
+  24);
+  settings.roasFloorActions = Array.isArray(settings.roasFloorActions)
+    ? settings.roasFloorActions.filter((value): value is "stop_campaign" | "email_alert" => value === "stop_campaign" || value === "email_alert")
+    : [...DEFAULT_AUTOMATION_SETTINGS.roasFloorActions];
+  settings.roasFloorInputMode = settings.roasFloorInputMode === "margin" ? "margin" : "direct";
+  return settings;
+}
+
+function automationSettingsOverride(base: AutomationSettings, next: AutomationSettings) {
+  const override: Record<string, unknown> = {};
+  for (const key of Object.keys(DEFAULT_AUTOMATION_SETTINGS) as Array<keyof AutomationSettings>) {
+    if (key === "cooldownHours") continue;
+    if (JSON.stringify(base[key]) !== JSON.stringify(next[key])) override[key] = next[key];
+  }
+  return override;
+}
+
+function validateAutomationSettings(settings: AutomationSettings, entity: { provider: string; objective: string | null }) {
+  const provider = entity.provider.toLowerCase();
+  const objective = (entity.objective ?? "").toUpperCase();
+  const salesContext = provider === "meta"
+    ? objective.includes("SALES") || objective.includes("CONVERSION") || objective.includes("CATALOG")
+    : provider === "google"
+      ? objective.includes("SALES") || objective.includes("SHOPPING") || objective.includes("REVENUE")
+      : false;
+  const stopLoss = salesContext ? settings.roasFloor : settings.cpaCeiling ?? settings.ctrFloorPct;
+  if (stopLoss != null && (!Number.isFinite(Number(stopLoss)) || Number(stopLoss) < 0)) {
+    throw new Error("Stop-loss value must be zero or greater.");
+  }
+  if (salesContext && settings.roasFloorInputMode === "margin" &&
+      (settings.contributionMarginPct == null || settings.contributionMarginPct < 1 || settings.contributionMarginPct > 100)) {
+    throw new Error("Profit kept per sale must be between 1% and 100%.");
+  }
+}
+
+function mapAutomation(row: Record<string, unknown> | null, profile: Record<string, unknown> | null) {
+  const override = row?.settings_override && typeof row.settings_override === "object"
+    ? row.settings_override as Record<string, unknown>
+    : {};
+  const base = normalizeAutomationSettings(profile?.settings);
+  const effectiveSettings = normalizeAutomationSettings({
+    ...base,
+    ...override,
+    cooldownHours: row?.cooldown_hours ?? base.cooldownHours,
+  });
+  return {
+    enabled: Boolean(row?.enabled),
+    profileId: (row?.profile_id as string | null) ?? (profile?.id as string | null) ?? null,
+    settingsOverride: override,
+    effectiveSettings,
+    cooldownHours: row?.cooldown_hours == null ? null : effectiveSettings.cooldownHours,
+    minDailyBudgetMicros: (row?.min_daily_budget_micros as number | null) ?? null,
+    maxDailyBudgetMicros: (row?.max_daily_budget_micros as number | null) ?? null,
+    automationStatus: (row?.automation_status as string | null) ?? "inactive",
+    lastReviewedAt: (row?.last_reviewed_at as string | null) ?? null,
+    lastAdjustedAt: (row?.last_adjusted_at as string | null) ?? null,
+    lastError: (row?.last_error as string | null) ?? null,
+  };
+}
+
+async function getAutomationProfile(identity: KenooIdentity, accountId: string, profileId?: string | null) {
+  let query = identity.supabase.from("ad_automation_profiles").select(AUTOMATION_PROFILE_SELECT).eq("account_id", accountId);
+  query = profileId ? query.eq("id", profileId) : query.eq("is_default", true);
+  const { data, error } = await query.maybeSingle();
+  if (error) throw error;
+  return data as Record<string, unknown> | null;
 }
 
 async function listAdPerformance(
@@ -447,6 +568,170 @@ export function createKenooMcpServer(identity: KenooIdentity | null, authChallen
   );
 
   server.registerTool(
+    "adpilot_list_automation_profiles",
+    {
+      title: "List AdPilot automation profiles",
+      description: "List the approved AdPilot rule profiles available to the selected account.",
+      annotations: { readOnlyHint: true },
+      _meta: { securitySchemes: OAUTH_SECURITY_SCHEMES },
+      inputSchema: {},
+      outputSchema: AUTOMATION_PROFILES_OUTPUT_SCHEMA,
+    },
+    async () => {
+      if (!identity) return authenticationRequired(authChallenge);
+      const accountId = await requireAccountForApp(identity, "adpilot");
+      const { data, error } = await identity.supabase
+        .from("ad_automation_profiles")
+        .select(AUTOMATION_PROFILE_SELECT)
+        .eq("account_id", accountId)
+        .order("is_default", { ascending: false })
+        .order("name");
+      if (error) throw error;
+      return text({
+        accountId,
+        profiles: (data ?? []).map((profile) => ({
+          id: profile.id,
+          name: profile.name,
+          description: profile.description,
+          isDefault: Boolean(profile.is_default),
+          optimizationGoal: profile.optimization_goal,
+          settings: normalizeAutomationSettings(profile.settings),
+        })),
+      });
+    },
+  );
+
+  server.registerTool(
+    "adpilot_get_automation",
+    {
+      title: "Get AdPilot automation",
+      description: "Inspect the current AdPilot rules and enablement state for a campaign or ad set.",
+      annotations: { readOnlyHint: true },
+      _meta: { securitySchemes: OAUTH_SECURITY_SCHEMES },
+      inputSchema: { entityId: z.string().uuid() },
+      outputSchema: AUTOMATION_OUTPUT_SCHEMA,
+    },
+    async ({ entityId }) => {
+      if (!identity) return authenticationRequired(authChallenge);
+      const accountId = await requireAccountForApp(identity, "adpilot");
+      const { data: entity, error: entityError } = await identity.supabase
+        .from("ad_entities")
+        .select("id, entity_type")
+        .eq("account_id", accountId)
+        .eq("id", entityId)
+        .maybeSingle();
+      if (entityError) throw entityError;
+      if (!entity) return toolError("Entity not found");
+      if (entity.entity_type !== "campaign" && entity.entity_type !== "ad_group") {
+        return toolError("Only campaigns and ad sets support AdPilot budget automation.");
+      }
+
+      const { data: row, error } = await identity.supabase
+        .from("ad_entity_automation")
+        .select(AUTOMATION_SELECT)
+        .eq("account_id", accountId)
+        .eq("entity_id", entityId)
+        .maybeSingle();
+      if (error) throw error;
+      const profile = row?.profile_id ? await getAutomationProfile(identity, accountId, row.profile_id) : null;
+      return text({ accountId, entityId, automation: mapAutomation(row, profile) });
+    },
+  );
+
+  server.registerTool(
+    "adpilot_set_automation",
+    {
+      title: "Set AdPilot automation",
+      description: "Enable, disable, or update the approved AdPilot rules for a campaign or ad set. This changes automation behavior but does not directly change provider delivery settings.",
+      annotations: { readOnlyHint: false, destructiveHint: false },
+      _meta: { securitySchemes: OAUTH_SECURITY_SCHEMES },
+      inputSchema: {
+        entityId: z.string().uuid(),
+        enabled: z.boolean().optional(),
+        profileId: z.string().uuid().nullable().optional(),
+        settingsOverride: z.object({
+          aggressiveness: z.number().int().min(1).max(5).optional(),
+          maxDailyIncreasePct: z.number().min(0).max(100).optional(),
+          maxDailyDecreasePct: z.number().min(0).max(100).optional(),
+          roasFloor: z.number().min(0).nullable().optional(),
+          roasFloorInputMode: z.enum(["direct", "margin"]).optional(),
+          contributionMarginPct: z.number().min(1).max(100).nullable().optional(),
+          ctrFloorPct: z.number().min(0).nullable().optional(),
+          cpaCeiling: z.number().min(0).nullable().optional(),
+          roasFloorActions: z.array(z.enum(["stop_campaign", "email_alert"])).optional(),
+          learningPhaseProtection: z.boolean().optional(),
+          pauseOnFatigue: z.boolean().optional(),
+        }).partial().optional(),
+        cooldownHours: z.union([z.literal(24), z.literal(48), z.literal(72)]).nullable().optional(),
+        minDailyBudgetMicros: z.number().int().nonnegative().nullable().optional(),
+        maxDailyBudgetMicros: z.number().int().nonnegative().nullable().optional(),
+      },
+      outputSchema: AUTOMATION_OUTPUT_SCHEMA,
+    },
+    async ({ entityId, enabled, profileId, settingsOverride, cooldownHours, minDailyBudgetMicros, maxDailyBudgetMicros }) => {
+      if (!identity) return authenticationRequired(authChallenge);
+      const accountId = await requireAccountForApp(identity, "adpilot");
+      const { data: entity, error: entityError } = await identity.supabase
+        .from("ad_entities")
+        .select("id, entity_type, provider, objective, account_connection_id")
+        .eq("account_id", accountId)
+        .eq("id", entityId)
+        .maybeSingle();
+      if (entityError) throw entityError;
+      if (!entity) return toolError("Entity not found");
+      if (entity.entity_type !== "campaign" && entity.entity_type !== "ad_group") {
+        return toolError("Only campaigns and ad sets support AdPilot budget automation.");
+      }
+      if (minDailyBudgetMicros != null && maxDailyBudgetMicros != null && minDailyBudgetMicros > maxDailyBudgetMicros) {
+        return toolError("Minimum daily budget cannot exceed maximum daily budget.");
+      }
+
+      const { data: existing, error: existingError } = await identity.supabase
+        .from("ad_entity_automation")
+        .select(AUTOMATION_SELECT)
+        .eq("account_id", accountId)
+        .eq("entity_id", entityId)
+        .maybeSingle();
+      if (existingError) throw existingError;
+
+      const profile = await getAutomationProfile(identity, accountId, profileId !== undefined ? profileId : existing?.profile_id as string | null | undefined);
+      if ((enabled ?? existing?.enabled ?? false) && !profile) {
+        return toolError("No AdPilot automation profile is available for this account.");
+      }
+      const baseSettings = normalizeAutomationSettings(profile?.settings);
+      const mergedSettings = normalizeAutomationSettings({
+        ...baseSettings,
+        ...(existing?.settings_override && typeof existing.settings_override === "object" ? existing.settings_override : {}),
+        ...(settingsOverride ?? {}),
+        cooldownHours: cooldownHours ?? existing?.cooldown_hours ?? baseSettings.cooldownHours,
+      });
+      validateAutomationSettings(mergedSettings, { provider: entity.provider, objective: entity.objective });
+      const settingsToPersist = automationSettingsOverride(baseSettings, mergedSettings);
+
+      const nextEnabled = enabled ?? Boolean(existing?.enabled);
+      const { data: updated, error: updateError } = await identity.supabase
+        .from("ad_entity_automation")
+        .upsert({
+          account_id: accountId,
+          account_connection_id: entity.account_connection_id,
+          entity_id: entityId,
+          enabled: nextEnabled,
+          profile_id: profile?.id ?? null,
+          settings_override: settingsToPersist,
+          cooldown_hours: cooldownHours !== undefined ? cooldownHours : existing?.cooldown_hours ?? null,
+          min_daily_budget_micros: minDailyBudgetMicros !== undefined ? minDailyBudgetMicros : existing?.min_daily_budget_micros ?? null,
+          max_daily_budget_micros: maxDailyBudgetMicros !== undefined ? maxDailyBudgetMicros : existing?.max_daily_budget_micros ?? null,
+          automation_status: nextEnabled ? (existing?.automation_status && existing.automation_status !== "inactive" ? existing.automation_status : "active") : "inactive",
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "entity_id" })
+        .select(AUTOMATION_SELECT)
+        .single();
+      if (updateError) throw updateError;
+      return text({ accountId, entityId, automation: mapAutomation(updated, profile) });
+    },
+  );
+
+  server.registerTool(
     "kenoo_list_tasks",
     {
       title: "List project tasks",
@@ -578,6 +863,42 @@ export function createKenooMcpServer(identity: KenooIdentity | null, authChallen
         inputSchema: { type: "object", properties: { entityId: { type: "string", format: "uuid" }, rangeDays: { type: "integer", minimum: 1, maximum: 30, default: 7 } }, required: ["entityId"] },
         outputSchema: { type: "object", properties: { accountId: { type: "string", format: "uuid" }, entity: { type: "object", additionalProperties: true }, rangeDays: { type: "integer" }, frequency: { type: "array", items: { type: "object", additionalProperties: true } } }, required: ["accountId", "entity", "rangeDays", "frequency"] },
         annotations: { readOnlyHint: true }, securitySchemes: OAUTH_SECURITY_SCHEMES, _meta: { securitySchemes: OAUTH_SECURITY_SCHEMES },
+      },
+      {
+        name: "adpilot_list_automation_profiles",
+        title: "List AdPilot automation profiles",
+        description: "List the approved AdPilot rule profiles available to the selected account.",
+        inputSchema: { type: "object", properties: {} },
+        outputSchema: { type: "object", properties: { accountId: { type: "string", format: "uuid" }, profiles: { type: "array", items: { type: "object", additionalProperties: true } } }, required: ["accountId", "profiles"] },
+        annotations: { readOnlyHint: true }, securitySchemes: OAUTH_SECURITY_SCHEMES, _meta: { securitySchemes: OAUTH_SECURITY_SCHEMES },
+      },
+      {
+        name: "adpilot_get_automation",
+        title: "Get AdPilot automation",
+        description: "Inspect the current AdPilot rules and enablement state for a campaign or ad set.",
+        inputSchema: { type: "object", properties: { entityId: { type: "string", format: "uuid" } }, required: ["entityId"] },
+        outputSchema: { type: "object", properties: { accountId: { type: "string", format: "uuid" }, entityId: { type: "string", format: "uuid" }, automation: { type: "object", additionalProperties: true } }, required: ["accountId", "entityId", "automation"] },
+        annotations: { readOnlyHint: true }, securitySchemes: OAUTH_SECURITY_SCHEMES, _meta: { securitySchemes: OAUTH_SECURITY_SCHEMES },
+      },
+      {
+        name: "adpilot_set_automation",
+        title: "Set AdPilot automation",
+        description: "Enable, disable, or update the approved AdPilot rules for a campaign or ad set.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            entityId: { type: "string", format: "uuid" },
+            enabled: { type: "boolean" },
+            profileId: { type: ["string", "null"], format: "uuid" },
+            settingsOverride: { type: "object", additionalProperties: true },
+            cooldownHours: { type: ["integer", "null"], enum: [24, 48, 72, null] },
+            minDailyBudgetMicros: { type: ["integer", "null"], minimum: 0 },
+            maxDailyBudgetMicros: { type: ["integer", "null"], minimum: 0 },
+          },
+          required: ["entityId"],
+        },
+        outputSchema: { type: "object", properties: { accountId: { type: "string", format: "uuid" }, entityId: { type: "string", format: "uuid" }, automation: { type: "object", additionalProperties: true } }, required: ["accountId", "entityId", "automation"] },
+        annotations: { readOnlyHint: false, destructiveHint: false }, securitySchemes: OAUTH_SECURITY_SCHEMES, _meta: { securitySchemes: OAUTH_SECURITY_SCHEMES },
       },
       {
         name: "kenoo_list_tasks",
