@@ -36,13 +36,25 @@ function authenticationChallenge(request: Request) {
   return `Bearer resource_metadata="${protectedResourceMetadataUrl(request)}", error="invalid_token", error_description="Connect your Kenoo account to continue"`;
 }
 
+function setRequestHeader(request: Request, name: string, value: string) {
+  request.headers[name] = value;
+
+  // @hono/node-server, used inside the MCP SDK transport, reads content-type
+  // from rawHeaders rather than the normalized Express header map.
+  const headerIndex = request.rawHeaders.findIndex(
+    (header, index) => index % 2 === 0 && header.toLowerCase() === name,
+  );
+  if (headerIndex >= 0) request.rawHeaders[headerIndex + 1] = value;
+  else request.rawHeaders.push(name, value);
+}
+
 function normalizeMcpAcceptHeader(request: Request) {
   const accept = request.header("accept") ?? "*/*";
   // ChatGPT currently initializes MCP with Accept: */*. The SDK requires both
   // explicit representations even though this stateless endpoint replies with
   // JSON. Preserve the caller's preferences and add the compatible types.
   if (!accept.includes("application/json") || !accept.includes("text/event-stream")) {
-    request.headers.accept = `${accept}, application/json, text/event-stream`;
+    setRequestHeader(request, "accept", `${accept}, application/json, text/event-stream`);
   }
 }
 
@@ -51,7 +63,7 @@ function normalizeMcpContentType(request: Request) {
   // `/mcp` accepts JSON only, so declare the protocol's required media type
   // before the SDK validates an otherwise valid JSON-RPC body.
   if (!request.header("content-type")?.toLowerCase().startsWith("application/json")) {
-    request.headers["content-type"] = "application/json";
+    setRequestHeader(request, "content-type", "application/json");
   }
 }
 
