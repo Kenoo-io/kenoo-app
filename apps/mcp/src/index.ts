@@ -67,6 +67,17 @@ function normalizeMcpContentType(request: Request) {
   }
 }
 
+function parseOctetStreamJson(request: Request) {
+  if (!Buffer.isBuffer(request.body)) return true;
+
+  try {
+    request.body = JSON.parse(request.body.toString("utf8"));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function parseArguments(argv: string[]): StartOptions {
   const options: StartOptions = { http: false, port: 3002 };
   for (let index = 2; index < argv.length; index += 1) {
@@ -93,6 +104,10 @@ async function startStdio() {
 }
 
 async function handleMcpRequest(request: Request, response: Response) {
+  if (!parseOctetStreamJson(request)) {
+    response.status(400).json({ error: "MCP requests must contain a JSON-RPC body." });
+    return;
+  }
   normalizeMcpAcceptHeader(request);
   normalizeMcpContentType(request);
   const accessToken = extractBearerToken(request.header("authorization"));
@@ -141,6 +156,9 @@ async function startHttp(port: number) {
   const app = express();
   app.disable("x-powered-by");
   app.use(express.json({ limit: "1mb" }));
+  // ChatGPT sends its initial JSON-RPC body as application/octet-stream.
+  // Parse it here, then pass the resulting JSON value to the MCP transport.
+  app.use(express.raw({ type: "application/octet-stream", limit: "1mb" }));
   app.use((request, response, next) => {
     const accept = request.header("accept") ?? null;
     const contentType = request.header("content-type") ?? null;
