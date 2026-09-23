@@ -324,7 +324,7 @@ export default function CreateAgentSequences({ isOpen, onClose, onSuccess }: Cre
                     <button
                       onClick={() => setIsMaximized(!isMaximized)}
                       disabled={isSubmitting}
-                      className="relative z-10 p-3 bg-neutral-100/80 backdrop-blur-md rounded-full shadow-inner border border-neutral-200/50 transition-all duration-300 cursor-pointer hover:bg-neutral-100 hover:shadow-inner hover:border-neutral-200 hover:scale-95 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] disabled:opacity-50"
+                      className="relative z-10 p-3 rounded-full transition-all duration-300 cursor-pointer hover:bg-neutral-100 disabled:opacity-50"
                     >
                       {isMaximized ? (
                         <Minimize className="h-[18px] w-[18px] text-black" strokeWidth={1.5} />
@@ -337,7 +337,7 @@ export default function CreateAgentSequences({ isOpen, onClose, onSuccess }: Cre
                     <button
                       onClick={handleCloseClick}
                       disabled={isSubmitting}
-                      className="relative z-10 p-3 bg-neutral-100/80 backdrop-blur-md rounded-full shadow-inner border border-neutral-200/50 transition-all duration-300 cursor-pointer hover:bg-neutral-100 hover:shadow-inner hover:border-neutral-200 hover:scale-95 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] disabled:opacity-50"
+                      className="relative z-10 p-3 rounded-full transition-all duration-300 cursor-pointer hover:bg-neutral-100 disabled:opacity-50"
                     >
                       <X className="h-[18px] w-[18px] text-black" strokeWidth={1.5} />
                     </button>
@@ -358,7 +358,7 @@ export default function CreateAgentSequences({ isOpen, onClose, onSuccess }: Cre
                           setIsSubmitting(false);
                         }}
                         disabled={isSubmitting}
-                        className="relative z-10 p-3 bg-neutral-100/80 backdrop-blur-md rounded-full shadow-inner border border-neutral-200/50 transition-all duration-300 cursor-pointer hover:bg-neutral-100 hover:shadow-inner hover:border-neutral-200 hover:scale-95 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] disabled:opacity-50"
+                        className="relative z-10 p-3 rounded-full transition-all duration-300 cursor-pointer hover:bg-neutral-100 disabled:opacity-50"
                       >
                         {isSubmitting ? (
                           <Loader2 className="h-[18px] w-[18px] text-black animate-spin" strokeWidth={1.5} />
@@ -373,7 +373,7 @@ export default function CreateAgentSequences({ isOpen, onClose, onSuccess }: Cre
                       <button
                         onClick={handleSave}
                         disabled={isSubmitting}
-                        className="relative z-10 p-3 bg-neutral-100/80 backdrop-blur-md rounded-full shadow-inner border border-neutral-200/50 transition-all duration-300 cursor-pointer hover:bg-neutral-100 hover:shadow-inner hover:border-neutral-200 hover:scale-95 hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] disabled:opacity-50"
+                        className="relative z-10 p-3 rounded-full transition-all duration-300 cursor-pointer hover:bg-neutral-100 disabled:opacity-50"
                       >
                         {isSubmitting ? (
                           <Loader2 className="h-[18px] w-[18px] text-black animate-spin" strokeWidth={1.5} />
@@ -490,4 +490,3 @@ export default function CreateAgentSequences({ isOpen, onClose, onSuccess }: Cre
     </Sheet>
   );
 }
-

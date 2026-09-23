@@ -79,8 +79,8 @@ const SidebarButton = ({
       className={cn(
         "group relative flex items-center gap-3 border transition-all duration-200 cursor-pointer w-full h-10 rounded-xl px-3 justify-start",
         isActive
-          ? "bg-neutral-100/90 border-transparent text-neutral-700"
-          : "border-transparent hover:bg-neutral-50 hover:shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)] hover:border-neutral-200/50"
+          ? "bg-neutral-200/50 border-transparent text-neutral-700"
+          : "border-transparent hover:bg-neutral-100/70"
       )}
     >
       {isExpanded && (
@@ -418,8 +418,8 @@ export default function Sidebar({
                         className={cn(
                           "flex items-center gap-2.5 h-8 px-2.5 rounded-lg text-sm transition-all duration-150 w-full text-left",
                           !showTasksView && currentMailbox === 'inbox' && activeCategory === id
-                            ? "bg-neutral-100/90 border-transparent text-neutral-700 font-light"
-                            : "border border-transparent text-neutral-500 font-light hover:bg-neutral-50 hover:shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)] hover:border-neutral-200/50 hover:text-neutral-500"
+                            ? "bg-neutral-200/50 border-transparent text-neutral-700 font-light"
+                            : "border border-transparent text-neutral-500 font-light hover:bg-neutral-100/70 hover:text-neutral-500"
                         )}
                       >
                         {label}
@@ -436,8 +436,8 @@ export default function Sidebar({
                       className={cn(
                         "flex items-center gap-2.5 h-8 px-2.5 rounded-lg text-sm transition-all duration-150 w-full text-left",
                         !showTasksView && currentMailbox === 'sent'
-                          ? "bg-neutral-100/90 border-transparent text-neutral-700 font-light"
-                          : "border border-transparent text-neutral-500 font-light hover:bg-neutral-50 hover:shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)] hover:border-neutral-200/50 hover:text-neutral-500"
+                          ? "bg-neutral-200/50 border-transparent text-neutral-700 font-light"
+                          : "border border-transparent text-neutral-500 font-light hover:bg-neutral-100/70 hover:text-neutral-500"
                       )}
                     >
                       Sent
@@ -452,8 +452,8 @@ export default function Sidebar({
                       className={cn(
                         "flex items-center gap-2.5 h-8 px-2.5 rounded-lg text-sm transition-all duration-150 w-full text-left",
                         !showTasksView && currentMailbox === 'schedule'
-                          ? "bg-neutral-100/90 border-transparent text-neutral-700 font-light"
-                          : "border border-transparent text-neutral-500 font-light hover:bg-neutral-50 hover:shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)] hover:border-neutral-200/50 hover:text-neutral-500"
+                          ? "bg-neutral-200/50 border-transparent text-neutral-700 font-light"
+                          : "border border-transparent text-neutral-500 font-light hover:bg-neutral-100/70 hover:text-neutral-500"
                       )}
                     >
                       Scheduled
@@ -464,7 +464,7 @@ export default function Sidebar({
                       <SheetTrigger asChild>
                         <button
                           type="button"
-                          className="flex items-center gap-2.5 h-8 px-2.5 rounded-lg text-sm transition-all duration-150 w-full text-left border border-transparent text-neutral-500 font-light hover:bg-neutral-50 hover:shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)] hover:border-neutral-200/50 hover:text-neutral-500"
+                          className="flex items-center gap-2.5 h-8 px-2.5 rounded-lg text-sm transition-all duration-150 w-full text-left border border-transparent text-neutral-500 font-light hover:bg-neutral-100/70 hover:text-neutral-500"
                           onClick={() => {
                             fetchDrafts();
                             setIsSheetOpen(true);
@@ -503,8 +503,8 @@ export default function Sidebar({
                       className={cn(
                         "flex items-center gap-2.5 h-8 px-2.5 rounded-lg text-sm transition-all duration-150 w-full text-left",
                         !showTasksView && currentMailbox === 'trash'
-                          ? "bg-neutral-100/90 border-transparent text-neutral-700 font-light"
-                          : "border border-transparent text-neutral-500 font-light hover:bg-neutral-50 hover:shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)] hover:border-neutral-200/50 hover:text-neutral-500"
+                          ? "bg-neutral-200/50 border-transparent text-neutral-700 font-light"
+                          : "border border-transparent text-neutral-500 font-light hover:bg-neutral-100/70 hover:text-neutral-500"
                       )}
                     >
                       Trash
