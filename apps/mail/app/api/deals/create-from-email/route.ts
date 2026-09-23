@@ -20,6 +20,36 @@ const normalizeDomain = (value: string | null | undefined) => {
   return domain?.replace(/^www\./, "") || null;
 };
 
+async function findCompanyDomainWithSerper(companyName: string) {
+  const apiKey = process.env.SERPER_API_KEY;
+  if (!apiKey || !companyName.trim()) return null;
+  try {
+    const response = await fetch("https://google.serper.dev/search", {
+      method: "POST",
+      headers: { "X-API-KEY": apiKey, "Content-Type": "application/json" },
+      body: JSON.stringify({ q: `${companyName} official website`, num: 8 }),
+    });
+    if (!response.ok) return null;
+    const data = await response.json() as { organic?: { title?: string; link?: string; snippet?: string }[] };
+    const excluded = new Set(["facebook.com", "instagram.com", "linkedin.com", "youtube.com", "twitter.com", "x.com", "wikipedia.org"]);
+    const tokens = companyName.toLowerCase().split(/[^a-z0-9]+/).filter((token) => token.length > 2);
+    const candidates = (data.organic || []).map((result) => {
+      const domain = normalizeDomain(result.link);
+      if (!domain || excluded.has(domain) || Array.from(excluded).some((blocked) => domain.endsWith(`.${blocked}`))) return null;
+      const haystack = `${result.title || ""} ${result.snippet || ""} ${domain}`.toLowerCase();
+      const tokenMatches = tokens.filter((token) => haystack.includes(token)).length;
+      const officialMatch = /official|homepage|home\b/.test(haystack) ? 2 : 0;
+      const domainMatch = tokens.some((token) => domain.includes(token)) ? 3 : 0;
+      return { domain, score: tokenMatches + officialMatch + domainMatch };
+    }).filter(Boolean) as { domain: string; score: number }[];
+    candidates.sort((a, b) => b.score - a.score);
+    return candidates[0]?.domain || null;
+  } catch (error) {
+    console.warn("[create-from-email] Serper company-domain search failed:", error);
+    return null;
+  }
+}
+
 function parseJson(content: string | null | undefined) {
   if (!content) return null;
   try { return JSON.parse(content); } catch {
@@ -61,7 +91,7 @@ async function enrichOrCreateCompany(
   company: { name: string; domain?: string | null },
   accountId: string,
 ) {
-  const domain = normalizeDomain(company.domain);
+  const domain = normalizeDomain(company.domain) || await findCompanyDomainWithSerper(company.name);
   const query = supabase.from("companies").select("id,name,domain,website,logo_url").eq("account_id", accountId);
   const { data: existing } = domain
     ? await query.eq("domain", domain).maybeSingle()
@@ -188,7 +218,7 @@ export async function POST(request: Request) {
       temperature: 0.1,
       response_format: { type: "json_object" },
       messages: [
-        { role: "system", content: `Analyze this partnership/sponsorship email thread. Return JSON only with: deal_name (short useful name), stage_slug, companies (array of up to 2 objects {name,domain,role} where role is client, agency, or brand; include both a brand and its agency when clearly present), talent (array of {name,role} using only names from the roster list when the conversation discusses a specific roster talent; role should be "featured talent" when the deal is for them), contacts (array of {name,email,role} for external brand/agency people we are negotiating with; include their name even when it is not present in the email address), deliverables (array of {name,description,quantity,unit_price_cents,currency,billing_type,billing_interval,recurrence_count,pricing_model,rate_cents,rate_basis,maximum_compensation_cents,evaluation_period_days}), confidence (number 0-1). Choose stage_slug only from these account stages: ${stageOptions}. Stage rules: use interest-acquired for initial interest/inquiry without substantive back-and-forth; use in-negotiations when rates, deliverables, timing, or other commercial terms are being discussed or revised; use decision-maker-bought-in only when the buyer clearly approves moving forward but no contract is sent; use contract-sent only when the thread explicitly says a contract/agreement was sent; use contract-signed only when the thread explicitly confirms signing or execution. Never infer contract stages from enthusiasm, agreed terms, a production timeline, or the deal being created. If uncertain, choose the earliest stage supported by explicit evidence. Convert discussed money into integer cents. For performance-based pricing with an explicit maximum compensation/cap, set maximum_compensation_cents to that cap; the cap is the deliverable's headline unit_price_cents, while rate_cents and rate_basis preserve the underlying CPM/CPV/rate. Include evaluation_period_days when stated. For capped performance deals, prefer the maximum cap as the amount shown in the deal rather than the CPM rate. Only include deliverables when a rate or explicit cap is actually stated or clearly agreed. Never invent prices, dates, companies, talent, or emails. WALLS Entertainment and wallsentertainment.com are our internal agency and must never be returned as a deal company, even if they appear in signatures or replies. Use null/empty arrays when unknown. Known external email domains: ${externalDomains.join(", ") || "none"}. Roster candidates: ${talentCandidates.map((t: any) => t.name).join(", ")}` },
+        { role: "system", content: `Analyze this partnership/sponsorship email thread. Return JSON only with: deal_name (short useful name), stage_slug, companies (array of up to 2 objects {name,domain,role} where role is client, agency, or brand; include both a brand and its agency when clearly present), talent (array of {name,role} using only names from the roster list when the conversation discusses a specific roster talent; role should be "featured talent" when the deal is for them), contacts (array of {name,email,role} for external brand/agency people we are negotiating with; include their name even when it is not present in the email address), deliverables (array of {name,description,quantity,package_quantity,unit_price_cents,currency,billing_type,billing_interval,recurrence_count,pricing_scope,package_total_cents,pricing_model,rate_cents,rate_basis,maximum_compensation_cents,evaluation_period_days}), confidence (number 0-1). Choose stage_slug only from these account stages: ${stageOptions}. Stage rules: use interest-acquired for initial interest/inquiry without substantive back-and-forth; use in-negotiations when rates, deliverables, timing, or other commercial terms are being discussed or revised; use decision-maker-bought-in only when the buyer clearly approves moving forward but no contract is sent; use contract-sent only when the thread explicitly says a contract/agreement was sent; use contract-signed only when the thread explicitly confirms signing or execution. Never infer contract stages from enthusiasm, agreed terms, a production timeline, or the deal being created. If uncertain, choose the earliest stage supported by explicit evidence. Convert discussed money into integer cents. IMPORTANT PRICING RULE: If the conversation states a total package fee/range for multiple deliverables, set pricing_scope to "package_total" and package_total_cents to the selected total. Do not put the package total into a per-item unit_price_cents or multiply it by a deliverable count. Use package_quantity for counts such as 6 postings or 6 stories, and leave quantity as 1 for each package component. Only use pricing_scope "per_unit" when the conversation explicitly gives a rate for each individual item. For performance-based pricing with an explicit maximum compensation/cap, set maximum_compensation_cents to that cap; the cap is the deliverable's headline unit_price_cents, while rate_cents and rate_basis preserve the underlying CPM/CPV/rate. Include evaluation_period_days when stated. For capped performance deals, prefer the maximum cap as the amount shown in the deal rather than the CPM rate. Only include deliverables when a rate or explicit cap is actually stated or clearly agreed. Never invent prices, dates, companies, talent, or emails. WALLS Entertainment and wallsentertainment.com are our internal agency and must never be returned as a deal company, even if they appear in signatures or replies. Use null/empty arrays when unknown. Known external email domains: ${externalDomains.join(", ") || "none"}. Roster candidates: ${talentCandidates.map((t: any) => t.name).join(", ")}` },
         { role: "user", content: transcript },
       ],
     });
@@ -200,7 +230,9 @@ export async function POST(request: Request) {
 
     const createdCompanies = await Promise.all(companies.map((c: any) => enrichOrCreateCompany({
       name: String(c.name).trim(),
-      domain: c.domain || (externalDomains.length === 1 ? externalDomains[0] : null),
+      // Do not apply the sender's domain to every extracted company. In agency-led
+      // threads that incorrectly turns the brand into a duplicate of the agency.
+      domain: c.domain || null,
     }, scope.accountId)));
     const requestedStageSlug = typeof analysis.stage_slug === "string" ? analysis.stage_slug.trim().toLowerCase() : "";
     const stage = activeStages.find((candidate: any) => candidate.slug === requestedStageSlug)
@@ -217,13 +249,26 @@ export async function POST(request: Request) {
     }).select("id,deal_name").single();
     if (dealError || !deal) throw new Error(dealError?.message || "Unable to create deal");
 
-    const deliverables = Array.isArray(analysis.deliverables)
-      ? analysis.deliverables
+    const rawDeliverables = Array.isArray(analysis.deliverables) ? analysis.deliverables : [];
+    const packageTotalCents = rawDeliverables
+      .map((item: any) => Number(item?.package_total_cents))
+      .find((value: number) => Number.isFinite(value) && value > 0);
+    const packageItems = packageTotalCents ? rawDeliverables.filter((item: any) => String(item?.name || "").trim()) : [];
+    const deliverables = rawDeliverables
           .map((item: any) => {
             const name = String(item?.name || "").trim();
             const rateCents = Number(item?.rate_cents ?? item?.unit_price_cents);
             const capCents = Number(item?.maximum_compensation_cents ?? item?.cap_cents);
-            const unitPriceCents = Number.isFinite(capCents) && capCents > 0 ? capCents : rateCents;
+            const isPackageTotal = Boolean(packageTotalCents && (item?.pricing_scope === "package_total" || Number.isFinite(Number(item?.package_total_cents))));
+            const packageIndex = packageItems.indexOf(item);
+            const packageAllocationCents = isPackageTotal
+              ? packageIndex === packageItems.length - 1
+                ? packageTotalCents - Math.floor(packageTotalCents / packageItems.length) * (packageItems.length - 1)
+                : Math.floor(packageTotalCents / packageItems.length)
+              : null;
+            const unitPriceCents = isPackageTotal
+              ? packageAllocationCents
+              : Number.isFinite(capCents) && capCents > 0 ? capCents : rateCents;
             if (!name || !Number.isFinite(unitPriceCents)) return null;
             const rawBillingType = String(item?.billing_type || "one_off").toLowerCase();
             const billingType = rawBillingType === "recurring" || rawBillingType === "time_based" ? rawBillingType : "one_off";
@@ -231,7 +276,7 @@ export async function POST(request: Request) {
               deal_id: deal.id,
               name: name.slice(0, 180),
               description: item?.description ? String(item.description).trim() : null,
-              quantity: Math.max(1, Math.round(Number(item?.quantity) || 1)),
+              quantity: isPackageTotal ? 1 : Math.max(1, Math.round(Number(item?.quantity) || 1)),
               unit_price_cents: Math.max(0, Math.round(unitPriceCents)),
               currency: typeof item?.currency === "string" && item.currency.trim() ? item.currency.trim().toUpperCase().slice(0, 3) : "USD",
               billing_type: billingType,
@@ -244,11 +289,11 @@ export async function POST(request: Request) {
                 ...(Number.isFinite(capCents) && capCents > 0 ? { maximum_compensation_cents: Math.round(capCents) } : {}),
                 ...(Number.isFinite(Number(item?.evaluation_period_days)) ? { evaluation_period_days: Math.max(1, Math.round(Number(item.evaluation_period_days))) } : {}),
                 ...(item?.pricing_model ? { pricing_model: String(item.pricing_model).trim() } : {}),
+                ...(isPackageTotal ? { package_total_cents: packageTotalCents, pricing_scope: "package_total", package_allocation_cents: packageAllocationCents, package_quantity: Math.max(1, Math.round(Number(item?.package_quantity ?? item?.quantity) || 1)) } : {}),
               },
             };
           })
-          .filter(Boolean)
-      : [];
+          .filter(Boolean);
     if (deliverables.length) {
       const { error: deliverablesError } = await supabase.from("deal_deliverables").insert(deliverables);
       if (deliverablesError) throw new Error(`Unable to add deal deliverables: ${deliverablesError.message}`);
@@ -275,8 +320,12 @@ export async function POST(request: Request) {
       if (talentError) throw new Error(`Unable to attach talent to deal: ${talentError.message}`);
     }
 
-    const junctions = await Promise.all(createdCompanies.map((c: any, index: number) => {
-      const extractedRole = String(companies[index]?.role || "").toLowerCase();
+    const uniqueCompanyEntries = createdCompanies.reduce((entries: { company: any; extracted: any }[], company: any, index: number) => {
+      if (!entries.some((entry) => entry.company.id === company.id)) entries.push({ company, extracted: companies[index] });
+      return entries;
+    }, []);
+    const junctions = await Promise.all(uniqueCompanyEntries.map(({ company: c, extracted }) => {
+      const extractedRole = String(extracted?.role || "").toLowerCase();
       const role = extractedRole === "client" || extractedRole === "brand" ? extractedRole : extractedRole === "agency" ? "agency" : index === 0 ? "client" : "agency";
       return supabase.from("deal_companies").insert({ deal_id: deal.id, company_id: c.id, role }).select("id,company_id,role").single();
     }));

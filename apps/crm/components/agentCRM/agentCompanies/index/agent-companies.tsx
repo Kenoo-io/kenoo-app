@@ -234,7 +234,12 @@ function AgentCompaniesContent({ analyticsData }: AgentCompaniesProps) {
         const { data, error, count } = await query.range(from, to);
 
         if (error) {
-          console.error('Supabase query error:', error);
+          console.error('Supabase query error:', {
+            message: error.message,
+            details: error.details,
+            hint: error.hint,
+            code: error.code,
+          });
           throw error;
         }
 
