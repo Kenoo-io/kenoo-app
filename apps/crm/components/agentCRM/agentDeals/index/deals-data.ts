@@ -167,7 +167,7 @@ export async function mapRawDealsToDeals(
 
   const { data: deliverablesData, error: deliverablesError } = await supabase
     .from('deal_deliverables')
-    .select('deal_id, quantity, unit_price_cents, currency, billing_type, recurrence_count, billing_interval')
+    .select('deal_id, quantity, unit_price_cents, currency, billing_type, recurrence_count, billing_interval, details')
     .in('deal_id', dealIds);
 
   if (deliverablesError) {
@@ -214,7 +214,10 @@ export async function mapRawDealsToDeals(
     const current = amountByDealId.get(d.deal_id) || 0;
     const q = Number(d.quantity) || 0;
     const c = Number(d.unit_price_cents) || 0;
-    let lineTotal = (q * c) / 100;
+    const packageAllocationCents = Number(d.details?.package_allocation_cents);
+    let lineTotal = Number.isFinite(packageAllocationCents)
+      ? packageAllocationCents / 100
+      : (q * c) / 100;
     const isRecurring = d.billing_type === 'recurring';
     const recur = d.recurrence_count != null ? Number(d.recurrence_count) || 0 : 0;
 

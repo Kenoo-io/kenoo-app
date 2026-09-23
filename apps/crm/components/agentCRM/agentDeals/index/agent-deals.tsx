@@ -621,15 +621,17 @@ export default function AgentDeals({ analyticsData }: AgentDealsProps) {
 
       const [dealCompaniesRes, deliverablesRes, eventsRes, dealTalentRes] = await Promise.all([
         supabase.from('deal_companies').select('company_id, role, companies(id, name, website, logo_url)').eq('deal_id', dealId),
-        supabase.from('deal_deliverables').select('id, name, quantity, unit_price_cents, billing_type, recurrence_count').eq('deal_id', dealId),
+        supabase.from('deal_deliverables').select('id, name, quantity, unit_price_cents, billing_type, recurrence_count, details').eq('deal_id', dealId),
         supabase.from('deal_events').select('id, name, description, event_type, due_at, related_deliverable_id').eq('deal_id', dealId).order('due_at', { ascending: true }),
         supabase.from('deal_talent').select('id, talent_id, role, revenue_share_bps, talent(id, first_name, last_name, avatar_url)').eq('deal_id', dealId),
       ]);
 
       const companyRow = (dealCompaniesRes.data || []).find((dc: any) => dc.role === 'client') || dealCompaniesRes.data?.[0];
       const company = companyRow?.companies ? (Array.isArray(companyRow.companies) ? companyRow.companies[0] : companyRow.companies) : null;
-      const amount = (deliverablesRes.data || []).reduce((sum: number, d: any) => {
-        const q = Number(d.quantity) || 0;
+        const amount = (deliverablesRes.data || []).reduce((sum: number, d: any) => {
+          const packageAllocationCents = Number(d.details?.package_allocation_cents);
+          if (Number.isFinite(packageAllocationCents)) return sum + packageAllocationCents / 100;
+          const q = Number(d.quantity) || 0;
         const c = Number(d.unit_price_cents) || 0;
         let lineTotal = (q * c) / 100;
         const isRecurring = d.billing_type === 'recurring';

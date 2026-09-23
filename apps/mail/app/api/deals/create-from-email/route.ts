@@ -218,7 +218,7 @@ export async function POST(request: Request) {
       temperature: 0.1,
       response_format: { type: "json_object" },
       messages: [
-        { role: "system", content: `Analyze this partnership/sponsorship email thread. Return JSON only with: deal_name (short useful name), stage_slug, companies (array of up to 2 objects {name,domain,role} where role is client, agency, or brand; include both a brand and its agency when clearly present), talent (array of {name,role} using only names from the roster list when the conversation discusses a specific roster talent; role should be "featured talent" when the deal is for them), contacts (array of {name,email,role} for external brand/agency people we are negotiating with; include their name even when it is not present in the email address), deliverables (array of {name,description,quantity,package_quantity,unit_price_cents,currency,billing_type,billing_interval,recurrence_count,pricing_scope,package_total_cents,pricing_model,rate_cents,rate_basis,maximum_compensation_cents,evaluation_period_days}), confidence (number 0-1). Choose stage_slug only from these account stages: ${stageOptions}. Stage rules: use interest-acquired for initial interest/inquiry without substantive back-and-forth; use in-negotiations when rates, deliverables, timing, or other commercial terms are being discussed or revised; use decision-maker-bought-in only when the buyer clearly approves moving forward but no contract is sent; use contract-sent only when the thread explicitly says a contract/agreement was sent; use contract-signed only when the thread explicitly confirms signing or execution. Never infer contract stages from enthusiasm, agreed terms, a production timeline, or the deal being created. If uncertain, choose the earliest stage supported by explicit evidence. Convert discussed money into integer cents. IMPORTANT PRICING RULE: If the conversation states a total package fee/range for multiple deliverables, set pricing_scope to "package_total" and package_total_cents to the selected total. Do not put the package total into a per-item unit_price_cents or multiply it by a deliverable count. Use package_quantity for counts such as 6 postings or 6 stories, and leave quantity as 1 for each package component. Only use pricing_scope "per_unit" when the conversation explicitly gives a rate for each individual item. For performance-based pricing with an explicit maximum compensation/cap, set maximum_compensation_cents to that cap; the cap is the deliverable's headline unit_price_cents, while rate_cents and rate_basis preserve the underlying CPM/CPV/rate. Include evaluation_period_days when stated. For capped performance deals, prefer the maximum cap as the amount shown in the deal rather than the CPM rate. Only include deliverables when a rate or explicit cap is actually stated or clearly agreed. Never invent prices, dates, companies, talent, or emails. WALLS Entertainment and wallsentertainment.com are our internal agency and must never be returned as a deal company, even if they appear in signatures or replies. Use null/empty arrays when unknown. Known external email domains: ${externalDomains.join(", ") || "none"}. Roster candidates: ${talentCandidates.map((t: any) => t.name).join(", ")}` },
+        { role: "system", content: `Analyze this partnership/sponsorship email thread. Return JSON only with: deal_name (short useful name), stage_slug, companies (array of up to 2 objects {name,domain,role} where role is client, agency, or brand; include both a brand and its agency when clearly present), talent (array of {name,role} using only names from the roster list when the conversation discusses a specific roster talent; role should be "featured talent" when the deal is for them), contacts (array of {name,email,role} for external brand/agency people we are negotiating with; include their name even when it is not present in the email address), deliverables (array of {name,description,quantity,package_quantity,unit_price_cents,currency,billing_type,billing_interval,recurrence_count,pricing_scope,package_total_cents,allocation_weight,pricing_model,rate_cents,rate_basis,maximum_compensation_cents,evaluation_period_days}), confidence (number 0-1). Choose stage_slug only from these account stages: ${stageOptions}. Stage rules: use interest-acquired for initial interest/inquiry without substantive back-and-forth; use in-negotiations when rates, deliverables, timing, or other commercial terms are being discussed or revised; use decision-maker-bought-in only when the buyer clearly approves moving forward but no contract is sent; use contract-sent only when the thread explicitly says a contract/agreement was sent; use contract-signed only when the thread explicitly confirms signing or execution. Never infer contract stages from enthusiasm, agreed terms, a production timeline, or the deal being created. If uncertain, choose the earliest stage supported by explicit evidence. Convert discussed money into integer cents. IMPORTANT PRICING RULE: If the conversation states a total package fee/range for multiple deliverables, set pricing_scope to "package_total" and package_total_cents to the selected total. Do not put the package total into a per-item unit_price_cents or multiply it by a deliverable count. Preserve the actual quantity for each component (for example, quantity 6 for 6 postings and quantity 6 for 6 stories); use package_quantity as an optional duplicate count, and allocate the package total across those real quantities. If no component prices are stated, make a reasonable commercial allocation assumption and return allocation_weight for each package component: short-form Stories generally weigh less than feed Posts/Reels, Reels and dedicated video integrations generally weigh more than static/carousel posts, and exclusivity, paid usage/buyouts, whitelisting, or broad usage rights should receive meaningful weight. Use equal weights only when the components are genuinely comparable. Only use pricing_scope "per_unit" when the conversation explicitly gives a rate for each individual item. For performance-based pricing with an explicit maximum compensation/cap, set maximum_compensation_cents to that cap; the cap is the deliverable's headline unit_price_cents, while rate_cents and rate_basis preserve the underlying CPM/CPV/rate. Include evaluation_period_days when stated. For capped performance deals, prefer the maximum cap as the amount shown in the deal rather than the CPM rate. Only include deliverables when a rate or explicit cap is actually stated or clearly agreed. Never invent prices, dates, companies, talent, or emails. WALLS Entertainment and wallsentertainment.com are our internal agency and must never be returned as a deal company, even if they appear in signatures or replies. Use null/empty arrays when unknown. Known external email domains: ${externalDomains.join(", ") || "none"}. Roster candidates: ${talentCandidates.map((t: any) => t.name).join(", ")}` },
         { role: "user", content: transcript },
       ],
     });
@@ -254,6 +254,19 @@ export async function POST(request: Request) {
       .map((item: any) => Number(item?.package_total_cents))
       .find((value: number) => Number.isFinite(value) && value > 0);
     const packageItems = packageTotalCents ? rawDeliverables.filter((item: any) => String(item?.name || "").trim()) : [];
+    const inferPackageWeight = (item: any) => {
+      const text = `${item?.name || ""} ${item?.description || ""}`.toLowerCase();
+      if (/exclusiv|buy.?out|whitelist|usage right|paid ad/.test(text)) return 2;
+      if (/reel|video|integration|dedicated/.test(text)) return 2;
+      if (/story|stories/.test(text)) return 1;
+      if (/carousel|post|photo|static/.test(text)) return 1.5;
+      return 1;
+    };
+    const packageWeights = packageItems.map((item: any) => {
+      const weight = Number(item?.allocation_weight);
+      return Number.isFinite(weight) && weight > 0 ? weight : inferPackageWeight(item);
+    });
+    const totalPackageWeight = packageWeights.reduce((sum: number, weight: number) => sum + weight, 0);
     const deliverables = rawDeliverables
           .map((item: any) => {
             const name = String(item?.name || "").trim();
@@ -263,11 +276,14 @@ export async function POST(request: Request) {
             const packageIndex = packageItems.indexOf(item);
             const packageAllocationCents = isPackageTotal
               ? packageIndex === packageItems.length - 1
-                ? packageTotalCents - Math.floor(packageTotalCents / packageItems.length) * (packageItems.length - 1)
-                : Math.floor(packageTotalCents / packageItems.length)
+                ? packageTotalCents - packageItems.slice(0, -1).reduce((sum: number, _packageItem: any, index: number) => sum + Math.floor(packageTotalCents * packageWeights[index] / totalPackageWeight), 0)
+                : Math.floor(packageTotalCents * packageWeights[packageIndex] / totalPackageWeight)
               : null;
+            const packageQuantity = isPackageTotal
+              ? Math.max(1, Math.round(Number(item?.package_quantity ?? item?.quantity) || 1))
+              : Math.max(1, Math.round(Number(item?.quantity) || 1));
             const unitPriceCents = isPackageTotal
-              ? packageAllocationCents
+              ? Math.round((packageAllocationCents || 0) / packageQuantity)
               : Number.isFinite(capCents) && capCents > 0 ? capCents : rateCents;
             if (!name || !Number.isFinite(unitPriceCents)) return null;
             const rawBillingType = String(item?.billing_type || "one_off").toLowerCase();
@@ -276,7 +292,7 @@ export async function POST(request: Request) {
               deal_id: deal.id,
               name: name.slice(0, 180),
               description: item?.description ? String(item.description).trim() : null,
-              quantity: isPackageTotal ? 1 : Math.max(1, Math.round(Number(item?.quantity) || 1)),
+              quantity: packageQuantity,
               unit_price_cents: Math.max(0, Math.round(unitPriceCents)),
               currency: typeof item?.currency === "string" && item.currency.trim() ? item.currency.trim().toUpperCase().slice(0, 3) : "USD",
               billing_type: billingType,
@@ -289,7 +305,8 @@ export async function POST(request: Request) {
                 ...(Number.isFinite(capCents) && capCents > 0 ? { maximum_compensation_cents: Math.round(capCents) } : {}),
                 ...(Number.isFinite(Number(item?.evaluation_period_days)) ? { evaluation_period_days: Math.max(1, Math.round(Number(item.evaluation_period_days))) } : {}),
                 ...(item?.pricing_model ? { pricing_model: String(item.pricing_model).trim() } : {}),
-                ...(isPackageTotal ? { package_total_cents: packageTotalCents, pricing_scope: "package_total", package_allocation_cents: packageAllocationCents, package_quantity: Math.max(1, Math.round(Number(item?.package_quantity ?? item?.quantity) || 1)) } : {}),
+                ...(isPackageTotal ? { package_total_cents: packageTotalCents, pricing_scope: "package_total", package_allocation_cents: packageAllocationCents, package_quantity: packageQuantity } : {}),
+                ...(isPackageTotal ? { allocation_weight: packageWeights[packageIndex] } : {}),
               },
             };
           })

@@ -173,8 +173,12 @@ export async function fetchDealEditorInitialData(dealId: string, accountId?: str
 
   const _dealDeliverables = (deliverablesRes.data || []).map((d: any) => ({ id: d.id, name: d.name || "" }));
   const amount = (deliverablesRes.data || []).reduce(
-    (sum: number, d: any) =>
-      sum + (Number(d.quantity) || 0) * (Number(d.unit_price_cents) || 0) / 100,
+    (sum: number, d: any) => {
+      const packageAllocationCents = Number(d.details?.package_allocation_cents);
+      return sum + (Number.isFinite(packageAllocationCents)
+        ? packageAllocationCents / 100
+        : (Number(d.quantity) || 0) * (Number(d.unit_price_cents) || 0) / 100);
+    },
     0
   );
 
