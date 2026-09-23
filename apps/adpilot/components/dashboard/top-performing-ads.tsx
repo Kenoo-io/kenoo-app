@@ -41,7 +41,7 @@ function primaryMetricForObjective(
 ): { label: string; value: string } {
   switch (objective) {
     case "OUTCOME_SALES":
-      return { label: "ROAS", value: formatRoas(ad.roas) };
+      return { label: "Profit", value: formatProfitMicros(ad.profitMicros) };
     case "OUTCOME_TRAFFIC":
       return { label: "Clicks", value: formatCompactNumber(ad.clicks) };
     case "OUTCOME_AWARENESS":
@@ -63,8 +63,8 @@ function secondaryMetricForObjective(
 ): { label: string; value: string } | null {
   if (objective === "OUTCOME_SALES" && ad.websitePurchases !== null) {
     return {
-      label: "CPA",
-      value: formatCpaFromMicros(ad.spendMicros, ad.websitePurchases),
+      label: "ROAS",
+      value: formatRoas(ad.roas),
     };
   }
 
@@ -84,7 +84,11 @@ function tertiaryMetricForObjective(
   objective: DashboardObjectiveBucket,
 ): { label: string; value: string } | null {
   if (objective !== "OUTCOME_SALES") return null;
-  return { label: "Profit", value: formatProfitMicros(ad.profitMicros) };
+  if (ad.websitePurchases === null) return null;
+  return {
+    label: "CPA",
+    value: formatCpaFromMicros(ad.spendMicros, ad.websitePurchases),
+  };
 }
 
 type AdPerformanceRowProps = {
@@ -110,6 +114,8 @@ function AdPerformanceRow({
   const primary = primaryMetricForObjective(ad, objective);
   const secondary = secondaryMetricForObjective(ad, objective);
   const tertiary = tertiaryMetricForObjective(ad, objective);
+  const isPositiveProfit = primary.label === "Profit" && ad.profitMicros >= 0;
+  const isNegativeProfit = primary.label === "Profit" && ad.profitMicros < 0;
 
   return (
     <motion.div
@@ -164,13 +170,23 @@ function AdPerformanceRow({
         <p className="text-[10px] font-medium uppercase tracking-wider text-neutral-400">
           {primary.label}
         </p>
-        <p className="text-sm font-semibold tabular-nums text-neutral-800">
+        <p
+          className={cn(
+            "w-20 text-sm tabular-nums",
+            primary.label === "Profit" ? "font-semibold" : "font-light",
+            isPositiveProfit
+              ? "text-emerald-500"
+              : isNegativeProfit
+                ? "text-rose-500"
+                : "text-neutral-800",
+          )}
+        >
           <AnimatedMetricValue value={primary.value} />
         </p>
       </div>
 
       {secondary ? (
-        <div className="hidden shrink-0 text-right md:block">
+        <div className="hidden w-20 shrink-0 text-right md:block">
           <p className="text-[10px] font-medium uppercase tracking-wider text-neutral-400">
             {secondary.label}
           </p>
@@ -181,7 +197,7 @@ function AdPerformanceRow({
       ) : null}
 
       {tertiary ? (
-        <div className="hidden shrink-0 text-right md:block">
+        <div className="hidden w-20 shrink-0 text-right md:block">
           <p className="text-[10px] font-medium uppercase tracking-wider text-neutral-400">
             {tertiary.label}
           </p>
