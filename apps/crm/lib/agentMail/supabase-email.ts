@@ -126,14 +126,29 @@ type ThreadRow = {
 const THREAD_SELECT =
   "id, provider_thread_id, subject, last_message_at, user_id, deal_id, is_read, is_starred, latest_snippet, category";
 
+// The CRM considers a deal active when its stage is neither won nor lost.
+// Keep this relation embedded so the email Deals mailbox uses the same source
+// of truth as the CRM Deals page instead of treating every non-null deal_id as active.
+const THREAD_DEAL_SELECT =
+  `${THREAD_SELECT}, deals!inner(deal_stages!inner(is_won, is_lost))`;
+
+type MailboxQuery = {
+  eq(column: string, value: string | boolean): MailboxQuery;
+  in(column: string, values: string[]): MailboxQuery;
+};
+
 /** Apply server-side mailbox/category filter so we only fetch threads for the current view. */
 function applyThreadMailboxFilter(
-  query: any,
+  query: MailboxQuery,
   mailbox: MailboxType,
   category: string
-): any {
+): MailboxQuery {
   const cat = category.toLowerCase();
-  if (mailbox === "deals") return query.not("deal_id", "is", null);
+  if (mailbox === "deals") {
+    return query
+      .eq("deals.deal_stages.is_won", false)
+      .eq("deals.deal_stages.is_lost", false);
+  }
   if (mailbox === "sent") return query.eq("category", "sent");
   if (mailbox === "trash") return query.eq("category", "trash");
   if (mailbox === "archive") return query.in("category", ["archived", "archive"]);
@@ -166,7 +181,7 @@ export async function fetchThreadsFromSupabase(
 
   let query = supabase
     .from("email_threads")
-    .select(THREAD_SELECT, { count: "exact" })
+    .select(mailbox === "deals" ? THREAD_DEAL_SELECT : THREAD_SELECT, { count: "exact" })
     .eq("user_id", userId)
     .order("last_message_at", { ascending: false, nullsFirst: false });
 
@@ -531,6 +546,18 @@ export async function fetchSidebarCountsFromSupabase(
     return { inbox: 0, starred: 0, sent: 0, archive: 0, trash: 0, schedule: 0, deals: 0, inboxUnread: 0 };
   }
 
+  const { data: activeDealThreads, error: activeDealsError } = await supabase
+    .from("email_threads")
+    .select("id, deals!inner(deal_stages!inner(is_won, is_lost))")
+    .eq("user_id", userId)
+    .eq("deals.deal_stages.is_won", false)
+    .eq("deals.deal_stages.is_lost", false)
+    .limit(MAX_THREADS);
+
+  const activeDealThreadIds = new Set(
+    activeDealsError || !activeDealThreads ? [] : activeDealThreads.map((thread) => thread.id)
+  );
+
   const counts: SidebarCounts = {
     inbox: 0,
     starred: 0,
@@ -544,7 +571,7 @@ export async function fetchSidebarCountsFromSupabase(
 
   const inboxCategories = ["primary", "social", "socials", "promotions", "updates"];
 
-  for (const t of threadsData as { category: string | null; is_starred: boolean | null; is_read: boolean | null; deal_id: string | null }[]) {
+  for (const t of threadsData as { id: string; category: string | null; is_starred: boolean | null; is_read: boolean | null; deal_id: string | null }[]) {
     const cat = t.category?.toLowerCase() ?? "";
 
     if (inboxCategories.includes(cat)) {
@@ -556,7 +583,7 @@ export async function fetchSidebarCountsFromSupabase(
     if (cat === "archived" || cat === "archive") counts.archive++;
     if (cat === "schedule" || cat === "scheduled") counts.schedule++;
     if (t.is_starred) counts.starred++;
-    if (t.deal_id != null) counts.deals++;
+    if (t.deal_id != null && activeDealThreadIds.has(t.id)) counts.deals++;
   }
 
   return counts;

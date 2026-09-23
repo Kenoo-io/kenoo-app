@@ -60,7 +60,7 @@ const sequenceSheetHeaderIconButtonClass =
   "w-10 h-10 p-0 text-slate-600 hover:bg-transparent active:bg-transparent focus-visible:bg-transparent flex items-center justify-center shadow-none relative group flex-shrink-0 disabled:opacity-50";
 const sequenceSheetHeaderIconInnerClass = cn(
   "relative z-10 p-3 rounded-full transition-all duration-300 ease-in-out",
-  "group-hover:bg-gray-100 group-hover:border group-hover:border-neutral-200 group-hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] group-hover:scale-95",
+  "group-hover:bg-neutral-100",
 );
 
 export default function EditAgentSequences({ analyticsData, sequenceId, initialData, isOpen, onClose, onDelete }: EditAgentSequencesProps) {
@@ -586,4 +586,3 @@ export default function EditAgentSequences({ analyticsData, sequenceId, initialD
     </Sheet>
   );
 }
-

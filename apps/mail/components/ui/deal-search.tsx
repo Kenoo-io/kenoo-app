@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { FALLBACK_ICON_URL } from "@/lib/asset-urls";
-import { Loader2, Plus, Minus, Search } from "lucide-react";
+import { Loader2, Plus, Minus, Search, Sparkles } from "lucide-react";
 import Image from "next/image";
 import { useState, useEffect, useRef } from "react";
 import { getSupabaseClient } from "@/app/auth/supabaseClient";
@@ -54,6 +54,7 @@ export function DealSearch({
   const [isUpdating, setIsUpdating] = useState(false);
   const [expandedMyDeals, setExpandedMyDeals] = useState(true);
   const [expandedAllDeals, setExpandedAllDeals] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
 
   useEffect(() => {
     setSelectedDealId(linkedDealId ?? null);
@@ -243,6 +244,27 @@ export function DealSearch({
     }
   };
 
+  const handleCreateDeal = async () => {
+    if (!userId || isCreating || linkedDealId) return;
+    setIsCreating(true);
+    try {
+      const response = await fetch("/api/deals/create-from-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ threadId }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Failed to create deal");
+      setSelectedDealId(data.dealId);
+      onDealLinked?.(data.dealId);
+      wallsToast.success(data.alreadyLinked ? "Deal already linked" : "Deal created", data.dealName);
+    } catch (error) {
+      wallsToast.error(error instanceof Error ? error.message : "Failed to create deal");
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
   // Split into My Deals (deal_owner === userId) and All Deals
   const { myDeals, allDeals } = React.useMemo(() => {
     const my = deals.filter((d) => d.dealOwnerId === userId);
@@ -371,6 +393,24 @@ export function DealSearch({
     >
       {/* Search Input - Sticky */}
       <div className="sticky top-0 z-10 shrink-0 border-b border-neutral-200/60 bg-white/80 px-3 py-2 backdrop-blur-xl">
+        {!linkedDealId && (
+          <button
+            type="button"
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); void handleCreateDeal(); }}
+            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+            disabled={isCreating}
+            className="mb-2 flex w-full items-center gap-3 rounded-lg border border-neutral-200/60 bg-neutral-100/70 px-3 py-2 text-left transition-colors hover:bg-neutral-100 disabled:cursor-wait disabled:opacity-60"
+          >
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white shadow-sm">
+              {isCreating ? <Loader2 className="h-4 w-4 animate-spin text-neutral-500" /> : <Sparkles className="h-4 w-4 text-kenoo-sky" />}
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-medium text-neutral-800">{isCreating ? "Analyzing conversation…" : "Create deal with AI"}</span>
+              <span className="block text-xs font-light text-neutral-500">Analyze this thread and add its companies</span>
+            </span>
+            {!isCreating && <Plus className="h-4 w-4 shrink-0 text-neutral-400" />}
+          </button>
+        )}
         <div className="relative w-full">
           <Search className="pointer-events-none absolute left-0 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
           <input

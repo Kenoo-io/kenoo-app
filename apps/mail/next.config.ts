@@ -95,6 +95,11 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: "https",
+        hostname: "static.licdn.com",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
         hostname: "zenprospect-production.s3.amazonaws.com",
         pathname: "/**",
       },
