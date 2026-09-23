@@ -14,9 +14,12 @@ import {
   formatCompactNumber,
   formatCurrencyFromMicros,
   formatPercent,
-  formatResultCount,
   formatRoas,
 } from "@/lib/format-analytics";
+import {
+  formatCpaFromMicros,
+  formatProfitMicros,
+} from "@/lib/entity-daily-progress";
 import type { AdCreativePreview } from "@/lib/meta-creatives";
 import type { DashboardObjectiveBucket } from "@/lib/meta-objectives";
 
@@ -60,8 +63,8 @@ function secondaryMetricForObjective(
 ): { label: string; value: string } | null {
   if (objective === "OUTCOME_SALES" && ad.websitePurchases !== null) {
     return {
-      label: "Purchases",
-      value: formatResultCount(ad.websitePurchases),
+      label: "CPA",
+      value: formatCpaFromMicros(ad.spendMicros, ad.websitePurchases),
     };
   }
 
@@ -74,6 +77,14 @@ function secondaryMetricForObjective(
   }
 
   return { label: "Spend", value: formatCurrencyFromMicros(ad.spendMicros) };
+}
+
+function tertiaryMetricForObjective(
+  ad: DashboardTopPerformingAd,
+  objective: DashboardObjectiveBucket,
+): { label: string; value: string } | null {
+  if (objective !== "OUTCOME_SALES") return null;
+  return { label: "Profit", value: formatProfitMicros(ad.profitMicros) };
 }
 
 type AdPerformanceRowProps = {
@@ -98,6 +109,7 @@ function AdPerformanceRow({
   const href = adDetailHref(ad);
   const primary = primaryMetricForObjective(ad, objective);
   const secondary = secondaryMetricForObjective(ad, objective);
+  const tertiary = tertiaryMetricForObjective(ad, objective);
 
   return (
     <motion.div
@@ -164,6 +176,17 @@ function AdPerformanceRow({
           </p>
           <p className="text-sm font-light tabular-nums text-neutral-600">
             <AnimatedMetricValue value={secondary.value} />
+          </p>
+        </div>
+      ) : null}
+
+      {tertiary ? (
+        <div className="hidden shrink-0 text-right md:block">
+          <p className="text-[10px] font-medium uppercase tracking-wider text-neutral-400">
+            {tertiary.label}
+          </p>
+          <p className="text-sm font-light tabular-nums text-neutral-600">
+            <AnimatedMetricValue value={tertiary.value} />
           </p>
         </div>
       ) : null}

@@ -116,7 +116,9 @@ function TooltipRow({
 }
 
 export function SpendTrendChart({ days }: SpendTrendChartProps) {
-  const hasLiveData = days.some((day) => day.spendMicros > 0);
+  const hasLiveData = days.some(
+    (day) => day.spendMicros > 0 || day.impressions > 0,
+  );
   const chartData = hasLiveData ? days : PREVIEW_SPEND_BY_DAY;
 
   return (
