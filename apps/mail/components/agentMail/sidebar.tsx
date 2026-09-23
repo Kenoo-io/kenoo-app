@@ -319,7 +319,7 @@ export default function Sidebar({
 
   return (
     <div className={cn(
-      "h-screen top-0 touch-none transition-all duration-300 ease-in-out bg-gray-50",
+      "h-screen top-0 touch-none transition-all duration-300 ease-in-out bg-kenoo-white",
       isExpanded ? "w-[240px]" : "w-16"
     )}>
       <nav className="flex flex-col h-full touch-none pt-3">

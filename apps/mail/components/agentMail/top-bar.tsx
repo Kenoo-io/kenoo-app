@@ -102,7 +102,7 @@ export default function TopBar({
 
   return (
     <div className={cn(
-      "h-[70px] pl-2 pr-4 flex items-center justify-between bg-neutral-50",
+      "h-[70px] pl-2 pr-4 flex items-center justify-between bg-kenoo-white",
       className
     )}>
       <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -170,8 +170,7 @@ export default function TopBar({
               "relative z-10 p-2.5 rounded-full",
               "transition-all duration-300 ease-in-out",
               "text-neutral-500",
-              "group-hover:bg-neutral-50 group-hover:border group-hover:border-neutral-200/50",
-              "group-hover:scale-95 group-hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)]",
+              "group-hover:bg-neutral-100",
               "group-hover:text-neutral-800"
             )}>
               <ChevronLeft className="h-4 w-4" />
@@ -198,8 +197,7 @@ export default function TopBar({
               "relative z-10 p-2.5 rounded-full",
               "transition-all duration-300 ease-in-out",
               "text-neutral-500",
-              "group-hover:bg-neutral-50 group-hover:border group-hover:border-neutral-200/50",
-              "group-hover:scale-95 group-hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)]",
+              "group-hover:bg-neutral-100",
               "group-hover:text-neutral-800"
             )}>
               <ChevronRight className="h-4 w-4" />

@@ -205,7 +205,7 @@ export default function AgentEmail() {
 
   // Update page title when unread count changes
   useEffect(() => {
-    document.title = unreadCount > 0 ? `WALLS - Email (${unreadCount})` : "WALLS - Email";
+    document.title = unreadCount > 0 ? `Kenoo Mail (${unreadCount})` : "Kenoo Mail";
   }, [unreadCount]);
 
   const handleRefresh = async () => {
@@ -316,6 +316,27 @@ export default function AgentEmail() {
   const handleClosePreview = () => {
     setSelectedThread(null);
   };
+
+  useEffect(() => {
+    if (!selectedThread) return;
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+
+      const target = event.target as HTMLElement | null;
+      if (
+        target?.closest("input, textarea, select, [contenteditable=\"true\"]")
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      handleClosePreview();
+    };
+
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [selectedThread]);
 
   const handleThreadRemoved = useCallback((threadId: string) => {
     if (selectedThread?.threadId === threadId) {
