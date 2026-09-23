@@ -88,6 +88,16 @@ const nextConfig: NextConfig = {
         hostname: "www.gstatic.com",
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "media.licdn.com",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "zenprospect-production.s3.amazonaws.com",
+        pathname: "/**",
+      },
     ],
   },
   transpilePackages: [
