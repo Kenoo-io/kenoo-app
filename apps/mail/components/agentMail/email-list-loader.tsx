@@ -1,8 +1,8 @@
 "use client";
 
-import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
+import { KenooWordmark } from "@walls/ui/kenoo-wordmark";
 
 interface EmailListLoaderProps {
     isLoading: boolean;
@@ -63,13 +63,9 @@ export function EmailListLoader({ isLoading }: EmailListLoaderProps) {
                         backgroundColor: !shouldExpand ? 'transparent' : undefined
                     }}
                 />
-                <Image
-                    src="/images/WBlack.svg"
-                    alt="WALLS Logo"
-                    width={80}
-                    height={80}
+                <KenooWordmark
+                    className="relative z-10 h-auto w-20 -translate-y-8 opacity-50"
                     priority
-                    className="relative z-10"
                 />
             </div>
         </div>

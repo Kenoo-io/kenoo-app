@@ -3,7 +3,6 @@
 
 import { wallsToast } from "@/components/ui/walls-toast";
 import React, { useState, useEffect, useRef } from 'react';
-import { FALLBACK_ICON_URL } from "@/lib/asset-urls";
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mail, MailOpen, Loader2, Star, Archive, ArchiveRestore, Trash, CircleDollarSign, CircleCheckBig } from 'lucide-react';
@@ -28,6 +27,7 @@ import { fetchThreadDetailFromSupabase } from "@/lib/agentMail/supabase-email";
 import { CreateTasksPopup } from "@/components/agentsProjects/create-tasks-popup";
 import type { Project } from "@/components/agentsProjects/types";
 import { FallbackEmailAvatar } from "./ui/fallback-email-avatar";
+import { KenooWordmark } from "@walls/ui/kenoo-wordmark";
 
 interface EmailListProps {
   userEmail: string;
@@ -968,12 +968,9 @@ export default function EmailList({
       <div className="h-full flex flex-col bg-neutral-100 rounded-tl-2xl overflow-hidden">
         <div className="flex-1 flex flex-col items-center justify-center min-h-0">
           <div className="flex flex-col items-center justify-center gap-0 pt-16">
-            <Image
-              src={FALLBACK_ICON_URL}
-              alt="Loading"
-              width={180}
-              height={180}
-              className="rounded-full object-cover aspect-square"
+            <KenooWordmark
+              className="h-auto w-[180px] -translate-y-12 opacity-50"
+              priority
             />
             <div className="w-48 h-1 bg-neutral-100 rounded-full overflow-hidden -mt-9">
               <motion.div
