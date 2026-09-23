@@ -172,6 +172,14 @@ export async function POST(request: Request) {
         .map((value: string | null | undefined) => normalizeDomain(value))
         .filter((domain): domain is string => Boolean(domain)),
     ));
+    const { data: availableStages } = await supabase
+      .from("deal_stages")
+      .select("id,name,slug,order_index,is_won,is_lost")
+      .eq("account_id", scope.accountId)
+      .order("order_index", { ascending: true });
+    const activeStages = (availableStages ?? []).filter((candidate: any) => !candidate.is_won && !candidate.is_lost);
+    if (!activeStages.length) return NextResponse.json({ error: "No active deal stage is configured for this account" }, { status: 422 });
+    const stageOptions = activeStages.map((candidate: any) => `${candidate.slug} (${candidate.name})`).join(", ");
 
     if (!process.env.OPENAI_API_KEY) return NextResponse.json({ error: "AI analysis is not configured" }, { status: 503 });
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -180,7 +188,7 @@ export async function POST(request: Request) {
       temperature: 0.1,
       response_format: { type: "json_object" },
       messages: [
-        { role: "system", content: `Analyze this partnership/sponsorship email thread. Return JSON only with: deal_name (short useful name), companies (array of up to 2 objects {name,domain,role} where role is client, agency, or brand; include both a brand and its agency when clearly present), talent (array of {name,role} using only names from the roster list when the conversation discusses a specific roster talent; role should be "featured talent" when the deal is for them), contacts (array of {name,email,role} for external brand/agency people we are negotiating with; include their name even when it is not present in the email address), deliverables (array of {name,description,quantity,unit_price_cents,currency,billing_type,billing_interval,recurrence_count,pricing_model,rate_cents,rate_basis,maximum_compensation_cents,evaluation_period_days}), confidence (number 0-1). Convert discussed money into integer cents. For performance-based pricing with an explicit maximum compensation/cap, set maximum_compensation_cents to that cap; the cap is the deliverable's headline unit_price_cents, while rate_cents and rate_basis preserve the underlying CPM/CPV/rate. Include evaluation_period_days when stated. For capped performance deals, prefer the maximum cap as the amount shown in the deal rather than the CPM rate. Only include deliverables when a rate or explicit cap is actually stated or clearly agreed. Never invent prices, dates, companies, talent, or emails. WALLS Entertainment and wallsentertainment.com are our internal agency and must never be returned as a deal company, even if they appear in signatures or replies. Use null/empty arrays when unknown. Known external email domains: ${externalDomains.join(", ") || "none"}. Roster candidates: ${talentCandidates.map((t: any) => t.name).join(", ")}` },
+        { role: "system", content: `Analyze this partnership/sponsorship email thread. Return JSON only with: deal_name (short useful name), stage_slug, companies (array of up to 2 objects {name,domain,role} where role is client, agency, or brand; include both a brand and its agency when clearly present), talent (array of {name,role} using only names from the roster list when the conversation discusses a specific roster talent; role should be "featured talent" when the deal is for them), contacts (array of {name,email,role} for external brand/agency people we are negotiating with; include their name even when it is not present in the email address), deliverables (array of {name,description,quantity,unit_price_cents,currency,billing_type,billing_interval,recurrence_count,pricing_model,rate_cents,rate_basis,maximum_compensation_cents,evaluation_period_days}), confidence (number 0-1). Choose stage_slug only from these account stages: ${stageOptions}. Stage rules: use interest-acquired for initial interest/inquiry without substantive back-and-forth; use in-negotiations when rates, deliverables, timing, or other commercial terms are being discussed or revised; use decision-maker-bought-in only when the buyer clearly approves moving forward but no contract is sent; use contract-sent only when the thread explicitly says a contract/agreement was sent; use contract-signed only when the thread explicitly confirms signing or execution. Never infer contract stages from enthusiasm, agreed terms, a production timeline, or the deal being created. If uncertain, choose the earliest stage supported by explicit evidence. Convert discussed money into integer cents. For performance-based pricing with an explicit maximum compensation/cap, set maximum_compensation_cents to that cap; the cap is the deliverable's headline unit_price_cents, while rate_cents and rate_basis preserve the underlying CPM/CPV/rate. Include evaluation_period_days when stated. For capped performance deals, prefer the maximum cap as the amount shown in the deal rather than the CPM rate. Only include deliverables when a rate or explicit cap is actually stated or clearly agreed. Never invent prices, dates, companies, talent, or emails. WALLS Entertainment and wallsentertainment.com are our internal agency and must never be returned as a deal company, even if they appear in signatures or replies. Use null/empty arrays when unknown. Known external email domains: ${externalDomains.join(", ") || "none"}. Roster candidates: ${talentCandidates.map((t: any) => t.name).join(", ")}` },
         { role: "user", content: transcript },
       ],
     });
@@ -194,8 +202,10 @@ export async function POST(request: Request) {
       name: String(c.name).trim(),
       domain: c.domain || (externalDomains.length === 1 ? externalDomains[0] : null),
     }, scope.accountId)));
-    const { data: stage } = await supabase.from("deal_stages").select("id").eq("account_id", scope.accountId).eq("is_won", false).eq("is_lost", false).order("order_index", { ascending: true }).limit(1).maybeSingle();
-    if (!stage) return NextResponse.json({ error: "No active deal stage is configured for this account" }, { status: 422 });
+    const requestedStageSlug = typeof analysis.stage_slug === "string" ? analysis.stage_slug.trim().toLowerCase() : "";
+    const stage = activeStages.find((candidate: any) => candidate.slug === requestedStageSlug)
+      || activeStages.find((candidate: any) => candidate.slug === "interest-acquired")
+      || activeStages[0];
 
     const { data: deal, error: dealError } = await supabase.from("deals").insert({
       deal_name: String(analysis.deal_name || `${createdCompanies[0].name} partnership`).slice(0, 180),
