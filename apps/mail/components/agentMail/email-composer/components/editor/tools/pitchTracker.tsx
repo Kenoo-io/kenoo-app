@@ -213,7 +213,7 @@ export function PitchTracker({ onPitchChange }: PitchTrackerProps) {
     >
       <SelectTrigger className="relative group hover:bg-transparent p-0 h-[40px] w-[40px] flex items-center justify-center border-0 shadow-none bg-transparent focus:ring-0 focus:ring-offset-0">
         <div className="relative group">
-          <div className="relative z-10 h-[40px] w-[40px] p-2 bg-neutral-100/80 backdrop-blur-md rounded-full shadow-inner border border-neutral-200/50 transition-all duration-300 ease-in-out group-hover:bg-neutral-100 group-hover:shadow-inner group-hover:border-neutral-200 group-hover:scale-95 group-hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] flex items-center justify-center">
+          <div className="relative z-10 h-[40px] w-[40px] p-2 rounded-full transition-all duration-300 ease-in-out group-hover:bg-neutral-100 flex items-center justify-center">
             {selectedCreators.length === 0 ? (
               <Plus className="h-[18px] w-[18px] stroke-[1.5] text-neutral-600 flex-shrink-0" />
             ) : selectedCreators.length === 1 ? (

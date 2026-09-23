@@ -140,8 +140,7 @@ export default function TopBar({
               "relative z-10 p-2.5 rounded-full",
               "transition-all duration-300 ease-in-out",
               "text-neutral-500",
-              "group-hover:bg-neutral-50 group-hover:border group-hover:border-neutral-200/50",
-              "group-hover:scale-95 group-hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)]",
+              "group-hover:bg-neutral-100",
               "group-hover:text-neutral-800"
             )}>
               <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />

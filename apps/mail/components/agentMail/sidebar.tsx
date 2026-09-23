@@ -79,7 +79,7 @@ const SidebarButton = ({
       className={cn(
         "group relative flex items-center gap-3 border transition-all duration-200 cursor-pointer w-full h-10 rounded-xl px-3 justify-start",
         isActive
-          ? "bg-gray-50 border-[rgba(110,173,192,0.45)] shadow-[inset_0_2px_4px_rgba(0,0,0,0.1),0_0_0_1px_rgba(110,173,192,0.4),0_0_12px_rgba(110,173,192,0.4)]"
+          ? "bg-neutral-100/90 border-transparent text-neutral-700"
           : "border-transparent hover:bg-neutral-50 hover:shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)] hover:border-neutral-200/50"
       )}
     >
@@ -418,7 +418,7 @@ export default function Sidebar({
                         className={cn(
                           "flex items-center gap-2.5 h-8 px-2.5 rounded-lg text-sm transition-all duration-150 w-full text-left",
                           !showTasksView && currentMailbox === 'inbox' && activeCategory === id
-                            ? "bg-gray-50 border border-[rgba(110,173,192,0.45)] shadow-[inset_0_2px_4px_rgba(0,0,0,0.1),0_0_0_1px_rgba(110,173,192,0.4),0_0_12px_rgba(110,173,192,0.4)] text-neutral-500 font-light"
+                            ? "bg-neutral-100/90 border-transparent text-neutral-700 font-light"
                             : "border border-transparent text-neutral-500 font-light hover:bg-neutral-50 hover:shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)] hover:border-neutral-200/50 hover:text-neutral-500"
                         )}
                       >
@@ -436,7 +436,7 @@ export default function Sidebar({
                       className={cn(
                         "flex items-center gap-2.5 h-8 px-2.5 rounded-lg text-sm transition-all duration-150 w-full text-left",
                         !showTasksView && currentMailbox === 'sent'
-                          ? "bg-gray-50 border border-[rgba(110,173,192,0.45)] shadow-[inset_0_2px_4px_rgba(0,0,0,0.1),0_0_0_1px_rgba(110,173,192,0.4),0_0_12px_rgba(110,173,192,0.4)] text-neutral-500 font-light"
+                          ? "bg-neutral-100/90 border-transparent text-neutral-700 font-light"
                           : "border border-transparent text-neutral-500 font-light hover:bg-neutral-50 hover:shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)] hover:border-neutral-200/50 hover:text-neutral-500"
                       )}
                     >
@@ -452,7 +452,7 @@ export default function Sidebar({
                       className={cn(
                         "flex items-center gap-2.5 h-8 px-2.5 rounded-lg text-sm transition-all duration-150 w-full text-left",
                         !showTasksView && currentMailbox === 'schedule'
-                          ? "bg-gray-50 border border-[rgba(110,173,192,0.45)] shadow-[inset_0_2px_4px_rgba(0,0,0,0.1),0_0_0_1px_rgba(110,173,192,0.4),0_0_12px_rgba(110,173,192,0.4)] text-neutral-500 font-light"
+                          ? "bg-neutral-100/90 border-transparent text-neutral-700 font-light"
                           : "border border-transparent text-neutral-500 font-light hover:bg-neutral-50 hover:shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)] hover:border-neutral-200/50 hover:text-neutral-500"
                       )}
                     >
@@ -503,7 +503,7 @@ export default function Sidebar({
                       className={cn(
                         "flex items-center gap-2.5 h-8 px-2.5 rounded-lg text-sm transition-all duration-150 w-full text-left",
                         !showTasksView && currentMailbox === 'trash'
-                          ? "bg-gray-50 border border-[rgba(110,173,192,0.45)] shadow-[inset_0_2px_4px_rgba(0,0,0,0.1),0_0_0_1px_rgba(110,173,192,0.4),0_0_12px_rgba(110,173,192,0.4)] text-neutral-500 font-light"
+                          ? "bg-neutral-100/90 border-transparent text-neutral-700 font-light"
                           : "border border-transparent text-neutral-500 font-light hover:bg-neutral-50 hover:shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)] hover:border-neutral-200/50 hover:text-neutral-500"
                       )}
                     >

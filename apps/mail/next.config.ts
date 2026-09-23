@@ -70,12 +70,12 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: "https",
-        hostname: "firebasestorage.googleapis.com",
+        hostname: "storage.googleapis.com",
         pathname: "/**",
       },
       {
         protocol: "https",
-        hostname: "storage.googleapis.com",
+        hostname: "firebasestorage.googleapis.com",
         pathname: "/**",
       },
       {

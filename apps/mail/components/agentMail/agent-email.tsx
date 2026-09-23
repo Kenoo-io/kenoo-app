@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import EmailList from "./email-list";
 import EmailPreview from "./email-preview";
 import TaskList from "./task-list";
@@ -35,13 +36,36 @@ interface ReplyData {
 /** Resolved user for email fetch: email (required) and optional users.id. */
 type EffectiveUser = { email: string; id?: string };
 
+const MAILBOXES: MailboxType[] = ["inbox", "sent", "starred", "trash", "archive", "schedule", "deals"];
+
+function isMailboxType(value: string | null): value is MailboxType {
+  return value !== null && MAILBOXES.includes(value as MailboxType);
+}
+
+type SearchParamsLike = Pick<URLSearchParams, "get" | "has">;
+
+function getMailboxFromUrl(searchParams: SearchParamsLike): MailboxType {
+  const mailbox = searchParams.get("mailbox");
+  return isMailboxType(mailbox) ? mailbox : "inbox";
+}
+
+function getCategoryFromUrl(searchParams: SearchParamsLike): string {
+  return searchParams.get("category") || "primary";
+}
+
 export default function AgentEmail() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { user: authUser } = useAuth();
+  const initialMailbox = getMailboxFromUrl(searchParams);
   const [effectiveUser, setEffectiveUser] = useState<EffectiveUser | null>(null);
   const [isLoadingUser, setIsLoadingUser] = useState(true);
-  const [currentMailbox, setCurrentMailbox] = useState<MailboxType>("inbox");
+  const [currentMailbox, setCurrentMailbox] = useState<MailboxType>(initialMailbox);
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
-  const [activeCategory, setActiveCategory] = useState("unopened");
+  const [activeCategory, setActiveCategory] = useState(() =>
+    searchParams.has("mailbox") ? getCategoryFromUrl(searchParams) : "unopened"
+  );
   const [searchQuery, setSearchQuery] = useState("");
   const [currentAccount, setCurrentAccount] = useState("");
   const [selectAllChecked, setSelectAllChecked] = useState(false);
@@ -71,6 +95,42 @@ export default function AgentEmail() {
   const [showTasksView, setShowTasksView] = useState(false);
   /** Optimistic replies: show sent message in thread before refetch (keyed by threadId, inserted after afterMessageId). */
   const [optimisticReplies, setOptimisticReplies] = useState<Array<{ threadId: string; afterMessageId: string; message: FullEmail }>>([]);
+
+  const updateMailUrl = useCallback((mailbox: MailboxType, category: string) => {
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.set("mailbox", mailbox);
+    nextParams.set("category", category);
+    router.replace(`${pathname}?${nextParams.toString()}`, { scroll: false });
+  }, [pathname, router, searchParams]);
+
+  // Keep the view in sync with browser back/forward navigation.
+  const syncStateFromUrl = useCallback(() => {
+    const nextParams = new URLSearchParams(window.location.search);
+    const mailbox = getMailboxFromUrl(nextParams);
+    const category = nextParams.has("mailbox")
+      ? getCategoryFromUrl(nextParams)
+      : "unopened";
+    setCurrentMailbox(mailbox);
+    setActiveCategory(category);
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener("popstate", syncStateFromUrl);
+    return () => window.removeEventListener("popstate", syncStateFromUrl);
+  }, [syncStateFromUrl]);
+
+  // Reflect state changes in the URL without adding a history entry for every click.
+  // Keeping this separate from the click handlers also handles compound sidebar actions
+  // that update the mailbox and category in the same event.
+  useEffect(() => {
+    if (
+      searchParams.get("mailbox") === currentMailbox &&
+      searchParams.get("category") === activeCategory
+    ) {
+      return;
+    }
+    updateMailUrl(currentMailbox, activeCategory);
+  }, [activeCategory, currentMailbox, searchParams, updateMailUrl]);
 
   const threads = useMemo(() => allFilteredThreads, [allFilteredThreads]);
 
