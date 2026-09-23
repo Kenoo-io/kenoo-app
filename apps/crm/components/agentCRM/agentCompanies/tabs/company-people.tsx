@@ -22,6 +22,8 @@ import { animate, motion, AnimatePresence, useMotionValue } from "framer-motion"
 import { NoContactsToast } from "./ui/no-contacts-toast";
 import { AnimatedEnrichToast } from "./ui/animated-enrich-toast";
 import { SmartSearchPopup, getCountryNameFromCode, type SmartSearchFilters } from "./ui/smart-search-popup";
+import { useActiveAccount } from "@/components/active-account-context";
+import { fetchPersonAccountOverrides, getEffectivePersonName } from "@/lib/person-account-overrides";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -379,6 +381,7 @@ const EnrichmentStatus = ({ status, website, userId, contact, person, companyId,
 };
 
 export default function DepartmentHeadcount({ formData, handleInputChange, companyId, apolloOrganizationId, companyWebsite, apolloAccountId, companyName, onEmailClick, onAddToSequence }: DepartmentHeadcountProps) {
+  const { activeAccountId } = useActiveAccount();
   const { user } = useAuth();
   const [people, setPeople] = useState<Person[]>([]);
   const [loading, setLoading] = useState(true);
@@ -465,10 +468,15 @@ export default function DepartmentHeadcount({ formData, handleInputChange, compa
           return;
         }
 
+        const personOverrides = await fetchPersonAccountOverrides(
+          supabase,
+          activeAccountId,
+          (data || []).map((person: any) => person.id)
+        );
+
         const peopleData: Person[] = (data || []).map((person: any) => {
-          const leadName = person.first_name && person.last_name
-            ? `${person.first_name} ${person.last_name}`
-            : person.first_name || person.last_name || '';
+          const nameParts = getEffectivePersonName(person, personOverrides.get(person.id));
+          const leadName = nameParts.fullName;
 
           const departments = person.departments || [];
           let department = '';
@@ -492,8 +500,8 @@ export default function DepartmentHeadcount({ formData, handleInputChange, compa
 
           return {
             id: person.id,
-            firstName: person.first_name || '',
-            lastName: person.last_name || '',
+            firstName: nameParts.firstName,
+            lastName: nameParts.lastName,
             leadName: leadName,
             email: person.email || '',
             phone: person.phone || '',
@@ -525,7 +533,7 @@ export default function DepartmentHeadcount({ formData, handleInputChange, compa
     };
 
     fetchPeople();
-  }, [companyId]);
+  }, [companyId, activeAccountId]);
 
   const filteredPeople = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();

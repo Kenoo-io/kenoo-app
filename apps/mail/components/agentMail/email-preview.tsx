@@ -634,7 +634,7 @@ export default function EmailPreview({
             />
             <div className="w-48 h-1 bg-neutral-100 rounded-full overflow-hidden -mt-9">
               <motion.div
-                className="h-full bg-[#e2f85c] rounded-full"
+                className="h-full bg-kenoo-sky rounded-full"
                 initial={{ width: "0%" }}
                 animate={{ width: "100%" }}
                 transition={{

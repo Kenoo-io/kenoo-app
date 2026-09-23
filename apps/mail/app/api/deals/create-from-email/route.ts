@@ -10,6 +10,7 @@ const supabase = createClient(
 
 const INTERNAL_COMPANY_DOMAINS = new Set(["wallsentertainment.com", "walls.agency"]);
 const INTERNAL_COMPANY_NAMES = new Set(["walls", "walls entertainment", "walls agency"]);
+const INTERNAL_EMAIL_DOMAINS = new Set(["wallsentertainment.com", "walls.agency", "cherrystreetmusic.com"]);
 
 const normalizeDomain = (value: string | null | undefined) => {
   if (!value) return null;
@@ -31,6 +32,11 @@ function isInternalCompany(company: { name?: unknown; domain?: unknown }) {
   const name = String(company.name || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
   const domain = normalizeDomain(typeof company.domain === "string" ? company.domain : null);
   return INTERNAL_COMPANY_NAMES.has(name) || Boolean(domain && INTERNAL_COMPANY_DOMAINS.has(domain));
+}
+
+function isInternalEmail(email: string) {
+  const domain = email.toLowerCase().split("@").pop()?.trim();
+  return Boolean(domain && INTERNAL_EMAIL_DOMAINS.has(domain));
 }
 
 async function enrichPersonFromEmail(email: string, cookieHeader: string, baseUrl: string) {
@@ -174,7 +180,7 @@ export async function POST(request: Request) {
       temperature: 0.1,
       response_format: { type: "json_object" },
       messages: [
-        { role: "system", content: `Analyze this partnership/sponsorship email thread. Return JSON only with: deal_name (short useful name), companies (array of up to 2 objects {name,domain,role} where role is client, agency, or brand; include both a brand and its agency when clearly present), talent (array of {name,role} using only names from the roster list when the conversation discusses a specific roster talent; role should be "featured talent" when the deal is for them), contacts (array of {name,email,role} for external brand/agency people we are negotiating with; include their name even when it is not present in the email address), deliverables (array of {name,description,quantity,unit_price_cents,currency,billing_type,billing_interval,recurrence_count}), confidence (number 0-1). Convert discussed rates into integer cents. Only include deliverables when a rate is actually stated or clearly agreed. Never invent prices, dates, companies, talent, or emails. WALLS Entertainment and wallsentertainment.com are our internal agency and must never be returned as a deal company, even if they appear in signatures or replies. Use null/empty arrays when unknown. Known external email domains: ${externalDomains.join(", ") || "none"}. Roster candidates: ${talentCandidates.map((t: any) => t.name).join(", ")}` },
+        { role: "system", content: `Analyze this partnership/sponsorship email thread. Return JSON only with: deal_name (short useful name), companies (array of up to 2 objects {name,domain,role} where role is client, agency, or brand; include both a brand and its agency when clearly present), talent (array of {name,role} using only names from the roster list when the conversation discusses a specific roster talent; role should be "featured talent" when the deal is for them), contacts (array of {name,email,role} for external brand/agency people we are negotiating with; include their name even when it is not present in the email address), deliverables (array of {name,description,quantity,unit_price_cents,currency,billing_type,billing_interval,recurrence_count,pricing_model,rate_cents,rate_basis,maximum_compensation_cents,evaluation_period_days}), confidence (number 0-1). Convert discussed money into integer cents. For performance-based pricing with an explicit maximum compensation/cap, set maximum_compensation_cents to that cap; the cap is the deliverable's headline unit_price_cents, while rate_cents and rate_basis preserve the underlying CPM/CPV/rate. Include evaluation_period_days when stated. For capped performance deals, prefer the maximum cap as the amount shown in the deal rather than the CPM rate. Only include deliverables when a rate or explicit cap is actually stated or clearly agreed. Never invent prices, dates, companies, talent, or emails. WALLS Entertainment and wallsentertainment.com are our internal agency and must never be returned as a deal company, even if they appear in signatures or replies. Use null/empty arrays when unknown. Known external email domains: ${externalDomains.join(", ") || "none"}. Roster candidates: ${talentCandidates.map((t: any) => t.name).join(", ")}` },
         { role: "user", content: transcript },
       ],
     });
@@ -205,7 +211,9 @@ export async function POST(request: Request) {
       ? analysis.deliverables
           .map((item: any) => {
             const name = String(item?.name || "").trim();
-            const unitPriceCents = Number(item?.unit_price_cents);
+            const rateCents = Number(item?.rate_cents ?? item?.unit_price_cents);
+            const capCents = Number(item?.maximum_compensation_cents ?? item?.cap_cents);
+            const unitPriceCents = Number.isFinite(capCents) && capCents > 0 ? capCents : rateCents;
             if (!name || !Number.isFinite(unitPriceCents)) return null;
             const rawBillingType = String(item?.billing_type || "one_off").toLowerCase();
             const billingType = rawBillingType === "recurring" || rawBillingType === "time_based" ? rawBillingType : "one_off";
@@ -220,6 +228,13 @@ export async function POST(request: Request) {
               billing_interval: billingType === "recurring" && item?.billing_interval ? String(item.billing_interval).trim() : null,
               recurrence_count: billingType === "recurring" && Number.isFinite(Number(item?.recurrence_count)) ? Math.max(1, Math.round(Number(item.recurrence_count))) : null,
               net_payout: null,
+              details: {
+                ...(Number.isFinite(rateCents) && rateCents > 0 ? { rate_cents: Math.round(rateCents) } : {}),
+                ...(item?.rate_basis ? { rate_basis: String(item.rate_basis).trim() } : {}),
+                ...(Number.isFinite(capCents) && capCents > 0 ? { maximum_compensation_cents: Math.round(capCents) } : {}),
+                ...(Number.isFinite(Number(item?.evaluation_period_days)) ? { evaluation_period_days: Math.max(1, Math.round(Number(item.evaluation_period_days))) } : {}),
+                ...(item?.pricing_model ? { pricing_model: String(item.pricing_model).trim() } : {}),
+              },
             };
           })
           .filter(Boolean)
@@ -264,19 +279,35 @@ export async function POST(request: Request) {
           name: String(contact?.name || contact?.full_name || "").trim(),
         })).filter((contact: { email: string; name: string }) => contact.email || contact.name)
       : [];
-    if (contactSpecs.length && firstJunction) {
-      const contactEmails = contactSpecs.map((contact: { email: string }) => contact.email).filter(Boolean);
-      let contactsByEmail = contactEmails.length
-        ? await supabase.from("people").select("id,email,first_name,last_name,user_id").in("email", contactEmails).eq("account_id", scope.accountId)
+    const matchedTalentNames = matchedTalent.map((talent: any) => normalizeName(talent.name));
+    const matchedTalentFirstNames = new Set(matchedTalent.map((talent: any) => normalizeName(String(talent.name).split(/\s+/)[0])));
+    const isTalentContactSpec = (contact: { name: string }) => {
+      const normalizedContactName = normalizeName(contact.name);
+      if (!normalizedContactName) return false;
+      if (matchedTalentNames.includes(normalizedContactName)) return true;
+      const parts = normalizedContactName.split(" ");
+      return parts.length === 1 && matchedTalentFirstNames.has(parts[0]);
+    };
+    const eligibleContactSpecs = contactSpecs.filter((contact: { email: string; name: string }) =>
+      !isInternalEmail(contact.email) && !isTalentContactSpec(contact),
+    );
+    if (eligibleContactSpecs.length && firstJunction) {
+      const contactEmails = eligibleContactSpecs.map((contact: { email: string }) => contact.email).filter(Boolean);
+      const { data: accountUsers } = await supabase.from("account_users").select("user_id").eq("account_id", scope.accountId);
+      const internalUserIds = new Set((accountUsers ?? []).map((row: any) => row.user_id).filter(Boolean));
+      const externalContactEmails = contactEmails.filter((email: string) => !isInternalEmail(email));
+      let contactsByEmail = externalContactEmails.length
+        ? await supabase.from("people").select("id,email,first_name,last_name,user_id").in("email", externalContactEmails).eq("account_id", scope.accountId)
         : { data: [] as any[] };
       const matchedEmails = new Set((contactsByEmail.data ?? []).map((person: any) => String(person.email || "").toLowerCase()));
-      const missingEmails = contactEmails.filter((email: string) => !matchedEmails.has(email));
+      const missingEmails = externalContactEmails.filter((email: string) => !matchedEmails.has(email));
       if (missingEmails.length) {
         await Promise.all(missingEmails.map((email: string) => enrichPersonFromEmail(email, cookieHeader, baseUrl)));
-        contactsByEmail = await supabase.from("people").select("id,email,first_name,last_name,user_id").in("email", contactEmails).eq("account_id", scope.accountId);
+        contactsByEmail = await supabase.from("people").select("id,email,first_name,last_name,user_id").in("email", externalContactEmails).eq("account_id", scope.accountId);
       }
-      const nameContactResults = await Promise.all(contactSpecs.filter((contact: { name: string }) => contact.name).map(async (contact: { name: string }) => {
+      const nameContactResults = await Promise.all(eligibleContactSpecs.filter((contact: { name: string; email: string }) => contact.name && contact.email).map(async (contact: { name: string }) => {
         const parts = contact.name.split(/\s+/).filter(Boolean);
+        if (parts.length < 2) return { data: [] as any[] };
         let query = supabase.from("people").select("id,email,first_name,last_name,user_id").eq("account_id", scope.accountId);
         if (parts.length >= 2) query = query.ilike("first_name", parts[0]).ilike("last_name", parts.slice(1).join(" "));
         else query = query.ilike("first_name", parts[0]);
@@ -289,7 +320,7 @@ export async function POST(request: Request) {
       const externalContacts = contacts.filter((person: any) => {
         const personEmail = String(person.email || "").toLowerCase();
         const personName = normalizeName([person.first_name, person.last_name].filter(Boolean).join(" "));
-        return !talentEmails.has(personEmail) && !talentCandidates.some((talent: any) => talent.user_id && talent.user_id === person.user_id) && !normalizedTalentNames.has(personName);
+        return !isInternalEmail(personEmail) && !internalUserIds.has(person.user_id) && !talentEmails.has(personEmail) && !talentCandidates.some((talent: any) => talent.user_id && talent.user_id === person.user_id) && !normalizedTalentNames.has(personName);
       });
       if (externalContacts.length) {
         const { error: contactsError } = await supabase.from("deal_contacts").insert(externalContacts.map((p: any) => ({ deal_id: deal.id, deal_company_id: firstJunction.id, person_id: p.id })));

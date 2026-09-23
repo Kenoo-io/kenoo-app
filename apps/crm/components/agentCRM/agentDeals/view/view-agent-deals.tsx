@@ -34,6 +34,7 @@ import Conversations from "../tabs/conversations";
 import TimeEntries from "../tabs/time-entries";
 import Image from "next/image";
 import { AnimatedDealSaveToast } from "./animated-deal-save-toast";
+import { fetchPersonAccountOverrides, getEffectivePersonName } from "@/lib/person-account-overrides";
 
 /** Shape for formData.deliverables (matches deal_deliverables + UI helpers) */
 interface Deliverable {
@@ -925,6 +926,12 @@ export default function EditAgentDeals({ analyticsData, dealId, initialData, isO
           supabase.from('deal_commissions').select('id, user_id, commission_bps, role, users(id, first_name, last_name, email, avatar_url)').eq('deal_id', dealId),
         ]);
 
+        const overrideByPersonId = await fetchPersonAccountOverrides(
+          supabase,
+          activeAccountId,
+          (contactsRes.data || []).map((dc: any) => dc.person_id)
+        );
+
         const companiesList = (companiesRes.data || []).map((dc: any) => {
           const c = dc.companies ? (Array.isArray(dc.companies) ? dc.companies[0] : dc.companies) : null;
           return {
@@ -997,11 +1004,12 @@ export default function EditAgentDeals({ analyticsData, dealId, initialData, isO
 
         const dealContactsList = (contactsRes.data || []).map((dc: any) => {
           const p = Array.isArray(dc.people) ? dc.people[0] : dc.people;
+          const nameParts = getEffectivePersonName(p, overrideByPersonId.get(dc.person_id));
           return {
             id: dc.id,
             person_id: dc.person_id,
-            first_name: p?.first_name ?? '',
-            last_name: p?.last_name ?? '',
+            first_name: nameParts.firstName,
+            last_name: nameParts.lastName,
             email: p?.email ?? null,
             role: dc.role ?? null,
             photo_url: p?.photo_url ?? null,
@@ -1121,7 +1129,7 @@ export default function EditAgentDeals({ analyticsData, dealId, initialData, isO
       if (!hasChangesRef.current) refreshDealData();
     }, 30000);
     return () => clearInterval(refreshInterval);
-  }, [dealId, formData.contractFile]);
+  }, [dealId, formData.contractFile, activeAccountId]);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text)

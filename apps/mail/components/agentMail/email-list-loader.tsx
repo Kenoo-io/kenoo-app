@@ -57,7 +57,7 @@ export function EmailListLoader({ isLoading }: EmailListLoaderProps) {
                         "absolute w-[40px] h-[40px] rounded-[20px] transition-colors duration-300",
                         shouldExpand && "animate-expand",
                         !shouldExpand && "scale-1",
-                        isLoading && !isAnimating && !shouldExpand && "bg-kenoo-yellow scale-[100]"
+                        isLoading && !isAnimating && !shouldExpand && "bg-kenoo-sky scale-[100]"
                     )}
                     style={{
                         backgroundColor: !shouldExpand ? 'transparent' : undefined

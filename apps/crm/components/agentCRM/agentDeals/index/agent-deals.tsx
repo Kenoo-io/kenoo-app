@@ -214,7 +214,7 @@ export default function AgentDeals({ analyticsData }: AgentDealsProps) {
           return;
         }
 
-        let dealsData: Deal[] = await mapRawDealsToDeals(supabase, dealsDataRaw);
+        let dealsData: Deal[] = await mapRawDealsToDeals(supabase, dealsDataRaw, activeAccountId);
 
         // When amount filter is set we fetched up to limitForAmountFilter; filter by amount and paginate in memory
         if (useAmountFilter && filters.amountRange && filters.amountRange !== "10000+") {

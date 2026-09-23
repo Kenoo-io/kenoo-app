@@ -1,5 +1,6 @@
 import { getSupabaseClient } from "@/app/auth/supabaseClient";
 import { emptyVendorInfo } from "../tabs/invoiceTab/invoice-vendor-shared";
+import { fetchPersonAccountOverrides, getEffectivePersonName } from "@/lib/person-account-overrides";
 
 /** Row shape consumed by parseDeliverables in view-agent-deals (deal_deliverables fields). */
 type DealDeliverableRow = {
@@ -20,7 +21,7 @@ type DealDeliverableRow = {
 /**
  * Loads a CRM deal graph from Postgres for the edit sheet (mirrors refreshDealData in view-agent-deals).
  */
-export async function fetchDealEditorInitialData(dealId: string) {
+export async function fetchDealEditorInitialData(dealId: string, accountId?: string | null) {
   const supabase = getSupabaseClient();
   const { data: deal, error } = await supabase
     .from("deals")
@@ -177,13 +178,20 @@ export async function fetchDealEditorInitialData(dealId: string) {
     0
   );
 
+  const overrideByPersonId = await fetchPersonAccountOverrides(
+    supabase,
+    accountId,
+    (contactsRes.data || []).map((dc: any) => dc.person_id)
+  );
+
   const dealContactsList = (contactsRes.data || []).map((dc: any) => {
     const p = Array.isArray(dc.people) ? dc.people[0] : dc.people;
+    const nameParts = getEffectivePersonName(p, overrideByPersonId.get(dc.person_id));
     return {
       id: dc.id,
       person_id: dc.person_id,
-      first_name: p?.first_name ?? "",
-      last_name: p?.last_name ?? "",
+      first_name: nameParts.firstName,
+      last_name: nameParts.lastName,
       email: p?.email ?? null,
       role: dc.role ?? null,
       photo_url: p?.photo_url ?? null,

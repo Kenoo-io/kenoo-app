@@ -241,7 +241,7 @@ export function useCrmDashboardData() {
       if (dealsRawRes.error) throw dealsRawRes.error;
       if (stagesRes.error) throw stagesRes.error;
 
-      const deals = await mapRawDealsToDeals(supabase, dealsRawRes.data || []);
+      const deals = await mapRawDealsToDeals(supabase, dealsRawRes.data || [], activeAccountId);
       const stageById = new Map(
         (stagesRes.data || []).map((s) => [
           s.id,

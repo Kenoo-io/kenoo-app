@@ -1,5 +1,6 @@
 import { getSupabaseClient } from "@/app/auth/supabaseClient";
 import { Deal, Filters } from "./types";
+import { fetchPersonAccountOverrides, getEffectivePersonName } from "@/lib/person-account-overrides";
 
 type SupabaseClient = ReturnType<typeof getSupabaseClient>;
 
@@ -113,7 +114,8 @@ export function buildDealsQuery(supabase: SupabaseClient, params: BuildDealsQuer
  */
 export async function mapRawDealsToDeals(
   supabase: SupabaseClient,
-  dealsDataRaw: any[] | null
+  dealsDataRaw: any[] | null,
+  accountId?: string | null
 ): Promise<Deal[]> {
   const dealIds = (dealsDataRaw || []).map((d: any) => d.id).filter(Boolean);
   if (dealIds.length === 0) return [];
@@ -380,11 +382,18 @@ export async function mapRawDealsToDeals(
     .select('deal_id, person_id, people(id, first_name, last_name, photo_url)')
     .in('deal_id', dealIds);
 
+  const overrideByPersonId = await fetchPersonAccountOverrides(
+    supabase,
+    accountId,
+    (dealContactsData || []).map((dc: any) => dc.person_id)
+  );
+
   const contactsByDealId = new Map<string, { id: string; name: string; first_name?: string; avatar_url?: string }[]>();
   (dealContactsData || []).forEach((dc: any) => {
     const p = Array.isArray(dc.people) ? dc.people[0] : dc.people;
-    const firstName = p?.first_name?.trim() ?? '';
-    const name = p ? `${p.first_name || ''} ${p.last_name || ''}`.trim() : '';
+    const nameParts = getEffectivePersonName(p, overrideByPersonId.get(dc.person_id));
+    const firstName = nameParts.firstName.trim();
+    const name = nameParts.fullName;
     const list = contactsByDealId.get(dc.deal_id) || [];
     list.push({ id: p?.id ?? dc.person_id, name: name || '—', first_name: firstName || undefined, avatar_url: p?.photo_url ?? p?.avatar_url });
     contactsByDealId.set(dc.deal_id, list);
