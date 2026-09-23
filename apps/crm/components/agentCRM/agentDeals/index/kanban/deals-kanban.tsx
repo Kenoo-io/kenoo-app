@@ -314,7 +314,7 @@ export function DealsKanban({
       const { data: dealsDataRaw, error } = await query.limit(KANBAN_FETCH_LIMIT);
       if (error) throw error;
 
-      let dealsData = await mapRawDealsToDeals(supabase, dealsDataRaw);
+      let dealsData = await mapRawDealsToDeals(supabase, dealsDataRaw, activeAccountId);
 
       const useAmountFilter = Boolean(filters.amountRange && filters.amountRange !== "10000+");
       if (useAmountFilter) {

@@ -18,6 +18,7 @@ import { PitchesTableRow } from "./table/pitches-table-row";
 import { Pitch, PitchFilters, ImageStates, ColumnWidths } from "./types";
 import ViewAgentPitches from "../view/view-agent-pitches";
 import { CreatePitchPopup, type CreatePitchAnchorRect } from "../create/popup/create-pitch";
+import { fetchPersonAccountOverrides, getEffectivePersonName } from "@/lib/person-account-overrides";
 
 const ITEMS_PER_PAGE = 50;
 const PITCHES_CACHE_KEY = 'walls-pitches-v2-cache';
@@ -155,6 +156,12 @@ function AgentPitchesContent({ analyticsData }: AgentPitchesProps) {
         return;
       }
 
+      const personOverrides = await fetchPersonAccountOverrides(
+        supabase,
+        activeAccountId,
+        pitchesData.map((pitch: any) => pitch.person_id)
+      );
+
       // Fetch team data
       const agentIds = Array.from(new Set(pitchesData.map((p: any) => p.agent_id).filter(Boolean)));
       const teamMap = new Map<string, { email: string; first_name: string; last_name: string }>();
@@ -247,9 +254,8 @@ function AgentPitchesContent({ analyticsData }: AgentPitchesProps) {
 
         let pitchedTo = '';
         if (person) {
-          pitchedTo = person.first_name && person.last_name
-            ? `${person.first_name} ${person.last_name}`
-            : person.email || '';
+          const nameParts = getEffectivePersonName(person, personOverrides.get(person.id));
+          pitchedTo = nameParts.fullName || person.email || '';
         }
 
         let sentBy = '';

@@ -1,5 +1,6 @@
 import { getSupabaseClient } from "@/app/auth/supabaseClient";
 import { Deal, Filters } from "./types";
+import { fetchPersonAccountOverrides, getEffectivePersonName } from "@/lib/person-account-overrides";
 
 type SupabaseClient = ReturnType<typeof getSupabaseClient>;
 
@@ -113,7 +114,8 @@ export function buildDealsQuery(supabase: SupabaseClient, params: BuildDealsQuer
  */
 export async function mapRawDealsToDeals(
   supabase: SupabaseClient,
-  dealsDataRaw: any[] | null
+  dealsDataRaw: any[] | null,
+  accountId?: string | null
 ): Promise<Deal[]> {
   const dealIds = (dealsDataRaw || []).map((d: any) => d.id).filter(Boolean);
   if (dealIds.length === 0) return [];
@@ -165,7 +167,7 @@ export async function mapRawDealsToDeals(
 
   const { data: deliverablesData, error: deliverablesError } = await supabase
     .from('deal_deliverables')
-    .select('deal_id, quantity, unit_price_cents, currency, billing_type, recurrence_count, billing_interval')
+    .select('deal_id, quantity, unit_price_cents, currency, billing_type, recurrence_count, billing_interval, details')
     .in('deal_id', dealIds);
 
   if (deliverablesError) {
@@ -212,7 +214,10 @@ export async function mapRawDealsToDeals(
     const current = amountByDealId.get(d.deal_id) || 0;
     const q = Number(d.quantity) || 0;
     const c = Number(d.unit_price_cents) || 0;
-    let lineTotal = (q * c) / 100;
+    const packageAllocationCents = Number(d.details?.package_allocation_cents);
+    let lineTotal = Number.isFinite(packageAllocationCents)
+      ? packageAllocationCents / 100
+      : (q * c) / 100;
     const isRecurring = d.billing_type === 'recurring';
     const recur = d.recurrence_count != null ? Number(d.recurrence_count) || 0 : 0;
 
@@ -380,11 +385,18 @@ export async function mapRawDealsToDeals(
     .select('deal_id, person_id, people(id, first_name, last_name, photo_url)')
     .in('deal_id', dealIds);
 
+  const overrideByPersonId = await fetchPersonAccountOverrides(
+    supabase,
+    accountId,
+    (dealContactsData || []).map((dc: any) => dc.person_id)
+  );
+
   const contactsByDealId = new Map<string, { id: string; name: string; first_name?: string; avatar_url?: string }[]>();
   (dealContactsData || []).forEach((dc: any) => {
     const p = Array.isArray(dc.people) ? dc.people[0] : dc.people;
-    const firstName = p?.first_name?.trim() ?? '';
-    const name = p ? `${p.first_name || ''} ${p.last_name || ''}`.trim() : '';
+    const nameParts = getEffectivePersonName(p, overrideByPersonId.get(dc.person_id));
+    const firstName = nameParts.firstName.trim();
+    const name = nameParts.fullName;
     const list = contactsByDealId.get(dc.deal_id) || [];
     list.push({ id: p?.id ?? dc.person_id, name: name || '—', first_name: firstName || undefined, avatar_url: p?.photo_url ?? p?.avatar_url });
     contactsByDealId.set(dc.deal_id, list);

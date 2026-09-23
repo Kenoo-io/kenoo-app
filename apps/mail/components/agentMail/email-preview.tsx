@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useRef, useState, useEffect } from 'react';
-import { FALLBACK_ICON_URL } from "@/lib/asset-urls";
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from "@/components/ui/button";
@@ -38,6 +37,7 @@ import { CollapsedEmail } from "./collapsed-email";
 import { EmailContentViewer } from './email-content-viewer';
 import { useAuth } from "@/app/auth/AuthContext";
 import { FallbackEmailAvatar } from './ui/fallback-email-avatar';
+import { KenooWordmark } from "@walls/ui/kenoo-wordmark";
 
 /** Optimistic reply: shown in thread immediately after send, before refetch. */
 export type OptimisticReplyEntry = {
@@ -628,16 +628,13 @@ export default function EmailPreview({
       <div className="h-full w-full bg-neutral-100 overflow-hidden flex flex-col">
         <div className="flex-1 overflow-hidden bg-neutral-100 flex flex-col items-center justify-center min-h-0">
           <div className="flex flex-col items-center justify-center gap-0 pt-16">
-            <Image
-              src={FALLBACK_ICON_URL}
-              alt="Loading"
-              width={180}
-              height={180}
-              className="rounded-full object-cover aspect-square"
+            <KenooWordmark
+              className="h-auto w-[180px] -translate-y-12 opacity-50"
+              priority
             />
             <div className="w-48 h-1 bg-neutral-100 rounded-full overflow-hidden -mt-9">
               <motion.div
-                className="h-full bg-[#e2f85c] rounded-full"
+                className="h-full bg-kenoo-sky rounded-full"
                 initial={{ width: "0%" }}
                 animate={{ width: "100%" }}
                 transition={{

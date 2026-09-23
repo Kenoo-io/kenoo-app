@@ -10,6 +10,7 @@ const supabase = createClient(
 
 const INTERNAL_COMPANY_DOMAINS = new Set(["wallsentertainment.com", "walls.agency"]);
 const INTERNAL_COMPANY_NAMES = new Set(["walls", "walls entertainment", "walls agency"]);
+const INTERNAL_EMAIL_DOMAINS = new Set(["wallsentertainment.com", "walls.agency", "cherrystreetmusic.com"]);
 
 const normalizeDomain = (value: string | null | undefined) => {
   if (!value) return null;
@@ -18,6 +19,36 @@ const normalizeDomain = (value: string | null | undefined) => {
   const domain = raw.includes("@") ? raw.split("@").pop() : raw.replace(/^https?:\/\//, "").split("/")[0];
   return domain?.replace(/^www\./, "") || null;
 };
+
+async function findCompanyDomainWithSerper(companyName: string) {
+  const apiKey = process.env.SERPER_API_KEY;
+  if (!apiKey || !companyName.trim()) return null;
+  try {
+    const response = await fetch("https://google.serper.dev/search", {
+      method: "POST",
+      headers: { "X-API-KEY": apiKey, "Content-Type": "application/json" },
+      body: JSON.stringify({ q: `${companyName} official website`, num: 8 }),
+    });
+    if (!response.ok) return null;
+    const data = await response.json() as { organic?: { title?: string; link?: string; snippet?: string }[] };
+    const excluded = new Set(["facebook.com", "instagram.com", "linkedin.com", "youtube.com", "twitter.com", "x.com", "wikipedia.org"]);
+    const tokens = companyName.toLowerCase().split(/[^a-z0-9]+/).filter((token) => token.length > 2);
+    const candidates = (data.organic || []).map((result) => {
+      const domain = normalizeDomain(result.link);
+      if (!domain || excluded.has(domain) || Array.from(excluded).some((blocked) => domain.endsWith(`.${blocked}`))) return null;
+      const haystack = `${result.title || ""} ${result.snippet || ""} ${domain}`.toLowerCase();
+      const tokenMatches = tokens.filter((token) => haystack.includes(token)).length;
+      const officialMatch = /official|homepage|home\b/.test(haystack) ? 2 : 0;
+      const domainMatch = tokens.some((token) => domain.includes(token)) ? 3 : 0;
+      return { domain, score: tokenMatches + officialMatch + domainMatch };
+    }).filter(Boolean) as { domain: string; score: number }[];
+    candidates.sort((a, b) => b.score - a.score);
+    return candidates[0]?.domain || null;
+  } catch (error) {
+    console.warn("[create-from-email] Serper company-domain search failed:", error);
+    return null;
+  }
+}
 
 function parseJson(content: string | null | undefined) {
   if (!content) return null;
@@ -33,11 +64,34 @@ function isInternalCompany(company: { name?: unknown; domain?: unknown }) {
   return INTERNAL_COMPANY_NAMES.has(name) || Boolean(domain && INTERNAL_COMPANY_DOMAINS.has(domain));
 }
 
+function isInternalEmail(email: string) {
+  const domain = email.toLowerCase().split("@").pop()?.trim();
+  return Boolean(domain && INTERNAL_EMAIL_DOMAINS.has(domain));
+}
+
+async function enrichPersonFromEmail(email: string, cookieHeader: string, baseUrl: string) {
+  if (!baseUrl || !email) return false;
+  try {
+    const response = await fetch(`${baseUrl}/api/apollo/custom/apollo-person-id-supabase-sync`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(cookieHeader ? { Cookie: cookieHeader } : {}),
+      },
+      body: JSON.stringify({ email }),
+    });
+    return response.ok;
+  } catch (error) {
+    console.warn("[create-from-email] person enrichment failed:", error);
+    return false;
+  }
+}
+
 async function enrichOrCreateCompany(
   company: { name: string; domain?: string | null },
   accountId: string,
 ) {
-  const domain = normalizeDomain(company.domain);
+  const domain = normalizeDomain(company.domain) || await findCompanyDomainWithSerper(company.name);
   const query = supabase.from("companies").select("id,name,domain,website,logo_url").eq("account_id", accountId);
   const { data: existing } = domain
     ? await query.eq("domain", domain).maybeSingle()
@@ -98,6 +152,8 @@ export async function POST(request: Request) {
   if (!scope) return NextResponse.json({ error: "You must be signed in with an active CRM account" }, { status: 401 });
 
   try {
+    const cookieHeader = request.headers.get("cookie") || "";
+    const baseUrl = new URL(request.url).origin;
     const body = await request.json();
     const providerThreadId = typeof body.threadId === "string" ? body.threadId.trim() : "";
     if (!providerThreadId) return NextResponse.json({ error: "threadId is required" }, { status: 400 });
@@ -133,10 +189,10 @@ export async function POST(request: Request) {
 
     const { data: rosterTalent } = await supabase
       .from("talent")
-      .select("id,first_name,last_name,avatar_url")
+      .select("id,first_name,last_name,avatar_url,walls_email,user_id")
       .eq("status", "Active");
     const talentCandidates = (rosterTalent ?? [])
-      .map((t: any) => ({ id: t.id, name: [t.first_name, t.last_name].filter(Boolean).join(" ").trim(), avatar_url: t.avatar_url }))
+      .map((t: any) => ({ id: t.id, name: [t.first_name, t.last_name].filter(Boolean).join(" ").trim(), avatar_url: t.avatar_url, walls_email: t.walls_email, user_id: t.user_id }))
       .filter((t: any) => t.name);
     const externalDomains = Array.from(new Set(
       [
@@ -146,6 +202,14 @@ export async function POST(request: Request) {
         .map((value: string | null | undefined) => normalizeDomain(value))
         .filter((domain): domain is string => Boolean(domain)),
     ));
+    const { data: availableStages } = await supabase
+      .from("deal_stages")
+      .select("id,name,slug,order_index,is_won,is_lost")
+      .eq("account_id", scope.accountId)
+      .order("order_index", { ascending: true });
+    const activeStages = (availableStages ?? []).filter((candidate: any) => !candidate.is_won && !candidate.is_lost);
+    if (!activeStages.length) return NextResponse.json({ error: "No active deal stage is configured for this account" }, { status: 422 });
+    const stageOptions = activeStages.map((candidate: any) => `${candidate.slug} (${candidate.name})`).join(", ");
 
     if (!process.env.OPENAI_API_KEY) return NextResponse.json({ error: "AI analysis is not configured" }, { status: 503 });
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -154,7 +218,7 @@ export async function POST(request: Request) {
       temperature: 0.1,
       response_format: { type: "json_object" },
       messages: [
-        { role: "system", content: `Analyze this partnership/sponsorship email thread. Return JSON only with: deal_name (short useful name), companies (array of up to 2 objects {name,domain,role} where role is client, agency, or brand; include both a brand and its agency when clearly present), talent (array of {name,role} using only names from the roster list when the conversation discusses a specific roster talent; role should be "featured talent" when the deal is for them), contacts (array of {email,role}), deliverables (array of {name,description,quantity,unit_price_cents,currency,billing_type,billing_interval,recurrence_count}), confidence (number 0-1). Convert discussed rates into integer cents. Only include deliverables when a rate is actually stated or clearly agreed. Never invent prices, dates, companies, talent, or emails. WALLS Entertainment and wallsentertainment.com are our internal agency and must never be returned as a deal company, even if they appear in signatures or replies. Use null/empty arrays when unknown. Known external email domains: ${externalDomains.join(", ") || "none"}. Roster candidates: ${talentCandidates.map((t: any) => t.name).join(", ")}` },
+        { role: "system", content: `Analyze this partnership/sponsorship email thread. Return JSON only with: deal_name (short useful name), stage_slug, companies (array of up to 2 objects {name,domain,role} where role is client, agency, or brand; include both a brand and its agency when clearly present), talent (array of {name,role} using only names from the roster list when the conversation discusses a specific roster talent; role should be "featured talent" when the deal is for them), contacts (array of {name,email,role} for external brand/agency people we are negotiating with; include their name even when it is not present in the email address), deliverables (array of {name,description,quantity,package_quantity,unit_price_cents,currency,billing_type,billing_interval,recurrence_count,pricing_scope,package_total_cents,allocation_weight,pricing_model,rate_cents,rate_basis,maximum_compensation_cents,evaluation_period_days}), confidence (number 0-1). Choose stage_slug only from these account stages: ${stageOptions}. Stage rules: use interest-acquired for initial interest/inquiry without substantive back-and-forth; use in-negotiations when rates, deliverables, timing, or other commercial terms are being discussed or revised; use decision-maker-bought-in only when the buyer clearly approves moving forward but no contract is sent; use contract-sent only when the thread explicitly says a contract/agreement was sent; use contract-signed only when the thread explicitly confirms signing or execution. Never infer contract stages from enthusiasm, agreed terms, a production timeline, or the deal being created. If uncertain, choose the earliest stage supported by explicit evidence. Convert discussed money into integer cents. IMPORTANT PRICING RULE: If the conversation states a total package fee/range for multiple deliverables, set pricing_scope to "package_total" and package_total_cents to the selected total. Do not put the package total into a per-item unit_price_cents or multiply it by a deliverable count. Preserve the actual quantity for each component (for example, quantity 6 for 6 postings and quantity 6 for 6 stories); use package_quantity as an optional duplicate count, and allocate the package total across those real quantities. If no component prices are stated, make a reasonable commercial allocation assumption and return allocation_weight for each package component: short-form Stories generally weigh less than feed Posts/Reels, Reels and dedicated video integrations generally weigh more than static/carousel posts, and exclusivity, paid usage/buyouts, whitelisting, or broad usage rights should receive meaningful weight. Use equal weights only when the components are genuinely comparable. Only use pricing_scope "per_unit" when the conversation explicitly gives a rate for each individual item. For performance-based pricing with an explicit maximum compensation/cap, set maximum_compensation_cents to that cap; the cap is the deliverable's headline unit_price_cents, while rate_cents and rate_basis preserve the underlying CPM/CPV/rate. Include evaluation_period_days when stated. For capped performance deals, prefer the maximum cap as the amount shown in the deal rather than the CPM rate. Only include deliverables when a rate or explicit cap is actually stated or clearly agreed. Never invent prices, dates, companies, talent, or emails. WALLS Entertainment and wallsentertainment.com are our internal agency and must never be returned as a deal company, even if they appear in signatures or replies. Use null/empty arrays when unknown. Known external email domains: ${externalDomains.join(", ") || "none"}. Roster candidates: ${talentCandidates.map((t: any) => t.name).join(", ")}` },
         { role: "user", content: transcript },
       ],
     });
@@ -166,10 +230,14 @@ export async function POST(request: Request) {
 
     const createdCompanies = await Promise.all(companies.map((c: any) => enrichOrCreateCompany({
       name: String(c.name).trim(),
-      domain: c.domain || (externalDomains.length === 1 ? externalDomains[0] : null),
+      // Do not apply the sender's domain to every extracted company. In agency-led
+      // threads that incorrectly turns the brand into a duplicate of the agency.
+      domain: c.domain || null,
     }, scope.accountId)));
-    const { data: stage } = await supabase.from("deal_stages").select("id").eq("account_id", scope.accountId).eq("is_won", false).eq("is_lost", false).order("order_index", { ascending: true }).limit(1).maybeSingle();
-    if (!stage) return NextResponse.json({ error: "No active deal stage is configured for this account" }, { status: 422 });
+    const requestedStageSlug = typeof analysis.stage_slug === "string" ? analysis.stage_slug.trim().toLowerCase() : "";
+    const stage = activeStages.find((candidate: any) => candidate.slug === requestedStageSlug)
+      || activeStages.find((candidate: any) => candidate.slug === "interest-acquired")
+      || activeStages[0];
 
     const { data: deal, error: dealError } = await supabase.from("deals").insert({
       deal_name: String(analysis.deal_name || `${createdCompanies[0].name} partnership`).slice(0, 180),
@@ -181,11 +249,42 @@ export async function POST(request: Request) {
     }).select("id,deal_name").single();
     if (dealError || !deal) throw new Error(dealError?.message || "Unable to create deal");
 
-    const deliverables = Array.isArray(analysis.deliverables)
-      ? analysis.deliverables
+    const rawDeliverables = Array.isArray(analysis.deliverables) ? analysis.deliverables : [];
+    const packageTotalCents = rawDeliverables
+      .map((item: any) => Number(item?.package_total_cents))
+      .find((value: number) => Number.isFinite(value) && value > 0);
+    const packageItems = packageTotalCents ? rawDeliverables.filter((item: any) => String(item?.name || "").trim()) : [];
+    const inferPackageWeight = (item: any) => {
+      const text = `${item?.name || ""} ${item?.description || ""}`.toLowerCase();
+      if (/exclusiv|buy.?out|whitelist|usage right|paid ad/.test(text)) return 2;
+      if (/reel|video|integration|dedicated/.test(text)) return 2;
+      if (/story|stories/.test(text)) return 1;
+      if (/carousel|post|photo|static/.test(text)) return 1.5;
+      return 1;
+    };
+    const packageWeights = packageItems.map((item: any) => {
+      const weight = Number(item?.allocation_weight);
+      return Number.isFinite(weight) && weight > 0 ? weight : inferPackageWeight(item);
+    });
+    const totalPackageWeight = packageWeights.reduce((sum: number, weight: number) => sum + weight, 0);
+    const deliverables = rawDeliverables
           .map((item: any) => {
             const name = String(item?.name || "").trim();
-            const unitPriceCents = Number(item?.unit_price_cents);
+            const rateCents = Number(item?.rate_cents ?? item?.unit_price_cents);
+            const capCents = Number(item?.maximum_compensation_cents ?? item?.cap_cents);
+            const isPackageTotal = Boolean(packageTotalCents && (item?.pricing_scope === "package_total" || Number.isFinite(Number(item?.package_total_cents))));
+            const packageIndex = packageItems.indexOf(item);
+            const packageAllocationCents = isPackageTotal
+              ? packageIndex === packageItems.length - 1
+                ? packageTotalCents - packageItems.slice(0, -1).reduce((sum: number, _packageItem: any, index: number) => sum + Math.floor(packageTotalCents * packageWeights[index] / totalPackageWeight), 0)
+                : Math.floor(packageTotalCents * packageWeights[packageIndex] / totalPackageWeight)
+              : null;
+            const packageQuantity = isPackageTotal
+              ? Math.max(1, Math.round(Number(item?.package_quantity ?? item?.quantity) || 1))
+              : Math.max(1, Math.round(Number(item?.quantity) || 1));
+            const unitPriceCents = isPackageTotal
+              ? Math.round((packageAllocationCents || 0) / packageQuantity)
+              : Number.isFinite(capCents) && capCents > 0 ? capCents : rateCents;
             if (!name || !Number.isFinite(unitPriceCents)) return null;
             const rawBillingType = String(item?.billing_type || "one_off").toLowerCase();
             const billingType = rawBillingType === "recurring" || rawBillingType === "time_based" ? rawBillingType : "one_off";
@@ -193,17 +292,25 @@ export async function POST(request: Request) {
               deal_id: deal.id,
               name: name.slice(0, 180),
               description: item?.description ? String(item.description).trim() : null,
-              quantity: Math.max(1, Math.round(Number(item?.quantity) || 1)),
+              quantity: packageQuantity,
               unit_price_cents: Math.max(0, Math.round(unitPriceCents)),
               currency: typeof item?.currency === "string" && item.currency.trim() ? item.currency.trim().toUpperCase().slice(0, 3) : "USD",
               billing_type: billingType,
               billing_interval: billingType === "recurring" && item?.billing_interval ? String(item.billing_interval).trim() : null,
               recurrence_count: billingType === "recurring" && Number.isFinite(Number(item?.recurrence_count)) ? Math.max(1, Math.round(Number(item.recurrence_count))) : null,
               net_payout: null,
+              details: {
+                ...(Number.isFinite(rateCents) && rateCents > 0 ? { rate_cents: Math.round(rateCents) } : {}),
+                ...(item?.rate_basis ? { rate_basis: String(item.rate_basis).trim() } : {}),
+                ...(Number.isFinite(capCents) && capCents > 0 ? { maximum_compensation_cents: Math.round(capCents) } : {}),
+                ...(Number.isFinite(Number(item?.evaluation_period_days)) ? { evaluation_period_days: Math.max(1, Math.round(Number(item.evaluation_period_days))) } : {}),
+                ...(item?.pricing_model ? { pricing_model: String(item.pricing_model).trim() } : {}),
+                ...(isPackageTotal ? { package_total_cents: packageTotalCents, pricing_scope: "package_total", package_allocation_cents: packageAllocationCents, package_quantity: packageQuantity } : {}),
+                ...(isPackageTotal ? { allocation_weight: packageWeights[packageIndex] } : {}),
+              },
             };
           })
-          .filter(Boolean)
-      : [];
+          .filter(Boolean);
     if (deliverables.length) {
       const { error: deliverablesError } = await supabase.from("deal_deliverables").insert(deliverables);
       if (deliverablesError) throw new Error(`Unable to add deal deliverables: ${deliverablesError.message}`);
@@ -230,18 +337,71 @@ export async function POST(request: Request) {
       if (talentError) throw new Error(`Unable to attach talent to deal: ${talentError.message}`);
     }
 
-    const junctions = await Promise.all(createdCompanies.map((c: any, index: number) => {
-      const extractedRole = String(companies[index]?.role || "").toLowerCase();
+    const uniqueCompanyEntries = createdCompanies.reduce((entries: { company: any; extracted: any }[], company: any, index: number) => {
+      if (!entries.some((entry) => entry.company.id === company.id)) entries.push({ company, extracted: companies[index] });
+      return entries;
+    }, []);
+    const junctions = await Promise.all(uniqueCompanyEntries.map(({ company: c, extracted }) => {
+      const extractedRole = String(extracted?.role || "").toLowerCase();
       const role = extractedRole === "client" || extractedRole === "brand" ? extractedRole : extractedRole === "agency" ? "agency" : index === 0 ? "client" : "agency";
       return supabase.from("deal_companies").insert({ deal_id: deal.id, company_id: c.id, role }).select("id,company_id,role").single();
     }));
     const junctionError = junctions.find((result: any) => result.error)?.error;
     if (junctionError) throw new Error(`Unable to attach companies to deal: ${junctionError.message}`);
     const firstJunction = junctions[0]?.data;
-    const contactEmails = Array.isArray(analysis.contacts) ? analysis.contacts.map((c: any) => String(c.email || "").toLowerCase()).filter(Boolean) : [];
-    if (contactEmails.length && firstJunction) {
-      const { data: contacts } = await supabase.from("people").select("id,email").in("email", contactEmails).eq("account_id", scope.accountId);
-      if (contacts?.length) await supabase.from("deal_contacts").insert(contacts.map((p: any) => ({ deal_id: deal.id, deal_company_id: firstJunction.id, person_id: p.id })));
+    const contactSpecs = Array.isArray(analysis.contacts)
+      ? analysis.contacts.map((contact: any) => ({
+          email: String(contact?.email || "").toLowerCase().trim(),
+          name: String(contact?.name || contact?.full_name || "").trim(),
+        })).filter((contact: { email: string; name: string }) => contact.email || contact.name)
+      : [];
+    const matchedTalentNames = matchedTalent.map((talent: any) => normalizeName(talent.name));
+    const matchedTalentFirstNames = new Set(matchedTalent.map((talent: any) => normalizeName(String(talent.name).split(/\s+/)[0])));
+    const isTalentContactSpec = (contact: { name: string }) => {
+      const normalizedContactName = normalizeName(contact.name);
+      if (!normalizedContactName) return false;
+      if (matchedTalentNames.includes(normalizedContactName)) return true;
+      const parts = normalizedContactName.split(" ");
+      return parts.length === 1 && matchedTalentFirstNames.has(parts[0]);
+    };
+    const eligibleContactSpecs = contactSpecs.filter((contact: { email: string; name: string }) =>
+      !isInternalEmail(contact.email) && !isTalentContactSpec(contact),
+    );
+    if (eligibleContactSpecs.length && firstJunction) {
+      const contactEmails = eligibleContactSpecs.map((contact: { email: string }) => contact.email).filter(Boolean);
+      const { data: accountUsers } = await supabase.from("account_users").select("user_id").eq("account_id", scope.accountId);
+      const internalUserIds = new Set((accountUsers ?? []).map((row: any) => row.user_id).filter(Boolean));
+      const externalContactEmails = contactEmails.filter((email: string) => !isInternalEmail(email));
+      let contactsByEmail = externalContactEmails.length
+        ? await supabase.from("people").select("id,email,first_name,last_name,user_id").in("email", externalContactEmails).eq("account_id", scope.accountId)
+        : { data: [] as any[] };
+      const matchedEmails = new Set((contactsByEmail.data ?? []).map((person: any) => String(person.email || "").toLowerCase()));
+      const missingEmails = externalContactEmails.filter((email: string) => !matchedEmails.has(email));
+      if (missingEmails.length) {
+        await Promise.all(missingEmails.map((email: string) => enrichPersonFromEmail(email, cookieHeader, baseUrl)));
+        contactsByEmail = await supabase.from("people").select("id,email,first_name,last_name,user_id").in("email", externalContactEmails).eq("account_id", scope.accountId);
+      }
+      const nameContactResults = await Promise.all(eligibleContactSpecs.filter((contact: { name: string; email: string }) => contact.name && contact.email).map(async (contact: { name: string }) => {
+        const parts = contact.name.split(/\s+/).filter(Boolean);
+        if (parts.length < 2) return { data: [] as any[] };
+        let query = supabase.from("people").select("id,email,first_name,last_name,user_id").eq("account_id", scope.accountId);
+        if (parts.length >= 2) query = query.ilike("first_name", parts[0]).ilike("last_name", parts.slice(1).join(" "));
+        else query = query.ilike("first_name", parts[0]);
+        return query.limit(5);
+      }));
+      const contacts = [...(contactsByEmail.data ?? []), ...nameContactResults.flatMap((result: any) => result.data ?? [])]
+        .filter((person: any, index: number, all: any[]) => all.findIndex((candidate: any) => candidate.id === person.id) === index);
+      const talentEmails = new Set(talentCandidates.map((talent: any) => String(talent.walls_email || "").toLowerCase()).filter(Boolean));
+      const normalizedTalentNames = new Set(talentCandidates.map((talent: any) => normalizeName(talent.name)));
+      const externalContacts = contacts.filter((person: any) => {
+        const personEmail = String(person.email || "").toLowerCase();
+        const personName = normalizeName([person.first_name, person.last_name].filter(Boolean).join(" "));
+        return !isInternalEmail(personEmail) && !internalUserIds.has(person.user_id) && !talentEmails.has(personEmail) && !talentCandidates.some((talent: any) => talent.user_id && talent.user_id === person.user_id) && !normalizedTalentNames.has(personName);
+      });
+      if (externalContacts.length) {
+        const { error: contactsError } = await supabase.from("deal_contacts").insert(externalContacts.map((p: any) => ({ deal_id: deal.id, deal_company_id: firstJunction.id, person_id: p.id })));
+        if (contactsError) throw new Error(`Unable to attach contacts to deal: ${contactsError.message}`);
+      }
     }
     await supabase.from("email_threads").update({ deal_id: deal.id }).eq("id", thread.id).eq("user_id", scope.userId);
     return NextResponse.json({ dealId: deal.id, dealName: deal.deal_name, companies: createdCompanies, analysis });
