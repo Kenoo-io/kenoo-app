@@ -90,6 +90,10 @@ export type DashboardTopPerformingAd = {
   thumbnailUrl: string | null;
   creativeType: string | null;
   creativePreview: AdCreativePreview | null;
+  /** Internal ranking inputs; also useful to future dashboard surfaces. */
+  profitMicros: number;
+  cpaMicros: number | null;
+  consistencyScore: number;
 };
 
 export type DashboardTopAdsByObjective = {
@@ -126,6 +130,16 @@ type MetricRow = {
   website_purchases: number;
   ctr: number | null;
   roas: number | null;
+};
+
+type HourlyMetricRow = {
+  metric_date: string;
+  hour_of_day: number;
+  impressions: number;
+  clicks: number;
+  spend_micros: number;
+  conversion_value_micros: number;
+  website_purchases: number;
 };
 
 function platformLabel(provider: string | null | undefined): string {
@@ -246,6 +260,94 @@ function buildSpendByDay(rows: MetricRow[], rangeDays = 30): DashboardSpendDay[]
   });
 }
 
+function buildSpendByHour(rows: HourlyMetricRow[]): DashboardSpendDay[] {
+  const totalsByHour = new Map<
+    string,
+    {
+      timestamp: number;
+      spendMicros: number;
+      conversionValueMicros: number;
+      impressions: number;
+      clicks: number;
+      websitePurchases: number;
+    }
+  >();
+
+  for (const row of rows) {
+    const hourString = String(row.hour_of_day).padStart(2, "0");
+    const timestamp = Date.parse(`${row.metric_date}T${hourString}:00:00Z`);
+    if (!Number.isFinite(timestamp)) continue;
+
+    const key = `${row.metric_date}:${row.hour_of_day}`;
+    const existing = totalsByHour.get(key) ?? {
+      timestamp,
+      spendMicros: 0,
+      conversionValueMicros: 0,
+      impressions: 0,
+      clicks: 0,
+      websitePurchases: 0,
+    };
+
+    totalsByHour.set(key, {
+      ...existing,
+      spendMicros: existing.spendMicros + (row.spend_micros ?? 0),
+      conversionValueMicros:
+        existing.conversionValueMicros + (row.conversion_value_micros ?? 0),
+      impressions: existing.impressions + (row.impressions ?? 0),
+      clicks: existing.clicks + (row.clicks ?? 0),
+      websitePurchases:
+        existing.websitePurchases + Number(row.website_purchases ?? 0),
+    });
+  }
+
+  const latestTimestamp = Math.max(
+    ...Array.from(totalsByHour.values(), (hour) => hour.timestamp),
+  );
+  if (!Number.isFinite(latestTimestamp)) return [];
+
+  const latestHour = new Date(latestTimestamp);
+  const points: DashboardSpendDay[] = [];
+
+  for (let offset = 23; offset >= 0; offset -= 1) {
+    const hour = new Date(latestHour);
+    hour.setUTCHours(latestHour.getUTCHours() - offset);
+    const date = hour.toISOString().slice(0, 10);
+    const hourOfDay = hour.getUTCHours();
+    const totals = totalsByHour.get(`${date}:${hourOfDay}`) ?? {
+      timestamp: hour.getTime(),
+      spendMicros: 0,
+      conversionValueMicros: 0,
+      impressions: 0,
+      clicks: 0,
+      websitePurchases: 0,
+    };
+    const spend = totals.spendMicros / 1_000_000;
+    const purchaseValue = totals.conversionValueMicros / 1_000_000;
+
+    points.push({
+      date: hour.toISOString(),
+      label: hour.toLocaleString("en-US", {
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        timeZone: "UTC",
+      }),
+      spend,
+      spendMicros: totals.spendMicros,
+      purchaseValue,
+      purchaseValueMicros: totals.conversionValueMicros,
+      impressions: totals.impressions,
+      clicks: totals.clicks,
+      websitePurchases: totals.websitePurchases,
+      ctr:
+        totals.impressions > 0 ? (totals.clicks / totals.impressions) * 100 : 0,
+      roas: spend > 0 ? purchaseValue / spend : null,
+    });
+  }
+
+  return points;
+}
+
 function formatAccountStatus(status: string | null): string {
   if (!status) return "Connected";
   return status
@@ -299,21 +401,55 @@ function scoreTopAd(
     | "ctr"
     | "roas"
     | "websitePurchases"
+    | "profitMicros"
+    | "cpaMicros"
+    | "consistencyScore"
   >,
   objectiveBucket: DashboardObjectiveBucket,
+  cohort: Array<
+    Pick<
+      DashboardTopPerformingAd,
+      "profitMicros" | "roas" | "cpaMicros" | "consistencyScore"
+    >
+  >,
 ): number {
   const spend = ad.spendMicros / 1_000_000;
   const hasDelivery = ad.impressions > 0 || spend > 0;
   if (!hasDelivery) return 0;
 
+  if (objectiveBucket === "OUTCOME_SALES") {
+    const positiveProfits = cohort
+      .map((item) => item.profitMicros)
+      .filter((value) => value > 0);
+    const positiveRoases = cohort
+      .map((item) => item.roas ?? 0)
+      .filter((value) => value > 0);
+    const positiveCpas = cohort
+      .map((item) => item.cpaMicros)
+      .filter((value): value is number => value != null && value > 0);
+    const maxProfit = Math.max(...positiveProfits, 1);
+    const maxRoas = Math.max(...positiveRoases, 1);
+    const minCpa = positiveCpas.length > 0 ? Math.min(...positiveCpas) : 1;
+
+    // Each component is normalized to roughly 0..1 before weighting. This
+    // keeps dollars, ROAS, and CPA from overpowering one another merely
+    // because they use different units.
+    const profitability = Math.max(0, ad.profitMicros) / maxProfit;
+    const roasQuality = Math.max(0, ad.roas ?? 0) / maxRoas;
+    const cpaQuality =
+      ad.cpaMicros != null && ad.cpaMicros > 0
+        ? Math.min(1, minCpa / ad.cpaMicros)
+        : 0;
+
+    return (
+      profitability * 45 +
+      roasQuality * 20 +
+      cpaQuality * 20 +
+      ad.consistencyScore * 15
+    );
+  }
+
   switch (objectiveBucket) {
-    case "OUTCOME_SALES":
-      return (
-        (ad.roas ?? 0) * spend * 250 +
-        (ad.websitePurchases ?? 0) * 100 +
-        spend * 10 +
-        ad.ctr * 5
-      );
     case "OUTCOME_TRAFFIC":
       return ad.clicks * 12 + ad.ctr * 25 + spend * 5;
     case "OUTCOME_AWARENESS":
@@ -339,7 +475,8 @@ function selectTopAndBottomAds(
   const ranked = [...ads]
     .sort(
       (left, right) =>
-        scoreTopAd(right, objectiveBucket) - scoreTopAd(left, objectiveBucket),
+        scoreTopAd(right, objectiveBucket, ads) -
+        scoreTopAd(left, objectiveBucket, ads),
     )
     .map((ad, index) => ({ ...ad, overallRank: index + 1 }));
 
@@ -412,7 +549,7 @@ async function buildTopPerformingAds(
   const { data: metrics } = await supabase
     .from("ad_metrics_daily")
     .select(
-      "entity_id, impressions, clicks, spend_micros, conversion_value_micros, website_purchases",
+      "entity_id, metric_date, impressions, clicks, spend_micros, conversion_value_micros, website_purchases",
     )
     .in("entity_id", adIds)
     .gte("metric_date", currentStartIso);
@@ -437,6 +574,31 @@ async function buildTopPerformingAds(
 
     const totals = sumMetrics(metricsByAd.get(ad.id) ?? []);
     const tracksWebsitePurchases = isSalesObjective(campaign?.objective ?? null);
+    const adMetrics = metricsByAd.get(ad.id) ?? [];
+    const cpaMicros =
+      totals.website_purchases > 0
+        ? Math.round(totals.spend_micros / totals.website_purchases)
+        : null;
+    const profitMicros = totals.conversion_value_micros - totals.spend_micros;
+    const deliveryDays = adMetrics.filter(
+      (metric) => metric.impressions > 0 || metric.spend_micros > 0,
+    );
+    const consistencyScore =
+      deliveryDays.length > 0
+        ? deliveryDays.filter((metric) => {
+            const day = sumMetrics([metric]);
+            const dayCpa =
+              day.website_purchases > 0
+                ? day.spend_micros / day.website_purchases
+                : null;
+            return (
+              day.conversion_value_micros - day.spend_micros >= 0 &&
+              (totals.roas == null || (day.roas ?? 0) >= totals.roas * 0.75) &&
+              (cpaMicros == null ||
+                (dayCpa != null && dayCpa <= cpaMicros * 1.25))
+            );
+          }).length / deliveryDays.length
+        : 0;
 
     const row: Omit<DashboardTopPerformingAd, "overallRank"> = {
       id: ad.id,
@@ -455,6 +617,9 @@ async function buildTopPerformingAds(
       thumbnailUrl: null,
       creativeType: null,
       creativePreview: null,
+      profitMicros,
+      cpaMicros,
+      consistencyScore,
     };
 
     if (row.impressions <= 0 && row.spendMicros <= 0) continue;
@@ -613,26 +778,39 @@ export async function getDashboardAnalytics(
 
   const [
     { data: metrics },
+    { data: hourlyMetrics },
     topPerformingAds,
     daysHours,
     audienceBreakdowns,
     frequencyBreakdowns,
   ] = await Promise.all([
-      supabase
-        .from("ad_metrics_daily")
+    supabase
+      .from("ad_metrics_daily")
         .select(
           "entity_id, metric_date, impressions, clicks, spend_micros, conversion_value_micros, website_purchases, ctr, roas",
         )
         .in("entity_id", entityIds)
         .gte("metric_date", previousStartIso)
         .order("metric_date", { ascending: true }),
-      buildTopPerformingAds(supabase, scope, currentStartIso),
+    rangeDays === 1
+      ? supabase
+          .from("ad_metrics_hourly")
+          .select(
+            "entity_id, metric_date, hour_of_day, impressions, clicks, spend_micros, conversion_value_micros, website_purchases",
+          )
+          .in("entity_id", entityIds)
+          .gte("metric_date", currentStartIso)
+          .order("metric_date", { ascending: true })
+          .order("hour_of_day", { ascending: true })
+      : Promise.resolve({ data: null }),
+    buildTopPerformingAds(supabase, scope, currentStartIso),
       getDaysHoursAnalytics(scope, { rangeDays }),
       getAudienceBreakdownsAnalytics(scope, { rangeDays }),
       getFrequencyBreakdownsAnalytics(scope, { rangeDays }),
     ]);
 
   const metricRows = (metrics ?? []) as Array<MetricRow & { entity_id: string }>;
+  const hourlyMetricRows = (hourlyMetrics ?? []) as HourlyMetricRow[];
   const currentMetrics = metricRows.filter(
     (row) => row.metric_date >= currentStartIso,
   );
@@ -735,7 +913,10 @@ export async function getDashboardAnalytics(
         positive: purchaseValueChange.positive,
       },
     ],
-    spendByDay: buildSpendByDay(currentMetrics, rangeDays),
+    spendByDay:
+      rangeDays === 1
+        ? buildSpendByHour(hourlyMetricRows)
+        : buildSpendByDay(currentMetrics, rangeDays),
     accounts,
     topPerformingAds,
     daysHours,
