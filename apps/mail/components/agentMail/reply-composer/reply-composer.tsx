@@ -21,7 +21,6 @@ import { ScheduleDialog } from '@/components/agentCRM/emailComposer/components/f
 import { AIReplier } from '@/components/agentMail/reply-composer/aiReplier';
 import { RecipientField } from '@/components/agentCRM/emailComposer/components/recipients/recipient-field';
 import { cn } from "@/lib/utils";
-import { Timestamp } from 'firebase/firestore';
 
 import { createThreadedReply } from '@/utils/reply-formatting';
 import { ReplyTo } from '@/types/email.types';
@@ -181,7 +180,7 @@ export default function ReplyComposer({
     setSending(false);
   };
 
-  const handleScheduleSend = async (timestamp: Timestamp, timezone: string) => {
+  const handleScheduleSend = async (timestamp: Date, timezone: string) => {
     if (!hasReplyContent) return;
     const html = editorRef.current?.getEditor()?.getHTML() || '';
     const content = normalizeReplyHtmlForSend(html);
@@ -195,7 +194,7 @@ export default function ReplyComposer({
         to: toEmails,
         subject: replyTo?.subject ?? 'Re: No Subject',
         message: content,
-        scheduledTime: { seconds: timestamp.seconds, nanoseconds: timestamp.nanoseconds },
+        scheduledTime: timestamp.toISOString(),
         timezone,
         attachments: attachments.length ? attachments : undefined
       }),
@@ -377,7 +376,7 @@ export default function ReplyComposer({
             title="Discard reply"
           >
             <div className="relative">
-              <div className="relative z-10 p-3 rounded-full transition-all duration-300 ease-in-out group-hover:bg-gray-50 group-hover:border group-hover:border-neutral-200 group-hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] group-hover:scale-95">
+              <div className="relative z-10 p-3 rounded-full transition-all duration-300 ease-in-out group-hover:bg-neutral-100">
                 <Trash2 className="h-[18px] w-[18px] stroke-[1.5] text-neutral-500 transition-colors group-hover:text-red-500" />
               </div>
             </div>

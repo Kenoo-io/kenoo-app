@@ -22,13 +22,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Loader2, X, CalendarClock } from "lucide-react";
 import { useAuth } from "@/app/auth/AuthContext";
-import { getFirestore, doc, getDoc, Timestamp } from 'firebase/firestore';
+import { getSupabaseClient } from '@/app/auth/supabaseClient';
 import { format, addDays, nextMonday, setHours, setMinutes, parse } from 'date-fns';
 
 interface ScheduleDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSchedule: (timestamp: Timestamp, timezone: string) => Promise<void>;
+  onSchedule: (timestamp: Date, timezone: string) => Promise<void>;
   sending: boolean;
 }
 
@@ -61,12 +61,13 @@ export function ScheduleDialog({
   useEffect(() => {
     const fetchUserTimezone = async () => {
       if (user?.id) {
-        const db = getFirestore();
-        const userDoc = await getDoc(doc(db, 'users', user.id));
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
-          setUserTimezone(userData.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
-        }
+        const supabase = getSupabaseClient();
+        const { data: userData } = await supabase
+          .from('users')
+          .select('timezone')
+          .eq('id', user.id)
+          .maybeSingle();
+        setUserTimezone(userData?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
       }
     };
     fetchUserTimezone();
@@ -126,7 +127,7 @@ export function ScheduleDialog({
     }
 
     try {
-      const timestamp = createFirestoreTimestamp(scheduleDate, scheduleTime);
+      const timestamp = createScheduleDate(scheduleDate, scheduleTime);
       await onSchedule(timestamp, userTimezone);
       onOpenChange(false);
     } catch (error) {
@@ -134,7 +135,7 @@ export function ScheduleDialog({
     }
   };
 
-  const createFirestoreTimestamp = (date: Date, time: string): Timestamp => {
+  const createScheduleDate = (date: Date, time: string): Date => {
     // Parse the time string (assuming format like "9:00 AM")
     const [timeStr, period] = time.split(' ');
     const [hours, minutes] = timeStr.split(':').map(Number);
@@ -153,15 +154,14 @@ export function ScheduleDialog({
     // Set the time components
     scheduledDateTime.setHours(hour24, minutes, 0, 0);
     
-    // Create Firestore timestamp
-    return Timestamp.fromDate(scheduledDateTime);
+    return scheduledDateTime;
   };
 
   const handleCustomSchedule = async () => {
     if (!selectedDate || !selectedTime) return;
     
     try {
-      const timestamp = createFirestoreTimestamp(selectedDate, selectedTime);
+      const timestamp = createScheduleDate(selectedDate, selectedTime);
       await onSchedule(timestamp, userTimezone);
       
       // Reset the form and close the dialog

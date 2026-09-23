@@ -9,7 +9,6 @@ import { EditorRef } from '../editor/editor';
 import { normalizeEmailHtmlForSend } from '@/components/agentCRM/emailComposer/components/editor/editor';
 import { SendOptionsDropdown } from '../editor/tools/sendOptions';
 import { TestSendTool } from '../editor/tools/testSend';
-import { Timestamp } from 'firebase/firestore';
 import type { SelectedCreatorSummary } from '../editor/tools/pitchTracker';
 
 interface EmailFooterProps {
@@ -52,7 +51,7 @@ export function EmailFooter({
   const [showScheduleDialog, setShowScheduleDialog] = useState(false);
   const { handleTestSend } = TestSendTool();
 
-  const handleScheduleSend = async (timestamp: Timestamp, timezone: string) => {
+  const handleScheduleSend = async (timestamp: Date, timezone: string) => {
     try {
       // Normalize HTML for send so paragraph spacing is preserved in Gmail etc.
       const content = normalizeEmailHtmlForSend(editorRef.current?.getEditor()?.getHTML() || '');
@@ -67,10 +66,7 @@ export function EmailFooter({
           to: recipientEmails.join(', '),
           subject,
           message: content,
-          scheduledTime: {
-            seconds: timestamp.seconds,
-            nanoseconds: timestamp.nanoseconds
-          },
+          scheduledTime: timestamp.toISOString(),
           timezone,
           attachments
         }),

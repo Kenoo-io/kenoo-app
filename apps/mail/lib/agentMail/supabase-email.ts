@@ -1,6 +1,6 @@
 /**
  * Supabase-backed email fetches for agentMail.
- * Replaces Firestore emails collection with email_threads, email_messages,
+ * Uses the Supabase email_threads and email_messages tables,
  * email_message_labels, email_message_recipients.
  */
 

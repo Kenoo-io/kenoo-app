@@ -42,7 +42,6 @@
     "cmdk": "1.0.0",
     "date-fns": "^4.1.0",
     "escape-html": "^1.0.3",
-    "firebase": "^10.14.1",
     "framer-motion": "^12.16.0",
     "googleapis": "^148.0.0",
     "lucide-react": "^0.511.0",

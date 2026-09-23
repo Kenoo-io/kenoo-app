@@ -147,7 +147,7 @@ export function SignatureTool({ editorRef }: SignatureToolProps) {
       type="button"
       variant="ghost"
       size="icon"
-      className="h-10 w-10 rounded-lg transition-all duration-200 hover:bg-neutral-100 hover:shadow-inner hover:border hover:border-neutral-200/50 hover:shadow-[inset_0_2px_4px_rgba(0,0,0,0.08)]"
+      className="h-10 w-10 rounded-lg transition-all duration-200 hover:bg-neutral-100"
       onClick={insertSignature}
       disabled={isLoading}
       title="Insert signature"
