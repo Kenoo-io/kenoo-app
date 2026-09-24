@@ -245,7 +245,10 @@ export function UserSearch({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto bg-white/80 backdrop-blur-xl">
+      <div
+        className="max-h-[300px] overflow-y-auto overscroll-contain scrollbar-hide bg-white/80 backdrop-blur-xl"
+        onWheel={(event) => event.stopPropagation()}
+      >
         {loading ? (
           <UserListSkeleton />
         ) : filteredUsers.length === 0 ? (
