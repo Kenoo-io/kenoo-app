@@ -966,17 +966,24 @@ export function createKenooMcpServer(identity: KenooIdentity | null, authChallen
       description: "Create a project in the selected Kenoo account. This is a write operation and should only be used when explicitly requested.",
       annotations: { readOnlyHint: false, destructiveHint: false },
       _meta: { securitySchemes: OAUTH_SECURITY_SCHEMES },
-      inputSchema: { name: z.string().min(1).max(200), description: z.string().max(5000).optional(), status: z.enum(["planning", "active", "on_hold", "completed", "cancelled"]).default("planning"), startDate: z.string().optional(), dueDate: z.string().optional(), priority: z.number().int().min(0).max(5).optional(), color: z.string().max(32).optional(), memberIds: z.array(z.string().uuid()).max(100).optional() },
+      inputSchema: { name: z.string().min(1).max(200), description: z.string().max(5000).optional(), status: z.enum(["planning", "active", "on_hold", "completed", "cancelled"]).default("planning"), startDate: z.string().optional(), dueDate: z.string().optional(), priority: z.number().int().min(0).max(5).optional(), color: z.string().max(32).optional(), memberIds: z.array(z.string().uuid()).max(100).optional(), ownerIds: z.array(z.string().uuid()).max(100).optional().describe("Additional project owners; the authenticated creator is an owner automatically.") },
       outputSchema: CREATE_PROJECT_OUTPUT_SCHEMA,
     },
-    async ({ name, description, status = "planning", startDate, dueDate, priority, color, memberIds = [] }) => {
+    async ({ name, description, status = "planning", startDate, dueDate, priority, color, memberIds = [], ownerIds = [] }) => {
       if (!identity) return authenticationRequired(authChallenge);
       const accountId = await requireAccountForApp(identity, "projects");
       const slug = `${name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 70)}-${crypto.randomUUID().slice(0, 8)}`;
       const { data, error } = await identity.supabase.from("projects").insert({ account_id: accountId, name, slug, description: description ?? null, status, start_date: startDate ?? null, due_date: dueDate ?? null, priority: priority ?? null, color: color ?? null }).select(PROJECT_SELECT).single();
       if (error) throw error;
-      const members = [...new Set(memberIds.filter((userId) => userId !== identity.user.id))];
-      const { error: memberError } = await identity.supabase.from("project_members").insert(members.map((userId) => ({ project_id: data.id, user_id: userId, role: "member" })));
+      const ownerSet = new Set(ownerIds.filter((userId) => userId !== identity.user.id));
+      const members = [...new Set(memberIds.filter((userId) => userId !== identity.user.id && !ownerSet.has(userId)))];
+      const accessRows = [
+        ...[...ownerSet].map((userId) => ({ project_id: data.id, user_id: userId, role: "owner" as const })),
+        ...members.map((userId) => ({ project_id: data.id, user_id: userId, role: "member" as const })),
+      ];
+      const { error: memberError } = accessRows.length
+        ? await identity.supabase.from("project_members").insert(accessRows)
+        : { error: null };
       if (memberError && memberError.code !== "23505") throw memberError;
       return text({ project: data });
     },
@@ -1075,14 +1082,22 @@ export function createKenooMcpServer(identity: KenooIdentity | null, authChallen
   });
 
   server.registerTool("kenoo_set_project_members", {
-    title: "Set project access", description: "Replace the member list for an accessible project. The owner is always retained.",
-    annotations: { readOnlyHint: false, destructiveHint: false }, _meta: { securitySchemes: OAUTH_SECURITY_SCHEMES }, inputSchema: { projectId: z.string().uuid(), userIds: z.array(z.string().uuid()).max(100) }, outputSchema: MEMBERS_OUTPUT_SCHEMA,
-  }, async ({ projectId, userIds }) => {
+    title: "Set project access", description: "Replace project access using role-based memberships. The authenticated owner is always retained.",
+    annotations: { readOnlyHint: false, destructiveHint: false }, _meta: { securitySchemes: OAUTH_SECURITY_SCHEMES }, inputSchema: { projectId: z.string().uuid(), userIds: z.array(z.string().uuid()).max(100).optional().describe("Legacy alias for memberIds."), memberIds: z.array(z.string().uuid()).max(100).optional(), ownerIds: z.array(z.string().uuid()).max(100).optional() }, outputSchema: MEMBERS_OUTPUT_SCHEMA,
+  }, async ({ projectId, userIds, memberIds, ownerIds = [] }) => {
     if (!identity) return authenticationRequired(authChallenge); const accountId = await requireAccountForApp(identity, "projects"); await requireAccessibleProject(identity, accountId, projectId);
     const { data: ownerMembership, error: projectError } = await identity.supabase.from("project_members").select("user_id").eq("project_id", projectId).eq("user_id", identity.user.id).eq("role", "owner").maybeSingle(); if (projectError) throw projectError;
     if (!ownerMembership) return toolError("Only a project owner can change project access.");
-    const { error: deleteError } = await identity.supabase.from("project_members").delete().eq("project_id", projectId).eq("role", "member"); if (deleteError) throw deleteError;
-    const ids = [...new Set(userIds)]; if (ids.length) { const { error } = await identity.supabase.from("project_members").insert(ids.map((userId) => ({ project_id: projectId, user_id: userId, role: "member" }))); if (error && error.code !== "23505") throw error; }
+    const requestedMemberIds = memberIds ?? userIds ?? [];
+    const ownerSet = new Set(ownerIds.filter((userId) => userId !== identity.user.id));
+    const memberSet = new Set(requestedMemberIds.filter((userId) => userId !== identity.user.id && !ownerSet.has(userId)));
+    const { error: deleteError } = await identity.supabase.from("project_members").delete().eq("project_id", projectId).neq("user_id", identity.user.id); if (deleteError) throw deleteError;
+    const accessRows = [
+      { project_id: projectId, user_id: identity.user.id, role: "owner" as const },
+      ...[...ownerSet].map((userId) => ({ project_id: projectId, user_id: userId, role: "owner" as const })),
+      ...[...memberSet].map((userId) => ({ project_id: projectId, user_id: userId, role: "member" as const })),
+    ];
+    const { error: upsertError } = await identity.supabase.from("project_members").upsert(accessRows, { onConflict: "project_id,user_id" }); if (upsertError) throw upsertError;
     const { data, error } = await identity.supabase.from("project_members").select("id, project_id, user_id, role, created_at, updated_at, user:users(id, first_name, last_name, email, avatar_url)").eq("project_id", projectId); if (error) throw error; return text({ projectId, members: data ?? [] });
   });
 
@@ -1250,7 +1265,7 @@ export function createKenooMcpServer(identity: KenooIdentity | null, authChallen
         name: "kenoo_create_project",
         title: "Create project",
         description: "Create a project in the selected Kenoo account.",
-        inputSchema: { type: "object", properties: { name: { type: "string", minLength: 1, maxLength: 200 }, description: { type: "string", maxLength: 5000 }, status: { type: "string", enum: ["planning", "active", "on_hold", "completed", "cancelled"], default: "planning" }, startDate: { type: "string" }, dueDate: { type: "string" }, priority: { type: "integer", minimum: 0, maximum: 5 }, color: { type: "string" }, memberIds: { type: "array", items: { type: "string", format: "uuid" } } }, required: ["name"] },
+        inputSchema: { type: "object", properties: { name: { type: "string", minLength: 1, maxLength: 200 }, description: { type: "string", maxLength: 5000 }, status: { type: "string", enum: ["planning", "active", "on_hold", "completed", "cancelled"], default: "planning" }, startDate: { type: "string" }, dueDate: { type: "string" }, priority: { type: "integer", minimum: 0, maximum: 5 }, color: { type: "string" }, memberIds: { type: "array", items: { type: "string", format: "uuid" } }, ownerIds: { type: "array", items: { type: "string", format: "uuid" } } }, required: ["name"] },
         outputSchema: { type: "object", properties: { project: { type: "object", additionalProperties: true } }, required: ["project"] },
         annotations: { readOnlyHint: false, destructiveHint: false }, securitySchemes: OAUTH_SECURITY_SCHEMES, _meta: { securitySchemes: OAUTH_SECURITY_SCHEMES },
       },
@@ -1267,7 +1282,7 @@ export function createKenooMcpServer(identity: KenooIdentity | null, authChallen
       { name: "kenoo_delete_project", title: "Delete project", description: "Permanently delete an owned project and its tasks.", inputSchema: { type: "object", properties: { projectId: { type: "string", format: "uuid" }, confirm: { const: true } }, required: ["projectId", "confirm"] }, outputSchema: { type: "object", properties: { deletedProjectId: { type: "string", format: "uuid" } }, required: ["deletedProjectId"] }, annotations: { readOnlyHint: false, destructiveHint: true }, securitySchemes: OAUTH_SECURITY_SCHEMES, _meta: { securitySchemes: OAUTH_SECURITY_SCHEMES } },
       { name: "kenoo_list_project_members", title: "List project members", description: "List users with project access.", inputSchema: { type: "object", properties: { projectId: { type: "string", format: "uuid" } }, required: ["projectId"] }, outputSchema: { type: "object", properties: { projectId: { type: "string", format: "uuid" }, members: { type: "array", items: { type: "object", additionalProperties: true } } }, required: ["projectId", "members"] }, annotations: { readOnlyHint: true }, securitySchemes: OAUTH_SECURITY_SCHEMES, _meta: { securitySchemes: OAUTH_SECURITY_SCHEMES } },
       { name: "kenoo_search_users", title: "Search Kenoo users", description: "Find users by name or email.", inputSchema: { type: "object", properties: { search: { type: "string" }, limit: { type: "integer" } }, required: ["search"] }, outputSchema: { type: "object", properties: { users: { type: "array", items: { type: "object", additionalProperties: true } } }, required: ["users"] }, annotations: { readOnlyHint: true }, securitySchemes: OAUTH_SECURITY_SCHEMES, _meta: { securitySchemes: OAUTH_SECURITY_SCHEMES } },
-      { name: "kenoo_set_project_members", title: "Set project access", description: "Replace project members; owner is retained.", inputSchema: { type: "object", properties: { projectId: { type: "string", format: "uuid" }, userIds: { type: "array", items: { type: "string", format: "uuid" } } }, required: ["projectId", "userIds"] }, outputSchema: { type: "object", properties: { projectId: { type: "string", format: "uuid" }, members: { type: "array", items: { type: "object", additionalProperties: true } } }, required: ["projectId", "members"] }, annotations: { readOnlyHint: false, destructiveHint: false }, securitySchemes: OAUTH_SECURITY_SCHEMES, _meta: { securitySchemes: OAUTH_SECURITY_SCHEMES } },
+      { name: "kenoo_set_project_members", title: "Set project access", description: "Replace project access using role-based memberships; the authenticated owner is retained.", inputSchema: { type: "object", properties: { projectId: { type: "string", format: "uuid" }, userIds: { type: "array", items: { type: "string", format: "uuid" }, description: "Legacy alias for memberIds." }, memberIds: { type: "array", items: { type: "string", format: "uuid" } }, ownerIds: { type: "array", items: { type: "string", format: "uuid" } } }, required: ["projectId"] }, outputSchema: { type: "object", properties: { projectId: { type: "string", format: "uuid" }, members: { type: "array", items: { type: "object", additionalProperties: true } } }, required: ["projectId", "members"] }, annotations: { readOnlyHint: false, destructiveHint: false }, securitySchemes: OAUTH_SECURITY_SCHEMES, _meta: { securitySchemes: OAUTH_SECURITY_SCHEMES } },
       { name: "kenoo_update_task", title: "Update task", description: "Edit a task, assignments, and blockers.", inputSchema: { type: "object", properties: { taskId: { type: "string", format: "uuid" }, projectId: { type: "string", format: "uuid" }, title: { type: "string" }, description: { type: ["string", "null"] }, status: { type: "string" }, startDate: { type: ["string", "null"] }, dueDate: { type: ["string", "null"] }, priority: { type: ["integer", "null"] }, parentTaskId: { type: ["string", "null"] }, estimatedMinutes: { type: ["integer", "null"] }, actualMinutes: { type: ["integer", "null"] }, isPrivate: { type: "boolean" }, assigneeIds: { type: "array", items: { type: "string", format: "uuid" } }, blockerTaskIds: { type: "array", items: { type: "string", format: "uuid" } } }, required: ["taskId"] }, outputSchema: { type: "object", properties: { task: { type: "object", additionalProperties: true } }, required: ["task"] }, annotations: { readOnlyHint: false, destructiveHint: false }, securitySchemes: OAUTH_SECURITY_SCHEMES, _meta: { securitySchemes: OAUTH_SECURITY_SCHEMES } },
       { name: "kenoo_delete_task", title: "Delete task", description: "Permanently delete an accessible task.", inputSchema: { type: "object", properties: { taskId: { type: "string", format: "uuid" }, confirm: { const: true } }, required: ["taskId", "confirm"] }, outputSchema: { type: "object", properties: { deletedTaskId: { type: "string", format: "uuid" } }, required: ["deletedTaskId"] }, annotations: { readOnlyHint: false, destructiveHint: true }, securitySchemes: OAUTH_SECURITY_SCHEMES, _meta: { securitySchemes: OAUTH_SECURITY_SCHEMES } },
       { name: "kenoo_list_task_blockers", title: "List task blockers", description: "List tasks blocking a task.", inputSchema: { type: "object", properties: { taskId: { type: "string", format: "uuid" } }, required: ["taskId"] }, outputSchema: { type: "object", properties: { taskId: { type: "string", format: "uuid" }, blockers: { type: "array", items: { type: "object", additionalProperties: true } } }, required: ["taskId", "blockers"] }, annotations: { readOnlyHint: true }, securitySchemes: OAUTH_SECURITY_SCHEMES, _meta: { securitySchemes: OAUTH_SECURITY_SCHEMES } },

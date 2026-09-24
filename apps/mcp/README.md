@@ -14,14 +14,17 @@ The server exposes account-scoped Kenoo and AdPilot tools:
   `kenoo_update_project`, and `kenoo_delete_project`
 - `kenoo_create_task`, `kenoo_update_task`, and `kenoo_delete_task`
 - `kenoo_list_project_members`, `kenoo_search_users`, and
-  `kenoo_set_project_members` for project access
+  `kenoo_set_project_members` for project access and role-based ownership
 - `kenoo_list_task_blockers` and `kenoo_set_task_blockers` for task dependencies
 
 Project and task mutation tools are account-scoped and execute with the
 connected user's Supabase token, so existing RLS policies remain the
 authorization boundary. Destructive project/task deletion requires an
 explicit `confirm: true` argument. Project owners are required to change
-project access or delete projects; task assignment and blocker changes follow
+project access or delete projects. Project creation makes the authenticated
+creator an owner automatically; `ownerIds` can add additional owners, while
+`kenoo_set_project_members` accepts `ownerIds` and `memberIds` to replace both
+roles. Task assignment and blocker changes follow
 the task's existing project-access rules.
 - `adpilot_list_entities` for campaigns, ad sets, and ads with aggregated metrics
 - `adpilot_get_best_performing_ads`
