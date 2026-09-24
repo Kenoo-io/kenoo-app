@@ -1283,12 +1283,15 @@ function AgentsProjectsKanbanContent({
     try {
       const supabase = getSupabaseClient();
 
-      const loadedProjects = (
-        await loadAccessibleProjects(user.id, {
-          accountId: activeAccountId,
-          select: ACCESSIBLE_PROJECT_SELECT.summary,
-        })
-      ).filter((p) => TASK_BOARD_PROJECT_STATUSES.includes(p.status));
+      const accessibleProjects = await loadAccessibleProjects(user.id, {
+        accountId: activeAccountId,
+        select: ACCESSIBLE_PROJECT_SELECT.summary,
+      });
+      const loadedProjects = accessibleProjects.filter(
+        (p) =>
+          TASK_BOARD_PROJECT_STATUSES.includes(p.status) ||
+          p.id === projectFilter,
+      );
 
       const projectIds = loadedProjects.map((p) => p.id);
       const taskSelect = PROJECT_TASK_SELECT_WITH_ASSIGNEE;
@@ -1544,7 +1547,14 @@ function AgentsProjectsKanbanContent({
           .eq("id", taskId);
 
         if (targetStatus === "completed" && draggedTask.status !== "completed") {
-          void sendTaskBlockerCompletedEmail({ taskId: draggedTask.id });
+          void sendTaskBlockerCompletedEmail({ taskId: draggedTask.id }).then(({ unblockedTaskIds }) => {
+            if (unblockedTaskIds.length === 0) return;
+            setTasks((prev) => prev.map((task) =>
+              unblockedTaskIds.includes(task.id)
+                ? { ...task, status: "todo", completed_at: null }
+                : task
+            ));
+          });
         }
 
         if (

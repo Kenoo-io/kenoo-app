@@ -45,7 +45,6 @@ type GlassTheme = {
   background: string;
   border: string;
   shadow: string;
-  bar: string;
 };
 
 function hashTheme<T>(id: string, themes: T[]): T {
@@ -75,18 +74,11 @@ function rgba(r: number, g: number, b: number, a: number) {
   return `rgba(${r}, ${g}, ${b}, ${a})`;
 }
 
-function shadeColor(r: number, g: number, b: number, amount: number) {
-  const t = Math.min(1, Math.max(0, amount));
-  const shade = (c: number) => Math.round(c * (1 - t));
-  return `rgb(${shade(r)}, ${shade(g)}, ${shade(b)})`;
-}
-
 function glassThemeFromRgb(r: number, g: number, b: number): GlassTheme {
   return {
     background: `linear-gradient(155deg, ${rgba(r, g, b, 0.18)} 0%, ${rgba(r, g, b, 0.07)} 52%, rgba(255,255,255,0.72) 100%)`,
     border: rgba(r, g, b, 0.14),
     shadow: `0 8px 20px ${rgba(r, g, b, 0.05)}, inset 0 1px 0 rgba(255,255,255,0.85)`,
-    bar: `linear-gradient(90deg, ${rgba(r, g, b, 0.45)} 0%, rgb(${r}, ${g}, ${b}) 55%, ${shadeColor(r, g, b, 0.18)} 100%)`,
   };
 }
 
@@ -149,6 +141,7 @@ type HubTask = Pick<
   | "completed_at"
 > & {
   assignee_ids?: string[];
+  assignee_users?: MemberUser[];
 };
 
 type MemberUser = {
@@ -555,6 +548,11 @@ function AgentsProjectsContent({ analyticsData: _analyticsData }: AgentsProjects
         membersByProject.get(row.project_id)!.push(row.user_id);
         allUserIds.add(row.user_id);
       }
+      for (const task of visibleTasks) {
+        for (const assigneeId of task.assignee_ids ?? []) {
+          allUserIds.add(assigneeId);
+        }
+      }
       for (const p of rows) {
         if (p.owner_id) {
           allUserIds.add(p.owner_id);
@@ -574,6 +572,13 @@ function AgentsProjectsContent({ analyticsData: _analyticsData }: AgentsProjects
         for (const u of usersData ?? []) userMap.set(u.id, u as MemberUser);
       }
 
+      const hydratedTasks = visibleTasks.map((task) => ({
+        ...task,
+        assignee_users: (task.assignee_ids ?? [])
+          .map((id) => userMap.get(id))
+          .filter((u): u is MemberUser => !!u),
+      }));
+
       const loadedProjects = rows.map((p) => ({
           ...p,
           task_count: countMap.get(p.id)?.total ?? 0,
@@ -584,10 +589,10 @@ function AgentsProjectsContent({ analyticsData: _analyticsData }: AgentsProjects
         }));
       projectsDashboardCache.set(cacheKey, {
         projects: loadedProjects,
-        tasks: visibleTasks,
+        tasks: hydratedTasks,
       });
       loadedCacheKeyRef.current = cacheKey;
-      setTasks(visibleTasks);
+      setTasks(hydratedTasks);
       setProjects(loadedProjects);
     } catch {
       setProjects([]);
@@ -886,17 +891,8 @@ function AgentsProjectsContent({ analyticsData: _analyticsData }: AgentsProjects
                               project?.color,
                               task.id
                             );
-                            const pct =
-                              project && project.task_count > 0
-                                ? Math.round(
-                                    (project.done_count / project.task_count) * 100
-                                  )
-                                : task.status === "completed"
-                                  ? 100
-                                  : task.status === "in_progress" || task.status === "in_review"
-                                    ? 55
-                                    : 20;
-                            const members = (project?.members ?? []).slice(0, 3);
+                            const status = TASK_STATUS_CONFIG[task.status];
+                            const members = (task.assignee_users ?? []).slice(0, 3);
                             return (
                               <motion.button
                                 key={task.id}
@@ -934,22 +930,14 @@ function AgentsProjectsContent({ analyticsData: _analyticsData }: AgentsProjects
                                       </Avatar>
                                     ))}
                                   </div>
-                                  <div className="flex items-center gap-2">
-                                    <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-white/45">
-                                      <div
-                                        className="h-full rounded-full"
-                                        style={{
-                                          width: `${pct}%`,
-                                          background: theme.bar,
-                                        }}
-                                      />
-                                    </div>
-                                    <span className="text-[11px] font-semibold tabular-nums text-neutral-700">
-                                      {project
-                                        ? `${project.done_count}/${project.task_count}`
-                                        : `${pct}%`}
-                                    </span>
-                                  </div>
+                                  <span
+                                    className={cn(
+                                      "inline-flex w-fit items-center rounded-full px-2.5 py-1 text-[10px] font-medium",
+                                      status?.badge ?? "bg-neutral-100 text-neutral-600",
+                                    )}
+                                  >
+                                    {status?.label ?? task.status}
+                                  </span>
                                 </div>
                               </motion.button>
                             );

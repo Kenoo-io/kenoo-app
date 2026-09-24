@@ -5,7 +5,7 @@ export function getTaskAssigneeDisplayName(
   assigneeId: string | null | undefined,
   currentUserId?: string | null
 ): string {
-  if (assigneeId && currentUserId && assigneeId === currentUserId) return "You";
+  if (assigneeId && currentUserId && assigneeId === currentUserId) return "Me";
   if (!assignee) return assigneeId ? "Assigned" : "Unassigned";
   const name = `${assignee.first_name ?? ""} ${assignee.last_name ?? ""}`.trim();
   return name || assignee.email || "Unassigned";

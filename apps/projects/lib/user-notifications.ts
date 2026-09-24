@@ -59,16 +59,24 @@ export async function sendTaskAssignmentEmail(options: {
 }
 
 /** Requests blocker-completion email delivery after a task status transitions. */
-export async function sendTaskBlockerCompletedEmail(options: { taskId: string }): Promise<void> {
+export async function sendTaskBlockerCompletedEmail(options: { taskId: string }): Promise<{ unblockedTaskIds: string[] }> {
   try {
-    await fetch("/api/notifications/task-blocker-completed", {
+    const response = await fetch("/api/notifications/task-blocker-completed", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(options),
     });
+    if (!response.ok) return { unblockedTaskIds: [] };
+    const result = (await response.json()) as { unblockedTaskIds?: unknown };
+    return {
+      unblockedTaskIds: Array.isArray(result.unblockedTaskIds)
+        ? result.unblockedTaskIds.filter((id): id is string => typeof id === "string")
+        : [],
+    };
   } catch (error) {
     // Email delivery is secondary to completing the task.
     console.error("Failed to request task blocker email:", error);
+    return { unblockedTaskIds: [] };
   }
 }
 

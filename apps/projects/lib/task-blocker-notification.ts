@@ -28,13 +28,13 @@ export async function notifyTaskAssigneesWhenBlockerCompletes({
   taskId: string;
   origin: string;
   skipUserId?: string | null;
-}): Promise<{ queued: number }> {
+}): Promise<{ queued: number; unblockedTaskIds: string[] }> {
   let admin;
   try {
     admin = createAdminClient();
   } catch (error) {
     console.error("[projects] task blocker notification service role:", error);
-    return { queued: 0 };
+    return { queued: 0, unblockedTaskIds: [] };
   }
 
   const { data: blocker, error: blockerError } = await admin
@@ -44,14 +44,14 @@ export async function notifyTaskAssigneesWhenBlockerCompletes({
     .maybeSingle();
   const completedBlocker = blocker as TaskRow | null;
   if (blockerError || !completedBlocker || completedBlocker.status !== "completed" || !completedBlocker.completed_at) {
-    return { queued: 0 };
+    return { queued: 0, unblockedTaskIds: [] };
   }
 
   const { data: dependencies, error: dependenciesError } = await admin
     .from("project_task_dependencies")
     .select("blocking_task_id, blocker_task_id")
     .eq("blocker_task_id", taskId);
-  if (dependenciesError || !dependencies?.length) return { queued: 0 };
+  if (dependenciesError || !dependencies?.length) return { queued: 0, unblockedTaskIds: [] };
 
   const dependentIds = [...new Set((dependencies as DependencyRow[]).map((row) => row.blocking_task_id))];
   const [{ data: dependentTasks, error: dependentTasksError }, { data: allDependencies, error: allDependenciesError }, { data: assigneeLinks, error: assigneeLinksError }] = await Promise.all([
@@ -59,7 +59,7 @@ export async function notifyTaskAssigneesWhenBlockerCompletes({
     admin.from("project_task_dependencies").select("blocking_task_id, blocker_task_id").in("blocking_task_id", dependentIds),
     admin.from("project_task_assignees").select("task_id, user_id").in("task_id", dependentIds),
   ]);
-  if (dependentTasksError || allDependenciesError || assigneeLinksError) return { queued: 0 };
+  if (dependentTasksError || allDependenciesError || assigneeLinksError) return { queued: 0, unblockedTaskIds: [] };
 
   const blockersByTask = new Map<string, string[]>();
   for (const row of (allDependencies ?? []) as DependencyRow[]) {
@@ -72,8 +72,28 @@ export async function notifyTaskAssigneesWhenBlockerCompletes({
     .from("project_tasks")
     .select("id, status")
     .in("id", allBlockerIds);
-  if (blockerStatusesError) return { queued: 0 };
+  if (blockerStatusesError) return { queued: 0, unblockedTaskIds: [] };
   const completedBlockerIds = new Set((blockerStatuses ?? []).filter((row) => row.status === "completed").map((row) => row.id as string));
+
+  // A task only leaves Blocked when it has at least one linked blocker and
+  // every one of those blockers is complete. Tasks with no dependencies never
+  // enter this loop, so a manually blocked task without blockers stays put.
+  const unblockedTaskIds: string[] = [];
+  for (const task of (dependentTasks ?? []) as TaskRow[]) {
+    const remainingBlockerCount = (blockersByTask.get(task.id) ?? []).filter((id) => !completedBlockerIds.has(id)).length;
+    if (task.status !== "blocked" || remainingBlockerCount !== 0) continue;
+
+    const { error: unblockError } = await admin
+      .from("project_tasks")
+      .update({ status: "todo", completed_at: null })
+      .eq("id", task.id)
+      .eq("status", "blocked");
+    if (unblockError) {
+      console.error("[projects] failed to move unblocked task to todo:", unblockError);
+      continue;
+    }
+    unblockedTaskIds.push(task.id);
+  }
 
   const assigneesByTask = new Map<string, Set<string>>();
   for (const link of assigneeLinks ?? []) {
@@ -83,10 +103,10 @@ export async function notifyTaskAssigneesWhenBlockerCompletes({
   }
 
   const recipientIds = [...new Set([...assigneesByTask.values()].flatMap((ids) => [...ids]).filter((id) => id !== skipUserId))];
-  if (!recipientIds.length) return { queued: 0 };
+  if (!recipientIds.length) return { queued: 0, unblockedTaskIds };
 
   const project = Array.isArray(completedBlocker.projects) ? completedBlocker.projects[0] : completedBlocker.projects;
-  if (!project?.account_id) return { queued: 0 };
+  if (!project?.account_id) return { queued: 0, unblockedTaskIds };
   const [{ data: preferences }, { data: recipients }] = await Promise.all([
     admin.from("alert_subscriptions").select("user_id, notify_email, enabled")
       .eq("account_id", project.account_id).eq("app_slug", process.env.NEXT_PUBLIC_PROJECTS_APP_SLUG || "projects")
@@ -134,5 +154,5 @@ export async function notifyTaskAssigneesWhenBlockerCompletes({
       if (result.ok) queued += 1;
     }
   }
-  return { queued };
+  return { queued, unblockedTaskIds };
 }
