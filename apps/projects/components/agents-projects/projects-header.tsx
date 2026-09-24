@@ -31,8 +31,6 @@ import {
   ProjectStatus,
   PROJECT_STATUS_CONFIG,
   PROJECT_STATUS_OPTIONS,
-  BoardTaskScope,
-  BOARD_TASK_SCOPE_CONFIG,
   PRIORITY_CONFIG,
   type TaskAssignee,
 } from "./types";
@@ -56,12 +54,10 @@ export type ProjectsBoardFiltersProps = {
   projectFilter?: string;
   onProjectFilterChange: (value: string) => void;
   projectStatusFilter?: ProjectStatus[];
-  taskScopeOptions?: BoardTaskScope[];
-  taskScopeFilter?: BoardTaskScope;
-  onTaskScopeFilterChange?: (value: BoardTaskScope) => void;
   assignees?: TaskAssignee[];
   assigneeFilter?: string[];
   onAssigneeFilterChange?: (value: string[]) => void;
+  onResetFilters?: () => void;
   priorityFilter?: number[];
   onPriorityFilterChange?: (value: number[]) => void;
   dueDateFilter?: "all" | "overdue" | "today" | "next_7_days" | "no_due_date";
@@ -77,12 +73,10 @@ export function ProjectsBoardFilters({
   projectFilter,
   onProjectFilterChange,
   projectStatusFilter,
-  taskScopeOptions = [],
-  taskScopeFilter = "project",
-  onTaskScopeFilterChange,
   assignees = [],
   assigneeFilter = [],
   onAssigneeFilterChange,
+  onResetFilters,
   priorityFilter = [],
   onPriorityFilterChange,
   dueDateFilter = "all",
@@ -96,14 +90,8 @@ export function ProjectsBoardFilters({
   const [accessibleProjects, setAccessibleProjects] = useState<Project[]>([]);
   const [loadingAccessibleProjects, setLoadingAccessibleProjects] = useState(false);
 
-  const showTaskScopeDropdown =
-    !!onTaskScopeFilterChange && taskScopeOptions.length > 1;
-  const defaultTaskScope = taskScopeOptions.includes("mine")
-    ? "mine"
-    : (taskScopeOptions[0] ?? "mine");
   const hasActiveFilters =
     projectFilter !== "all" ||
-    taskScopeFilter !== defaultTaskScope ||
     assigneeFilter.length > 0 ||
     priorityFilter.length > 0 ||
     dueDateFilter !== "all";
@@ -181,6 +169,17 @@ export function ProjectsBoardFilters({
   ]);
 
   const selectedProject = filterProjects.find((p) => p.id === projectFilter);
+  const assigneesForFilter = useMemo(() => {
+    const byId = new Map(assignees.map((assignee) => [assignee.id, assignee]));
+    return [...byId.values()].sort((a, b) => {
+      if (a.id === user?.id) return -1;
+      if (b.id === user?.id) return 1;
+      const aName = `${a.first_name ?? ""} ${a.last_name ?? ""}`.trim() || a.email;
+      const bName = `${b.first_name ?? ""} ${b.last_name ?? ""}`.trim() || b.email;
+      return aName.localeCompare(bName);
+    });
+  }, [assignees, user?.id]);
+
   const assigneeFilterLabel =
     assigneeFilter.length === 0
       ? "—"
@@ -189,6 +188,7 @@ export function ProjectsBoardFilters({
         : assigneeFilter[0] === "unassigned"
           ? "Unassigned"
           : (() => {
+              if (assigneeFilter[0] === user?.id) return "Me";
               const assignee = assignees.find((item) => item.id === assigneeFilter[0]);
               return assignee
                 ? `${assignee.first_name ?? ""} ${assignee.last_name ?? ""}`.trim() || assignee.email
@@ -223,17 +223,6 @@ export function ProjectsBoardFilters({
 
       <div className="flex-1 overflow-y-auto px-6 py-5">
         <div className="space-y-6">
-          {showTaskScopeDropdown ? (
-            <Select value={taskScopeFilter} onValueChange={(value) => onTaskScopeFilterChange?.(value as BoardTaskScope)}>
-              <SelectTrigger className={FILTER_SELECT_TRIGGER}>
-                <span><span className="text-neutral-700">Tasks:</span>{" "}{taskScopeFilter === defaultTaskScope ? "—" : BOARD_TASK_SCOPE_CONFIG[taskScopeFilter].menuLabel}</span>
-              </SelectTrigger>
-              <SelectContent className="z-[10000]">
-                {taskScopeOptions.map((scope) => <SelectItem key={scope} value={scope}>{BOARD_TASK_SCOPE_CONFIG[scope].menuLabel}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          ) : null}
-
           <Select value={projectFilter || "all"} onValueChange={onProjectFilterChange}>
             <SelectTrigger className={FILTER_SELECT_TRIGGER}>
               <span><span className="text-neutral-700">Project:</span>{" "}{selectedProject?.name ?? "—"}</span>
@@ -255,8 +244,9 @@ export function ProjectsBoardFilters({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className={FILTER_MENU_CONTENT}>
                 <DropdownMenuCheckboxItem checked={assigneeFilter.length === 0} onCheckedChange={() => onAssigneeFilterChange([])}>—</DropdownMenuCheckboxItem>
+                {user?.id ? <DropdownMenuCheckboxItem checked={assigneeFilter.includes(user.id)} onCheckedChange={() => toggleAssignee(user.id)}>Me</DropdownMenuCheckboxItem> : null}
                 <DropdownMenuCheckboxItem checked={assigneeFilter.includes("unassigned")} onCheckedChange={() => toggleAssignee("unassigned")}>Unassigned</DropdownMenuCheckboxItem>
-                {assignees.map((assignee) => {
+                {assigneesForFilter.filter((assignee) => assignee.id !== user?.id).map((assignee) => {
                   const name = `${assignee.first_name ?? ""} ${assignee.last_name ?? ""}`.trim() || assignee.email;
                   return <DropdownMenuCheckboxItem key={assignee.id} checked={assigneeFilter.includes(assignee.id)} onCheckedChange={() => toggleAssignee(assignee.id)}>{name}</DropdownMenuCheckboxItem>;
                 })}
@@ -303,8 +293,11 @@ export function ProjectsBoardFilters({
         <button
           type="button"
           onClick={() => {
+            if (onResetFilters) {
+              onResetFilters();
+              return;
+            }
             onProjectFilterChange("all");
-            onTaskScopeFilterChange?.(defaultTaskScope);
             onAssigneeFilterChange?.([]);
             onPriorityFilterChange?.([]);
             onDueDateFilterChange?.("all");
@@ -335,12 +328,20 @@ export function ProjectsBoardFilters({
         aria-pressed={isOpen}
         className={cn(
           "group relative flex h-10 w-10 shrink-0 items-center justify-center bg-transparent p-0 text-neutral-500 shadow-none outline-none ring-0",
-          hasActiveFilters && "shadow-[0_0_0_1px_rgba(110,173,192,0.4),0_0_12px_rgba(110,173,192,0.4)]",
+          hasActiveFilters && "text-neutral-900",
           className,
         )}
       >
         <div className="relative z-10 flex items-center justify-center rounded-full border-0 p-3 transition-all duration-300 ease-in-out group-hover:bg-neutral-100">
-          <ListFilter className="h-[18px] w-[18px] stroke-[1.5]" />
+          <span className="relative flex h-[18px] w-[18px] shrink-0 items-center justify-center overflow-visible">
+            <ListFilter className="h-[18px] w-[18px] stroke-[1.5]" />
+            {hasActiveFilters ? (
+              <span
+                className="pointer-events-none absolute -right-px -top-px z-20 h-1.5 w-1.5 rounded-full bg-[var(--kenoo-sky)] ring-[1.5px] ring-white"
+                aria-hidden="true"
+              />
+            ) : null}
+          </span>
         </div>
       </button>
 
@@ -359,15 +360,9 @@ interface ProjectsHeaderProps {
   onProjectFilterChange?: (value: string) => void;
   /** When set, only projects with these statuses appear in the project dropdown. */
   projectStatusFilter?: ProjectStatus[];
-  taskScopeOptions?: BoardTaskScope[];
-  taskScopeFilter?: BoardTaskScope;
-  onTaskScopeFilterChange?: (value: BoardTaskScope) => void;
   statusFilter?: string;
   onStatusFilterChange?: (value: string) => void;
-  /**
-   * When true, omit My Tasks / All Projects from the title row so the parent
-   * can place them elsewhere (e.g. the tasks search toolbar).
-   */
+  /** When true, omit board filters from the title row. */
   hideBoardFilters?: boolean;
   /** Render only the filter trigger, for toolbars that own its placement. */
   filterOnly?: boolean;
@@ -386,9 +381,6 @@ export function ProjectsHeader({
   projectFilter,
   onProjectFilterChange,
   projectStatusFilter,
-  taskScopeOptions = [],
-  taskScopeFilter = "project",
-  onTaskScopeFilterChange,
   statusFilter,
   onStatusFilterChange,
   hideBoardFilters = false,
@@ -419,7 +411,7 @@ export function ProjectsHeader({
   const showBoardFiltersInHeader =
     isBoard &&
     !hideBoardFilters &&
-    (!!onTaskScopeFilterChange || !!onProjectFilterChange);
+    !!onProjectFilterChange;
 
   const showProjectFilter = !isBoard && !!onProjectFilterChange;
 
@@ -554,11 +546,19 @@ export function ProjectsHeader({
       aria-pressed={headerFiltersOpen}
       className={cn(
         "group relative flex h-10 w-10 shrink-0 items-center justify-center bg-transparent p-0 text-neutral-500 shadow-none outline-none ring-0",
-        hasHeaderFilters && "shadow-[0_0_0_1px_rgba(110,173,192,0.4),0_0_12px_rgba(110,173,192,0.4)]",
+        hasHeaderFilters && "text-neutral-900",
       )}
     >
       <div className="relative z-10 flex items-center justify-center rounded-full border-0 p-3 transition-all duration-300 ease-in-out group-hover:bg-neutral-100">
-        <ListFilter className="h-[18px] w-[18px] stroke-[1.5]" />
+        <span className="relative flex h-[18px] w-[18px] shrink-0 items-center justify-center overflow-visible">
+          <ListFilter className="h-[18px] w-[18px] stroke-[1.5]" />
+          {hasHeaderFilters ? (
+            <span
+              className="pointer-events-none absolute -right-px -top-px z-20 h-1.5 w-1.5 rounded-full bg-[var(--kenoo-sky)] ring-[1.5px] ring-white"
+              aria-hidden="true"
+            />
+          ) : null}
+        </span>
       </div>
     </button>
   );
@@ -606,9 +606,6 @@ export function ProjectsHeader({
                 projectFilter={projectFilter}
                 onProjectFilterChange={onProjectFilterChange}
                 projectStatusFilter={projectStatusFilter}
-                taskScopeOptions={taskScopeOptions}
-                taskScopeFilter={taskScopeFilter}
-                onTaskScopeFilterChange={onTaskScopeFilterChange}
               />
             ) : hideBoardFilters || showProjectFilter || showStatusFilter ? null : (
               <span className="text-sm md:text-base font-light uppercase tracking-wider text-neutral-800">

@@ -44,7 +44,6 @@ import {
   ProjectTask,
   type TaskAssignee,
   TaskStatus,
-  BoardTaskScope,
   TASK_STATUS_CONFIG,
   PRIORITY_CONFIG,
   KANBAN_COLUMNS,
@@ -75,14 +74,6 @@ import {
 } from "../load-accessible-projects";
 import { filterTasksVisibleToUser } from "../task-visibility";
 import {
-  defaultBoardTaskScope,
-  getBoardTaskScopeOptions,
-  getTaskScopeFlags,
-  parseBoardTaskScope,
-  resolveBoardTaskScope,
-  type TaskScopeMetaRow,
-} from "../board-task-scope";
-import {
   notifyTaskAssignerOnComplete,
   resolveActorDisplayName,
   sendTaskBlockerCompletedEmail,
@@ -91,8 +82,17 @@ import {
 type TasksScreenCacheEntry = {
   projects: Project[];
   tasks: ProjectTask[];
-  scopeMetaRows: TaskScopeMetaRow[];
 };
+
+type DueDateFilter = "all" | "overdue" | "today" | "next_7_days" | "no_due_date";
+
+const DUE_DATE_FILTERS: DueDateFilter[] = [
+  "all",
+  "overdue",
+  "today",
+  "next_7_days",
+  "no_due_date",
+];
 
 // The Tasks route is unmounted when navigating to another screen. Retain its
 // loaded data in the open app session so coming back does not replay the full
@@ -103,14 +103,12 @@ function getTasksScreenCacheKey({
   userId,
   accountId,
   projectFilter,
-  taskScopeFilter,
 }: {
   userId: string;
   accountId: string;
   projectFilter: string;
-  taskScopeFilter: BoardTaskScope;
 }) {
-  return JSON.stringify([userId, accountId, projectFilter, taskScopeFilter]);
+  return JSON.stringify([userId, accountId, projectFilter]);
 }
 
 /* Parse date as local calendar date (avoids timezone shifting to previous day). */
@@ -408,12 +406,12 @@ function TaskCard({ task, isDragOverlay = false, columnStatus, onEdit }: TaskCar
       className={cn(
         "rounded-2xl px-5 py-4 flex flex-col gap-3 group cursor-pointer select-none relative overflow-hidden",
         CARD_GLASS_CLASS,
-        "shadow-[0_3px_12px_rgba(15,23,42,0.07)]",
+        !isDragging && !isDragOverlay && "shadow-[0_3px_12px_rgba(15,23,42,0.07)]",
         !isDragOverlay &&
           isHovered &&
           "shadow-[0_10px_24px_rgba(15,23,42,0.11)]",
         isDragOverlay
-          ? "rotate-[1deg] scale-[1.02] ring-2 ring-white/40"
+          ? "rotate-[1deg] scale-[1.02]"
           : "transition-[box-shadow,background-color] duration-200"
       )}
       onMouseEnter={() => !isDragOverlay && setIsHovered(true)}
@@ -468,7 +466,7 @@ function TaskCard({ task, isDragOverlay = false, columnStatus, onEdit }: TaskCar
           <div
             {...attributes}
             {...listeners}
-            className="cursor-grab active:cursor-grabbing touch-none p-0.5 rounded"
+            className="cursor-grab active:cursor-grabbing touch-none rounded p-0.5 outline-none ring-0 focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0"
             onClick={(e) => e.stopPropagation()}
           >
             <GripVertical className="h-4 w-4 text-neutral-300" />
@@ -631,8 +629,7 @@ function KanbanColumn({
         onScroll={handleColumnScroll}
         className={cn(
           "flex-1 min-h-0 rounded-2xl p-4 flex flex-col gap-3 overflow-y-auto transition-colors",
-          "[scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden",
-          showDropHighlight && "ring-2 ring-offset-1"
+          "[scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
         )}
         style={showDropHighlight ? { outline: `2px solid ${cfg.accent}`, outlineOffset: 2 } : undefined}
       >
@@ -1076,14 +1073,31 @@ function AgentsProjectsKanbanContent({
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialProjectFilter = searchParams.get("project") ?? "all";
-  const initialTaskScopeFilter = parseBoardTaskScope(searchParams.get("scope"));
+  const initialAssigneeFilter = (searchParams.get("assignee") ?? "")
+    .split(",")
+    .filter(Boolean);
+  const initialPriorityFilter = (searchParams.get("priority") ?? "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .map(Number)
+    .filter(
+      (priority) =>
+        Number.isInteger(priority) &&
+        Object.prototype.hasOwnProperty.call(PRIORITY_CONFIG, priority),
+    );
+  const initialDueDateFilter = DUE_DATE_FILTERS.includes(
+    searchParams.get("due") as DueDateFilter,
+  )
+    ? (searchParams.get("due") as DueDateFilter)
+    : "all";
+  const initialSearch = searchParams.get("q") ?? "";
   const initialCacheKey =
     user && activeAccountId
       ? getTasksScreenCacheKey({
           userId: user.id,
           accountId: activeAccountId,
           projectFilter: initialProjectFilter,
-          taskScopeFilter: initialTaskScopeFilter,
         })
       : null;
   const initialCachedData = initialCacheKey
@@ -1097,52 +1111,12 @@ function AgentsProjectsKanbanContent({
   );
   const [loading, setLoading] = useState(() => !initialCachedData);
   const [projectFilter, setProjectFilter] = useState<string>(initialProjectFilter);
-  const [taskScopeFilter, setTaskScopeFilter] =
-    useState<BoardTaskScope>(initialTaskScopeFilter);
+  const [search, setSearch] = useState(initialSearch);
+  const [assigneeFilter, setAssigneeFilter] = useState(initialAssigneeFilter);
+  const [priorityFilter, setPriorityFilter] = useState(initialPriorityFilter);
+  const [dueDateFilter, setDueDateFilter] = useState<DueDateFilter>(initialDueDateFilter);
   const viewMode = searchParams.get("view") === "list" ? "list" : "kanban";
-  const [scopeMetaRows, setScopeMetaRows] = useState<TaskScopeMetaRow[]>(
-    () => initialCachedData?.scopeMetaRows ?? [],
-  );
   const loadedCacheKeyRef = useRef<string | null>(initialCacheKey);
-
-  const scopeProjectIds = useMemo(() => {
-    if (projectFilter === "all") {
-      return projects.map((p) => p.id);
-    }
-    return projects.some((p) => p.id === projectFilter) ? [projectFilter] : [];
-  }, [projectFilter, projects]);
-
-  const taskScopeFlags = useMemo(
-    () =>
-      user
-        ? getTaskScopeFlags(scopeMetaRows, user.id, scopeProjectIds)
-        : { canSeeOthersTasks: false, hasAssignedTasks: false },
-    [scopeMetaRows, user, scopeProjectIds]
-  );
-
-  const taskScopeOptions = useMemo(
-    () =>
-      getBoardTaskScopeOptions(
-        taskScopeFlags.canSeeOthersTasks,
-        taskScopeFlags.hasAssignedTasks
-      ),
-    [taskScopeFlags]
-  );
-
-  const handleTaskScopeFilterChange = useCallback(
-    (value: BoardTaskScope) => {
-      setTaskScopeFilter(value);
-      const params = new URLSearchParams(searchParams.toString());
-      if (value === defaultBoardTaskScope(taskScopeOptions)) {
-        params.delete("scope");
-      } else {
-        params.set("scope", value);
-      }
-      const qs = params.toString();
-      router.replace(`/tasks${qs ? `?${qs}` : ""}`, { scroll: false });
-    },
-    [router, searchParams, taskScopeOptions]
-  );
 
   const handleProjectFilterChange = useCallback(
     (value: string) => {
@@ -1158,6 +1132,77 @@ function AgentsProjectsKanbanContent({
     },
     [router, searchParams]
   );
+
+  const updateFilterUrl = useCallback(
+    (updates: {
+      assignee?: string[];
+      priority?: number[];
+      due?: DueDateFilter;
+      q?: string;
+    }) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (updates.assignee) {
+        updates.assignee.length > 0
+          ? params.set("assignee", updates.assignee.join(","))
+          : params.delete("assignee");
+      }
+      if (updates.priority) {
+        updates.priority.length > 0
+          ? params.set("priority", updates.priority.join(","))
+          : params.delete("priority");
+      }
+      if (updates.due) {
+        updates.due === "all" ? params.delete("due") : params.set("due", updates.due);
+      }
+      if (updates.q !== undefined) {
+        updates.q.trim() ? params.set("q", updates.q.trim()) : params.delete("q");
+      }
+      const qs = params.toString();
+      router.replace(`/tasks${qs ? `?${qs}` : ""}`, { scroll: false });
+    },
+    [router, searchParams],
+  );
+
+  const handleAssigneeFilterChange = useCallback(
+    (value: string[]) => {
+      setAssigneeFilter(value);
+      updateFilterUrl({ assignee: value });
+    },
+    [updateFilterUrl],
+  );
+
+  const handlePriorityFilterChange = useCallback(
+    (value: number[]) => {
+      setPriorityFilter(value);
+      updateFilterUrl({ priority: value });
+    },
+    [updateFilterUrl],
+  );
+
+  const handleDueDateFilterChange = useCallback(
+    (value: DueDateFilter) => {
+      setDueDateFilter(value);
+      updateFilterUrl({ due: value });
+    },
+    [updateFilterUrl],
+  );
+
+  const handleResetFilters = useCallback(() => {
+    setProjectFilter("all");
+    setSearch("");
+    setAssigneeFilter([]);
+    setPriorityFilter([]);
+    setDueDateFilter("all");
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("project");
+    params.delete("assignee");
+    params.delete("priority");
+    params.delete("due");
+    params.delete("q");
+    const qs = params.toString();
+    router.replace(`/tasks${qs ? `?${qs}` : ""}`, { scroll: false });
+  }, [router, searchParams]);
+
   const handleViewModeChange = useCallback(
     (nextView: "kanban" | "list") => {
       const params = new URLSearchParams(searchParams.toString());
@@ -1172,15 +1217,9 @@ function AgentsProjectsKanbanContent({
     [router, searchParams]
   );
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [listSortBy, setListSortBy] = useState<TaskListSortKey>("due_date");
   const [listSortDir, setListSortDir] = useState<"asc" | "desc">("asc");
-  const [assigneeFilter, setAssigneeFilter] = useState<string[]>([]);
-  const [priorityFilter, setPriorityFilter] = useState<number[]>([]);
-  const [dueDateFilter, setDueDateFilter] = useState<
-    "all" | "overdue" | "today" | "next_7_days" | "no_due_date"
-  >("all");
 
   const handleListSort = useCallback((key: TaskListSortKey) => {
     if (key === listSortBy) {
@@ -1229,14 +1268,12 @@ function AgentsProjectsKanbanContent({
       userId: user.id,
       accountId: activeAccountId,
       projectFilter,
-      taskScopeFilter,
     });
     const cached = tasksScreenCache.get(cacheKey);
     if (cached && refreshTrigger === 0) {
       loadedCacheKeyRef.current = cacheKey;
       setProjects(cached.projects);
       setTasks(cached.tasks);
-      setScopeMetaRows(cached.scopeMetaRows);
       setLoading(false);
       return;
     }
@@ -1256,79 +1293,15 @@ function AgentsProjectsKanbanContent({
       const projectIds = loadedProjects.map((p) => p.id);
       const taskSelect = PROJECT_TASK_SELECT_WITH_ASSIGNEE;
 
-      let metaRows: TaskScopeMetaRow[] = [];
-      if (projectIds.length > 0) {
-        const { data } = await supabase
-          .from("project_tasks")
-          .select(
-            "project_id, assigned_by, is_private, task_assignees:project_task_assignees(user_id)"
-          )
-          .in("project_id", projectIds);
-        metaRows = (data ?? []).map((row) => {
-          const links = (
-            row as {
-              task_assignees?: { user_id: string }[] | null;
-            }
-          ).task_assignees;
-          const fromJoin = (links ?? []).map((l) => l.user_id).filter(Boolean);
-          const assignee_ids = fromJoin;
-          return {
-            project_id: row.project_id as string,
-            assigned_by: (row.assigned_by as string | null) ?? null,
-            is_private: Boolean(row.is_private),
-            assignee_ids,
-          };
-        });
-      }
       const contextualProjectIds =
         projectFilter === "all"
           ? projectIds
           : projectIds.filter((id) => id === projectFilter);
-      const { canSeeOthersTasks, hasAssignedTasks } = getTaskScopeFlags(
-        metaRows,
-        user.id,
-        contextualProjectIds
-      );
-
-      const scopeOptions = getBoardTaskScopeOptions(
-        canSeeOthersTasks,
-        hasAssignedTasks
-      );
-      const effectiveScope = resolveBoardTaskScope(taskScopeFilter, scopeOptions);
       const loadProjectIds =
         contextualProjectIds.length > 0 ? contextualProjectIds : projectIds;
 
       let taskRows: Omit<ProjectTask, "project">[] = [];
-      if (effectiveScope === "assigned" && loadProjectIds.length > 0) {
-        const { data } = await supabase
-          .from("project_tasks")
-          .select(taskSelect)
-          .eq("assigned_by", user.id)
-          .in("project_id", loadProjectIds)
-          .order("position", { ascending: true, nullsFirst: false });
-        taskRows = (data ?? [])
-          .map((row) => mapProjectTaskRow(row as Record<string, unknown>))
-          .filter((t) => !isUserTaskAssignee(t, user.id));
-      } else if (effectiveScope === "mine" && loadProjectIds.length > 0) {
-        const { data: assigneeLinks } = await supabase
-          .from("project_task_assignees")
-          .select("task_id")
-          .eq("user_id", user.id);
-        const mineTaskIds = [
-          ...new Set((assigneeLinks ?? []).map((row) => row.task_id as string)),
-        ];
-        if (mineTaskIds.length > 0) {
-          const { data } = await supabase
-            .from("project_tasks")
-            .select(taskSelect)
-            .in("id", mineTaskIds)
-            .in("project_id", loadProjectIds)
-            .order("position", { ascending: true, nullsFirst: false });
-          taskRows = (data ?? []).map((row) =>
-            mapProjectTaskRow(row as Record<string, unknown>)
-          );
-        }
-      } else if (loadProjectIds.length > 0) {
+      if (loadProjectIds.length > 0) {
         const { data } = await supabase
           .from("project_tasks")
           .select(taskSelect)
@@ -1353,41 +1326,23 @@ function AgentsProjectsKanbanContent({
       tasksScreenCache.set(cacheKey, {
         projects: loadedProjects,
         tasks: loadedTasksWithProjects,
-        scopeMetaRows: metaRows,
       });
       setProjects(loadedProjects);
-      setScopeMetaRows(metaRows);
       setTasks(loadedTasksWithProjects);
     } catch {
       setTasks([]);
     } finally {
       setLoading(false);
     }
-  }, [user, activeAccountId, accountLoading, refreshTrigger, taskScopeFilter, projectFilter]);
+  }, [user, activeAccountId, accountLoading, refreshTrigger, projectFilter]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
   useEffect(() => {
     const cacheKey = loadedCacheKeyRef.current;
     if (!cacheKey) return;
-    tasksScreenCache.set(cacheKey, { projects, tasks, scopeMetaRows });
-  }, [projects, scopeMetaRows, tasks]);
-
-  useEffect(() => {
-    if (taskScopeOptions.length === 0) {
-      if (taskScopeFilter !== "mine") setTaskScopeFilter("mine");
-      return;
-    }
-    const resolved = resolveBoardTaskScope(taskScopeFilter, taskScopeOptions);
-    if (resolved !== taskScopeFilter) {
-      handleTaskScopeFilterChange(resolved);
-    }
-  }, [
-    taskScopeOptions,
-    taskScopeFilter,
-    handleTaskScopeFilterChange,
-    projectFilter,
-  ]);
+    tasksScreenCache.set(cacheKey, { projects, tasks });
+  }, [projects, tasks]);
 
   /* Filter tasks by project */
   const filteredTasks =
@@ -1489,6 +1444,9 @@ function AgentsProjectsKanbanContent({
     : null;
 
   const handleDragStart = (event: DragStartEvent) => {
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
     setActiveTaskId(event.active.id as string);
   };
 
@@ -1683,16 +1641,14 @@ function AgentsProjectsKanbanContent({
                 projectFilter={projectFilter}
                 onProjectFilterChange={handleProjectFilterChange}
                 projectStatusFilter={TASK_BOARD_PROJECT_STATUSES}
-                taskScopeOptions={taskScopeOptions}
-                taskScopeFilter={taskScopeFilter}
-                onTaskScopeFilterChange={handleTaskScopeFilterChange}
                 assignees={availableAssignees}
                 assigneeFilter={assigneeFilter}
-                onAssigneeFilterChange={setAssigneeFilter}
+                onAssigneeFilterChange={handleAssigneeFilterChange}
+                onResetFilters={handleResetFilters}
                 priorityFilter={priorityFilter}
-                onPriorityFilterChange={setPriorityFilter}
+                onPriorityFilterChange={handlePriorityFilterChange}
                 dueDateFilter={dueDateFilter}
-                onDueDateFilterChange={setDueDateFilter}
+                onDueDateFilterChange={handleDueDateFilterChange}
               />
 
               <KanbanPlusButton
@@ -1709,7 +1665,10 @@ function AgentsProjectsKanbanContent({
                   type="text"
                   placeholder="Search tasks…"
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    updateFilterUrl({ q: e.target.value });
+                  }}
                   className={cn(
                     "w-full pl-6 pr-3 py-2 text-sm bg-transparent border-0 border-b focus:outline-none transition-colors placeholder:text-neutral-300 font-light rounded-none",
                     search ? "border-b-[var(--kenoo-sky)]" : "border-neutral-200",
