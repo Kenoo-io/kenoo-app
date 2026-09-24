@@ -829,17 +829,27 @@ function AgentsProjectsContent({ analyticsData: _analyticsData }: AgentsProjects
                                 className={cn(
                                   "flex min-h-[200px] flex-col rounded-[22px] p-4 text-left",
                                   PANEL_GLASS_CLASS,
-                                  "transition-all duration-200 hover:-translate-y-0.5 hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-300"
+                                  "bg-kenoo-white transition-all duration-200 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-300"
                                 )}
+                                style={{
+                                  border: "none",
+                                  backgroundImage:
+                                    `radial-gradient(circle at 8% 8%, color-mix(in srgb, ${project?.color ?? "var(--kenoo-sky)"} 8%, transparent), transparent 42%), radial-gradient(circle at 92% 92%, color-mix(in srgb, ${status?.accent ?? "var(--kenoo-sky)"} 7%, transparent), transparent 42%)`,
+                                }}
                               >
                                 <h3 className="line-clamp-3 text-base font-semibold leading-snug text-neutral-900">
                                   {task.title}
                                 </h3>
-                                <p className="mt-1 truncate text-xs font-light text-neutral-600/80">
-                                  {project?.name ?? "Project"}
+                                <p className="mt-1 flex min-w-0 items-center gap-1.5 text-xs font-light text-neutral-600/80">
+                                  <span
+                                    aria-hidden="true"
+                                    className="h-1.5 w-1.5 shrink-0 rounded-full"
+                                    style={{ backgroundColor: project?.color ?? "var(--kenoo-sky)" }}
+                                  />
+                                  <span className="truncate">{project?.name ?? "Project"}</span>
                                 </p>
-                                <div className="mt-auto pt-6">
-                                  <div className="mb-3 flex items-center -space-x-1.5">
+                                <div className="mt-auto flex items-end justify-between gap-3 pt-6">
+                                  <div className="flex items-center -space-x-1.5">
                                     {members.map((m) => (
                                       <Avatar
                                         key={m.id}
@@ -855,10 +865,8 @@ function AgentsProjectsContent({ analyticsData: _analyticsData }: AgentsProjects
                                     ))}
                                   </div>
                                   <span
-                                    className={cn(
-                                      "inline-flex w-fit items-center rounded-full px-2.5 py-1 text-[10px] font-medium",
-                                      status?.badge ?? "bg-neutral-100 text-neutral-600",
-                                    )}
+                                    className="text-right text-[10px] font-medium"
+                                    style={{ color: status?.accent ?? "rgb(115 115 115)" }}
                                   >
                                     {status?.label ?? task.status}
                                   </span>
