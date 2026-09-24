@@ -161,6 +161,7 @@ type ProjectListMember = {
 };
 
 type ProjectListProject = ProjectWithStats & { members: ProjectListMember[] };
+type ProjectDueDateFilter = "all" | "overdue" | "next_7_days" | "no_due_date";
 
 function memberName(member: ProjectListMember) {
   const name = `${member.first_name ?? ""} ${member.last_name ?? ""}`.trim();
@@ -180,13 +181,17 @@ function getProjectsListCacheKey({
   accountId,
   search,
   status,
+  priority,
+  dueDate,
 }: {
   userId: string;
   accountId: string;
   search: string;
   status: string;
+  priority: number | null;
+  dueDate: ProjectDueDateFilter;
 }) {
-  return `${userId}:${accountId}:${search}:${status}`;
+  return `${userId}:${accountId}:${search}:${status}:${priority ?? "all"}:${dueDate}`;
 }
 
 /* ─── Column headers ────────────────────────────────────────────────────── */
@@ -357,7 +362,7 @@ function ProjectRow({ project, index, onEdit, columnWidths, tableWidth }: Projec
       tabIndex={0}
       onClick={() => onEdit(project)}
       onKeyDown={(e) => e.key === "Enter" && onEdit(project)}
-      className="group flex min-w-max cursor-pointer items-stretch border-b border-neutral-300 bg-kenoo-white transition-colors duration-200 hover:bg-gray-200/60 focus-visible:bg-gray-200/60 focus-visible:outline-none"
+      className="group flex min-w-max cursor-pointer items-stretch border-b border-neutral-300 bg-kenoo-white transition-colors duration-200 hover:bg-neutral-100/70 focus-visible:bg-neutral-100/70 focus-visible:outline-none"
       style={{ minWidth: tableWidth }}
     >
       {/* Name + description */}
@@ -511,12 +516,20 @@ function SearchToolbar({
   onSearch,
   statusFilter,
   onStatusFilterChange,
+  priorityFilter,
+  onPriorityFilterChange,
+  dueDateFilter,
+  onDueDateFilterChange,
   onNewProject,
 }: {
   search: string;
   onSearch: (v: string) => void;
   statusFilter: string;
   onStatusFilterChange: (v: string) => void;
+  priorityFilter: number | null;
+  onPriorityFilterChange: (v: number | null) => void;
+  dueDateFilter: ProjectDueDateFilter;
+  onDueDateFilterChange: (v: ProjectDueDateFilter) => void;
   onNewProject: () => void;
 }) {
   return (
@@ -525,6 +538,10 @@ function SearchToolbar({
         filterOnly
         statusFilter={statusFilter}
         onStatusFilterChange={onStatusFilterChange}
+        priorityFilter={priorityFilter}
+        onPriorityFilterChange={onPriorityFilterChange}
+        dueDateFilter={dueDateFilter}
+        onDueDateFilterChange={onDueDateFilterChange}
       />
       <ProjectsHeader newOnly onNewProject={onNewProject} />
       <div className="relative flex-1 max-w-sm">
@@ -630,6 +647,8 @@ function AgentsProjectsListContent({
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [priorityFilter, setPriorityFilter] = useState<number | null>(null);
+  const [dueDateFilter, setDueDateFilter] = useState<ProjectDueDateFilter>("all");
   const initialCachedProjects =
     user && activeAccountId
       ? projectsListCache.get(
@@ -638,6 +657,8 @@ function AgentsProjectsListContent({
             accountId: activeAccountId,
             search: "",
             status: "",
+            priority: null,
+            dueDate: "all",
           })
         )
       : undefined;
@@ -652,6 +673,8 @@ function AgentsProjectsListContent({
           accountId: activeAccountId,
           search: "",
           status: "",
+          priority: null,
+          dueDate: "all",
         })
       : null
   );
@@ -688,6 +711,8 @@ function AgentsProjectsListContent({
       accountId: activeAccountId,
       search: debouncedSearch,
       status: statusFilter,
+      priority: priorityFilter,
+      dueDate: dueDateFilter,
     });
     const cached = projectsListCache.get(cacheKey);
     if (cached) {
@@ -720,9 +745,21 @@ function AgentsProjectsListContent({
         .order("created_at", { ascending: false });
       if (debouncedSearch) query = query.ilike("name", `%${debouncedSearch}%`);
       if (statusFilter) query = query.eq("status", statusFilter);
+      if (priorityFilter !== null) query = query.eq("priority", priorityFilter);
       const { data: projectRows, error } = await query;
       if (error) throw error;
-      const rows = (projectRows ?? []) as Project[];
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayKey = today.toISOString().slice(0, 10);
+      const nextWeek = new Date(today);
+      nextWeek.setDate(nextWeek.getDate() + 7);
+      const nextWeekKey = nextWeek.toISOString().slice(0, 10);
+      const rows = ((projectRows ?? []) as Project[]).filter((project) => {
+        if (dueDateFilter === "no_due_date") return !project.due_date;
+        if (dueDateFilter === "overdue") return Boolean(project.due_date && project.due_date < todayKey);
+        if (dueDateFilter === "next_7_days") return Boolean(project.due_date && project.due_date >= todayKey && project.due_date <= nextWeekKey);
+        return true;
+      });
       if (rows.length === 0) {
         setProjects([]);
         return;
@@ -813,7 +850,7 @@ function AgentsProjectsListContent({
     } finally {
       setLoading(false);
     }
-  }, [user, authLoading, accountLoading, activeAccountId, debouncedSearch, statusFilter, refreshTrigger]);
+  }, [user, authLoading, accountLoading, activeAccountId, debouncedSearch, statusFilter, priorityFilter, dueDateFilter, refreshTrigger]);
 
   useEffect(() => {
     if (authLoading || accountLoading) return;
@@ -827,13 +864,15 @@ function AgentsProjectsListContent({
       accountId: activeAccountId,
       search: debouncedSearch,
       status: statusFilter,
+      priority: priorityFilter,
+      dueDate: dueDateFilter,
     });
     if (loadedCacheKeyRef.current !== cacheKey) return;
     projectsListCache.set(
       cacheKey,
       projects
     );
-  }, [user, activeAccountId, debouncedSearch, statusFilter, projects]);
+  }, [user, activeAccountId, debouncedSearch, statusFilter, priorityFilter, dueDateFilter, projects]);
 
   const refresh = () => {
     if (user && activeAccountId) {
@@ -843,6 +882,8 @@ function AgentsProjectsListContent({
           accountId: activeAccountId,
           search: debouncedSearch,
           status: statusFilter,
+          priority: priorityFilter,
+          dueDate: dueDateFilter,
         })
       );
     }
@@ -949,6 +990,10 @@ function AgentsProjectsListContent({
                 onNewTask={() => setTaskFormOpen(true)}
                 statusFilter={statusFilter}
                 onStatusFilterChange={setStatusFilter}
+                priorityFilter={priorityFilter}
+                onPriorityFilterChange={setPriorityFilter}
+                dueDateFilter={dueDateFilter}
+                onDueDateFilterChange={setDueDateFilter}
               />
             </div>
 
@@ -959,6 +1004,10 @@ function AgentsProjectsListContent({
                   onSearch={setSearch}
                   statusFilter={statusFilter}
                   onStatusFilterChange={setStatusFilter}
+                  priorityFilter={priorityFilter}
+                  onPriorityFilterChange={setPriorityFilter}
+                  dueDateFilter={dueDateFilter}
+                  onDueDateFilterChange={setDueDateFilter}
                   onNewProject={() => {
                     setEditProject(null);
                     setFormOpen(true);

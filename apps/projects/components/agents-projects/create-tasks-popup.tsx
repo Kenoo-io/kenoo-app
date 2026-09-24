@@ -101,7 +101,7 @@ const EMPTY_TASK_FORM: TaskFormState = {
   is_public: true,
 };
 
-type TaskBlockerOption = Pick<ProjectTask, "id" | "status" | "title">;
+type TaskBlockerOption = Pick<ProjectTask, "id" | "project_id" | "status" | "title">;
 
 function projectSwatchColor(project: Project): string {
   return (
@@ -581,7 +581,25 @@ export function CreateTasksPopup({
   useEffect(() => {
     let cancelled = false;
     const loadProjectTasks = async () => {
-      if (!open || !form.project_id) {
+      // The accessible-projects query is scoped to the active account and to
+      // projects the current user owns or belongs to. Wait for it before
+      // loading blocker tasks so this list cannot fall back to the current
+      // project while the broader access list is still resolving.
+      if (
+        !open ||
+        !form.project_id ||
+        !userId ||
+        !activeAccountId ||
+        accountLoading ||
+        loadingAccessibleProjects
+      ) {
+        setProjectTasks([]);
+        setLoadingProjectTasks(false);
+        return;
+      }
+
+      const accessibleProjectIds = accessibleProjects.map((project) => project.id);
+      if (accessibleProjectIds.length === 0) {
         setProjectTasks([]);
         setLoadingProjectTasks(false);
         return;
@@ -591,8 +609,8 @@ export function CreateTasksPopup({
       const supabase = getSupabaseClient();
       const { data, error: loadError } = await supabase
         .from("project_tasks")
-        .select("id, title, status")
-        .eq("project_id", form.project_id)
+        .select("id, title, status, project_id")
+        .in("project_id", accessibleProjectIds)
         .neq("id", existing?.id ?? "00000000-0000-0000-0000-000000000000")
         .order("title");
 
@@ -605,7 +623,16 @@ export function CreateTasksPopup({
     return () => {
       cancelled = true;
     };
-  }, [open, form.project_id, existing?.id]);
+  }, [
+    open,
+    form.project_id,
+    existing?.id,
+    userId,
+    activeAccountId,
+    accountLoading,
+    loadingAccessibleProjects,
+    accessibleProjects,
+  ]);
 
   useEffect(() => {
     if (!open || !existing?.id) return;
@@ -757,14 +784,34 @@ export function CreateTasksPopup({
     (project) => project.id === form.project_id
   );
   const selectedProjectName = selectedProject?.name ?? "No project";
+  const projectNameById = useMemo(
+    () => new Map(projectsForSelect.map((project) => [project.id, project.name])),
+    [projectsForSelect]
+  );
+  const projectById = useMemo(
+    () => new Map(projectsForSelect.map((project) => [project.id, project])),
+    [projectsForSelect]
+  );
+  const selectedBlockerTitles = projectTasks
+    .filter((task) => form.blocker_task_ids.includes(task.id))
+    .map((task) => {
+      const projectName = projectNameById.get(task.project_id);
+      return projectName && task.project_id !== form.project_id
+        ? `${task.title} (${projectName})`
+        : task.title;
+    })
+    .join(", ");
   const filteredProjectTasks = useMemo(() => {
     const query = blockerSearch.trim().toLocaleLowerCase();
     return projectTasks.filter((task) => {
+      // A task cannot block itself. Keep this guard in the rendered options as
+      // well as the query-level exclusion so stale task data cannot surface it.
+      if (task.id === existing?.id) return false;
       const isExistingBlocker = form.blocker_task_ids.includes(task.id);
       if (task.status === "completed" && !isExistingBlocker) return false;
       return !query || task.title.toLocaleLowerCase().includes(query);
     });
-  }, [blockerSearch, form.blocker_task_ids, projectTasks]);
+  }, [blockerSearch, existing?.id, form.blocker_task_ids, projectTasks]);
 
   useEffect(() => {
     const textElement = projectNameRef.current;
@@ -856,7 +903,11 @@ export function CreateTasksPopup({
         assigneeIds.length !== previousAssigneeIds.length ||
         assigneeIds.some((id) => !previousAssigneeIds.includes(id));
       const blockerTaskIds = form.status === "blocked"
-        ? [...new Set(form.blocker_task_ids.filter(Boolean))]
+        ? [...new Set(
+            form.blocker_task_ids.filter(
+              (id) => Boolean(id) && id !== existing?.id
+            )
+          )]
         : [];
 
       const payload: Record<string, unknown> = {
@@ -1257,10 +1308,7 @@ export function CreateTasksPopup({
                         ? "Select a project"
                         : form.blocker_task_ids.length === 0
                           ? "Select tasks"
-                          : projectTasks
-                              .filter((task) => form.blocker_task_ids.includes(task.id))
-                              .map((task) => task.title)
-                              .join(", ") || "Select tasks"}
+                          : selectedBlockerTitles || "Select tasks"}
                     </span>
                   </button>
                 </PopoverTrigger>
@@ -1292,7 +1340,7 @@ export function CreateTasksPopup({
                       <p className="px-3 py-3 text-sm font-light text-neutral-500">
                         {blockerSearch.trim()
                           ? "No matching tasks"
-                          : "No other tasks in this project"}
+                          : "No other accessible tasks"}
                       </p>
                     ) : (
                       filteredProjectTasks.map((task) => {
@@ -1324,8 +1372,25 @@ export function CreateTasksPopup({
                               <span className="block truncate text-sm font-light text-neutral-900">
                                 {task.title}
                               </span>
-                              <span className="block text-[11px] text-neutral-400">
-                                {TASK_STATUS_CONFIG[task.status].label}
+                              <span className="flex min-w-0 items-center gap-1 text-[11px] text-neutral-400">
+                                {projectNameById.get(task.project_id) ? (
+                                  <>
+                                    <span
+                                      className="h-1.5 w-1.5 shrink-0 rounded-full"
+                                      style={{
+                                        backgroundColor: projectById.get(task.project_id)
+                                          ? projectSwatchColor(projectById.get(task.project_id)!)
+                                          : "rgb(163 163 163)",
+                                      }}
+                                      aria-hidden
+                                    />
+                                    <span className="min-w-0 truncate">
+                                      {projectNameById.get(task.project_id)}
+                                    </span>
+                                    <span aria-hidden>·</span>
+                                  </>
+                                ) : null}
+                                <span className="shrink-0">{TASK_STATUS_CONFIG[task.status].label}</span>
                               </span>
                             </span>
                           </button>

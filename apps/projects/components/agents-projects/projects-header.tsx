@@ -7,7 +7,7 @@ import {
   loadAccessibleProjects,
 } from "./load-accessible-projects";
 import { Button } from "@/components/ui/button";
-import { Plus, ChevronDown, Filter, ListFilter, X } from "lucide-react";
+import { Plus, ChevronDown, ListFilter, X } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -31,8 +31,6 @@ import {
   ProjectStatus,
   PROJECT_STATUS_CONFIG,
   PROJECT_STATUS_OPTIONS,
-  BoardTaskScope,
-  BOARD_TASK_SCOPE_CONFIG,
   PRIORITY_CONFIG,
   type TaskAssignee,
 } from "./types";
@@ -56,12 +54,10 @@ export type ProjectsBoardFiltersProps = {
   projectFilter?: string;
   onProjectFilterChange: (value: string) => void;
   projectStatusFilter?: ProjectStatus[];
-  taskScopeOptions?: BoardTaskScope[];
-  taskScopeFilter?: BoardTaskScope;
-  onTaskScopeFilterChange?: (value: BoardTaskScope) => void;
   assignees?: TaskAssignee[];
   assigneeFilter?: string[];
   onAssigneeFilterChange?: (value: string[]) => void;
+  onResetFilters?: () => void;
   priorityFilter?: number[];
   onPriorityFilterChange?: (value: number[]) => void;
   dueDateFilter?: "all" | "overdue" | "today" | "next_7_days" | "no_due_date";
@@ -71,18 +67,18 @@ export type ProjectsBoardFiltersProps = {
   className?: string;
 };
 
+type ProjectDueDateFilter = "all" | "overdue" | "next_7_days" | "no_due_date";
+
 /** Task filters, using the same slide-out filter pattern as CRM. */
 export function ProjectsBoardFilters({
   projects,
   projectFilter,
   onProjectFilterChange,
   projectStatusFilter,
-  taskScopeOptions = [],
-  taskScopeFilter = "project",
-  onTaskScopeFilterChange,
   assignees = [],
   assigneeFilter = [],
   onAssigneeFilterChange,
+  onResetFilters,
   priorityFilter = [],
   onPriorityFilterChange,
   dueDateFilter = "all",
@@ -95,15 +91,10 @@ export function ProjectsBoardFilters({
   const [isOpen, setIsOpen] = useState(false);
   const [accessibleProjects, setAccessibleProjects] = useState<Project[]>([]);
   const [loadingAccessibleProjects, setLoadingAccessibleProjects] = useState(false);
+  const [accessibleProjectsLoaded, setAccessibleProjectsLoaded] = useState(false);
 
-  const showTaskScopeDropdown =
-    !!onTaskScopeFilterChange && taskScopeOptions.length > 1;
-  const defaultTaskScope = taskScopeOptions.includes("mine")
-    ? "mine"
-    : (taskScopeOptions[0] ?? "mine");
   const hasActiveFilters =
     projectFilter !== "all" ||
-    taskScopeFilter !== defaultTaskScope ||
     assigneeFilter.length > 0 ||
     priorityFilter.length > 0 ||
     dueDateFilter !== "all";
@@ -128,10 +119,12 @@ export function ProjectsBoardFilters({
     if (!user?.id || !activeAccountId || accountLoading) {
       setAccessibleProjects([]);
       setLoadingAccessibleProjects(false);
+      setAccessibleProjectsLoaded(false);
       return;
     }
 
     let cancelled = false;
+    setAccessibleProjectsLoaded(false);
     setLoadingAccessibleProjects(true);
     const run = async () => {
       try {
@@ -143,7 +136,10 @@ export function ProjectsBoardFilters({
       } catch {
         if (!cancelled) setAccessibleProjects([]);
       } finally {
-        if (!cancelled) setLoadingAccessibleProjects(false);
+        if (!cancelled) {
+          setLoadingAccessibleProjects(false);
+          setAccessibleProjectsLoaded(true);
+        }
       }
     };
 
@@ -160,16 +156,33 @@ export function ProjectsBoardFilters({
         : (projects ?? []);
     if (!projectStatusFilter?.length) return source;
     const allowed = new Set(projectStatusFilter);
-    return source.filter((p) => allowed.has(p.status));
+    const filtered = source.filter((p) => allowed.has(p.status));
+
+    // Keep a project selected from a deep link (for example, the Projects
+    // list's "View tasks" action) visible in the filter popout even when its
+    // status is outside the board's normal project set. This lets the URL
+    // remain the source of truth instead of clearing the selection on mount.
+    if (
+      projectFilter &&
+      projectFilter !== "all" &&
+      source.some((project) => project.id === projectFilter) &&
+      !filtered.some((project) => project.id === projectFilter)
+    ) {
+      const selected = source.find((project) => project.id === projectFilter);
+      if (selected) return [...filtered, selected];
+    }
+
+    return filtered;
   }, [
     accessibleProjects,
     loadingAccessibleProjects,
     projects,
     projectStatusFilter,
+    projectFilter,
   ]);
 
   useEffect(() => {
-    if (loadingAccessibleProjects) return;
+    if (loadingAccessibleProjects || !accessibleProjectsLoaded) return;
     if (!projectFilter || projectFilter === "all") return;
     if (filterProjects.some((p) => p.id === projectFilter)) return;
     onProjectFilterChange("all");
@@ -178,9 +191,21 @@ export function ProjectsBoardFilters({
     projectFilter,
     filterProjects,
     loadingAccessibleProjects,
+    accessibleProjectsLoaded,
   ]);
 
   const selectedProject = filterProjects.find((p) => p.id === projectFilter);
+  const assigneesForFilter = useMemo(() => {
+    const byId = new Map(assignees.map((assignee) => [assignee.id, assignee]));
+    return [...byId.values()].sort((a, b) => {
+      if (a.id === user?.id) return -1;
+      if (b.id === user?.id) return 1;
+      const aName = `${a.first_name ?? ""} ${a.last_name ?? ""}`.trim() || a.email;
+      const bName = `${b.first_name ?? ""} ${b.last_name ?? ""}`.trim() || b.email;
+      return aName.localeCompare(bName);
+    });
+  }, [assignees, user?.id]);
+
   const assigneeFilterLabel =
     assigneeFilter.length === 0
       ? "—"
@@ -189,12 +214,12 @@ export function ProjectsBoardFilters({
         : assigneeFilter[0] === "unassigned"
           ? "Unassigned"
           : (() => {
+              if (assigneeFilter[0] === user?.id) return "Me";
               const assignee = assignees.find((item) => item.id === assigneeFilter[0]);
               return assignee
                 ? `${assignee.first_name ?? ""} ${assignee.last_name ?? ""}`.trim() || assignee.email
                 : "—";
             })();
-
   const filterPanel = (
     <AnimatePresence>
       {isOpen ? (
@@ -208,7 +233,7 @@ export function ProjectsBoardFilters({
     >
       <div className="flex items-center justify-between border-b border-black/10 bg-white/80 p-6 backdrop-blur-xl">
         <div className="flex items-center gap-3">
-          <Filter className="h-5 w-5 text-black" strokeWidth={1.5} />
+          <ListFilter className="h-5 w-5 text-black" strokeWidth={1.5} />
           <h2 className="text-lg font-semibold text-black">Filters</h2>
         </div>
         <button
@@ -223,17 +248,6 @@ export function ProjectsBoardFilters({
 
       <div className="flex-1 overflow-y-auto px-6 py-5">
         <div className="space-y-6">
-          {showTaskScopeDropdown ? (
-            <Select value={taskScopeFilter} onValueChange={(value) => onTaskScopeFilterChange?.(value as BoardTaskScope)}>
-              <SelectTrigger className={FILTER_SELECT_TRIGGER}>
-                <span><span className="text-neutral-700">Tasks:</span>{" "}{taskScopeFilter === defaultTaskScope ? "—" : BOARD_TASK_SCOPE_CONFIG[taskScopeFilter].menuLabel}</span>
-              </SelectTrigger>
-              <SelectContent className="z-[10000]">
-                {taskScopeOptions.map((scope) => <SelectItem key={scope} value={scope}>{BOARD_TASK_SCOPE_CONFIG[scope].menuLabel}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          ) : null}
-
           <Select value={projectFilter || "all"} onValueChange={onProjectFilterChange}>
             <SelectTrigger className={FILTER_SELECT_TRIGGER}>
               <span><span className="text-neutral-700">Project:</span>{" "}{selectedProject?.name ?? "—"}</span>
@@ -254,11 +268,12 @@ export function ProjectsBoardFilters({
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className={FILTER_MENU_CONTENT}>
-                <DropdownMenuCheckboxItem checked={assigneeFilter.length === 0} onCheckedChange={() => onAssigneeFilterChange([])}>—</DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem checked={assigneeFilter.includes("unassigned")} onCheckedChange={() => toggleAssignee("unassigned")}>Unassigned</DropdownMenuCheckboxItem>
-                {assignees.map((assignee) => {
+                <DropdownMenuCheckboxItem indicatorPosition="right" checked={assigneeFilter.length === 0} onCheckedChange={() => onAssigneeFilterChange([])}>—</DropdownMenuCheckboxItem>
+                {user?.id ? <DropdownMenuCheckboxItem indicatorPosition="right" checked={assigneeFilter.includes(user.id)} onCheckedChange={() => toggleAssignee(user.id)}>Me</DropdownMenuCheckboxItem> : null}
+                <DropdownMenuCheckboxItem indicatorPosition="right" checked={assigneeFilter.includes("unassigned")} onCheckedChange={() => toggleAssignee("unassigned")}>Unassigned</DropdownMenuCheckboxItem>
+                {assigneesForFilter.filter((assignee) => assignee.id !== user?.id).map((assignee) => {
                   const name = `${assignee.first_name ?? ""} ${assignee.last_name ?? ""}`.trim() || assignee.email;
-                  return <DropdownMenuCheckboxItem key={assignee.id} checked={assigneeFilter.includes(assignee.id)} onCheckedChange={() => toggleAssignee(assignee.id)}>{name}</DropdownMenuCheckboxItem>;
+                  return <DropdownMenuCheckboxItem key={assignee.id} indicatorPosition="right" checked={assigneeFilter.includes(assignee.id)} onCheckedChange={() => toggleAssignee(assignee.id)}>{name}</DropdownMenuCheckboxItem>;
                 })}
               </DropdownMenuContent>
             </DropdownMenu>
@@ -273,10 +288,10 @@ export function ProjectsBoardFilters({
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className={FILTER_MENU_CONTENT}>
-                <DropdownMenuCheckboxItem checked={priorityFilter.length === 0} onCheckedChange={() => onPriorityFilterChange([])}>—</DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem indicatorPosition="right" checked={priorityFilter.length === 0} onCheckedChange={() => onPriorityFilterChange([])}>—</DropdownMenuCheckboxItem>
                 {Object.entries(PRIORITY_CONFIG).map(([value, config]) => {
                   const priority = Number(value);
-                  return <DropdownMenuCheckboxItem key={priority} checked={priorityFilter.includes(priority)} onCheckedChange={() => togglePriority(priority)}>{config.label}</DropdownMenuCheckboxItem>;
+                  return <DropdownMenuCheckboxItem key={priority} indicatorPosition="right" checked={priorityFilter.includes(priority)} onCheckedChange={() => togglePriority(priority)}>{config.label}</DropdownMenuCheckboxItem>;
                 })}
               </DropdownMenuContent>
             </DropdownMenu>
@@ -303,8 +318,11 @@ export function ProjectsBoardFilters({
         <button
           type="button"
           onClick={() => {
+            if (onResetFilters) {
+              onResetFilters();
+              return;
+            }
             onProjectFilterChange("all");
-            onTaskScopeFilterChange?.(defaultTaskScope);
             onAssigneeFilterChange?.([]);
             onPriorityFilterChange?.([]);
             onDueDateFilterChange?.("all");
@@ -335,12 +353,20 @@ export function ProjectsBoardFilters({
         aria-pressed={isOpen}
         className={cn(
           "group relative flex h-10 w-10 shrink-0 items-center justify-center bg-transparent p-0 text-neutral-500 shadow-none outline-none ring-0",
-          hasActiveFilters && "shadow-[0_0_0_1px_rgba(110,173,192,0.4),0_0_12px_rgba(110,173,192,0.4)]",
+          hasActiveFilters && "text-neutral-900",
           className,
         )}
       >
         <div className="relative z-10 flex items-center justify-center rounded-full border-0 p-3 transition-all duration-300 ease-in-out group-hover:bg-neutral-100">
-          <ListFilter className="h-[18px] w-[18px] stroke-[1.5]" />
+          <span className="relative flex h-[18px] w-[18px] shrink-0 items-center justify-center overflow-visible">
+            <ListFilter className="h-[18px] w-[18px] stroke-[1.5]" />
+            {hasActiveFilters ? (
+              <span
+                className="pointer-events-none absolute -right-px -top-px z-20 h-1.5 w-1.5 rounded-full bg-[var(--kenoo-sky)] ring-[1.5px] ring-white"
+                aria-hidden="true"
+              />
+            ) : null}
+          </span>
         </div>
       </button>
 
@@ -359,15 +385,13 @@ interface ProjectsHeaderProps {
   onProjectFilterChange?: (value: string) => void;
   /** When set, only projects with these statuses appear in the project dropdown. */
   projectStatusFilter?: ProjectStatus[];
-  taskScopeOptions?: BoardTaskScope[];
-  taskScopeFilter?: BoardTaskScope;
-  onTaskScopeFilterChange?: (value: BoardTaskScope) => void;
   statusFilter?: string;
   onStatusFilterChange?: (value: string) => void;
-  /**
-   * When true, omit My Tasks / All Projects from the title row so the parent
-   * can place them elsewhere (e.g. the tasks search toolbar).
-   */
+  priorityFilter?: number | null;
+  onPriorityFilterChange?: (value: number | null) => void;
+  dueDateFilter?: ProjectDueDateFilter;
+  onDueDateFilterChange?: (value: ProjectDueDateFilter) => void;
+  /** When true, omit board filters from the title row. */
   hideBoardFilters?: boolean;
   /** Render only the filter trigger, for toolbars that own its placement. */
   filterOnly?: boolean;
@@ -386,11 +410,12 @@ export function ProjectsHeader({
   projectFilter,
   onProjectFilterChange,
   projectStatusFilter,
-  taskScopeOptions = [],
-  taskScopeFilter = "project",
-  onTaskScopeFilterChange,
   statusFilter,
   onStatusFilterChange,
+  priorityFilter = null,
+  onPriorityFilterChange,
+  dueDateFilter = "all",
+  onDueDateFilterChange,
   hideBoardFilters = false,
   filterOnly = false,
   newOnly = false,
@@ -419,7 +444,7 @@ export function ProjectsHeader({
   const showBoardFiltersInHeader =
     isBoard &&
     !hideBoardFilters &&
-    (!!onTaskScopeFilterChange || !!onProjectFilterChange);
+    !!onProjectFilterChange;
 
   const showProjectFilter = !isBoard && !!onProjectFilterChange;
 
@@ -485,7 +510,9 @@ export function ProjectsHeader({
   const selectedHeaderProject = filterProjects.find((p) => p.id === projectFilter);
   const hasHeaderFilters =
     (showProjectFilter && projectFilter !== "all") ||
-    (showStatusFilter && !!statusFilter);
+    (showStatusFilter && !!statusFilter) ||
+    (onPriorityFilterChange && priorityFilter !== null) ||
+    (onDueDateFilterChange && dueDateFilter !== "all");
 
   const headerFilterPanel = (
     <AnimatePresence>
@@ -500,7 +527,7 @@ export function ProjectsHeader({
         >
           <div className="flex items-center justify-between border-b border-black/10 bg-white/80 p-6 backdrop-blur-xl">
             <div className="flex items-center gap-3">
-              <Filter className="h-5 w-5 text-black" strokeWidth={1.5} />
+              <ListFilter className="h-5 w-5 text-black" strokeWidth={1.5} />
               <h2 className="text-lg font-semibold text-black">Filters</h2>
             </div>
             <button type="button" onClick={() => setHeaderFiltersOpen(false)} className="cursor-pointer transition-opacity duration-300 hover:opacity-70" aria-label="Close filters">
@@ -534,11 +561,40 @@ export function ProjectsHeader({
                   </SelectContent>
                 </Select>
               ) : null}
+
+              {onPriorityFilterChange ? (
+                <Select
+                  value={priorityFilter === null ? "all" : String(priorityFilter)}
+                  onValueChange={(value) => onPriorityFilterChange(value === "all" ? null : Number(value))}
+                >
+                  <SelectTrigger className={FILTER_SELECT_TRIGGER}>
+                    <span><span className="text-neutral-700">Priority:</span>{" "}{priorityFilter === null ? "—" : PRIORITY_CONFIG[priorityFilter]?.label ?? "—"}</span>
+                  </SelectTrigger>
+                  <SelectContent className="z-[10000]">
+                    <SelectItem value="all">—</SelectItem>
+                    {Object.entries(PRIORITY_CONFIG).map(([value, config]) => <SelectItem key={value} value={value}>{config.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              ) : null}
+
+              {onDueDateFilterChange ? (
+                <Select value={dueDateFilter} onValueChange={(value) => onDueDateFilterChange(value as ProjectDueDateFilter)}>
+                  <SelectTrigger className={FILTER_SELECT_TRIGGER}>
+                    <span><span className="text-neutral-700">Due date:</span>{" "}{DUE_DATE_LABELS[dueDateFilter === "all" ? "all" : dueDateFilter]}</span>
+                  </SelectTrigger>
+                  <SelectContent className="z-[10000]">
+                    <SelectItem value="all">—</SelectItem>
+                    <SelectItem value="overdue">Overdue</SelectItem>
+                    <SelectItem value="next_7_days">Due in the next 7 days</SelectItem>
+                    <SelectItem value="no_due_date">No due date</SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : null}
             </div>
           </div>
 
           <div className="flex items-center justify-between gap-2 border-t border-black/10 p-6">
-            <button type="button" onClick={() => { onProjectFilterChange?.("all"); onStatusFilterChange?.(""); }} className="inline-flex h-9 items-center rounded-full px-3 text-sm font-light text-neutral-700 transition-colors hover:bg-neutral-100"><span className="leading-none">Reset filters</span></button>
+            <button type="button" onClick={() => { onProjectFilterChange?.("all"); onStatusFilterChange?.(""); onPriorityFilterChange?.(null); onDueDateFilterChange?.("all"); }} className="inline-flex h-9 items-center rounded-full px-3 text-sm font-light text-neutral-700 transition-colors hover:bg-neutral-100"><span className="leading-none">Reset filters</span></button>
             <button type="button" onClick={() => setHeaderFiltersOpen(false)} className="inline-flex h-9 items-center rounded-full px-3 text-sm font-medium text-neutral-900 transition-colors hover:bg-neutral-100"><span className="leading-none">Done</span></button>
           </div>
         </motion.aside>
@@ -554,11 +610,19 @@ export function ProjectsHeader({
       aria-pressed={headerFiltersOpen}
       className={cn(
         "group relative flex h-10 w-10 shrink-0 items-center justify-center bg-transparent p-0 text-neutral-500 shadow-none outline-none ring-0",
-        hasHeaderFilters && "shadow-[0_0_0_1px_rgba(110,173,192,0.4),0_0_12px_rgba(110,173,192,0.4)]",
+        hasHeaderFilters && "text-neutral-900",
       )}
     >
       <div className="relative z-10 flex items-center justify-center rounded-full border-0 p-3 transition-all duration-300 ease-in-out group-hover:bg-neutral-100">
-        <ListFilter className="h-[18px] w-[18px] stroke-[1.5]" />
+        <span className="relative flex h-[18px] w-[18px] shrink-0 items-center justify-center overflow-visible">
+          <ListFilter className="h-[18px] w-[18px] stroke-[1.5]" />
+          {hasHeaderFilters ? (
+            <span
+              className="pointer-events-none absolute -right-px -top-px z-20 h-1.5 w-1.5 rounded-full bg-[var(--kenoo-sky)] ring-[1.5px] ring-white"
+              aria-hidden="true"
+            />
+          ) : null}
+        </span>
       </div>
     </button>
   );
@@ -606,9 +670,6 @@ export function ProjectsHeader({
                 projectFilter={projectFilter}
                 onProjectFilterChange={onProjectFilterChange}
                 projectStatusFilter={projectStatusFilter}
-                taskScopeOptions={taskScopeOptions}
-                taskScopeFilter={taskScopeFilter}
-                onTaskScopeFilterChange={onTaskScopeFilterChange}
               />
             ) : hideBoardFilters || showProjectFilter || showStatusFilter ? null : (
               <span className="text-sm md:text-base font-light uppercase tracking-wider text-neutral-800">

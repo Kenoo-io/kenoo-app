@@ -13,17 +13,6 @@ export type TaskStatus =
   | "completed"
   | "blocked";
 
-export type BoardTaskScope = "project" | "mine" | "assigned";
-
-export const BOARD_TASK_SCOPE_CONFIG: Record<
-  BoardTaskScope,
-  { label: string; menuLabel: string }
-> = {
-  project: { label: "All", menuLabel: "All Tasks" },
-  mine: { label: "Mine", menuLabel: "My Tasks" },
-  assigned: { label: "Assigned", menuLabel: "Assigned Tasks" },
-};
-
 export interface Project {
   id: string;
   created_at: string;

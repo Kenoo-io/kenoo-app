@@ -418,13 +418,18 @@ export function CampaignsPage() {
             className={cn(
               "group relative flex h-10 w-10 shrink-0 items-center justify-center text-neutral-500 outline-none",
               hasActiveFilters && "text-neutral-900",
-            )}
+          )}
           >
             <span className="relative flex items-center justify-center rounded-full p-3 transition-colors group-hover:bg-neutral-100">
-              <ListFilter className="h-[18px] w-[18px]" strokeWidth={1.5} />
-              {hasActiveFilters ? (
-                <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-[var(--kenoo-sky)]" />
-              ) : null}
+              <span className="relative flex h-[18px] w-[18px] shrink-0 items-center justify-center overflow-visible">
+                <ListFilter className="h-[18px] w-[18px]" strokeWidth={1.5} />
+                {hasActiveFilters ? (
+                  <span
+                    className="pointer-events-none absolute -right-px -top-px z-20 h-1.5 w-1.5 rounded-full bg-[var(--kenoo-sky)] ring-[1.5px] ring-white"
+                    aria-hidden="true"
+                  />
+                ) : null}
+              </span>
             </span>
           </button>
 
