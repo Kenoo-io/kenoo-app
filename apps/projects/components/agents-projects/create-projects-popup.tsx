@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import Image from "next/image";
 import { getSupabaseClient } from "@walls/auth";
 import { useAuth } from "@walls/auth";
@@ -133,8 +133,52 @@ export function CreateProjectsPopup({
   const [originalMembers, setOriginalMembers] = useState<string[]>([]);
   const [allUsers, setAllUsers] = useState<UserSearchUser[]>([]);
   const [ownerUserId, setOwnerUserId] = useState<string | null>(null);
+  const [statusSelectOpen, setStatusSelectOpen] = useState(false);
+  const [prioritySelectOpen, setPrioritySelectOpen] = useState(false);
+  const blockDialogDismissRef = useRef(false);
+  const blockDialogDismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const projectOwnerId = existing?.owner_id ?? ownerUserId;
+
+  const armDialogDismissBlock = useCallback(() => {
+    if (blockDialogDismissTimerRef.current) {
+      clearTimeout(blockDialogDismissTimerRef.current);
+      blockDialogDismissTimerRef.current = null;
+    }
+    blockDialogDismissRef.current = true;
+  }, []);
+
+  const releaseDialogDismissBlock = useCallback(() => {
+    if (blockDialogDismissTimerRef.current) {
+      clearTimeout(blockDialogDismissTimerRef.current);
+    }
+    blockDialogDismissRef.current = true;
+    blockDialogDismissTimerRef.current = setTimeout(() => {
+      blockDialogDismissRef.current = false;
+      blockDialogDismissTimerRef.current = null;
+    }, 250);
+  }, []);
+
+  const setNestedDropdownOpen = useCallback(
+    (setter: React.Dispatch<React.SetStateAction<boolean>>) => (next: boolean) => {
+      if (next) {
+        armDialogDismissBlock();
+        setter(true);
+        return;
+      }
+      setter(false);
+      releaseDialogDismissBlock();
+    },
+    [armDialogDismissBlock, releaseDialogDismissBlock],
+  );
+
+  useEffect(() => {
+    return () => {
+      if (blockDialogDismissTimerRef.current) {
+        clearTimeout(blockDialogDismissTimerRef.current);
+      }
+    };
+  }, []);
 
   const parseDateValue = (value: string): Date | undefined => {
     if (!value) return undefined;
@@ -390,8 +434,25 @@ export function CreateProjectsPopup({
   const dueDate = parsedDueDate && isValid(parsedDueDate) ? parsedDueDate : null;
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-[900px]" onOpenAutoFocus={(e) => e.preventDefault()}>
+    <Dialog
+      open={open}
+      modal={false}
+      onOpenChange={(next) => {
+        if (!next && blockDialogDismissRef.current) return;
+        if (!next) onClose();
+      }}
+    >
+      <DialogContent
+        className="sm:max-w-[900px]"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        onPointerDownOutside={(e) => {
+          if (blockDialogDismissRef.current) e.preventDefault();
+        }}
+        onInteractOutside={(e) => {
+          if (blockDialogDismissRef.current) e.preventDefault();
+        }}
+        onFocusOutside={(e) => e.preventDefault()}
+      >
         <DialogHeader />
 
         <div className="grid grid-cols-[2fr_1fr] divide-x divide-gray-200 gap-6 py-4">
@@ -423,6 +484,8 @@ export function CreateProjectsPopup({
               onValueChange={(v) =>
                 setForm((f) => ({ ...f, status: v as ProjectStatus }))
               }
+              open={statusSelectOpen}
+              onOpenChange={setNestedDropdownOpen(setStatusSelectOpen)}
               disabled={saving}
             >
               <SelectTrigger className="border-0 rounded-full bg-transparent hover:bg-gray-100 focus:ring-0 focus-visible:ring-0 px-4 [&>svg]:hidden">
@@ -446,6 +509,8 @@ export function CreateProjectsPopup({
             <Select
               value={form.priority}
               onValueChange={(v) => setForm((f) => ({ ...f, priority: v }))}
+              open={prioritySelectOpen}
+              onOpenChange={setNestedDropdownOpen(setPrioritySelectOpen)}
               disabled={saving}
             >
               <SelectTrigger className="border-0 rounded-full bg-transparent hover:bg-gray-100 focus:ring-0 focus-visible:ring-0 px-4 [&>svg]:hidden">
@@ -613,9 +678,9 @@ export function CreateProjectsPopup({
                   >
                     <X className="h-2.5 w-2.5" />
                   </button>
-                  {PRESET_COLORS.map((c) => (
+                  {PRESET_COLORS.map((c, index) => (
                     <button
-                      key={c}
+                      key={`${c}-${index}`}
                       type="button"
                       onClick={() => setForm((f) => ({ ...f, color: c }))}
                       className={cn(
