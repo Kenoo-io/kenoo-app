@@ -239,20 +239,28 @@ function ProjectsScene({ compact }: { compact?: boolean }) {
       title: "Kenoo CRM Outreach Adjustments",
       project: "WALLS Team Projects",
       members: ["C", "A", "J"],
-      progress: "18/20",
+      status: "In Progress",
+      tone: "#ff6b2c",
     },
     {
       title: "Get Parita Access to Projects System",
       project: "Email tasks",
       members: ["C"],
-      progress: "37/39",
+      status: "To Do",
+      tone: "#6eadc0",
     },
     {
       title: "Contact Vercel Support",
       project: "Email tasks",
       members: ["C"],
-      progress: "37/39",
+      status: "To Do",
+      tone: "#6eadc0",
     },
+  ];
+
+  const members = [
+    { initials: "JL", name: "Jordan Lee", tasks: 6 },
+    { initials: "AP", name: "Avery Park", tasks: 4 },
   ];
 
   return (
@@ -265,7 +273,7 @@ function ProjectsScene({ compact }: { compact?: boolean }) {
           </div>
           <div className="flex items-center gap-2">
             <div className="hidden -space-x-1.5 sm:flex">
-              {["C", "A", "J"].map((initials, index) => (
+              {["JL", "AP", "MK"].map((initials, index) => (
                 <span key={initials} className={cn("flex size-6 items-center justify-center rounded-full border-2 border-white text-[8px] font-semibold", index === 0 ? "bg-neutral-900 text-white" : "bg-neutral-100 text-neutral-500")}>{initials}</span>
               ))}
             </div>
@@ -282,12 +290,12 @@ function ProjectsScene({ compact }: { compact?: boolean }) {
           </div>
           <div className={cn("mt-3 grid gap-2", compact ? "grid-cols-1" : "grid-cols-3")}>
             {todayTasks.map((task) => (
-              <div key={task.title} className="flex min-w-0 flex-col rounded-[18px] border border-emerald-100 bg-[linear-gradient(145deg,rgba(214,246,237,0.78),rgba(249,253,252,0.95))] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
-                <p className="line-clamp-2 text-[9px] font-semibold leading-snug tracking-tight text-neutral-800 md:text-[10px]">{task.title}</p>
-                <p className="mt-1 truncate text-[8px] font-light text-neutral-500">{task.project}</p>
-                <div className="mt-auto pt-4">
-                  <div className="flex -space-x-1.5">{task.members.map((member, index) => <span key={`${member}-${index}`} className={cn("flex size-4 items-center justify-center rounded-full border border-white text-[6px] font-semibold", index === 0 ? "bg-neutral-900 text-white" : index === 1 ? "bg-amber-100 text-amber-800" : "bg-neutral-200 text-neutral-600")}>{member}</span>)}</div>
-                  <div className="mt-3 flex items-center gap-1.5"><div className="h-1 min-w-0 flex-1 overflow-hidden rounded-full bg-emerald-100"><span className="block h-full w-[88%] rounded-full bg-gradient-to-r from-emerald-200 to-emerald-600" /></div><span className="text-[8px] font-semibold text-neutral-600">{task.progress}</span></div>
+              <div key={task.title} className="flex min-w-0 flex-col rounded-[22px] border border-white/80 bg-white/80 p-4 shadow-[0_8px_28px_rgba(15,23,42,0.07),inset_0_1px_0_rgba(255,255,255,0.95)]" style={{ backgroundImage: "radial-gradient(circle at 8% 8%, rgba(110,173,192,0.20), transparent 42%), radial-gradient(circle at 92% 92%, rgba(255,107,44,0.06), transparent 42%)" }}>
+                <p className="line-clamp-3 text-[11px] font-normal leading-snug tracking-tight text-neutral-900 md:text-xs">{task.title}</p>
+                <p className="mt-1 flex items-center gap-1.5 truncate text-[8px] font-light text-neutral-600/80"><span className="size-1.5 shrink-0 rounded-full bg-[#6eadc0]" />{task.project}</p>
+                <div className="mt-auto flex items-end justify-between gap-2 pt-4">
+                  <div className="flex -space-x-1.5">{task.members.map((member, index) => <span key={`${task.title}-${member}`} className={cn("flex size-5 items-center justify-center rounded-full border-2 border-white/70 text-[7px] font-semibold", index === 0 ? "bg-neutral-900 text-white" : index === 1 ? "bg-amber-100 text-amber-800" : "bg-neutral-200 text-neutral-600")}>{member}</span>)}</div>
+                  <span className="text-right text-[8px] font-medium" style={{ color: task.tone }}>{task.status}</span>
                 </div>
               </div>
             ))}
@@ -297,7 +305,7 @@ function ProjectsScene({ compact }: { compact?: boolean }) {
           <div className="flex items-center justify-between"><p className="text-[12px] font-semibold tracking-tight text-neutral-900">Task Status</p><span className="text-[8px] text-neutral-400">Total 173</span></div>
           <div className="mt-3 flex items-center justify-between gap-2">
             <div className="space-y-2 text-[9px] text-neutral-500"><p className="whitespace-nowrap"><span className="mr-2 inline-block size-2 rounded-full bg-[#e4fb4c]" />Done <b className="ml-1 text-neutral-800">97%</b></p><p className="whitespace-nowrap"><span className="mr-2 inline-block size-2 rounded-full bg-[#ff6b2c]" />In Progress <b className="ml-1 text-neutral-800">0%</b></p><p className="whitespace-nowrap"><span className="mr-2 inline-block size-2 rounded-full bg-[#6eadc0]" />Backlog <b className="ml-1 text-neutral-800">3%</b></p></div>
-            <div className="relative flex size-[5.5rem] shrink-0 items-center justify-center rounded-full border-[10px] border-[#e4fb4c] after:absolute after:inset-[7px] after:rounded-full after:border-[8px] after:border-[#f0f2f7] after:content-['']"><span className="relative z-10 size-[2.3rem] rounded-full border-[8px] border-[#f0f2f7] bg-white" /></div>
+            <div className="relative flex size-[5.5rem] shrink-0 items-center justify-center rounded-full bg-[conic-gradient(#e4fb4c_0_72%,#ff6b2c_72%_73%,#6eadc0_73%_76%,#eef1f6_76%_100%)] p-2.5"><div className="flex size-full items-center justify-center rounded-full bg-white"><span className="size-[2.3rem] rounded-full border-[8px] border-[#f0f2f7]" /></div></div>
           </div>
         </div>
       </div>
@@ -305,18 +313,15 @@ function ProjectsScene({ compact }: { compact?: boolean }) {
         <div className="grid grid-cols-3 gap-3">
           <div className={cn("min-h-[8.5rem] rounded-[22px] p-3.5", GLASS)}>
             <div className="flex items-center justify-between"><p className="text-[12px] font-semibold tracking-tight text-neutral-900">Team Workload</p><span className="text-[9px] font-medium text-neutral-400">See All&nbsp; ›</span></div>
-            <div className="mt-5 flex items-center gap-3">
-              <span className="flex size-8 items-center justify-center rounded-full bg-neutral-900 text-[10px] font-semibold text-white">C</span>
-              <div className="min-w-0"><p className="truncate text-[10px] font-semibold text-neutral-800">Jordan Lee</p><p className="mt-0.5 text-[8px] text-neutral-400">Current workload</p></div>
-              <p className="ml-auto whitespace-nowrap text-[9px] text-neutral-400"><b className="text-neutral-800">6</b> open tasks</p>
-            </div>
+            <div className="mt-3 space-y-2">{members.map((member) => <div key={member.name} className="flex items-center gap-2"><span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-neutral-900 text-[7px] font-semibold text-white">{member.initials}</span><div className="min-w-0"><p className="truncate text-[8px] font-semibold text-neutral-800">{member.name}</p><p className="text-[7px] text-neutral-400">Current workload</p></div><p className="ml-auto whitespace-nowrap text-[8px] text-neutral-400"><b className="text-neutral-800">{member.tasks}</b> open</p></div>)}</div>
           </div>
           <div className={cn("min-h-[8.5rem] rounded-[22px] p-3.5", GLASS)}>
             <div className="flex items-center justify-between"><p className="text-[12px] font-semibold tracking-tight text-neutral-900">Tracker Detail</p><span className="text-[9px] font-medium text-neutral-400">See All&nbsp; ›</span></div>
             <div className="mt-3 flex items-center gap-3 text-[8px] text-neutral-500"><span><i className="mr-1 inline-block size-1.5 rounded-sm bg-[#e4fb4c]" />Done</span><span><i className="mr-1 inline-block size-1.5 rounded-sm bg-[#6eadc0]" />Active</span></div>
-            <div className="mt-2 flex h-14 items-end gap-2 border-b border-dashed border-neutral-200 px-2">
+            <div className="mt-2 flex h-14 items-end gap-1.5 border-b border-dashed border-neutral-200 px-1">
               {[18, 28, 16, 41, 23, 32, 19].map((height, index) => <span key={index} className="flex-1 rounded-t-md bg-[#e4fb4c]" style={{ height }} />)}
             </div>
+            <div className="mt-1 flex justify-between px-1 text-[7px] text-neutral-400"><span>Mon</span><span>Sun</span></div>
           </div>
           <div className={cn("min-h-[8.5rem] rounded-[22px] p-3.5", GLASS)}>
             <div className="flex items-center justify-between"><p className="text-[12px] font-semibold tracking-tight text-neutral-900">Needs Attention</p><span className="text-[9px] font-medium text-neutral-400">See All&nbsp; ›</span></div>

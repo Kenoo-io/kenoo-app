@@ -801,10 +801,10 @@ function AgentsProjectsContent({ analyticsData: _analyticsData }: AgentsProjects
                     </div>
                   </motion.div>
 
-                  {/* ── Today Task + Status rings ── */}
+                  {/* ── Today's tasks + Status rings ── */}
                   <div className="grid grid-cols-1 gap-5 lg:grid-cols-5">
                     <SectionCard
-                      title="Today Task"
+                      title="Today's tasks"
                       action={<SeeAllLink href="/tasks" />}
                       className="lg:col-span-3"
                     >
@@ -834,7 +834,7 @@ function AgentsProjectsContent({ analyticsData: _analyticsData }: AgentsProjects
                                 style={{
                                   border: "none",
                                   backgroundImage:
-                                    `radial-gradient(circle at 8% 8%, color-mix(in srgb, ${project?.color ?? "var(--kenoo-sky)"} 20%, transparent), transparent 42%), radial-gradient(circle at 92% 92%, color-mix(in srgb, ${status?.accent ?? "var(--kenoo-sky)"} 6%, transparent), transparent 42%)`,
+                                    `radial-gradient(circle at 8% 8%, color-mix(in srgb, ${project?.color ?? "var(--kenoo-sky)"} 8%, transparent), transparent 42%), radial-gradient(circle at 92% 92%, color-mix(in srgb, ${status?.accent ?? "var(--kenoo-sky)"} 5%, transparent), transparent 42%)`,
                                 }}
                               >
                                 <h3 className="line-clamp-3 text-base font-normal leading-snug text-neutral-900">
