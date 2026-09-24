@@ -563,16 +563,15 @@ const EmailListSentinel = ({
 
 const EMAIL_TASK_PROJECT_SLUG = "email-tasks";
 
-/** Get or create the "Email tasks" project for the current user (slug email-tasks, owner_id). */
+/** Get or create the "Email tasks" project for the current user. */
 async function getOrCreateEmailTaskProject(
   supabase: ReturnType<typeof getSupabaseClient>,
   ownerId: string
 ): Promise<Project> {
   const { data: existing } = await supabase
     .from("projects")
-    .select("id, name, slug, description, status, start_date, due_date, completed_at, owner_id, priority, color, metadata, created_at, updated_at")
+    .select("id, name, slug, description, status, start_date, due_date, completed_at, priority, color, metadata, created_at, updated_at")
     .eq("slug", EMAIL_TASK_PROJECT_SLUG)
-    .eq("owner_id", ownerId)
     .maybeSingle();
   if (existing) return existing as Project;
   const { data: created, error } = await supabase
@@ -584,7 +583,6 @@ async function getOrCreateEmailTaskProject(
       status: "active",
       color: "#ceff00",
       priority: 3,
-      owner_id: ownerId,
     })
     .select()
     .single();

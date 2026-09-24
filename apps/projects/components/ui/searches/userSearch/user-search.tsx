@@ -2,12 +2,18 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { Check, Search } from "lucide-react";
+import { ChevronDown, Search } from "lucide-react";
 import { createClient } from "@walls/supabase/client";
 import { useAuth } from "@walls/auth";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@walls/ui/skeleton";
 import { FallbackEmailAvatar } from "@/components/ui/fallback-email-avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const SKELETON_ROW_WIDTHS = ["w-[88%]", "w-[72%]", "w-[80%]", "w-[64%]", "w-[76%]", "w-[70%]"] as const;
 
@@ -53,6 +59,21 @@ interface UserSearchProps {
   onUsersLoaded?: (users: UserSearchUser[]) => void;
   /** When set, only members of this WALLS account are searchable. */
   accountId?: string | null;
+  /** When set, this user is shown as the project owner and cannot be toggled off. */
+  ownerId?: string | null;
+  ownerIds?: string[];
+  /** When set, limit the dropdown to these user IDs. */
+  allowedUserIds?: string[] | null;
+  /** Allows the current owner to change member roles. */
+  canManageRoles?: boolean;
+  onRoleChange?: (userId: string, role: "member" | "owner") => void;
+  onRevokeAndRemove?: (userId: string) => void;
+  onRemoveMember?: (userId: string) => void;
+  /** Makes the member list view-only. */
+  readOnly?: boolean;
+  /** Allows only the current user's selected row to be removed in view-only mode. */
+  allowSelfRemoval?: boolean;
+  selfId?: string | null;
 }
 
 function UserListSkeleton() {
@@ -120,6 +141,16 @@ export function UserSearch({
   onToggle,
   onUsersLoaded,
   accountId,
+  ownerId,
+  ownerIds,
+  allowedUserIds,
+  canManageRoles,
+  onRoleChange,
+  onRevokeAndRemove,
+  onRemoveMember,
+  readOnly,
+  allowSelfRemoval,
+  selfId,
 }: UserSearchProps) {
   const { user } = useAuth();
   const [users, setUsers] = useState<UserSearchUser[]>([]);
@@ -127,6 +158,7 @@ export function UserSearch({
   const [filteredUsers, setFilteredUsers] = useState<UserSearchUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
+  const [openRoleUserId, setOpenRoleUserId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -186,20 +218,23 @@ export function UserSearch({
   }, [accountId, onUsersLoaded]);
 
   useEffect(() => {
+    const visibleUsers = allowedUserIds
+      ? users.filter((entry) => allowedUserIds.includes(entry.id))
+      : users;
     if (!searchQuery.trim()) {
-      setFilteredUsers(users);
+      setFilteredUsers(visibleUsers);
       return;
     }
 
     const q = searchQuery.toLowerCase();
     setFilteredUsers(
-      users.filter(
+      visibleUsers.filter(
         (entry) =>
           entry.displayName.toLowerCase().includes(q) ||
           (entry.email?.toLowerCase().includes(q) ?? false),
       ),
     );
-  }, [searchQuery, users]);
+  }, [allowedUserIds, searchQuery, users]);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -258,6 +293,10 @@ export function UserSearch({
         ) : (
           filteredUsers.map((entry) => {
             const isSelected = values.includes(entry.id);
+            const isOwner = ownerIds ? ownerIds.includes(entry.id) : entry.id === ownerId;
+            const canRemoveSelf = Boolean(
+              readOnly && allowSelfRemoval && entry.id === selfId && isSelected,
+            );
             const label = userLabel(entry);
 
             return (
@@ -266,14 +305,17 @@ export function UserSearch({
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  onToggle(entry.id);
+                  if (!readOnly || canRemoveSelf) onToggle(entry.id);
                 }}
                 onMouseDown={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
                 }}
                 className={cn(
-                  "relative flex cursor-pointer items-center rounded-none px-4 py-2 pr-16 hover:bg-neutral-100/60 focus:bg-neutral-100/60",
+                  "relative flex cursor-pointer items-center rounded-none px-4 py-2 hover:bg-neutral-100/60 focus:bg-neutral-100/60",
+                  readOnly && "cursor-default hover:bg-transparent focus:bg-transparent",
+                  canRemoveSelf && "cursor-pointer hover:bg-neutral-100/60 focus:bg-neutral-100/60",
+                  isOwner && "cursor-default",
                   isSelected && "bg-neutral-100/60",
                 )}
               >
@@ -294,7 +336,78 @@ export function UserSearch({
                   </div>
                 </div>
                 {isSelected ? (
-                  <Check className="absolute right-4 h-4 w-4 text-neutral-700" />
+                  <div className="ml-3 flex shrink-0 items-center gap-0.5 text-[var(--kenoo-sky)]">
+                    {canManageRoles && onRoleChange ? (
+                      <DropdownMenu
+                        open={openRoleUserId === entry.id}
+                        onOpenChange={(open) => setOpenRoleUserId(open ? entry.id : null)}
+                      >
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            type="button"
+                            aria-label={`${isOwner ? "Owner" : "Member"} actions`}
+                            className="flex items-center gap-0.5 rounded-sm text-[var(--kenoo-sky)] hover:bg-neutral-100 focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--kenoo-sky)]"
+                            onClick={(e) => e.stopPropagation()}
+                            onMouseDown={(e) => e.stopPropagation()}
+                          >
+                            <span className="text-[10px] font-medium uppercase tracking-[0.12em]">
+                              {isOwner ? "Owner" : "Member"}
+                            </span>
+                            <ChevronDown className="h-3 w-3" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent
+                          align="end"
+                          className="w-auto min-w-0 border-neutral-200/60"
+                        >
+                          <DropdownMenuItem
+                            onSelect={() => {
+                              setOpenRoleUserId(null);
+                              onRoleChange(entry.id, isOwner ? "member" : "owner");
+                            }}
+                            className={cn(
+                              "justify-end whitespace-nowrap text-right",
+                              isOwner
+                                ? "text-xs text-red-500 focus:text-red-600"
+                                : "text-xs text-neutral-900 focus:text-neutral-900",
+                            )}
+                          >
+                            {isOwner ? "Revoke ownership" : "Make owner"}
+                          </DropdownMenuItem>
+                          {!isOwner && onRemoveMember ? (
+                            <DropdownMenuItem
+                              onSelect={() => {
+                                setOpenRoleUserId(null);
+                                onRemoveMember(entry.id);
+                              }}
+                              className="justify-end whitespace-nowrap text-right text-xs text-red-500 focus:text-red-600"
+                            >
+                              Remove member
+                            </DropdownMenuItem>
+                          ) : null}
+                          {isOwner && onRevokeAndRemove ? (
+                            <DropdownMenuItem
+                              onSelect={() => {
+                                setOpenRoleUserId(null);
+                                onRevokeAndRemove(entry.id);
+                              }}
+                              className="justify-end whitespace-nowrap text-right text-xs text-red-500 focus:text-red-600"
+                            >
+                              Revoke & remove
+                            </DropdownMenuItem>
+                          ) : null}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    ) : (
+                      <span className="text-[10px] font-medium uppercase tracking-[0.12em]">
+                        {isOwner ? "Owner" : "Member"}
+                      </span>
+                    )}
+                  </div>
+                ) : isSelected ? (
+                  <span className="ml-3 shrink-0 text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--kenoo-sky)]">
+                    Member
+                  </span>
                 ) : null}
               </div>
             );

@@ -34,7 +34,6 @@ export interface Project {
   start_date: string | null;
   due_date: string | null;
   completed_at: string | null;
-  owner_id: string | null;
   account_id: string;
   priority: number | null;
   color: string | null;
