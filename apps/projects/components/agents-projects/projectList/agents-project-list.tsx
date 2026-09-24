@@ -475,35 +475,99 @@ function ProjectRow({ project, index, onEdit, columnWidths, tableWidth }: Projec
 }
 
 /* ─── Loading skeleton ─────────────────────────────────────────────────────── */
-const SKELETON_GROUP_ROWS = [3, 2, 2] as const;
+const SKELETON_ROWS = [
+  { name: "w-40", description: true, members: 3 },
+  { name: "w-56", description: false, members: 2 },
+  { name: "w-32", description: true, members: 4 },
+  { name: "w-48", description: false, members: 1 },
+  { name: "w-36", description: true, members: 5 },
+  { name: "w-52", description: false, members: 2 },
+] as const;
 
-function ProjectsListSkeleton() {
+function ProjectsListSkeleton({
+  columnWidths,
+  tableWidth,
+}: {
+  columnWidths: Record<ProjectListColumn, number>;
+  tableWidth: number;
+}) {
   return (
-    <div className="flex flex-col gap-4" aria-busy="true" aria-label="Loading projects">
-      {SKELETON_GROUP_ROWS.map((rowCount, groupIdx) => (
-        <div key={groupIdx} className="mb-1">
-          <div className="flex items-center gap-2 py-2 px-3">
-            <Skeleton className="h-3.5 w-3.5 shrink-0 rounded bg-neutral-100" />
+    <div
+      className="min-w-max bg-kenoo-white"
+      style={{ minWidth: tableWidth }}
+      aria-busy="true"
+      aria-label="Loading projects"
+    >
+      {SKELETON_ROWS.map((row, index) => (
+        <div
+          key={index}
+          className="flex min-w-max items-stretch border-b border-neutral-300 bg-kenoo-white"
+          style={{ minWidth: tableWidth }}
+        >
+          {/* Project name + optional description toggle */}
+          <div
+            className="flex shrink-0 items-center gap-2 px-6 py-3"
+            style={{ width: columnWidths.name }}
+          >
+            <Skeleton className="h-1.5 w-1.5 shrink-0 rounded-full bg-neutral-100" />
+            <div className="flex min-w-0 flex-1 flex-col gap-1">
+              <Skeleton className={cn("h-4 max-w-full rounded bg-neutral-100", row.name)} />
+              {row.description ? <Skeleton className="h-3 w-24 rounded bg-neutral-100" /> : null}
+            </div>
+          </div>
+
+          {/* Status */}
+          <div
+            className="flex shrink-0 items-center gap-2 overflow-hidden px-4 py-3"
+            style={{ width: columnWidths.status }}
+          >
+            <Skeleton className="h-1.5 w-1.5 shrink-0 rounded-full bg-neutral-100" />
             <Skeleton className="h-4 w-20 rounded bg-neutral-100" />
-            <Skeleton className="h-4 w-8 rounded bg-neutral-100" />
           </div>
-          <div className="flex flex-col gap-0.5 pl-5 pt-0.5">
-            {Array.from({ length: rowCount }).map((_, i) => (
-              <div
-                key={i}
-                className="flex items-center gap-8 px-3 py-2.5"
-              >
-                <Skeleton className="h-9 w-1 shrink-0 rounded-full bg-neutral-100" />
-                <div className="flex min-w-0 flex-1 items-center gap-2">
-                  <Skeleton className="h-2 w-2 shrink-0 rounded-full bg-neutral-100" />
-                  <Skeleton className="h-4 max-w-[220px] flex-1 rounded bg-neutral-100" />
-                </div>
-                <Skeleton className="mr-36 hidden h-1 w-40 shrink-0 rounded-full sm:block bg-neutral-100" />
-                <Skeleton className="hidden h-4 w-12 shrink-0 rounded md:block bg-neutral-100" />
-                <Skeleton className="ml-16 hidden h-4 w-28 shrink-0 rounded lg:block bg-neutral-100" />
-              </div>
-            ))}
+
+          {/* Members */}
+          <div
+            className="flex shrink-0 items-center overflow-hidden px-4 py-3"
+            style={{ width: columnWidths.members }}
+          >
+            <div className="flex items-center -space-x-1.5">
+              {Array.from({ length: row.members }).map((_, memberIndex) => (
+                <Skeleton
+                  key={memberIndex}
+                  className="h-6 w-6 rounded-full border-2 border-kenoo-white bg-neutral-100"
+                />
+              ))}
+            </div>
           </div>
+
+          {/* Progress */}
+          <div
+            className="flex shrink-0 items-center gap-2.5 px-4 py-3"
+            style={{ width: columnWidths.progress }}
+          >
+            <Skeleton className="h-1 min-w-0 flex-1 rounded-full bg-neutral-100" />
+            <Skeleton className="h-4 w-10 shrink-0 rounded bg-neutral-100" />
+          </div>
+
+          {/* Tasks */}
+          <div
+            className="flex shrink-0 items-center px-4 py-3"
+            style={{ width: columnWidths.tasks }}
+          >
+            <Skeleton className="h-4 w-10 rounded bg-neutral-100" />
+          </div>
+
+          {/* Due date */}
+          <div
+            className="flex shrink-0 items-center gap-1 px-4 py-3"
+            style={{ width: columnWidths.due_date }}
+          >
+            <Skeleton className="h-3 w-3 shrink-0 rounded bg-neutral-100" />
+            <Skeleton className="h-4 w-20 rounded bg-neutral-100" />
+          </div>
+
+          {/* Actions stay empty until a loaded row is hovered. */}
+          <div className="shrink-0 px-4 py-3" style={{ width: columnWidths.actions }} />
         </div>
       ))}
     </div>
@@ -1029,7 +1093,10 @@ function AgentsProjectsListContent({
                       onResizeMove={handleResizeMove}
                       onResizeEnd={handleResizeEnd}
                     />
-                    <ProjectsListSkeleton />
+                    <ProjectsListSkeleton
+                      columnWidths={columnWidths}
+                      tableWidth={tableWidth}
+                    />
                   </>
                 ) : projects.length === 0 ? (
                   <div className="flex flex-col items-center justify-center min-h-[280px] text-center px-4">

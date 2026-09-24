@@ -629,25 +629,41 @@ export function ProjectsHeader({
 
   const newButton = (
     (onNewProject || onNewTask) && (
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="ghost"
-            title="New"
-            className="w-10 h-10 p-0 text-slate-600 hover:bg-transparent flex items-center justify-center shadow-none relative group flex-shrink-0 outline-none ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none focus:ring-0"
-          >
-            <div className="relative">
-              <div className="relative z-10 p-3 rounded-full border-0 transition-all duration-300 ease-in-out group-hover:bg-neutral-100">
-                <Plus className="h-[18px] w-[18px] stroke-[1.5] text-neutral-500" />
-              </div>
+      onNewProject && !onNewTask ? (
+        <Button
+          variant="ghost"
+          title="New project"
+          aria-label="New project"
+          onClick={onNewProject}
+          className="w-10 h-10 p-0 text-slate-600 hover:bg-transparent flex items-center justify-center shadow-none relative group flex-shrink-0 outline-none ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none focus:ring-0"
+        >
+          <div className="relative">
+            <div className="relative z-10 p-3 rounded-full border-0 transition-all duration-300 ease-in-out group-hover:bg-neutral-100">
+              <Plus className="h-[18px] w-[18px] stroke-[1.5] text-neutral-500" />
             </div>
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="min-w-[10rem] rounded-xl">
-          {onNewProject && <DropdownMenuItem onSelect={onNewProject} className="cursor-pointer focus:bg-neutral-100">New project</DropdownMenuItem>}
-          {onNewTask && <DropdownMenuItem onSelect={onNewTask} className="cursor-pointer focus:bg-neutral-100">New task</DropdownMenuItem>}
-        </DropdownMenuContent>
-      </DropdownMenu>
+          </div>
+        </Button>
+      ) : (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              title="New"
+              className="w-10 h-10 p-0 text-slate-600 hover:bg-transparent flex items-center justify-center shadow-none relative group flex-shrink-0 outline-none ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none focus:ring-0"
+            >
+              <div className="relative">
+                <div className="relative z-10 p-3 rounded-full border-0 transition-all duration-300 ease-in-out group-hover:bg-neutral-100">
+                  <Plus className="h-[18px] w-[18px] stroke-[1.5] text-neutral-500" />
+                </div>
+              </div>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="min-w-[10rem] rounded-xl">
+            {onNewProject && <DropdownMenuItem onSelect={onNewProject} className="cursor-pointer focus:bg-neutral-100">New project</DropdownMenuItem>}
+            {onNewTask && <DropdownMenuItem onSelect={onNewTask} className="cursor-pointer focus:bg-neutral-100">New task</DropdownMenuItem>}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )
     )
   );
 
