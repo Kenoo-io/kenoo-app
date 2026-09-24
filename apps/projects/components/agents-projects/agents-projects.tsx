@@ -39,68 +39,6 @@ import {
   TASK_STATUS_CONFIG,
 } from "./types";
 
-// ─── Themes ────────────────────────────────────────────────────────────────────
-
-type GlassTheme = {
-  background: string;
-  border: string;
-  shadow: string;
-};
-
-function hashTheme<T>(id: string, themes: T[]): T {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h + id.charCodeAt(i) * (i + 1)) % themes.length;
-  return themes[h]!;
-}
-
-function parseHexColor(hex: string): { r: number; g: number; b: number } | null {
-  const raw = hex.trim().replace(/^#/, "");
-  const normalized =
-    raw.length === 3
-      ? raw
-          .split("")
-          .map((c) => c + c)
-          .join("")
-      : raw;
-  if (!/^[0-9a-fA-F]{6}$/.test(normalized)) return null;
-  return {
-    r: parseInt(normalized.slice(0, 2), 16),
-    g: parseInt(normalized.slice(2, 4), 16),
-    b: parseInt(normalized.slice(4, 6), 16),
-  };
-}
-
-function rgba(r: number, g: number, b: number, a: number) {
-  return `rgba(${r}, ${g}, ${b}, ${a})`;
-}
-
-function glassThemeFromRgb(r: number, g: number, b: number): GlassTheme {
-  return {
-    background: `linear-gradient(155deg, ${rgba(r, g, b, 0.18)} 0%, ${rgba(r, g, b, 0.07)} 52%, rgba(255,255,255,0.72) 100%)`,
-    border: rgba(r, g, b, 0.14),
-    shadow: `0 8px 20px ${rgba(r, g, b, 0.05)}, inset 0 1px 0 rgba(255,255,255,0.85)`,
-  };
-}
-
-const TASK_GLASS: GlassTheme[] = [
-  glassThemeFromRgb(59, 130, 196),
-  glassThemeFromRgb(107, 91, 149),
-  glassThemeFromRgb(224, 122, 95),
-  glassThemeFromRgb(64, 145, 108),
-  glassThemeFromRgb(232, 107, 148),
-  glassThemeFromRgb(224, 168, 0),
-];
-
-/** Frosted glass theme tinted from a project color; falls back to pastel glass hash. */
-function themeFromProjectColor(
-  color: string | null | undefined,
-  fallbackId: string
-): GlassTheme {
-  const rgb = color ? parseHexColor(color) : null;
-  if (!rgb) return hashTheme(fallbackId, TASK_GLASS);
-  return glassThemeFromRgb(rgb.r, rgb.g, rgb.b);
-}
-
 /** Primary CTA for creating a project. */
 function NewProjectChromeButton({
   onClick,
@@ -878,10 +816,6 @@ function AgentsProjectsContent({ analyticsData: _analyticsData }: AgentsProjects
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                           {todayTasks.map((task, i) => {
                             const project = projectById.get(task.project_id);
-                            const theme = themeFromProjectColor(
-                              project?.color,
-                              task.id
-                            );
                             const status = TASK_STATUS_CONFIG[task.status];
                             const members = (task.assignee_users ?? []).slice(0, 3);
                             return (
@@ -892,21 +826,30 @@ function AgentsProjectsContent({ analyticsData: _analyticsData }: AgentsProjects
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: i * 0.05 }}
                                 onClick={() => openBoard(task.project_id)}
-                                className="flex min-h-[200px] flex-col rounded-[22px] border p-4 text-left backdrop-blur-xl transition-transform hover:-translate-y-0.5"
+                                className={cn(
+                                  "flex min-h-[200px] flex-col rounded-[22px] p-4 text-left",
+                                  PANEL_GLASS_CLASS,
+                                  "bg-kenoo-white transition-all duration-200 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-300"
+                                )}
                                 style={{
-                                  background: theme.background,
-                                  borderColor: theme.border,
-                                  boxShadow: theme.shadow,
+                                  border: "none",
+                                  backgroundImage:
+                                    `radial-gradient(circle at 8% 8%, color-mix(in srgb, ${project?.color ?? "var(--kenoo-sky)"} 20%, transparent), transparent 42%), radial-gradient(circle at 92% 92%, color-mix(in srgb, ${status?.accent ?? "var(--kenoo-sky)"} 6%, transparent), transparent 42%)`,
                                 }}
                               >
-                                <h3 className="line-clamp-3 text-base font-semibold leading-snug text-neutral-900">
+                                <h3 className="line-clamp-3 text-base font-normal leading-snug text-neutral-900">
                                   {task.title}
                                 </h3>
-                                <p className="mt-1 truncate text-xs font-light text-neutral-600/80">
-                                  {project?.name ?? "Project"}
+                                <p className="mt-1 flex min-w-0 items-center gap-1.5 text-xs font-light text-neutral-600/80">
+                                  <span
+                                    aria-hidden="true"
+                                    className="h-1.5 w-1.5 shrink-0 rounded-full"
+                                    style={{ backgroundColor: project?.color ?? "var(--kenoo-sky)" }}
+                                  />
+                                  <span className="truncate">{project?.name ?? "Project"}</span>
                                 </p>
-                                <div className="mt-auto pt-6">
-                                  <div className="mb-3 flex items-center -space-x-1.5">
+                                <div className="mt-auto flex items-end justify-between gap-3 pt-6">
+                                  <div className="flex items-center -space-x-1.5">
                                     {members.map((m) => (
                                       <Avatar
                                         key={m.id}
@@ -922,10 +865,8 @@ function AgentsProjectsContent({ analyticsData: _analyticsData }: AgentsProjects
                                     ))}
                                   </div>
                                   <span
-                                    className={cn(
-                                      "inline-flex w-fit items-center rounded-full px-2.5 py-1 text-[10px] font-medium",
-                                      status?.badge ?? "bg-neutral-100 text-neutral-600",
-                                    )}
+                                    className="text-right text-[10px] font-medium"
+                                    style={{ color: status?.accent ?? "rgb(115 115 115)" }}
                                   >
                                     {status?.label ?? task.status}
                                   </span>
