@@ -834,7 +834,7 @@ function AgentsProjectsContent({ analyticsData: _analyticsData }: AgentsProjects
                                 style={{
                                   border: "none",
                                   backgroundImage:
-                                    `radial-gradient(circle at 8% 8%, color-mix(in srgb, ${project?.color ?? "var(--kenoo-sky)"} 8%, transparent), transparent 42%), radial-gradient(circle at 92% 92%, color-mix(in srgb, ${status?.accent ?? "var(--kenoo-sky)"} 7%, transparent), transparent 42%)`,
+                                    `radial-gradient(circle at 8% 8%, color-mix(in srgb, ${project?.color ?? "var(--kenoo-sky)"} 20%, transparent), transparent 42%), radial-gradient(circle at 92% 92%, color-mix(in srgb, ${status?.accent ?? "var(--kenoo-sky)"} 6%, transparent), transparent 42%)`,
                                 }}
                               >
                                 <h3 className="line-clamp-3 text-base font-normal leading-snug text-neutral-900">
