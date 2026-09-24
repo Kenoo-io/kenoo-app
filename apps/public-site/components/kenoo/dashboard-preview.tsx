@@ -285,12 +285,12 @@ function ProjectsScene({ compact }: { compact?: boolean }) {
       <div className={cn("grid gap-3", compact ? "grid-cols-2" : "grid-cols-[1.48fr_0.98fr]")}>
         <div className={cn("rounded-[22px] p-3.5", GLASS)}>
           <div className="flex items-center justify-between">
-            <p className="text-[12px] font-semibold tracking-tight text-neutral-900">Today Task</p>
+            <p className="text-[12px] font-semibold tracking-tight text-neutral-900">Today&apos;s tasks</p>
             <span className="text-[9px] font-medium text-neutral-400">See All&nbsp; ›</span>
           </div>
           <div className={cn("mt-3 grid gap-2", compact ? "grid-cols-1" : "grid-cols-3")}>
             {todayTasks.map((task) => (
-              <div key={task.title} className="flex min-w-0 flex-col rounded-[22px] border border-white/80 bg-white/80 p-4 shadow-[0_8px_28px_rgba(15,23,42,0.07),inset_0_1px_0_rgba(255,255,255,0.95)]" style={{ backgroundImage: "radial-gradient(circle at 8% 8%, rgba(110,173,192,0.20), transparent 42%), radial-gradient(circle at 92% 92%, rgba(255,107,44,0.06), transparent 42%)" }}>
+              <div key={task.title} className="flex min-w-0 flex-col rounded-[22px] bg-white p-4 shadow-[0_8px_28px_rgba(15,23,42,0.07),inset_0_1px_0_rgba(255,255,255,0.95)]" style={{ backgroundImage: "radial-gradient(circle at 8% 8%, rgba(110,173,192,0.08), transparent 42%), radial-gradient(circle at 92% 92%, rgba(255,107,44,0.05), transparent 42%)" }}>
                 <p className="line-clamp-3 text-[11px] font-normal leading-snug tracking-tight text-neutral-900 md:text-xs">{task.title}</p>
                 <p className="mt-1 flex items-center gap-1.5 truncate text-[8px] font-light text-neutral-600/80"><span className="size-1.5 shrink-0 rounded-full bg-[#6eadc0]" />{task.project}</p>
                 <div className="mt-auto flex items-end justify-between gap-2 pt-4">
