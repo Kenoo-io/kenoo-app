@@ -837,7 +837,7 @@ function AgentsProjectsContent({ analyticsData: _analyticsData }: AgentsProjects
                                     `radial-gradient(circle at 8% 8%, color-mix(in srgb, ${project?.color ?? "var(--kenoo-sky)"} 8%, transparent), transparent 42%), radial-gradient(circle at 92% 92%, color-mix(in srgb, ${status?.accent ?? "var(--kenoo-sky)"} 7%, transparent), transparent 42%)`,
                                 }}
                               >
-                                <h3 className="line-clamp-3 text-base font-semibold leading-snug text-neutral-900">
+                                <h3 className="line-clamp-3 text-base font-normal leading-snug text-neutral-900">
                                   {task.title}
                                 </h3>
                                 <p className="mt-1 flex min-w-0 items-center gap-1.5 text-xs font-light text-neutral-600/80">
