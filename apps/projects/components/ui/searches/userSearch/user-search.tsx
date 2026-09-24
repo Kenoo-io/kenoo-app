@@ -251,7 +251,7 @@ export function UserSearch({
   return (
     <div
       className={cn(
-        "flex max-h-[400px] flex-col overflow-hidden bg-white/80 backdrop-blur-xl",
+        "flex max-h-[min(500px,var(--radix-popover-content-available-height,calc(100dvh-2rem)))] flex-col overflow-hidden bg-white/80 backdrop-blur-xl",
         className,
       )}
     >
@@ -281,7 +281,7 @@ export function UserSearch({
       </div>
 
       <div
-        className="max-h-[300px] overflow-y-auto overscroll-contain scrollbar-hide bg-white/80 backdrop-blur-xl"
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain scrollbar-hide bg-white/80 backdrop-blur-xl"
         onWheel={(event) => event.stopPropagation()}
       >
         {loading ? (
