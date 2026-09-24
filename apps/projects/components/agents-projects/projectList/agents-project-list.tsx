@@ -305,6 +305,12 @@ function ColumnResizeHandle({
 }
 
 /* ─── Due date ──────────────────────────────────────────────────────────── */
+/* Date-only database values represent calendar dates, not UTC timestamps. */
+function parseLocalDate(dateString: string): Date {
+  const [year, month, day] = dateString.slice(0, 10).split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
+
 function DueDateLabel({
   date,
   status,
@@ -313,10 +319,11 @@ function DueDateLabel({
   status: ProjectStatus;
 }) {
   if (!date) return <span className="text-xs text-neutral-300 font-light">—</span>;
-  const d = new Date(date);
+  const d = parseLocalDate(date);
   const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const isOverdue =
-    d < now && status !== "completed" && status !== "cancelled";
+    d < today && status !== "completed" && status !== "cancelled";
   const formatted = d.toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
@@ -796,10 +803,9 @@ function AgentsProjectsListContent({
         .eq("user_id", user.id);
 
       const memberProjectIds = (memberRows ?? []).map((r) => r.project_id);
-      const accessFilter =
-        memberProjectIds.length > 0
-          ? `owner_id.eq.${user.id},id.in.(${memberProjectIds.join(",")})`
-          : `owner_id.eq.${user.id}`;
+      const accessFilter = memberProjectIds.length > 0
+        ? `id.in.(${memberProjectIds.join(",")})`
+        : "id.in.(00000000-0000-0000-0000-000000000000)";
 
       let query = supabase
         .from("projects")
@@ -843,12 +849,7 @@ function AgentsProjectsListContent({
       ]);
 
       const memberLinks = (projectMemberRows ?? []) as { project_id: string; user_id: string }[];
-      const memberIds = [
-        ...new Set([
-          ...memberLinks.map((member) => member.user_id),
-          ...rows.map((project) => project.owner_id).filter((id): id is string => Boolean(id)),
-        ]),
-      ];
+      const memberIds = [...new Set(memberLinks.map((member) => member.user_id))];
       const { data: memberUsers } = memberIds.length
         ? await supabase
             .from("users")
@@ -861,12 +862,11 @@ function AgentsProjectsListContent({
       const membersByProject = new Map<string, ProjectListMember[]>();
       for (const project of rows) {
         const ids = [
-          ...new Set([
-            ...memberLinks
+          ...new Set(
+            memberLinks
               .filter((member) => member.project_id === project.id)
               .map((member) => member.user_id),
-            project.owner_id,
-          ].filter((id): id is string => Boolean(id))),
+          ),
         ];
         membersByProject.set(
           project.id,

@@ -230,10 +230,17 @@ export default function TaskList({ userId, onRefresh, onOpenThread }: TaskListPr
     }
     try {
       const supabase = getSupabaseClient();
+      const { data: ownedMemberships } = await supabase
+        .from("project_members")
+        .select("project_id")
+        .eq("user_id", userId)
+        .eq("role", "owner");
+      const ownedProjectIds = (ownedMemberships ?? []).map((row) => row.project_id);
       let query = supabase
         .from("projects")
-        .select("id, name, slug, description, status, start_date, due_date, completed_at, owner_id, priority, color, metadata, created_at, updated_at")
-        .eq("owner_id", userId);
+        .select("id, name, slug, description, status, start_date, due_date, completed_at, priority, color, metadata, created_at, updated_at");
+      if (ownedProjectIds.length) query = query.in("id", ownedProjectIds);
+      else query = query.in("id", ["00000000-0000-0000-0000-000000000000"]);
       const { data: owned } = await query.order("name");
       const ownedList = owned ?? [];
       if (taskProjectIds?.length) {
@@ -241,7 +248,7 @@ export default function TaskList({ userId, onRefresh, onOpenThread }: TaskListPr
         if (missingIds.length > 0) {
           const { data: extra } = await supabase
             .from("projects")
-            .select("id, name, slug, description, status, start_date, due_date, completed_at, owner_id, priority, color, metadata, created_at, updated_at")
+            .select("id, name, slug, description, status, start_date, due_date, completed_at, priority, color, metadata, created_at, updated_at")
             .in("id", missingIds);
           const combined = [...ownedList, ...(extra ?? [])];
           combined.sort((a, b) => a.name.localeCompare(b.name));

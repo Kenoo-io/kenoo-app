@@ -2,14 +2,14 @@ import { createClient } from "@walls/supabase/client";
 import type { Project } from "./types";
 
 const DEFAULT_SELECT =
-  "id, name, slug, description, status, start_date, due_date, completed_at, owner_id, account_id, priority, color, metadata, created_at, updated_at";
+  "id, name, slug, description, status, start_date, due_date, completed_at, account_id, priority, color, metadata, created_at, updated_at";
 
 /** Column sets for `loadAccessibleProjects` — use these instead of arbitrary strings. */
 export const ACCESSIBLE_PROJECT_SELECT = {
   default: DEFAULT_SELECT,
-  summary: "id, name, color, status, slug, owner_id, account_id",
+  summary: "id, name, color, status, slug, account_id",
   timeline:
-    "id, name, color, status, description, due_date, start_date, priority, owner_id, account_id, completed_at, metadata, created_at, updated_at, slug",
+    "id, name, color, status, description, due_date, start_date, priority, account_id, completed_at, metadata, created_at, updated_at, slug",
 } as const;
 
 export type AccessibleProjectSelect =
@@ -39,10 +39,9 @@ export async function loadAccessibleProjects(
   if (memberError) throw memberError;
 
   const memberProjectIds = (memberRows ?? []).map((r) => r.project_id);
-  const accessFilter =
-    memberProjectIds.length > 0
-      ? `owner_id.eq.${userId},id.in.(${memberProjectIds.join(",")})`
-      : `owner_id.eq.${userId}`;
+  const accessFilter = memberProjectIds.length > 0
+    ? `id.in.(${memberProjectIds.join(",")})`
+    : "id.in.(00000000-0000-0000-0000-000000000000)";
 
   let query = supabase
     .from("projects")

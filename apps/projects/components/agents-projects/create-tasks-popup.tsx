@@ -111,16 +111,6 @@ function projectSwatchColor(project: Project): string {
   );
 }
 
-/** Ensures the project owner is always included in the member list. */
-function withOwnerAsMember(
-  memberIds: string[],
-  ownerId: string | null | undefined
-): string[] {
-  if (!ownerId) return memberIds;
-  if (memberIds.includes(ownerId)) return memberIds;
-  return [ownerId, ...memberIds];
-}
-
 /** Set when any assignee is someone other than the actor; null for self-only or none. */
 function resolveAssignedBy(
   assigneeIds: string[],
@@ -680,16 +670,6 @@ export function CreateTasksPopup({
       try {
         const supabase = getSupabaseClient();
 
-        let ownerId = project.owner_id ?? null;
-        if (!ownerId) {
-          const { data: projectRow } = await supabase
-            .from("projects")
-            .select("owner_id")
-            .eq("id", form.project_id)
-            .maybeSingle();
-          ownerId = projectRow?.owner_id ?? null;
-        }
-
         const { data: membersData, error } = await supabase
           .from("project_members")
           .select("user_id")
@@ -697,25 +677,12 @@ export function CreateTasksPopup({
 
         if (error) throw error;
 
-        const ids = withOwnerAsMember(
-          (membersData ?? []).map((m: { user_id: string }) => m.user_id),
-          ownerId
-        );
+        const ids = (membersData ?? []).map((m: { user_id: string }) => m.user_id);
         if (!cancelled) setProjectMemberIds(ids);
       } catch (err) {
         console.error("Error loading project members:", err);
         if (!cancelled) {
-          const ownerId =
-            project.owner_id ??
-            (
-              await getSupabaseClient()
-                .from("projects")
-                .select("owner_id")
-                .eq("id", form.project_id)
-                .maybeSingle()
-            ).data?.owner_id ??
-            null;
-          setProjectMemberIds(withOwnerAsMember([], ownerId));
+          setProjectMemberIds([]);
         }
       } finally {
         if (!cancelled) setLoadingProjectMembers(false);

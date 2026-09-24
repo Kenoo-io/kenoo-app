@@ -22,7 +22,7 @@ export function getTaskAssigneesDisplayLabel(
   }
 
   const names = list.map((a) =>
-    getTaskAssigneeDisplayName(a, a.id, currentUserId)
+    a.first_name?.trim() || getTaskAssigneeDisplayName(a, a.id, currentUserId)
   );
   if (names.length === 2) return `${names[0]}, ${names[1]}`;
   return `${names[0]} +${names.length - 1}`;

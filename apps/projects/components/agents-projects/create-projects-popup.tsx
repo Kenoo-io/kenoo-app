@@ -133,12 +133,27 @@ export function CreateProjectsPopup({
   const [originalMembers, setOriginalMembers] = useState<string[]>([]);
   const [allUsers, setAllUsers] = useState<UserSearchUser[]>([]);
   const [ownerUserId, setOwnerUserId] = useState<string | null>(null);
+  const [projectOwnerIds, setProjectOwnerIds] = useState<string[]>([]);
+  const [originalOwnerIds, setOriginalOwnerIds] = useState<string[]>([]);
   const [statusSelectOpen, setStatusSelectOpen] = useState(false);
   const [prioritySelectOpen, setPrioritySelectOpen] = useState(false);
   const blockDialogDismissRef = useRef(false);
   const blockDialogDismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const projectOwnerId = existing?.owner_id ?? ownerUserId;
+  const effectiveOwnerIds = existing
+    ? projectOwnerIds
+    : projectOwnerIds.length > 0
+      ? projectOwnerIds
+      : ownerUserId
+        ? [ownerUserId]
+        : [];
+  const canChangeOwner = Boolean(
+    authUser?.id && (existing ? projectOwnerIds.includes(authUser.id) : authUser.id === ownerUserId),
+  );
+  const canManageMembers = !existing || canChangeOwner;
+  const canLeaveProject = Boolean(
+    existing && authUser?.id && !projectOwnerIds.includes(authUser.id),
+  );
 
   const armDialogDismissBlock = useCallback(() => {
     if (blockDialogDismissTimerRef.current) {
@@ -201,7 +216,10 @@ export function CreateProjectsPopup({
       setForm(EMPTY_FORM);
       setSelectedMembers([]);
       setOriginalMembers([]);
+      setProjectOwnerIds([]);
+      setOriginalOwnerIds([]);
     }
+    if (existing) setProjectOwnerIds([]);
     setError(null);
   }, [existing, open]);
 
@@ -231,9 +249,9 @@ export function CreateProjectsPopup({
   }, [authUser?.id, open]);
 
   useEffect(() => {
-    if (!open || !projectOwnerId) return;
-    setSelectedMembers((prev) => withOwnerAsMember(prev, projectOwnerId));
-  }, [open, projectOwnerId, existing?.id]);
+    if (!open || effectiveOwnerIds.length === 0) return;
+    setSelectedMembers((prev) => effectiveOwnerIds.reduce(withOwnerAsMember, prev));
+  }, [effectiveOwnerIds.join(","), open, existing?.id]);
 
   useEffect(() => {
     if (!existing?.id || !open) return;
@@ -242,13 +260,18 @@ export function CreateProjectsPopup({
         const supabase = getSupabaseClient();
         const { data: membersData } = await supabase
           .from("project_members")
-          .select("user_id")
+          .select("user_id, role")
           .eq("project_id", existing.id);
 
         if (!membersData) return;
-        const ids = withOwnerAsMember(
+        const ownerIds = membersData
+          .filter((m: { role: string }) => m.role === "owner")
+          .map((m: { user_id: string }) => m.user_id);
+        setProjectOwnerIds(ownerIds);
+        setOriginalOwnerIds(ownerIds);
+        const ids = ownerIds.reduce(
+          withOwnerAsMember,
           membersData.map((m: { user_id: string }) => m.user_id),
-          existing.owner_id
         );
         setSelectedMembers(ids);
         setOriginalMembers(ids);
@@ -353,14 +376,18 @@ export function CreateProjectsPopup({
         if (err) throw err;
 
         // Sync members (owner always stays a member)
-        const effectiveMembers = withOwnerAsMember(selectedMembers, existing.owner_id);
+        const effectiveMembers = selectedMembers;
         const toAdd = effectiveMembers.filter((id) => !originalMembers.includes(id));
         const toRemove = originalMembers.filter(
-          (id) => !effectiveMembers.includes(id) && id !== existing.owner_id
+          (id) => !effectiveMembers.includes(id)
         );
         if (toAdd.length > 0) {
           const { error: addErr } = await supabase.from("project_members").insert(
-            toAdd.map((userId) => ({ project_id: existing.id, user_id: userId, role: "member" }))
+            toAdd.map((userId) => ({
+              project_id: existing.id,
+              user_id: userId,
+              role: projectOwnerIds.includes(userId) ? "owner" : "member",
+            }))
           );
           if (addErr) throw addErr;
           await notifyProjectMembersAdded(supabase, {
@@ -379,6 +406,18 @@ export function CreateProjectsPopup({
             .in("user_id", toRemove);
           if (removeErr) throw removeErr;
         }
+        const retainedMembers = effectiveMembers.filter((id) => originalMembers.includes(id));
+        for (const userId of retainedMembers) {
+          const wasOwner = originalOwnerIds.includes(userId);
+          const isOwner = projectOwnerIds.includes(userId);
+          if (wasOwner === isOwner) continue;
+          const { error: roleErr } = await supabase
+            .from("project_members")
+            .update({ role: isOwner ? "owner" : "member" })
+            .eq("project_id", existing.id)
+            .eq("user_id", userId);
+          if (roleErr) throw roleErr;
+        }
       } else {
         let newOwnerId: string | null = null;
         if (authUser?.id) {
@@ -389,7 +428,6 @@ export function CreateProjectsPopup({
             .maybeSingle();
           if (userRow?.id) {
             newOwnerId = userRow.id;
-            payload.owner_id = userRow.id;
           }
         }
         payload.account_id = activeAccountId;
@@ -400,13 +438,14 @@ export function CreateProjectsPopup({
           .single();
         if (err) throw err;
 
-        const membersToSave = withOwnerAsMember(selectedMembers, newOwnerId);
+        const membersToSave = withOwnerAsMember(selectedMembers, newOwnerId)
+          .filter((userId) => userId !== newOwnerId);
         if (membersToSave.length > 0 && newProject?.id) {
           const { error: membersErr } = await supabase.from("project_members").insert(
             membersToSave.map((userId) => ({
               project_id: newProject.id,
               user_id: userId,
-              role: "member",
+              role: projectOwnerIds.includes(userId) ? "owner" : "member",
             }))
           );
           if (membersErr) throw membersErr;
@@ -624,9 +663,31 @@ export function CreateProjectsPopup({
                 <UserSearch
                   className="min-h-0 flex-1"
                   accountId={existing?.account_id ?? activeAccountId}
+                  ownerIds={effectiveOwnerIds}
+                  canManageRoles={canChangeOwner}
+                  readOnly={!canManageMembers}
+                  allowSelfRemoval={canLeaveProject}
+                  selfId={authUser?.id}
+                  onRoleChange={(userId, role) => {
+                    if (!existing && userId === ownerUserId && role === "member") return;
+                    setProjectOwnerIds((prev) => {
+                      const current = prev.length > 0 ? prev : ownerUserId ? [ownerUserId] : [];
+                      return role === "owner"
+                        ? current.includes(userId) ? current : [...current, userId]
+                        : current.filter((id) => id !== userId);
+                    });
+                  }}
+                  onRevokeAndRemove={(userId) => {
+                    setProjectOwnerIds((prev) => prev.filter((id) => id !== userId));
+                    setSelectedMembers((prev) => prev.filter((id) => id !== userId));
+                  }}
+                  onRemoveMember={(userId) => {
+                    setSelectedMembers((prev) => prev.filter((id) => id !== userId));
+                  }}
                   values={selectedMembers}
                   onToggle={(userId) => {
-                    if (userId === projectOwnerId) return;
+                    if (!canManageMembers && userId !== authUser?.id) return;
+                    if (projectOwnerIds.includes(userId)) return;
                     setSelectedMembers((prev) =>
                       prev.includes(userId)
                         ? prev.filter((id) => id !== userId)
@@ -702,7 +763,7 @@ export function CreateProjectsPopup({
 
         <DialogFooter>
           <div className="flex items-center justify-end gap-2 w-full">
-            {existing && (
+            {existing && canChangeOwner && (
               <button
                 type="button"
                 onClick={handleDelete}

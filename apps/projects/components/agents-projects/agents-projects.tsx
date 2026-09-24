@@ -553,15 +553,6 @@ function AgentsProjectsContent({ analyticsData: _analyticsData }: AgentsProjects
           allUserIds.add(assigneeId);
         }
       }
-      for (const p of rows) {
-        if (p.owner_id) {
-          allUserIds.add(p.owner_id);
-          const list = membersByProject.get(p.id) ?? [];
-          if (!list.includes(p.owner_id)) {
-            membersByProject.set(p.id, [p.owner_id, ...list]);
-          }
-        }
-      }
 
       const userMap = new Map<string, MemberUser>();
       if (allUserIds.size > 0) {
