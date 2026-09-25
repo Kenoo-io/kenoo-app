@@ -2,16 +2,16 @@
 
 import * as React from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { TrendingUp } from "lucide-react";
+import { Scale, ShieldAlert, Target, TrendingUp } from "lucide-react";
 
 import { FloatingLabelInput } from "@/components/ui/floating-label-input";
 import { SegmentToggle } from "@/components/ui/segment-toggle";
+import { Switch } from "@walls/ui/switch";
 import { Slider } from "@walls/ui/slider";
 import { cn } from "@walls/utils";
 
 import { formatRoas } from "@/lib/format-analytics";
 import {
-  CONTRIBUTION_MARGIN_PRESETS,
   getBreakEvenRoas,
   getStopLossMetricDefinition,
   getStopLossValue,
@@ -35,8 +35,9 @@ type RoasFloorFieldProps = {
 };
 
 const MODE_OPTIONS: Array<{ value: RoasFloorInputMode; label: string }> = [
-  { value: "direct", label: "Stop-loss" },
+  { value: "target", label: "Target ROAS" },
   { value: "margin", label: "Break-Even ROAS" },
+  { value: "direct", label: "Stop-loss" },
 ];
 
 export function RoasFloorField({
@@ -49,7 +50,13 @@ export function RoasFloorField({
   const stopLossDefinition = getStopLossMetricDefinition(stopLossMetric);
   const supportsBreakEven =
     stopLossMetric === "roas" && isSalesStopLossContext(context);
-  const mode = settings.roasFloorInputMode ?? "direct";
+  const supportsTargetRoas =
+    stopLossMetric === "roas" && context.optimizationGoal === "roas";
+  const configuredMode = settings.roasFloorInputMode ?? "direct";
+  const mode =
+    configuredMode === "target" && !supportsTargetRoas
+      ? "direct"
+      : configuredMode;
   const marginPct = settings.contributionMarginPct ?? 50;
   const directStopLossValue = getStopLossValue(
     settings as SpendAutomationSettings,
@@ -96,6 +103,7 @@ export function RoasFloorField({
           min={0}
           step={0.1}
           label={stopLossDefinition.thresholdLabel}
+          containerClassName="max-w-sm"
           value={directStopLossValue ?? ""}
           onChange={(e) =>
             onChange(
@@ -113,23 +121,72 @@ export function RoasFloorField({
 
   return (
     <div className={cn("space-y-3", className)}>
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="-mt-1 pb-2">
+        <SegmentToggle
+          aria-label="ROAS guardrail mode"
+          value={mode}
+          onChange={(nextMode) => applyPatch({ roasFloorInputMode: nextMode })}
+          equalWidth
+          equalWidthClassName="w-full grid-cols-3"
+          className="w-full max-w-[42rem] border-0 bg-neutral-200/65 shadow-none"
+          activeClassName="text-neutral-500"
+          options={MODE_OPTIONS.filter(
+            (option) => option.value !== "target" || supportsTargetRoas,
+          ).map((option) => {
+            const Icon =
+              option.value === "direct"
+                ? ShieldAlert
+                : option.value === "margin"
+                  ? Scale
+                  : Target;
+            const active = mode === option.value;
+            const stopLossEnabled =
+              option.value === "direct" && settings.stopLossEnabled !== false;
+            return {
+              ...option,
+              icon: (
+                <Icon
+                  className={cn(
+                    "h-3.5 w-3.5 shrink-0",
+                    stopLossEnabled
+                      ? "fill-emerald-100 text-emerald-600"
+                      : active
+                      ? "text-[var(--kenoo-sky)]/60"
+                      : "text-neutral-400",
+                  )}
+                  strokeWidth={1.6}
+                />
+              ),
+            };
+          })}
+        />
+      </div>
+      <div className="flex items-start gap-3">
+        {mode === "direct" ? (
+          <Switch
+            checked={settings.stopLossEnabled !== false}
+            onCheckedChange={(stopLossEnabled) => onChange({ stopLossEnabled })}
+            aria-label="Stop-loss enabled"
+            size="md"
+            className="mt-0.5"
+          />
+        ) : null}
         <div className="min-w-0">
           <p className="text-sm font-medium text-foreground">
-            {mode === "margin" ? "True Break-Even ROAS" : "Stop loss"}
+            {mode === "margin"
+              ? "True Break-Even ROAS"
+              : mode === "target"
+                ? "Target ROAS"
+                : "Stop loss"}
           </p>
           <p className="mt-0.5 text-xs font-light text-neutral-500">
             {mode === "margin"
               ? "How much you keep from each sale after expenses. We calculate the ROAS you need to actually be profitable."
+              : mode === "target"
+                ? "The ROAS AdPilot should work toward while it scales campaign budget."
               : "The ROAS floor where AdPilot should slow down, pause, or alert."}
           </p>
         </div>
-        <SegmentToggle
-          aria-label="Stop-loss input mode"
-          value={mode}
-          onChange={(nextMode) => applyPatch({ roasFloorInputMode: nextMode })}
-          options={MODE_OPTIONS}
-        />
       </div>
 
       <AnimatePresence mode="wait" initial={false}>
@@ -141,15 +198,45 @@ export function RoasFloorField({
             exit={{ opacity: 0, y: -6 }}
             transition={{ duration: 0.18, ease: "easeOut" }}
           >
+            {settings.stopLossEnabled !== false ? (
+              <FloatingLabelInput
+                type="number"
+                min={0}
+                step={0.1}
+                label="Stop-loss ROAS"
+                containerClassName="max-w-sm"
+                value={settings.roasFloor ?? directStopLossValue ?? ""}
+                onChange={(e) =>
+                  applyPatch({
+                    roasFloor: e.target.value ? Number(e.target.value) : null,
+                  })
+                }
+              />
+            ) : (
+              <div className="rounded-2xl border border-dashed border-neutral-200 bg-white/40 px-4 py-3 text-xs font-light text-neutral-500">
+                Stop-loss is off. AdPilot will not act on ROAS falling below this
+                threshold.
+              </div>
+            )}
+          </motion.div>
+        ) : mode === "target" ? (
+          <motion.div
+            key="target"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.18, ease: "easeOut" }}
+          >
             <FloatingLabelInput
               type="number"
               min={0}
               step={0.1}
-              label="Stop-loss ROAS"
-              value={settings.roasFloor ?? directStopLossValue ?? ""}
+              label="Target ROAS"
+              containerClassName="max-w-sm"
+              value={settings.targetRoas ?? ""}
               onChange={(e) =>
-                applyPatch({
-                  roasFloor: e.target.value ? Number(e.target.value) : null,
+                onChange({
+                  targetRoas: e.target.value ? Number(e.target.value) : null,
                 })
               }
             />
@@ -195,6 +282,7 @@ export function RoasFloorField({
                 max={100}
                 step={0.1}
                 label="Profit kept per sale (%)"
+                containerClassName="max-w-sm"
                 value={settings.contributionMarginPct ?? ""}
                 onChange={(e) =>
                   applyPatch({
@@ -220,36 +308,6 @@ export function RoasFloorField({
               </div>
             </div>
 
-            <div>
-              <p className="mb-2 text-[11px] font-normal uppercase tracking-[0.14em] text-neutral-500">
-                Common margins
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {CONTRIBUTION_MARGIN_PRESETS.map((preset) => {
-                  const active = marginPct === preset.marginPct;
-                  return (
-                    <button
-                      key={preset.marginPct}
-                      type="button"
-                      onClick={() =>
-                        applyPatch({ contributionMarginPct: preset.marginPct })
-                      }
-                      className={cn(
-                        "rounded-full border px-2.5 py-1 text-[11px] tabular-nums transition-all duration-200",
-                        active
-                          ? "border-white/70 bg-white/55 font-medium text-neutral-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_1px_2px_rgba(0,0,0,0.04)] backdrop-blur-xl backdrop-saturate-150"
-                          : "border-transparent bg-neutral-100/80 font-medium text-neutral-400",
-                      )}
-                    >
-                      {preset.marginPct}%
-                      <span className="ml-1 font-light opacity-75">
-                        · {formatRoas(preset.roasFloor)}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
           </motion.div>
         )}
       </AnimatePresence>

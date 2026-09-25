@@ -217,8 +217,10 @@ type AutomationSettings = {
   aggressiveness: number;
   maxDailyIncreasePct: number;
   maxDailyDecreasePct: number;
+  targetRoas: number | null;
+  stopLossEnabled: boolean;
   roasFloor: number | null;
-  roasFloorInputMode: "direct" | "margin";
+  roasFloorInputMode: "direct" | "margin" | "target";
   contributionMarginPct: number | null;
   ctrFloorPct: number | null;
   cpaCeiling: number | null;
@@ -232,6 +234,8 @@ const DEFAULT_AUTOMATION_SETTINGS: AutomationSettings = {
   aggressiveness: 3,
   maxDailyIncreasePct: 18,
   maxDailyDecreasePct: 12,
+  targetRoas: null,
+  stopLossEnabled: true,
   roasFloor: 2.4,
   roasFloorInputMode: "direct",
   contributionMarginPct: 41.67,
@@ -261,7 +265,10 @@ function normalizeAutomationSettings(raw: unknown): AutomationSettings {
   settings.roasFloorActions = Array.isArray(settings.roasFloorActions)
     ? settings.roasFloorActions.filter((value): value is "stop_campaign" | "email_alert" => value === "stop_campaign" || value === "email_alert")
     : [...DEFAULT_AUTOMATION_SETTINGS.roasFloorActions];
-  settings.roasFloorInputMode = settings.roasFloorInputMode === "margin" ? "margin" : "direct";
+  settings.roasFloorInputMode =
+    settings.roasFloorInputMode === "margin" || settings.roasFloorInputMode === "target"
+      ? settings.roasFloorInputMode
+      : "direct";
   return settings;
 }
 
@@ -275,6 +282,10 @@ function automationSettingsOverride(base: AutomationSettings, next: AutomationSe
 }
 
 function validateAutomationSettings(settings: AutomationSettings, entity: { provider: string; objective: string | null }) {
+  if (settings.targetRoas != null && (!Number.isFinite(Number(settings.targetRoas)) || Number(settings.targetRoas) < 0)) {
+    throw new Error("Target ROAS must be zero or greater.");
+  }
+
   const provider = entity.provider.toLowerCase();
   const objective = (entity.objective ?? "").toUpperCase();
   const salesContext = provider === "meta"
@@ -775,8 +786,10 @@ export function createKenooMcpServer(identity: KenooIdentity | null, authChallen
           aggressiveness: z.number().int().min(1).max(5).optional(),
           maxDailyIncreasePct: z.number().min(0).max(100).optional(),
           maxDailyDecreasePct: z.number().min(0).max(100).optional(),
+          targetRoas: z.number().min(0).nullable().optional(),
+          stopLossEnabled: z.boolean().optional(),
           roasFloor: z.number().min(0).nullable().optional(),
-          roasFloorInputMode: z.enum(["direct", "margin"]).optional(),
+          roasFloorInputMode: z.enum(["direct", "margin", "target"]).optional(),
           contributionMarginPct: z.number().min(1).max(100).nullable().optional(),
           ctrFloorPct: z.number().min(0).nullable().optional(),
           cpaCeiling: z.number().min(0).nullable().optional(),

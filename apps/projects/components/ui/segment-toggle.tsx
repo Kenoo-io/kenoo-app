@@ -16,7 +16,10 @@ type SegmentToggleProps<T extends string> = {
   onChange: (value: T) => void;
   options: SegmentToggleOption<T>[];
   "aria-label": string;
+  equalWidth?: boolean;
+  equalWidthClassName?: string;
   className?: string;
+  activeClassName?: string;
 };
 
 export function SegmentToggle<T extends string>({
@@ -24,15 +27,28 @@ export function SegmentToggle<T extends string>({
   onChange,
   options,
   "aria-label": ariaLabel,
+  equalWidth,
+  equalWidthClassName,
   className,
+  activeClassName = "text-neutral-900",
 }: SegmentToggleProps<T>) {
   const layoutId = React.useId();
 
   return (
     <div
       className={cn(
-        "flex w-max shrink-0 items-center gap-0.5 whitespace-nowrap rounded-full border border-white/70 bg-white/55 p-1 backdrop-blur-xl",
+        "shrink-0 whitespace-nowrap rounded-full p-1",
+        "border border-white/70 bg-white/55 backdrop-blur-xl",
         "shadow-[0_8px_28px_rgba(15,23,42,0.07),inset_0_1px_0_rgba(255,255,255,0.95)]",
+        equalWidth
+          ? cn(
+              "grid gap-0.5",
+              equalWidthClassName ??
+                (options.length === 3
+                  ? "w-[22.5rem] grid-cols-3"
+                  : "w-[12.25rem] grid-cols-2"),
+            )
+          : "flex w-max items-center gap-0.5",
         className,
       )}
       role="group"
@@ -58,8 +74,11 @@ export function SegmentToggle<T extends string>({
             ) : null}
             <span
               className={cn(
-                "relative z-10 flex h-8 items-center gap-1.5 rounded-full px-3.5 text-xs font-medium uppercase tracking-wider transition-colors duration-200",
-                active ? "text-neutral-900" : "text-neutral-500 group-hover:text-neutral-700",
+                "relative z-10 flex h-8 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 text-xs font-medium uppercase tracking-wider transition-colors duration-200",
+                equalWidth && "w-full justify-center",
+                active
+                  ? activeClassName
+                  : "text-neutral-500 group-hover:text-neutral-700",
               )}
             >
               {option.icon}
