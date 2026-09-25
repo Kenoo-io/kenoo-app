@@ -9,7 +9,6 @@ import {
   Loader2,
   MousePointerClick,
   Plus,
-  Shield,
   Target,
   TrendingUp,
   Zap,
@@ -97,6 +96,8 @@ export function AdSpendControls() {
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
   const [creating, setCreating] = React.useState(false);
+  const [deletingId, setDeletingId] = React.useState<string | null>(null);
+  const [settingDefault, setSettingDefault] = React.useState(false);
   const [saved, setSaved] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [presetMenuOpen, setPresetMenuOpen] = React.useState(false);
@@ -238,6 +239,66 @@ export function AdSpendControls() {
     selectProfile(created);
   };
 
+  const handleDeletePreset = async (profile: AutomationProfile) => {
+    if (profiles.length <= 1) {
+      setError("Keep at least one preset in your workspace.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Delete “${profile.name}”? Campaigns and ad sets using it will keep their current settings and become Custom.`,
+    );
+    if (!confirmed) return;
+
+    setDeletingId(profile.id);
+    setError(null);
+
+    const response = await fetch(`/api/automation/profiles/${profile.id}`, {
+      method: "DELETE",
+    });
+
+    if (!response.ok) {
+      const payload = (await response.json()) as { error?: string };
+      setError(payload.error ?? "Failed to delete preset.");
+      setDeletingId(null);
+      return;
+    }
+
+    setPresetMenuOpen(false);
+    await loadProfiles();
+    setDeletingId(null);
+  };
+
+  const handleSetDefault = async () => {
+    if (!selectedId || form?.isDefault) return;
+
+    setSettingDefault(true);
+    setError(null);
+
+    const response = await fetch(`/api/automation/profiles/${selectedId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isDefault: true }),
+    });
+
+    if (!response.ok) {
+      const payload = (await response.json()) as { error?: string };
+      setError(payload.error ?? "Failed to set the default preset.");
+      setSettingDefault(false);
+      return;
+    }
+
+    setProfiles((prev) =>
+      prev.map((profile) => ({
+        ...profile,
+        isDefault: profile.id === selectedId,
+      })),
+    );
+    setForm((prev) => (prev ? { ...prev, isDefault: true } : prev));
+    setSaved(false);
+    setSettingDefault(false);
+  };
+
   if (loading) {
     return (
       <section>
@@ -290,35 +351,36 @@ export function AdSpendControls() {
           </div>
         ) : null}
 
-        <DropdownMenu open={presetMenuOpen} onOpenChange={setPresetMenuOpen}>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              className={cn(
-                "flex w-full max-w-md items-center gap-3 overflow-hidden rounded-[28px] px-4 py-4 text-left transition md:px-5",
-                panelGlassClass,
-                "hover:bg-white/90",
-                "outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0",
-                presetMenuOpen && "bg-white/90",
-              )}
-            >
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-semibold text-foreground">
-                  {form.name || "Untitled preset"}
-                </span>
-                <span className="mt-0.5 block truncate text-xs text-neutral-500">
-                  Optimize for {optimizationGoalLabel(form.optimizationGoal)}
-                  {form.isDefault ? " · Default" : ""}
-                </span>
-              </span>
-              <ChevronDown
+        <div className="flex flex-wrap items-center gap-3">
+          <DropdownMenu open={presetMenuOpen} onOpenChange={setPresetMenuOpen}>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
                 className={cn(
-                  "h-4 w-4 shrink-0 text-neutral-400 transition-transform",
-                  presetMenuOpen && "rotate-180",
+                  "flex w-full max-w-md items-center gap-3 overflow-hidden rounded-[28px] px-4 py-4 text-left transition md:px-5",
+                  panelGlassClass,
+                  "hover:bg-white/90",
+                  "outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0",
+                  presetMenuOpen && "bg-white/90",
                 )}
-              />
-            </button>
-          </DropdownMenuTrigger>
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-semibold text-foreground">
+                    {form.name || "Untitled preset"}
+                  </span>
+                  <span className="mt-0.5 block truncate text-xs text-neutral-500">
+                    Optimize for {optimizationGoalLabel(form.optimizationGoal)}
+                    {form.isDefault ? " · Default" : ""}
+                  </span>
+                </span>
+                <ChevronDown
+                  className={cn(
+                    "h-4 w-4 shrink-0 text-neutral-400 transition-transform",
+                    presetMenuOpen && "rotate-180",
+                  )}
+                />
+              </button>
+            </DropdownMenuTrigger>
 
           <DropdownMenuContent
             align="start"
@@ -391,8 +453,20 @@ export function AdSpendControls() {
                 <span className="font-medium">Add preset</span>
               </div>
             </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {!form.isDefault ? (
+            <button
+              type="button"
+              disabled={settingDefault || saving}
+              onClick={() => void handleSetDefault()}
+              className="shrink-0 text-sm font-medium text-neutral-600 underline decoration-neutral-300 underline-offset-4 transition hover:text-neutral-950 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {settingDefault ? "Setting default…" : "Set as default"}
+            </button>
+          ) : null}
+        </div>
 
         <div
           className={cn(
@@ -618,37 +692,42 @@ export function AdSpendControls() {
                   setSaved(false);
                 }}
               />
-              <RoasFloorActionsField
-                value={form.settings.roasFloorActions}
-                onChange={(roasFloorActions) =>
-                  updateSetting("roasFloorActions", roasFloorActions)
-                }
-              />
+              {form.settings.roasFloorInputMode === "direct" &&
+              form.settings.stopLossEnabled !== false ? (
+                <RoasFloorActionsField
+                  value={form.settings.roasFloorActions}
+                  onChange={(roasFloorActions) =>
+                    updateSetting("roasFloorActions", roasFloorActions)
+                  }
+                />
+              ) : null}
             </div>
           </div>
 
-          <div className="mt-5">
-            <p className="text-sm font-medium text-foreground">
-              Cooldown between budget changes
-            </p>
-            <p className="mt-1 text-xs font-light text-neutral-500">
-              Minimum wait before AdPilot can increase or decrease the daily budget
-              again on the same entity.
-            </p>
-            <SegmentToggle
-              className="mt-3"
-              equalWidth
-              aria-label="Cooldown between budget changes"
-              value={String(form.settings.cooldownHours) as "24" | "48" | "72"}
-              onChange={(value) =>
-                updateSetting("cooldownHours", Number(value))
-              }
-              options={COOLDOWN_OPTIONS.map((option) => ({
-                value: String(option.value) as "24" | "48" | "72",
-                label: option.label,
-              }))}
-            />
-          </div>
+          {form.settings.roasFloorInputMode === "target" ? (
+            <div className="mt-5">
+              <p className="text-sm font-medium text-foreground">
+                Cooldown between budget changes
+              </p>
+              <p className="mt-1 text-xs font-light text-neutral-500">
+                Minimum wait before AdPilot can increase or decrease the daily budget
+                again on the same entity.
+              </p>
+              <SegmentToggle
+                className="mt-3"
+                equalWidth
+                aria-label="Cooldown between budget changes"
+                value={String(form.settings.cooldownHours) as "24" | "48" | "72"}
+                onChange={(value) =>
+                  updateSetting("cooldownHours", Number(value))
+                }
+                options={COOLDOWN_OPTIONS.map((option) => ({
+                  value: String(option.value) as "24" | "48" | "72",
+                  label: option.label,
+                }))}
+              />
+            </div>
+          ) : null}
         </div>
 
         <div
@@ -700,29 +779,43 @@ export function AdSpendControls() {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="flex items-center gap-2 text-xs font-light text-neutral-500">
-            <Shield className="h-3.5 w-3.5" />
-            Saved to your automation profile library. Enable AdPilot on each
-            campaign or ad set to grant permission.
-          </p>
-          <Button
-            type="button"
-            disabled={saving || !form.name.trim()}
-            onClick={() => void handleSave()}
-            className={cn(primaryButtonClass, "px-6")}
-          >
-            {saving ? (
-              <>
+        <div className="flex flex-wrap items-center justify-start gap-3">
+          <div className="flex flex-wrap items-center justify-start gap-2">
+            <Button
+              type="button"
+              disabled={saving || !form.name.trim()}
+              onClick={() => void handleSave()}
+              className="inline-flex h-10 rounded-lg bg-neutral-950 px-4 text-sm font-medium text-white shadow-none transition-colors hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {saving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving…
+                </>
+              ) : saved ? (
+                "Preset saved"
+              ) : (
+                "Save preset"
+              )}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={deletingId !== null || profiles.length <= 1}
+              onClick={() => {
+                const selected = profiles.find((profile) => profile.id === selectedId);
+                if (selected) void handleDeletePreset(selected);
+              }}
+              className="inline-flex h-10 rounded-lg px-4 text-sm font-medium text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+            >
+              {deletingId === selectedId ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving…
-              </>
-            ) : saved ? (
-              "Preset saved"
-            ) : (
-              "Save preset"
-            )}
-          </Button>
+              ) : (
+                <Trash2 className="mr-2 h-4 w-4" />
+              )}
+              Delete preset
+            </Button>
+          </div>
         </div>
       </div>
     </section>

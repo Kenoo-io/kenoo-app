@@ -86,6 +86,7 @@ Resolved as **preset settings + entity overrides**:
 | `maxDailyIncreasePct` | Cap on % **increase** in one 24h window |
 | `maxDailyDecreasePct` | Cap on % **decrease** in one 24h window |
 | `roasFloor` | Minimum acceptable ROAS (the "low-end stopper") |
+| `targetRoas` | Desired ROAS for ROAS-outcome campaigns |
 | `roasFloorActions` | Multi-select: `stop_campaign`, `email_alert` (one, both, or neither) |
 | `ctrFloorPct` | Minimum CTR (CTR-goal campaigns) |
 | `cpaCeiling` | Max cost per acquisition (CPA/conversion goals) |

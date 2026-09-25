@@ -17,6 +17,7 @@ type SegmentToggleProps<T extends string> = {
   options: SegmentToggleOption<T>[];
   "aria-label": string;
   equalWidth?: boolean;
+  equalWidthClassName?: string;
   className?: string;
   activeClassName?: string;
 };
@@ -27,6 +28,7 @@ export function SegmentToggle<T extends string>({
   options,
   "aria-label": ariaLabel,
   equalWidth,
+  equalWidthClassName,
   className,
   activeClassName = "text-neutral-900",
 }: SegmentToggleProps<T>) {
@@ -41,7 +43,10 @@ export function SegmentToggle<T extends string>({
         equalWidth
           ? cn(
               "grid gap-0.5",
-              options.length === 3 ? "w-[22.5rem] grid-cols-3" : "w-[12.25rem] grid-cols-2",
+              equalWidthClassName ??
+                (options.length === 3
+                  ? "w-[22.5rem] grid-cols-3"
+                  : "w-[12.25rem] grid-cols-2"),
             )
           : "flex w-max items-center gap-0.5",
         className,

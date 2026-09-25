@@ -300,6 +300,113 @@ export async function updateAutomationProfile(input: {
   return mapProfile(data);
 }
 
+/**
+ * Delete a preset without changing the behavior of entities that currently use
+ * it. Their effective settings are copied into entity overrides first, then the
+ * preset link is removed by the existing ON DELETE SET NULL foreign key.
+ */
+export async function deleteAutomationProfile(input: {
+  scope: AdDataScope;
+  profileId: string;
+}): Promise<{ detachedEntityCount: number }> {
+  const supabase = await createClient();
+
+  const { data: profile, error: profileError } = await withAdScope(
+    supabase
+      .from("ad_automation_profiles")
+      .select(PROFILE_SELECT)
+      .eq("id", input.profileId),
+    input.scope,
+  ).maybeSingle();
+
+  if (profileError) throw profileError;
+  if (!profile) throw new Error("Profile not found");
+
+  const { data: otherProfiles, error: otherProfilesError } = await withAdScope(
+    supabase
+      .from("ad_automation_profiles")
+      .select("id, is_default, created_at")
+      .neq("id", input.profileId)
+      .order("is_default", { ascending: false })
+      .order("created_at", { ascending: true }),
+    input.scope,
+  );
+
+  if (otherProfilesError) throw otherProfilesError;
+  if (!otherProfiles?.length) {
+    throw new Error("Keep at least one preset in your workspace.");
+  }
+
+  const { data: entityAutomations, error: automationError } =
+    await withAdScope(
+      supabase
+        .from("ad_entity_automation")
+        .select("entity_id, settings_override, cooldown_hours")
+        .eq("profile_id", input.profileId),
+      input.scope,
+    );
+
+  if (automationError) throw automationError;
+
+  const profileSettings = parseAutomationSettings(profile.settings);
+  const materializedSettings = Object.fromEntries(
+    (Object.keys(DEFAULT_SPEND_AUTOMATION_SETTINGS) as Array<
+      keyof SpendAutomationSettings
+    >)
+      .filter((key) => key !== "cooldownHours")
+      .map((key) => [key, profileSettings[key]]),
+  ) as Partial<SpendAutomationSettings>;
+
+  for (const entityAutomation of entityAutomations ?? []) {
+    const currentOverride =
+      entityAutomation.settings_override &&
+      typeof entityAutomation.settings_override === "object"
+        ? (entityAutomation.settings_override as Partial<SpendAutomationSettings>)
+        : {};
+
+    const { error: detachError } = await withAdScope(
+      supabase
+        .from("ad_entity_automation")
+        .update({
+          settings_override: {
+            ...materializedSettings,
+            ...stripCooldownFromOverride(currentOverride),
+          },
+          cooldown_hours:
+            entityAutomation.cooldown_hours ?? profileSettings.cooldownHours,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("entity_id", entityAutomation.entity_id),
+      input.scope,
+    );
+
+    if (detachError) throw detachError;
+  }
+
+  const replacement = otherProfiles[0];
+  if (profile.is_default && replacement) {
+    const { error: replacementError } = await withAdScope(
+      supabase
+        .from("ad_automation_profiles")
+        .update({ is_default: true, updated_at: new Date().toISOString() })
+        .eq("id", replacement.id),
+      input.scope,
+    );
+    if (replacementError) throw replacementError;
+  }
+
+  const { error: deleteError } = await withAdScope(
+    supabase
+      .from("ad_automation_profiles")
+      .delete()
+      .eq("id", input.profileId),
+    input.scope,
+  );
+  if (deleteError) throw deleteError;
+
+  return { detachedEntityCount: entityAutomations?.length ?? 0 };
+}
+
 function stripCooldownFromOverride(
   override: Partial<SpendAutomationSettings>,
 ): Partial<SpendAutomationSettings> {

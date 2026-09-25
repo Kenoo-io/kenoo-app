@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 
-import { updateAutomationProfile } from "@/lib/automation-server";
+import {
+  deleteAutomationProfile,
+  updateAutomationProfile,
+} from "@/lib/automation-server";
 import { getAdDataScope } from "@/lib/ad-scope";
 import type { ProfileAgentInstruction } from "@/lib/agent-instructions";
 import type {
@@ -61,6 +64,33 @@ export async function PATCH(request: Request, context: RouteContext) {
         ? 400
         : 500;
     console.error("[adpilot] update automation profile:", error);
+    return NextResponse.json({ error: message }, { status });
+  }
+}
+
+export async function DELETE(_request: Request, context: RouteContext) {
+  const scope = await getAdDataScope();
+  if (!scope) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { id } = await context.params;
+
+  try {
+    const result = await deleteAutomationProfile({
+      scope,
+      profileId: id,
+    });
+    return NextResponse.json(result);
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Failed to delete profile";
+    const status =
+      message === "Profile not found" ||
+      message === "Keep at least one preset in your workspace."
+        ? 400
+        : 500;
+    console.error("[adpilot] delete automation profile:", error);
     return NextResponse.json({ error: message }, { status });
   }
 }

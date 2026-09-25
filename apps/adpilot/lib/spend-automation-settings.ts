@@ -9,7 +9,7 @@ export type AutomationStatus =
   | "learning"
   | "error";
 
-export type RoasFloorInputMode = "direct" | "margin";
+export type RoasFloorInputMode = "direct" | "margin" | "target";
 
 export type RoasFloorAction = "stop_campaign" | "email_alert";
 
@@ -100,6 +100,10 @@ export type SpendAutomationSettings = {
   aggressiveness: SpendAggressivenessLevel;
   maxDailyIncreasePct: number;
   maxDailyDecreasePct: number;
+  /** Desired ROAS for campaigns whose optimization goal is ROAS. */
+  targetRoas: number | null;
+  /** Whether the ROAS stop-loss guardrail is active. */
+  stopLossEnabled: boolean;
   roasFloor: number | null;
   roasFloorInputMode: RoasFloorInputMode;
   contributionMarginPct: number | null;
@@ -140,6 +144,8 @@ export const DEFAULT_SPEND_AUTOMATION_SETTINGS: SpendAutomationSettings = {
   aggressiveness: 3,
   maxDailyIncreasePct: 18,
   maxDailyDecreasePct: 12,
+  targetRoas: null,
+  stopLossEnabled: true,
   roasFloor: 2.4,
   roasFloorInputMode: "direct",
   contributionMarginPct: 41.67,
@@ -552,6 +558,13 @@ export function validateAutomationSettings(
   settings: SpendAutomationSettings,
   context: StopLossContext,
 ): string | null {
+  if (
+    settings.targetRoas != null &&
+    (!Number.isFinite(settings.targetRoas) || settings.targetRoas < 0)
+  ) {
+    return "Target ROAS must be zero or greater.";
+  }
+
   const stopLossValue = getStopLossValue(settings, context);
   if (
     stopLossValue != null &&

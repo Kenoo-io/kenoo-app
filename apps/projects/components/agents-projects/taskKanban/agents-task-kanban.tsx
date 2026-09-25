@@ -1692,16 +1692,40 @@ function AgentsProjectsKanbanContent({
                   aria-label="Task view"
                   value={viewMode}
                   onChange={(value) => handleViewModeChange(value)}
+                  equalWidth
+                  equalWidthClassName="w-[12.25rem] grid-cols-2"
+                  className="border-0 bg-neutral-200/65 shadow-none"
+                  activeClassName="text-neutral-500"
                   options={[
                     {
                       value: "kanban",
                       label: "Kanban",
-                      icon: <Columns3 className="h-3.5 w-3.5 shrink-0 text-neutral-400" strokeWidth={1.5} />,
+                      icon: (
+                        <Columns3
+                          className={cn(
+                            "h-3.5 w-3.5 shrink-0",
+                            viewMode === "kanban"
+                              ? "text-[var(--kenoo-sky)]/60"
+                              : "text-neutral-400",
+                          )}
+                          strokeWidth={1.5}
+                        />
+                      ),
                     },
                     {
                       value: "list",
                       label: "List",
-                      icon: <LayoutList className="h-3.5 w-3.5 shrink-0 text-neutral-400" strokeWidth={1.5} />,
+                      icon: (
+                        <LayoutList
+                          className={cn(
+                            "h-3.5 w-3.5 shrink-0",
+                            viewMode === "list"
+                              ? "text-[var(--kenoo-sky)]/60"
+                              : "text-neutral-400",
+                          )}
+                          strokeWidth={1.5}
+                        />
+                      ),
                     },
                   ]}
                 />

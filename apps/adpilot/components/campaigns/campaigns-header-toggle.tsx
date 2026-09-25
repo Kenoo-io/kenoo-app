@@ -54,7 +54,10 @@ export function CampaignsHeaderToggle() {
       aria-label="Campaign entity type"
       value={entityType}
       onChange={handleEntityTypeChange}
-      activeClassName="text-[var(--kenoo-sky)]"
+      equalWidth
+      equalWidthClassName="w-[22.5rem] grid-cols-3"
+      className="border-0 bg-neutral-200/65 shadow-none"
+      activeClassName="text-neutral-500"
       options={ENTITY_TABS.map((tab) => {
         const Icon = tab.icon;
         return {

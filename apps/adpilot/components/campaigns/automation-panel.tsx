@@ -44,10 +44,7 @@ import { formatCurrencyFromMicros } from "@/lib/format-analytics";
 import { isGoogleAdsProvider } from "@/lib/entity-labels";
 import {
   COOLDOWN_OPTIONS,
-  getStopLossMetricLabel,
-  isSalesStopLossContext,
   optimizationGoalLabel,
-  resolveStopLossMetric,
   spendSettingsEqual,
   type OptimizationGoal,
   type SpendAutomationSettings,
@@ -216,6 +213,7 @@ type EntityAutomationSectionProps = {
 
 function resolveInitialProfileId(detail: EntityDetailResult): string | null {
   if (detail.automation.profileId) return detail.automation.profileId;
+  if (Object.keys(detail.automation.settingsOverride).length > 0) return null;
   return (
     detail.profiles.find((profile) => profile.isDefault)?.id ??
     detail.profiles[0]?.id ??
@@ -287,8 +285,8 @@ export function EntityAutomationSection({
 
   const selectedProfile = profiles.find((profile) => profile.id === profileId);
   const isCustomPreset =
-    selectedProfile != null &&
-    !spendSettingsEqual(settings, selectedProfile.settings);
+    profileId === null ||
+    (selectedProfile != null && !spendSettingsEqual(settings, selectedProfile.settings));
   const optimizationGoal: OptimizationGoal =
     selectedProfile?.optimizationGoal ?? "roas";
   const stopLossObjective = (
@@ -299,9 +297,6 @@ export function EntityAutomationSection({
     objective: stopLossObjective,
     optimizationGoal,
   } as const;
-  const stopLossMetric = resolveStopLossMetric(stopLossContext);
-  const supportsBreakEven = isSalesStopLossContext(stopLossContext);
-
   const markDirty = () => {
     dirtyRef.current = true;
   };
@@ -887,28 +882,12 @@ export function EntityAutomationSection({
           </div>
 
           <div className={rulesPanelClass}>
-            <p className="text-sm font-medium text-foreground">Guardrails</p>
-            <p className="mt-1 text-xs font-light text-neutral-500">
-              Objective-aware stop-loss protection based on this entity&apos;s live
-              campaign context.
-            </p>
-
             {(optimizationGoal === "roas" ||
               optimizationGoal === "conversions" ||
               optimizationGoal === "ctr" ||
               optimizationGoal === "cpa") && (
-              <div className="mt-5 grid gap-5 sm:grid-cols-2">
+              <div className="mt-2 grid gap-5 sm:grid-cols-2">
                 <div className="sm:col-span-2 space-y-5">
-                  <div className="rounded-2xl border border-dashed border-neutral-200 bg-white/40 px-4 py-3 text-xs font-light text-neutral-500">
-                    Active stop-loss metric:{" "}
-                    <span className="font-medium text-neutral-700">
-                      {getStopLossMetricLabel(stopLossMetric)}
-                    </span>
-                    {supportsBreakEven
-                      ? " Sales campaigns can also calculate true break-even ROAS from profit per sale."
-                      : "."}
-                  </div>
-
                   <RoasFloorField
                     variant="detail"
                     settings={settings}
@@ -918,38 +897,43 @@ export function EntityAutomationSection({
                       setSettings((prev) => ({ ...prev, ...patch }));
                     }}
                   />
-                  <RoasFloorActionsField
-                    value={settings.roasFloorActions}
-                    onChange={(roasFloorActions) =>
-                      updateSetting("roasFloorActions", roasFloorActions)
-                    }
-                  />
+                  {settings.roasFloorInputMode === "direct" &&
+                  settings.stopLossEnabled !== false ? (
+                    <RoasFloorActionsField
+                      value={settings.roasFloorActions}
+                      onChange={(roasFloorActions) =>
+                        updateSetting("roasFloorActions", roasFloorActions)
+                      }
+                    />
+                  ) : null}
                 </div>
               </div>
             )}
 
-            <div className="mt-5">
-              <p className="text-sm font-medium text-foreground">
-                Cooldown between budget changes
-              </p>
-              <p className="mt-1 text-xs font-light text-neutral-500">
-                Minimum wait before AdPilot can increase or decrease the daily
-                budget again on this {entityLabel}.
-              </p>
-              <SegmentToggle
-                className="mt-3"
-                equalWidth
-                aria-label="Cooldown between budget changes"
-                value={String(settings.cooldownHours) as "24" | "48" | "72"}
-                onChange={(value) =>
-                  updateSetting("cooldownHours", Number(value))
-                }
-                options={COOLDOWN_OPTIONS.map((option) => ({
-                  value: String(option.value) as "24" | "48" | "72",
-                  label: option.label,
-                }))}
-              />
-            </div>
+            {settings.roasFloorInputMode === "target" ? (
+              <div className="mt-5">
+                <p className="text-sm font-medium text-foreground">
+                  Cooldown between budget changes
+                </p>
+                <p className="mt-1 text-xs font-light text-neutral-500">
+                  Minimum wait before AdPilot can increase or decrease the daily
+                  budget again on this {entityLabel}.
+                </p>
+                <SegmentToggle
+                  className="mt-3"
+                  equalWidth
+                  aria-label="Cooldown between budget changes"
+                  value={String(settings.cooldownHours) as "24" | "48" | "72"}
+                  onChange={(value) =>
+                    updateSetting("cooldownHours", Number(value))
+                  }
+                  options={COOLDOWN_OPTIONS.map((option) => ({
+                    value: String(option.value) as "24" | "48" | "72",
+                    label: option.label,
+                  }))}
+                />
+              </div>
+            ) : null}
           </div>
 
           <div className={rulesPanelClass}>

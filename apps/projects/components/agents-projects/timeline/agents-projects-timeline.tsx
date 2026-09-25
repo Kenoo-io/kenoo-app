@@ -18,6 +18,8 @@ import {
   Circle,
   Timer,
   AlertTriangle,
+  ClipboardCheck,
+  FolderKanban,
   GanttChartSquare,
   X,
   Minus,
@@ -874,9 +876,41 @@ function AgentsProjectsTimelineContent({
                       aria-label="Gantt grouping"
                       value={ganttMode}
                       onChange={(v) => setGanttMode(v)}
+                      equalWidth
+                      equalWidthClassName="w-[15rem] grid-cols-2"
+                      className="border-0 bg-neutral-200/65 shadow-none"
+                      activeClassName="text-neutral-500"
                       options={[
-                        { value: "project", label: "By Project" },
-                        { value: "task", label: "By Task" },
+                        {
+                          value: "project",
+                          label: "By Project",
+                          icon: (
+                            <FolderKanban
+                              className={cn(
+                                "h-3.5 w-3.5 shrink-0",
+                                ganttMode === "project"
+                                  ? "text-[var(--kenoo-sky)]/60"
+                                  : "text-neutral-400",
+                              )}
+                              strokeWidth={1.5}
+                            />
+                          ),
+                        },
+                        {
+                          value: "task",
+                          label: "By Task",
+                          icon: (
+                            <ClipboardCheck
+                              className={cn(
+                                "h-3.5 w-3.5 shrink-0",
+                                ganttMode === "task"
+                                  ? "text-[var(--kenoo-sky)]/60"
+                                  : "text-neutral-400",
+                              )}
+                              strokeWidth={1.5}
+                            />
+                          ),
+                        },
                       ]}
                     />
                   </div>
