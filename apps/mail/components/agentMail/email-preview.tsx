@@ -39,6 +39,8 @@ import { EmailContentViewer } from './email-content-viewer';
 import { useAuth } from "@/app/auth/AuthContext";
 import { FallbackEmailAvatar } from './ui/fallback-email-avatar';
 import { KenooWordmark } from "@walls/ui/kenoo-wordmark";
+import { parseGoogleMeetInvite } from "@/lib/google-meet-invite";
+import { GoogleMeetInviteBanner } from "./google-meet-invite-banner";
 
 /** Optimistic reply: shown in thread immediately after send, before refetch. */
 export type OptimisticReplyEntry = {
@@ -187,6 +189,11 @@ const EmailMessage = ({
            message.htmlContent.includes('On ') ||
            message.htmlContent.includes('wrote:');
   }, [message.htmlContent]);
+
+  const googleMeetInvite = React.useMemo(
+    () => parseGoogleMeetInvite(message.subject, message.htmlContent, message.textContent),
+    [message.subject, message.htmlContent, message.textContent],
+  );
 
   const handleReplyClick = (replyAll: boolean = false) => (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -444,6 +451,7 @@ const EmailMessage = ({
 
             {/* Message Content */}
             <div className="space-y-4">
+              {googleMeetInvite && <GoogleMeetInviteBanner invite={googleMeetInvite} />}
               <div className="prose max-w-none">
                 <EmailContentViewer 
                   content={message.htmlContent || message.textContent || ''}

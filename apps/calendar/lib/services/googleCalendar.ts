@@ -13,7 +13,7 @@ export interface GoogleCalendarEvent {
 }
 
 // Environment variables
-const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!;
+const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_WALLS_CLIENT_ID!;
 const REDIRECT_URI = 'https://www.wallsentertainment.com/api/auth/gmail/callback';
 
 // Scopes required for Google Calendar
@@ -70,4 +70,4 @@ export const createGoogleCalendarEvent = async (
     console.error('Error creating Google Calendar event:', error);
     throw error;
   }
-}; 
+};
