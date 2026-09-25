@@ -30,8 +30,8 @@ export async function GET(request: Request) {
     try {
       // Initialize OAuth client
       const oauth2Client = new google.auth.OAuth2(
-        process.env.GOOGLE_CLIENT_ID,
-        process.env.GOOGLE_CLIENT_SECRET,
+        process.env.GOOGLE_WALLS_CLIENT_ID,
+        process.env.GOOGLE_WALLS_CLIENT_SECRET,
         getCalendarOAuthRedirectUri()
       );
 
@@ -194,4 +194,4 @@ export async function GET(request: Request) {
       stack
     }, { status: 500 });
   }
-} 
+}

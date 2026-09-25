@@ -158,7 +158,7 @@ export function ConnectForm() {
     const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
     
     const params = {
-      client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!,
+      client_id: process.env.NEXT_PUBLIC_GOOGLE_WALLS_CLIENT_ID!,
       redirect_uri: redirectUri,
       response_type: 'code',
       access_type: 'offline',
