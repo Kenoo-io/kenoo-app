@@ -202,10 +202,11 @@ const EmailMessage = ({
   console.log('CC Recipients:', message.cc);
 
   const fetchAttachmentBlob = useCallback(async (attachment: EmailAttachment) => {
-    if (!message.messageId) return null;
+    const providerMessageId = message.providerMessageId || message.messageId;
+    if (!providerMessageId) return null;
 
     const params = new URLSearchParams({
-      messageId: message.messageId,
+      messageId: providerMessageId,
       attachmentId: attachment.providerAttachmentId,
       email: currentUserEmail,
     });
@@ -228,7 +229,7 @@ const EmailMessage = ({
     return new Blob([new Uint8Array(byteNumbers)], {
       type: attachment.mimeType || "application/octet-stream",
     });
-  }, [currentUserEmail, message.messageId]);
+  }, [currentUserEmail, message.messageId, message.providerMessageId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -519,11 +520,13 @@ const EmailMessage = ({
                           <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-white transition-opacity duration-150 group-hover:opacity-0">
                             {previewUrl ? (
                               isPdf ? (
-                                <iframe
-                                  src={`${previewUrl}#toolbar=0&navpanes=0&scrollbar=0`}
-                                  title={`${name} preview`}
-                                  className="pointer-events-none h-full w-full border-0 object-cover"
-                                />
+                                <div className="pointer-events-none absolute inset-0 overflow-hidden">
+                                  <iframe
+                                    src={`${previewUrl}#toolbar=0&navpanes=0&scrollbar=0`}
+                                    title={`${name} preview`}
+                                    className="pointer-events-none absolute -inset-[2px] h-[calc(100%+4px)] w-[calc(100%+4px)] border-0"
+                                  />
+                                </div>
                               ) : (
                                 // eslint-disable-next-line @next/next/no-img-element -- attachment previews use blob URLs
                                 <img

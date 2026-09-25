@@ -702,6 +702,7 @@ export async function fetchThreadDetailFromSupabase(
       subject: m.subject || "No Subject",
       snippet: m.snippet || "",
       date: m.received_at ?? m.created_at ?? "",
+      providerMessageId: m.provider_message_id || undefined,
       from: m.from || "",
       fromName: (m as { from_name?: string | null }).from_name?.trim() || null,
       fromAvatarUrl: (m as { from_avatar_url?: string | null }).from_avatar_url || null,

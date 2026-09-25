@@ -73,10 +73,14 @@ export async function GET(request: Request) {
 
     const refreshToken = connectionData.refresh_token;
 
+    // Attachment tokens were issued by the legacy WALLS Gmail OAuth client.
+    // Keep this path isolated from Kenoo's main Mail/Calendar OAuth flow until
+    // those connections are migrated and re-authorized under the Kenoo client.
     const oauth2Client = new google.auth.OAuth2(
-      process.env.GOOGLE_CLIENT_ID,
-      process.env.GOOGLE_CLIENT_SECRET,
-      `${process.env.NEXT_PUBLIC_BASE_URL}/api/auth/gmail/callback`
+      process.env.GOOGLE_WALLS_CLIENT_ID || process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_WALLS_CLIENT_SECRET || process.env.GOOGLE_CLIENT_SECRET,
+      process.env.GOOGLE_GMAIL_REDIRECT_URI ||
+        `${process.env.NEXT_PUBLIC_SETTINGS_URL || process.env.NEXT_PUBLIC_BASE_URL}/api/google/gmail/callback`
     );
 
     oauth2Client.setCredentials({
@@ -110,4 +114,3 @@ export async function GET(request: Request) {
     );
   }
 }
-
