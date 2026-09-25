@@ -84,6 +84,8 @@ export interface MessageHeader {
     subject: string;
     date: string;
     messageId?: string;
+    /** Gmail API message id, distinct from the RFC Message-ID header. */
+    providerMessageId?: string;
     htmlContent?: string;
     textContent?: string;
     unread?: boolean;

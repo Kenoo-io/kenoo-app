@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from "@/components/ui/button";
@@ -10,12 +10,13 @@ import {
   X,
   MoreHorizontal,
   Plus,
-  Paperclip,
   FileText,
   FileImage,
   FileVideo,
   FileAudio,
   File,
+  Download,
+  Info,
 } from 'lucide-react';
 import { FullEmail, Thread, ReplyTo, EmailAttachment } from '@/types/email.types';
 import { cn } from "@/lib/utils";
@@ -103,6 +104,16 @@ function getAttachmentIcon(mimeType: string | null) {
   return File;
 }
 
+function getAttachmentLabel(mimeType: string | null, filename: string) {
+  if (mimeType === 'application/pdf' || filename.toLowerCase().endsWith('.pdf')) return 'PDF';
+  if (mimeType?.startsWith('image/')) return 'IMG';
+  if (mimeType?.startsWith('video/')) return 'VIDEO';
+  if (mimeType?.startsWith('audio/')) return 'AUDIO';
+  if (mimeType?.includes('spreadsheet') || /\.(csv|xls|xlsx)$/i.test(filename)) return 'SHEET';
+  if (mimeType?.includes('word') || /\.(doc|docx)$/i.test(filename)) return 'DOC';
+  return 'FILE';
+}
+
 const EmailMessage = ({
   message,
   isExpanded,
@@ -122,6 +133,7 @@ const EmailMessage = ({
   const [showQuotedContent, setShowQuotedContent] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
   const [avatarImgError, setAvatarImgError] = useState(false);
+  const [attachmentPreviewUrls, setAttachmentPreviewUrls] = useState<Record<string, string>>({});
   const isFromCurrentUser = message.from?.includes(currentUserEmail);
   const emailRegex = /<([^>]+)>/;
   const emailMatch = message.from?.match(emailRegex);
@@ -189,38 +201,79 @@ const EmailMessage = ({
   console.log('To Recipients:', message.to);
   console.log('CC Recipients:', message.cc);
 
+  const fetchAttachmentBlob = useCallback(async (attachment: EmailAttachment) => {
+    const providerMessageId = message.providerMessageId || message.messageId;
+    if (!providerMessageId) return null;
+
+    const params = new URLSearchParams({
+      messageId: providerMessageId,
+      attachmentId: attachment.providerAttachmentId,
+      email: currentUserEmail,
+    });
+
+    const res = await fetch(`/api/gmail/download-attachment?${params.toString()}`);
+    if (!res.ok) return null;
+
+    const { data } = await res.json();
+    if (!data) return null;
+
+    let base64 = data.replace(/-/g, "+").replace(/_/g, "/");
+    while (base64.length % 4 !== 0) base64 += "=";
+
+    const byteCharacters = atob(base64);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+
+    return new Blob([new Uint8Array(byteNumbers)], {
+      type: attachment.mimeType || "application/octet-stream",
+    });
+  }, [currentUserEmail, message.messageId, message.providerMessageId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const previewableAttachments = (message.attachments ?? []).filter((attachment) =>
+      attachment.mimeType === "application/pdf" || attachment.mimeType?.startsWith("image/")
+    );
+
+    if (!isExpanded || previewableAttachments.length === 0) {
+      return;
+    }
+
+    void Promise.all(
+      previewableAttachments.map(async (attachment) => {
+        try {
+          const blob = await fetchAttachmentBlob(attachment);
+          return blob ? [attachment.id, URL.createObjectURL(blob)] as const : null;
+        } catch {
+          return null;
+        }
+      })
+    ).then((previews) => {
+      if (cancelled) {
+        previews.forEach((preview) => {
+          if (preview) URL.revokeObjectURL(preview[1]);
+        });
+        return;
+      }
+
+      setAttachmentPreviewUrls((previous) => {
+        Object.values(previous).forEach((url) => URL.revokeObjectURL(url));
+        return Object.fromEntries(previews.filter((preview): preview is readonly [string, string] => preview !== null));
+      });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [fetchAttachmentBlob, isExpanded, message.attachments]);
+
   const handleDownloadAttachment = async (attachment: EmailAttachment) => {
     try {
-      if (!message.messageId) return;
+      const blob = await fetchAttachmentBlob(attachment);
+      if (!blob) return;
 
-      const params = new URLSearchParams({
-        messageId: message.messageId,
-        attachmentId: attachment.providerAttachmentId,
-        email: currentUserEmail,
-      });
-
-      const res = await fetch(`/api/gmail/download-attachment?${params.toString()}`);
-      if (!res.ok) return;
-
-      const { data } = await res.json();
-      if (!data) return;
-
-      // Gmail API returns URL-safe base64; normalize before decoding
-      let base64 = data.replace(/-/g, "+").replace(/_/g, "/");
-      while (base64.length % 4 !== 0) {
-        base64 += "=";
-      }
-
-      const byteCharacters = atob(base64);
-      const byteNumbers = new Array(byteCharacters.length);
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
-      }
-      const byteArray = new Uint8Array(byteNumbers);
-
-      const blob = new Blob([byteArray], {
-        type: attachment.mimeType || "application/octet-stream",
-      });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
@@ -413,18 +466,47 @@ const EmailMessage = ({
 
               {/* Attachments */}
               {message.attachments && message.attachments.length > 0 && (
-                <div className="pt-2">
-                  <div className="flex items-center gap-1.5 mb-2 text-neutral-400">
-                    <Paperclip className="h-3 w-3 shrink-0" />
-                    <span className="text-xs font-normal">
-                      {message.attachments.length === 1 ? "1 attachment" : `${message.attachments.length} attachments`}
-                    </span>
+                <div className="pt-4 mt-1 border-t border-neutral-100">
+                  <div className="flex items-center justify-between gap-3 mb-3">
+                    <div className="flex items-center gap-2 text-neutral-700">
+                      <span className="text-sm font-semibold">
+                        {message.attachments.length === 1 ? "1 Attachment" : `${message.attachments.length} Attachments`}
+                      </span>
+                      <span className="text-neutral-300">•</span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void Promise.all(message.attachments?.map(handleDownloadAttachment) ?? []);
+                        }}
+                        className="inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 text-sm font-normal text-neutral-400 transition-colors hover:bg-[#f1f3f4] hover:text-neutral-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1a73e8]"
+                      >
+                        <Download className="h-4 w-4" />
+                        <span>Download</span>
+                      </button>
+                    </div>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="inline-flex text-neutral-300">
+                            <Info className="h-3.5 w-3.5" />
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="text-xs">
+                          Attachments are downloaded directly from the connected mailbox.
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </div>
-                  <div className="flex flex-col gap-2 w-full">
+
+                  <div className="grid max-w-[460px] grid-cols-1 gap-3 sm:grid-cols-2">
                     {message.attachments.map((attachment) => {
                       const Icon = getAttachmentIcon(attachment.mimeType);
                       const name = attachment.filename || "Attachment";
                       const size = attachment.sizeBytes != null ? formatBytes(attachment.sizeBytes) : null;
+                      const label = getAttachmentLabel(attachment.mimeType, name);
+                      const previewUrl = attachmentPreviewUrls[attachment.id];
+                      const isPdf = attachment.mimeType === "application/pdf";
                       return (
                         <button
                           key={attachment.id}
@@ -433,14 +515,59 @@ const EmailMessage = ({
                             e.stopPropagation();
                             void handleDownloadAttachment(attachment);
                           }}
-                          className="flex items-center gap-2 px-3 py-2 rounded-2xl bg-neutral-100 border border-neutral-200 text-xs text-neutral-700 w-full text-left hover:bg-neutral-200 transition-colors"
+                          className="group relative flex h-[140px] min-w-0 flex-col overflow-hidden rounded-none border-[0.5px] border-[#dadce0] bg-white text-left shadow-[0_1px_2px_rgba(60,64,67,0.08)] transition-all hover:border-[#c5c8cc] hover:shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1a73e8]"
                         >
-                          <Icon className="h-3.5 w-3.5 shrink-0 text-neutral-400" />
-                          <div className="flex flex-col min-w-0">
-                            <span className="truncate font-normal leading-tight">{name}</span>
-                            {size && (
-                              <span className="text-neutral-400 leading-tight">{size}</span>
+                          <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-white transition-opacity duration-150 group-hover:opacity-0">
+                            {previewUrl ? (
+                              isPdf ? (
+                                <div className="pointer-events-none absolute inset-0 overflow-hidden">
+                                  <iframe
+                                    src={`${previewUrl}#toolbar=0&navpanes=0&scrollbar=0`}
+                                    title={`${name} preview`}
+                                    className="pointer-events-none absolute -inset-[2px] h-[calc(100%+4px)] w-[calc(100%+4px)] border-0"
+                                  />
+                                </div>
+                              ) : (
+                                // eslint-disable-next-line @next/next/no-img-element -- attachment previews use blob URLs
+                                <img
+                                  src={previewUrl}
+                                  alt={`${name} preview`}
+                                  className="pointer-events-none h-full w-full object-cover object-top"
+                                />
+                              )
+                            ) : (
+                              <>
+                                <div className="absolute inset-0 opacity-[0.035] [background-image:linear-gradient(#5f6368_1px,transparent_1px),linear-gradient(90deg,#5f6368_1px,transparent_1px)] [background-size:18px_18px]" />
+                                <div className="relative flex h-9 w-9 items-center justify-center rounded-lg bg-[#e8eaed] text-[#9aa0a6] transition-transform group-hover:scale-105">
+                                  <Icon className="h-4 w-4" />
+                                </div>
+                              </>
                             )}
+                          </div>
+                          <div className="relative flex h-[36px] shrink-0 items-center gap-2 overflow-hidden border-t-[0.5px] border-[#dadce0] bg-[#f8f9fa] px-2.5 transition-opacity duration-150 group-hover:opacity-0">
+                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[3px] bg-[#f04438] text-[8px] font-bold tracking-tight text-white shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)]">
+                              {label}
+                            </span>
+                            <span className="min-w-0 truncate text-[14px] font-semibold tracking-[-0.01em] text-[#6b6f73]">
+                              {name}
+                            </span>
+                            <Download className="ml-auto h-4 w-4 shrink-0 text-[#9aa0a6] opacity-0 transition-opacity group-hover:opacity-100" />
+                            <span className="pointer-events-none absolute -right-px -top-px h-[36px] w-[36px] bg-[#c6c8ca] [clip-path:polygon(0_0,100%_0,100%_100%)]" />
+                            <span className="pointer-events-none absolute -right-px -top-px h-[36px] w-[36px] bg-[#f04438] [clip-path:polygon(100%_0,100%_100%,0_100%)]" />
+                          </div>
+                          <div className="absolute inset-0 z-10 flex flex-col items-start justify-between bg-[#f8f9fa] px-4 py-3 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
+                            <div className="min-w-0 w-full pr-2">
+                              <span className="block max-w-full break-words text-sm font-semibold leading-tight text-[#6b6f73]" title={name}>{name}</span>
+                              {size && <span className="mt-1 block text-xs text-[#9aa0a6]">{size}</span>}
+                            </div>
+                            <span
+                              aria-label="Download attachment"
+                              className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md bg-[#80868b] text-white shadow-sm transition-colors hover:bg-[#9aa0a6]"
+                            >
+                              <Download className="h-3 w-3" />
+                            </span>
+                            <span className="absolute -bottom-px -right-px h-[38px] w-[38px] bg-[#c6c8ca] [clip-path:polygon(0_0,100%_0,100%_100%)]" />
+                            <span className="absolute -bottom-px -right-px h-[38px] w-[38px] bg-[#f04438] [clip-path:polygon(100%_0,100%_100%,0_100%)]" />
                           </div>
                         </button>
                       );
