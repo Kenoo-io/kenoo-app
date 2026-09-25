@@ -36,7 +36,7 @@ export default function ProductPage() {
               Apps that stay simple under real work.
             </h1>
             <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-kenoo-muted md:text-lg">
-              Start with the polished Kenoo apps (AdPilot, CRM, Health, and Projects), then
+              Start with the polished Kenoo apps (AdPilot, CRM, Health, Projects, and Calendar), then
               grow into the wider business OS as your team is ready.
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">

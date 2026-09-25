@@ -67,7 +67,7 @@ export function ProductsMegaMenu({
                     Featured apps
                   </p>
                   <h3 className="mt-2 font-display text-xl font-semibold tracking-[-0.03em] text-kenoo-ink">
-                    AdPilot, CRM, Health, and Projects
+                    AdPilot, CRM, Health, Projects, and Calendar
                   </h3>
                 </div>
                 <Link
