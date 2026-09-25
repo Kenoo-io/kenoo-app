@@ -541,7 +541,7 @@ const EmailMessage = ({
                               </>
                             )}
                           </div>
-                          <div className="relative flex h-[44px] shrink-0 items-center gap-2 overflow-hidden border-t-[0.5px] border-[#dadce0] bg-[#f8f9fa] px-2.5 transition-opacity duration-150 group-hover:opacity-0">
+                          <div className="relative flex h-[36px] shrink-0 items-center gap-2 overflow-hidden border-t-[0.5px] border-[#dadce0] bg-[#f8f9fa] px-2.5 transition-opacity duration-150 group-hover:opacity-0">
                             <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[3px] bg-[#f04438] text-[8px] font-bold tracking-tight text-white shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)]">
                               {label}
                             </span>
@@ -549,8 +549,8 @@ const EmailMessage = ({
                               {name}
                             </span>
                             <Download className="ml-auto h-4 w-4 shrink-0 text-[#9aa0a6] opacity-0 transition-opacity group-hover:opacity-100" />
-                            <span className="pointer-events-none absolute -right-px -top-px h-[26px] w-[26px] bg-[#c6c8ca] [clip-path:polygon(0_0,100%_0,100%_100%)]" />
-                            <span className="pointer-events-none absolute -right-px -top-px h-[26px] w-[26px] bg-[#f04438] [clip-path:polygon(100%_0,100%_100%,0_100%)]" />
+                            <span className="pointer-events-none absolute -right-px -top-px h-[36px] w-[36px] bg-[#c6c8ca] [clip-path:polygon(0_0,100%_0,100%_100%)]" />
+                            <span className="pointer-events-none absolute -right-px -top-px h-[36px] w-[36px] bg-[#f04438] [clip-path:polygon(100%_0,100%_100%,0_100%)]" />
                           </div>
                           <div className="absolute inset-0 z-10 flex flex-col items-start justify-between bg-[#f8f9fa] px-4 py-3 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
                             <div className="min-w-0 w-full pr-2">
