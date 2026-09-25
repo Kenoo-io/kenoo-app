@@ -7,7 +7,7 @@ const steps = [
   {
     n: "01",
     title: "Sign in once",
-    body: "One workspace, one identity. Open AdPilot, CRM, Health, and the rest of the suite without hopping between tools.",
+    body: "One workspace, one identity. Open AdPilot, CRM, Health, Calendar, and the rest of the suite without hopping between tools.",
   },
   {
     n: "02",

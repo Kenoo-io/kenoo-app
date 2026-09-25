@@ -56,7 +56,7 @@ export type CapabilitySection = {
 };
 
 export type FeaturedProduct = {
-  slug: "adpilot" | "crm" | "health" | "projects";
+  slug: "adpilot" | "crm" | "health" | "projects" | "calendar";
   name: string;
   tagline: string;
   description: string;
@@ -85,6 +85,7 @@ export const FEATURED_PRODUCT_SLUGS = [
   "crm",
   "health",
   "projects",
+  "calendar",
 ] as const;
 
 export const FEATURED_PRODUCTS: FeaturedProduct[] = [
@@ -775,6 +776,154 @@ export const FEATURED_PRODUCTS: FeaturedProduct[] = [
         question: "How does Projects fit with the rest of Kenoo?",
         answer:
           "Projects shares the same Kenoo workspace as CRM, AdPilot, Health, and the rest of the suite, so the work behind your business is managed in the same operating system.",
+      },
+    ],
+  },
+  {
+    slug: "calendar",
+    name: "Calendar",
+    tagline: "Make the day make sense",
+    description:
+      "Bring meetings, tasks, and project deadlines into one calm view so everyone knows what is happening next.",
+    overview:
+      "Kenoo Calendar is the shared planning surface for the workday. Connect Google Calendar, schedule meetings, keep tasks beside events, and see project deadlines in the same place - with enough structure to stay on top of the day without turning planning into another job.",
+    icon: "https://assest.kenoo.io/app-icons/calendar.png",
+    appHref: appUrl("calendar"),
+    accent: "#d56b4f",
+    accentSoft: "rgba(213,107,79,0.13)",
+    features: [
+      {
+        title: "One view for the day",
+        description:
+          "See meetings, tasks, and deadlines together so the plan reflects the work you actually need to do.",
+      },
+      {
+        title: "Google Calendar connected",
+        description:
+          "Bring existing calendars into Kenoo and keep scheduling grounded in the commitments already on the books.",
+      },
+      {
+        title: "Tasks beside events",
+        description:
+          "Turn time on the calendar into clear next actions with owners, due dates, and completion status in context.",
+      },
+      {
+        title: "Project deadlines in view",
+        description:
+          "Keep project work visible against the week so important dates do not disappear inside a separate task list.",
+      },
+    ],
+    capabilitySections: [
+      {
+        title: "See the day before it gets away from you",
+        description:
+          "Calendar puts the fixed commitments and flexible work next to each other, giving the team a practical view of what fits and what needs attention.",
+        visual: "projects-timeline",
+        features: [
+          {
+            icon: "calendar",
+            title: "Meetings and events",
+            description: "Keep the day’s commitments in one shared place.",
+          },
+          {
+            icon: "check",
+            title: "Tasks in context",
+            description: "Know what needs to happen before the next meeting.",
+          },
+          {
+            icon: "users",
+            title: "Shared visibility",
+            description: "Help teammates plan around the same reality.",
+          },
+          {
+            icon: "activity",
+            title: "Clear next steps",
+            description: "Turn a busy calendar into an actionable day.",
+          },
+        ],
+      },
+      {
+        title: "Schedule with the work around it",
+        description:
+          "Make space for focused work, appointments, and follow-ups without losing sight of the deadlines those blocks support.",
+        visual: "projects-board",
+        features: [
+          {
+            icon: "calendar",
+            title: "Flexible views",
+            description: "Move between the shape of the day and the shape of the week.",
+          },
+          {
+            icon: "layers",
+            title: "Work grouped clearly",
+            description: "Keep events, tasks, and project work easy to scan.",
+          },
+          {
+            icon: "target",
+            title: "Priorities stay visible",
+            description: "Make room for what matters before the week fills up.",
+          },
+          {
+            icon: "sparkles",
+            title: "Less planning overhead",
+            description: "Spend less time stitching together separate tools.",
+          },
+        ],
+      },
+      {
+        title: "Keep commitments connected to outcomes",
+        description:
+          "A meeting is rarely the whole job. Calendar keeps the tasks and project context nearby so momentum continues after the invite ends.",
+        visual: "health-pulse",
+        features: [
+          {
+            icon: "link",
+            title: "Connected context",
+            description: "Keep related work close to the event that created it.",
+          },
+          {
+            icon: "users",
+            title: "Clear ownership",
+            description: "Know who is carrying the next action forward.",
+          },
+          {
+            icon: "check",
+            title: "Visible progress",
+            description: "Close the loop on tasks that came out of the day.",
+          },
+          {
+            icon: "shield",
+            title: "One Kenoo workspace",
+            description: "Keep planning alongside the rest of the business.",
+          },
+        ],
+      },
+    ],
+    faq: [
+      {
+        question: "What is Kenoo Calendar?",
+        answer:
+          "Kenoo Calendar is the shared planning app for meetings, tasks, and project deadlines. It gives the team one view of what is happening and what needs to happen next.",
+      },
+      {
+        question: "Can I connect Google Calendar?",
+        answer:
+          "Yes. Connect Google Calendar to bring existing events into the same workspace as Kenoo tasks and project deadlines.",
+      },
+      {
+        question: "Can I create tasks from Calendar?",
+        answer:
+          "Yes. Calendar keeps tasks close to the events and deadlines they support, so planning can turn into action without changing tools.",
+      },
+      {
+        question: "How does Calendar fit with Kenoo Projects?",
+        answer:
+          "Calendar shows project work against time, while Projects gives that work its deeper task and initiative context. Together they connect the plan to the day-to-day execution.",
+      },
+      {
+        question: "How do I get started with Calendar?",
+        answer:
+          "Open Calendar from your Kenoo workspace, connect your Google Calendar if you use one, and start by adding the meetings, tasks, or deadlines that shape your week.",
       },
     ],
   },

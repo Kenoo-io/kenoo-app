@@ -61,7 +61,7 @@ export function FeaturedApps() {
               Products
             </p>
             <h2 className="mt-4 font-display text-3xl font-semibold tracking-[-0.04em] text-kenoo-ink md:text-[2.75rem]">
-              Three live apps. Fully polished.
+              Five live apps. Fully polished.
             </h2>
             <p className="mt-5 max-w-xl text-base leading-relaxed text-kenoo-muted md:text-lg">
               Kenoo ships a broader suite over time. These are the apps we
@@ -127,10 +127,7 @@ export function FeaturedApps() {
                     <p className="mt-3 flex-1 text-sm leading-relaxed text-kenoo-muted">
                       {product.description}
                     </p>
-                    <span
-                      className="mt-6 inline-block text-sm font-medium"
-                      style={{ color: product.accent }}
-                    >
+                    <span className="mt-6 inline-block text-sm font-medium text-kenoo-accent">
                       Learn more
                     </span>
                   </span>

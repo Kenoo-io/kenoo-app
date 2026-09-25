@@ -5,9 +5,12 @@ import { useId } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
   Activity,
+  Bell,
   Building2,
   CalendarDays,
   ChevronLeft,
+  ChevronRight,
+  ChevronDown,
   CircleDollarSign,
   Handshake,
   LayoutDashboard,
@@ -19,6 +22,7 @@ import {
   Settings,
   ShoppingBag,
   SlidersHorizontal,
+  Sparkles,
   Target,
   TrendingUp,
   UserRound,
@@ -28,13 +32,14 @@ import {
 
 import { cn } from "@/lib/utils";
 
-export type DashboardPreviewSlug = "adpilot" | "crm" | "health" | "projects";
+export type DashboardPreviewSlug = "adpilot" | "crm" | "health" | "projects" | "calendar";
 
 const HOST: Record<DashboardPreviewSlug, string> = {
   adpilot: "adpilot.kenoo.io",
   crm: "crm.kenoo.io",
   health: "health.kenoo.io",
   projects: "projects.kenoo.io",
+  calendar: "calendar.kenoo.io",
 };
 
 const ADPILOT_NAV: { icon: LucideIcon; label: string }[] = [
@@ -70,11 +75,20 @@ const PROJECTS_NAV: { icon: LucideIcon; label: string }[] = [
   { icon: Settings, label: "Settings" },
 ];
 
+const CALENDAR_NAV: { icon: LucideIcon; label: string }[] = [
+  { icon: CalendarDays, label: "Calendar" },
+  { icon: ListTodo, label: "Tasks" },
+  { icon: Users, label: "People" },
+  { icon: Target, label: "Schedule" },
+  { icon: Settings, label: "Settings" },
+];
+
 const NAV: Record<DashboardPreviewSlug, { icon: LucideIcon; label: string }[]> = {
   adpilot: ADPILOT_NAV,
   crm: CRM_NAV,
   health: HEALTH_NAV,
   projects: PROJECTS_NAV,
+  calendar: CALENDAR_NAV,
 };
 
 const GLASS =
@@ -161,7 +175,7 @@ export function DashboardPreview({
         </span>
       </div>
       <div className="relative min-h-[300px] overflow-hidden bg-white md:min-h-[440px]">
-        <AppRail items={NAV[slug]} />
+        {slug === "calendar" ? null : <AppRail items={NAV[slug]} />}
         <AnimatePresence mode="sync" initial={false} custom={direction}>
           <motion.div
             key={slug}
@@ -171,7 +185,12 @@ export function DashboardPreview({
             animate="center"
             exit="exit"
             transition={{ duration: 0.55, ease: sceneEase }}
-            className="absolute inset-0 pl-[4.35rem] pr-3 pt-3 pb-3 md:pl-[4.75rem] md:pr-4 md:pt-4"
+            className={cn(
+              "absolute inset-0 pr-3 pt-3 pb-3 md:pr-4 md:pt-4",
+              slug === "calendar"
+                ? "pl-3 md:pl-4"
+                : "pl-[4.35rem] md:pl-[4.75rem]",
+            )}
           >
             <DashboardScene slug={slug} />
           </motion.div>
@@ -230,7 +249,75 @@ function DashboardScene({
   if (slug === "crm") return <CrmScene compact={compact} />;
   if (slug === "health") return <HealthScene compact={compact} />;
   if (slug === "projects") return <ProjectsScene compact={compact} />;
+  if (slug === "calendar") return <CalendarScene compact={compact} />;
   return <AdPilotScene compact={compact} />;
+}
+
+function CalendarScene({ compact }: { compact?: boolean }) {
+  const days = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+  const events = [
+    { day: 1, top: "3%", title: "Enhanced UI of Org. drop...", meta: "", color: "#bfc7d1", completed: true },
+    { day: 1, top: "10%", title: "Send Kenoo Projects app...", meta: "", color: "#6eadc0", completed: true },
+    { day: 1, top: "20%", title: "SCOTT Heads Up for Na...", meta: "", color: "#c7cdd5", completed: true },
+    { day: 1, top: "27%", title: "Respond to all Messages...", meta: "", color: "#d1d5db", completed: true },
+    { day: 4, top: "3%", title: "Contact Vercel Support f...", meta: "", color: "#45b9dc", completed: false },
+    { day: 1, top: "76%", title: "Rosie Leaves for Portugal, 8PM", meta: "", color: "#6eadc0", completed: false },
+  ];
+
+  return (
+    <div className={compact ? "flex h-full min-h-[260px] overflow-hidden bg-white" : "flex h-full min-h-[300px] overflow-hidden bg-white"}>
+      <aside className="hidden w-[10.5rem] shrink-0 border-r border-[#edf0f4] bg-white p-3 md:block">
+        <button className="flex h-9 w-full items-center justify-center rounded-2xl bg-white text-[10px] font-medium text-neutral-900 shadow-[0_8px_28px_rgba(15,23,42,0.07)]">
+          <Plus className="mr-1 size-3" /> Create <ChevronDown className="ml-1 size-3 text-neutral-400" />
+        </button>
+        <div className="mt-4 p-1">
+          <div className="flex items-center justify-between">
+            <p className="text-[9px] font-semibold text-neutral-800">September 2026</p>
+            <span className="flex items-center gap-1 text-neutral-400"><ChevronLeft className="size-3" /><ChevronRight className="size-3" /></span>
+          </div>
+          <div className="mt-2 grid grid-cols-7 gap-1 text-center text-[7px] text-neutral-400">
+            {["S", "M", "T", "W", "T", "F", "S"].map((day, index) => <span key={`${day}-${index}`}>{day}</span>)}
+            {Array.from({ length: 2 }, (_, index) => <span key={"empty-" + index} />)}
+            {Array.from({ length: 30 }, (_, index) => <span key={index} className={cn("rounded-full py-0.5 text-neutral-600", index === 24 && "bg-[#4285f4] text-white")}>{index + 1}</span>)}
+          </div>
+        </div>
+        <div className="mt-8 border-t border-[#edf0f4] pt-5 text-center">
+          <p className="font-display text-xs font-semibold text-neutral-900">Friday, Sep 25</p>
+          <div className="mt-20 text-neutral-500">
+            <CalendarDays className="mx-auto size-7 stroke-[1.5]" />
+            <p className="mt-3 text-sm font-semibold text-neutral-900">No items</p>
+            <p className="mx-auto mt-1 max-w-[8rem] text-[9px] leading-relaxed text-neutral-400">Select a date to view events and tasks</p>
+          </div>
+        </div>
+      </aside>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="flex shrink-0 items-center justify-between bg-white px-3 py-2 md:px-4">
+          <div className="flex min-w-0 items-center gap-1.5">
+            <span className="rounded-2xl border border-[#edf0f4] bg-white px-3 py-1.5 text-[9px] font-medium text-neutral-800">Today</span>
+            <ChevronLeft className="size-3.5 text-neutral-500" />
+            <ChevronRight className="size-3.5 text-neutral-500" />
+            <span className="truncate text-[10px] font-medium text-neutral-800">September 2026</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="rounded-2xl border border-[#edf0f4] bg-white px-2.5 py-1.5 text-[9px] font-medium text-neutral-800">Week</span>
+            <span className="hidden items-center gap-1 rounded-2xl border border-[#edf0f4] bg-white px-2.5 py-1.5 text-[9px] font-medium text-neutral-800 shadow-[0_8px_28px_rgba(15,23,42,0.07)] sm:inline-flex"><Sparkles className="size-3 opacity-60" /> Schedule</span>
+            <Bell className="ml-1 hidden size-3.5 text-neutral-500 sm:block" />
+            <span className="hidden size-6 rounded-full bg-neutral-900 text-[7px] font-medium text-white sm:flex sm:items-center sm:justify-center">K</span>
+          </div>
+        </header>
+        <div className="relative min-h-0 flex-1 overflow-hidden border-t border-[#edf0f4] bg-white">
+          <div className="grid grid-cols-[2.25rem_repeat(7,minmax(0,1fr))] border-b border-[#edf0f4] px-1 py-2">
+            <span />
+            {days.map((day, index) => <span key={day} className={cn("text-center text-[8px] font-medium", index === 5 ? "text-neutral-500" : "text-neutral-400")}>{day}<span className={cn("mx-auto mt-0.5 block w-fit rounded-full px-1.5 py-0.5 text-[10px] text-neutral-800", index === 5 && "bg-[#4285f4] text-white")}>{20 + index}</span></span>)}
+          </div>
+          <div className="relative grid h-full grid-cols-[2.25rem_repeat(7,minmax(0,1fr))]">
+            <div className="border-r border-[#e4e9f0] bg-white">{["1 PM", "2 PM", "3 PM", "4 PM", "5 PM", "6 PM", "7 PM", "8 PM", "9 PM", "10 PM", "11 PM"].map((time) => <span key={time} className="block h-10 pr-1 pt-1 text-right text-[7px] text-neutral-400">{time}</span>)}</div>
+            {days.map((day, dayIndex) => <div key={day} className="relative border-r border-[#e4e9f0] last:border-r-0">{Array.from({ length: 11 }, (_, index) => <div key={index} className="h-10 border-b border-dashed border-[#eef1f5]" />)}{dayIndex === 5 ? <div className="absolute left-0 right-0 top-[18%] border-t border-dashed border-[#4285f4]"><span className="absolute -left-1.5 -top-1.5 size-2.5 rounded-full bg-[#4285f4]" /></div> : null}{events.filter((event) => event.day === dayIndex).map((event) => <div key={event.title} className="absolute left-1 right-1 bg-white" style={{ top: event.top, borderLeft: "2px solid " + event.color, boxShadow: "0 2px 8px rgba(15,23,42,0.06)" }}><p className={cn("truncate px-1.5 pt-1 text-[8px] font-medium", event.completed ? "text-neutral-400 line-through" : "text-neutral-800")}>{event.title}</p>{event.meta ? <p className={cn("px-1.5 pb-1 text-[7px]", event.completed ? "text-neutral-300 line-through" : "text-neutral-400")}>{event.meta}</p> : null}</div>)}</div>)}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function ProjectsScene({ compact }: { compact?: boolean }) {

@@ -63,6 +63,16 @@ const MARQUEE: Record<DashboardPreviewSlug, string[]> = {
     "GitHub",
     "Progress",
   ],
+  calendar: [
+    "Calendar",
+    "Events",
+    "Tasks",
+    "Google Calendar",
+    "Deadlines",
+    "Focus time",
+    "Scheduling",
+    "Next steps",
+  ],
 };
 
 const marqueeVariants = {
