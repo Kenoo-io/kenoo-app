@@ -59,7 +59,7 @@ export function FlowsSettingsPage() {
         <section>
           <SectionLabel title="Connected sources" />
           <div className="flex flex-col gap-2">
-            <IntegrationRow href="/settings/api-keys" icon={Code2} title="Event API" status="Send customer events into your flows" />
+            <IntegrationRow href="/documentation" icon={Code2} title="Event API" status="Learn how to send customer events into your flows" />
             <IntegrationRow href="/settings/webhooks" icon={Webhook} title="Webhooks" status="Receive events from your connected tools" />
           </div>
         </section>
