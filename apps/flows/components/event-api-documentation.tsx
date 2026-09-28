@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ArrowLeft, Check, Code2, Copy, KeyRound, ShieldCheck, Webhook } from "lucide-react";
+import { ArrowLeft, Check, Code2, Copy, KeyRound, ShieldCheck, Users, Webhook } from "lucide-react";
 
 const panelGlassClass = "border border-white/80 bg-white/75 backdrop-blur-xl shadow-[0_8px_28px_rgba(15,23,42,0.07),inset_0_1px_0_rgba(255,255,255,0.95)]";
 
@@ -119,6 +119,23 @@ export function EventApiDocumentation() {
           <div className={`overflow-hidden rounded-[22px] ${panelGlassClass}`}>
             <div className="grid grid-cols-[minmax(110px,0.7fr)_minmax(0,1.3fr)] border-b border-neutral-100 px-4 py-3 text-xs font-medium uppercase tracking-wide text-neutral-400"><span>Field</span><span>Use</span></div>
             {[['event', 'Required event key, such as checkout_started or purchase_completed.'], ['payload', 'Required JSON object containing the event data your workflow needs.'], ['context', 'Optional JSON object for source, page, campaign, or other metadata.'], ['external_id', 'Optional provider or application identifier for correlation and debugging.'], ['occurred_at', 'Optional ISO timestamp. Defaults to the time Kenoo receives the request.']].map(([field, description]) => <div key={field} className="grid grid-cols-[minmax(110px,0.7fr)_minmax(0,1.3fr)] border-b border-neutral-100 px-4 py-3 text-sm last:border-0"><code className="font-mono text-xs text-neutral-700">{field}</code><span className="font-light text-neutral-500">{description}</span></div>)}
+          </div>
+        </DocSection>
+
+        <DocSection eyebrow="Audience capture" title="Build your Flow audience from events">
+          <p>Flows automatically maintains a separate, account-scoped audience from identifiable events. This audience is designed for workflow automation and is separate from Kenoo CRM people.</p>
+          <div className="mt-5 grid gap-3 md:grid-cols-3">
+            <InfoCard icon={Users} title="Who is captured?">An audience record is created when the payload includes an email or a stable identifier such as <code className="rounded bg-neutral-100 px-1 py-0.5 font-mono text-xs">user_id</code>, <code className="rounded bg-neutral-100 px-1 py-0.5 font-mono text-xs">customer_id</code>, or <code className="rounded bg-neutral-100 px-1 py-0.5 font-mono text-xs">external_id</code>.</InfoCard>
+            <InfoCard icon={ShieldCheck} title="Separate from CRM">Audience records do not create or expose CRM contacts. They remain in Flows unless you later choose to connect them to CRM.</InfoCard>
+            <InfoCard icon={Webhook} title="Anonymous events">Events without an email or stable identifier are still recorded for analytics and workflows, but do not create an audience record.</InfoCard>
+          </div>
+          <div className={`mt-5 overflow-hidden rounded-[22px] ${panelGlassClass}`}>
+            <div className="border-b border-neutral-100 px-4 py-3 text-xs font-medium uppercase tracking-wide text-neutral-400">Audience field mapping</div>
+            {[['email', 'Normalized and used to deduplicate audience records.'], ['first_name / firstName', 'Stored as the audience first name.'], ['last_name / lastName', 'Stored as the audience last name.'], ['full_name / fullName / name', 'Stored as the full name; first and last name are used as a fallback.'], ['phone, company, job_title', 'Stored as standard audience fields when present.'], ['Any other payload fields', 'Preserved in custom_payload for future segmentation and enrichment.']].map(([field, description]) => <div key={field} className="grid grid-cols-[minmax(150px,0.7fr)_minmax(0,1.3fr)] border-b border-neutral-100 px-4 py-3 text-sm last:border-0"><code className="font-mono text-xs text-neutral-700">{field}</code><span className="font-light text-neutral-500">{description}</span></div>)}
+          </div>
+          <div className="mt-5 rounded-[22px] bg-[#f7fbfd] p-5 text-sm font-light leading-7 text-neutral-600">
+            <p className="font-medium text-neutral-800">Deduplication and enrichment</p>
+            <p className="mt-1">Email addresses are normalized before matching. If an audience record already exists, new standard fields and custom payload values enrich it, <code className="rounded bg-white px-1.5 py-0.5 font-mono text-xs">last_seen_at</code> is updated, and its event count increases. Use the same stable identifier and a stable <code className="rounded bg-white px-1.5 py-0.5 font-mono text-xs">Idempotency-Key</code> when retrying an event.</p>
           </div>
         </DocSection>
 
