@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 
 import { createAdminClient } from "@walls/supabase/admin";
 
-import { extractBearerToken, hashApiKey } from "./api-keys";
+import { extractBearerToken, hashApiKey, PLATFORM_API_KEY_SCOPE } from "./api-keys";
 import { consumeCreditsWithAutoTopup } from "./meter";
 
 export type PlatformProduct = {
@@ -54,11 +54,11 @@ export async function authenticateApiKey(request: Request): Promise<
   const hash = hashApiKey(secret);
   const { data, error } = await admin
     .from("platform_api_keys")
-    .select("id, account_id, revoked_at")
+    .select("id, account_id, revoked_at, scopes")
     .eq("key_hash", hash)
     .maybeSingle();
 
-  if (error || !data || data.revoked_at) {
+  if (error || !data || data.revoked_at || !(data.scopes as string[] | null)?.includes(PLATFORM_API_KEY_SCOPE)) {
     return {
       error: NextResponse.json({ error: "Invalid API key" }, { status: 401 }),
     };

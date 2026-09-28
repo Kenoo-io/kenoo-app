@@ -89,7 +89,7 @@ export default function ProductPage() {
                   href={`/product/${product.slug}`}
                   className="group flex flex-col gap-6 overflow-hidden rounded-[1.75rem] border border-kenoo-border bg-kenoo-surface transition-colors hover:border-kenoo-ink/15 hover:bg-kenoo-white lg:flex-row lg:items-stretch"
                 >
-                  <div className="h-48 shrink-0 overflow-hidden border-b border-kenoo-border bg-[#fafafa] lg:h-auto lg:w-[46%] lg:border-b-0 lg:border-r">
+                  <div className="h-48 shrink-0 overflow-hidden border-b border-kenoo-border bg-kenoo-white lg:h-auto lg:w-[46%] lg:border-b-0 lg:border-r">
                     <DashboardPreview slug={product.slug} variant="card" />
                   </div>
                   <div className="flex min-w-0 flex-1 items-start gap-5 p-6 md:p-8">

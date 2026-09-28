@@ -99,7 +99,7 @@ export function AudienceRegionHeatmapPanel({
                   value: entry.value,
                 })) as never
               }
-              tooltipBgColor="#fafafa"
+              tooltipBgColor="#fcfcfc"
               tooltipTextColor="#171717"
               frame={false}
               strokeOpacity={0}

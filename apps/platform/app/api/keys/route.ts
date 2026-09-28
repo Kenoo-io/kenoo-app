@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { createAdminClient } from "@walls/supabase/admin";
+import { PLATFORM_API_KEY_SCOPE } from "@walls/supabase/api-keys";
 
 import {
   requirePlatformAccount,
@@ -48,6 +49,7 @@ export async function POST(request: Request) {
       name,
       key_prefix: generated.prefix,
       key_hash: generated.hash,
+      scopes: [PLATFORM_API_KEY_SCOPE],
     })
     .select("id, name, key_prefix, created_at")
     .single();

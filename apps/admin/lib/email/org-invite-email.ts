@@ -118,7 +118,7 @@ export function buildOrganizationInviteEmailHtml(
             </td>
           </tr>
           <tr>
-            <td style="padding:20px 32px; background-color:#fafafa; border-top:1px solid #e8e8e8; text-align:center;">
+            <td style="padding:20px 32px; background-color:#fcfcfc; border-top:1px solid #e8e8e8; text-align:center;">
               <p style="margin:0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:12px; line-height:18px; color:#6b6b6b;">
                 Best regards,<br />
                 <strong style="color:#111111;">The Kenoo Team</strong>
