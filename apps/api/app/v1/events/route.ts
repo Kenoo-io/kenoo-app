@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { authenticateEventKey } from "@/lib/api-key-auth";
+import { upsertFlowAudienceFromEvent } from "./flow-audience";
 
 type EventBody = {
   event?: string;
@@ -79,16 +80,46 @@ export async function POST(request: Request) {
   if (error?.code === "23505" && idempotencyKey) {
     const { data: existing } = await auth.admin
       .from("flow_event_occurrences")
-      .select("id, event_key, occurred_at, received_at, created_at")
+      .select("id, event_key, external_id, payload, context, occurred_at, received_at, created_at")
       .eq("account_id", auth.accountId)
       .eq("idempotency_key", idempotencyKey)
       .maybeSingle();
+
+    if (existing) {
+      try {
+        await upsertFlowAudienceFromEvent({
+          admin: auth.admin,
+          accountId: auth.accountId,
+          occurrenceId: existing.id,
+          payload: (existing.payload as Record<string, unknown>) ?? {},
+          context: (existing.context as Record<string, unknown>) ?? {},
+          externalId: existing.external_id,
+          occurredAt: existing.occurred_at,
+        });
+      } catch (audienceError) {
+        console.error("[api] flow audience retry upsert failed", audienceError);
+      }
+    }
 
     return NextResponse.json({ accepted: true, deduplicated: true, event: existing }, { status: 200 });
   }
   if (error || !occurrence) {
     console.error("[api] event occurrence insert failed", error);
     return NextResponse.json({ error: "Unable to accept event" }, { status: 500 });
+  }
+
+  try {
+    await upsertFlowAudienceFromEvent({
+      admin: auth.admin,
+      accountId: auth.accountId,
+      occurrenceId: occurrence.id,
+      payload: body.payload,
+      context: body.context ?? {},
+      externalId: body.external_id?.trim() || null,
+      occurredAt: occurredAt.toISOString(),
+    });
+  } catch (audienceError) {
+    console.error("[api] flow audience upsert failed", audienceError);
   }
 
   return NextResponse.json({ accepted: true, deduplicated: false, event: occurrence }, { status: 202 });

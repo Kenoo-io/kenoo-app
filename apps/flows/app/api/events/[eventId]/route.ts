@@ -41,6 +41,19 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ ev
   return NextResponse.json({ event: data });
 }
 
+export async function GET(_request: Request, { params }: { params: Promise<{ eventId: string }> }) {
+  const { supabase, accountId } = await getAccountContext();
+  if (!accountId) return NextResponse.json({ error: "No active account" }, { status: 401 });
+  const { eventId } = await params;
+  const [{ data: event, error: eventError }, { data: occurrences, error: occurrencesError }] = await Promise.all([
+    supabase.from("flow_events").select("id, key, name, description, payload_schema, is_active, created_at, updated_at").eq("id", eventId).eq("account_id", accountId).maybeSingle(),
+    supabase.from("flow_event_occurrences").select("id, audience_id, external_id, event_key, occurred_at, received_at, payload, context").eq("event_id", eventId).eq("account_id", accountId).order("occurred_at", { ascending: false }).limit(500),
+  ]);
+  if (eventError || occurrencesError) return NextResponse.json({ error: "Unable to load event activity" }, { status: 500 });
+  if (!event) return NextResponse.json({ error: "Event not found" }, { status: 404 });
+  return NextResponse.json({ event, occurrences: occurrences ?? [] });
+}
+
 export async function DELETE(_request: Request, { params }: { params: Promise<{ eventId: string }> }) {
   const { supabase, accountId } = await getAccountContext();
   if (!accountId) return NextResponse.json({ error: "No active account" }, { status: 401 });
