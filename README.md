@@ -14,6 +14,7 @@ pnpm + Turborepo monorepo for the WALLS Entertainment ecosystem.
 | **wallie-mobile** | `apps/wallie-mobile` | Wallie iOS/Android app (Expo dev client) |
 | **admin**       | `apps/admin`       | Agency admin ([admin.walls.agency](https://admin.walls.agency)) — users, apps, jobs, teams |
 | **platform**    | `apps/platform`    | API marketplace ([platform.kenoo.io](https://platform.kenoo.io)) — catalog, keys, prepaid credits |
+| **api**         | `apps/api`         | Public integration API (`api.kenoo.io`) — versioned event ingestion |
 | **flows**       | `apps/flows`       | Customer journeys and email automations |
 
 

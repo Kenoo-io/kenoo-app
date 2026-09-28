@@ -18,6 +18,7 @@
     "dev:ledger": "turbo dev --filter=ledger",
     "dev:mail": "turbo dev --filter=mail",
     "dev:flows": "turbo dev --filter=flows",
+    "dev:api": "turbo dev --filter=api",
     "dev:partnerhub": "turbo dev --filter=partnerhub",
     "dev:platform": "turbo dev --filter=platform",
     "dev:mcp": "pnpm --filter @walls/mcp dev",

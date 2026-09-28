@@ -140,7 +140,7 @@ export function DashboardPreview({
       <div
         aria-hidden
         className={cn(
-          "pointer-events-none relative overflow-hidden bg-[#fafafa]",
+          "pointer-events-none relative overflow-hidden bg-kenoo-white",
           className,
         )}
       >

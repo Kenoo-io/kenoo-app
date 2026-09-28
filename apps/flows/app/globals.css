@@ -4,7 +4,7 @@
 @source "../../../packages/ui/src";
 @source "../components";
 
-:root { --background: var(--kenoo-white); --foreground: #111111; --border: #e8e8e8; --font-geist-sans: Arial, Helvetica, sans-serif; --font-geist-mono: "SFMono-Regular", Consolas, monospace; }
+:root { --background: var(--kenoo-white); --foreground: #111111; --border: #e8e8e8; }
 
 @theme inline {
   --color-background: var(--kenoo-white);

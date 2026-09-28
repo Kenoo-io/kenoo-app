@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
 import { ACTIVE_ACCOUNT_COOKIE } from "@walls/auth/active-account";
+import { createAdminClient } from "@walls/supabase/admin";
 import { createClient } from "@walls/supabase/server";
+
+import { authenticateFlowsEventKey } from "@/lib/api-key-auth";
 
 const FLOWS_ACCOUNT_COOKIE = "flows_account_id";
 
@@ -29,42 +32,78 @@ export async function GET() {
   const { supabase, accountId } = await getAccountContext();
   if (!accountId) return NextResponse.json({ error: "No active account" }, { status: 401 });
 
-  const { data, error } = await supabase
+  const [{ data, error }, { data: presets, error: presetsError }] = await Promise.all([
+    supabase
     .from("flow_events")
     .select("id, key, name, description, payload_schema, is_active, created_at, updated_at")
     .eq("account_id", accountId)
-    .order("name", { ascending: true });
+    .order("name", { ascending: true }),
+    supabase
+      .from("flow_event_presets")
+      .select("id, key, name, description, category, payload_schema")
+      .eq("is_active", true)
+      .order("category", { ascending: true })
+      .order("name", { ascending: true }),
+  ]);
 
-  if (error) return NextResponse.json({ error: "Unable to load events" }, { status: 500 });
-  return NextResponse.json({ events: data ?? [] });
+  if (error || presetsError) return NextResponse.json({ error: "Unable to load events" }, { status: 500 });
+  return NextResponse.json({ events: data ?? [], presets: presets ?? [] });
 }
 
 export async function POST(request: Request) {
-  const { supabase, accountId } = await getAccountContext();
+  const apiKeyAuth = request.headers.has("authorization")
+    ? await authenticateFlowsEventKey(request)
+    : null;
+  if (apiKeyAuth && "error" in apiKeyAuth) {
+    return NextResponse.json({ error: apiKeyAuth.error }, { status: apiKeyAuth.status });
+  }
+
+  const { supabase, accountId: sessionAccountId } = apiKeyAuth && !("error" in apiKeyAuth)
+    ? { supabase: await createClient(), accountId: apiKeyAuth.accountId }
+    : await getAccountContext();
+  const accountId = apiKeyAuth && !("error" in apiKeyAuth) ? apiKeyAuth.accountId : sessionAccountId;
   if (!accountId) return NextResponse.json({ error: "No active account" }, { status: 401 });
+  const database = apiKeyAuth && !("error" in apiKeyAuth) ? createAdminClient() : supabase;
 
   const body = (await request.json().catch(() => ({}))) as {
     key?: string;
     name?: string;
     description?: string;
     payloadSchema?: Record<string, unknown>;
+    presetId?: string;
   };
-  const key = body.key?.trim().toLowerCase();
-  const name = body.name?.trim();
+  let key = body.key?.trim().toLowerCase();
+  let name = body.name?.trim();
+  let description = body.description?.trim() || null;
+  let payloadSchema = body.payloadSchema ?? {};
+
+  if (body.presetId) {
+    const { data: preset, error: presetError } = await database
+      .from("flow_event_presets")
+      .select("key, name, description, payload_schema")
+      .eq("id", body.presetId)
+      .eq("is_active", true)
+      .maybeSingle();
+    if (presetError || !preset) return NextResponse.json({ error: "Invalid event preset" }, { status: 400 });
+    key = preset.key;
+    name = preset.name;
+    description = preset.description;
+    payloadSchema = (preset.payload_schema as Record<string, unknown>) ?? {};
+  }
 
   if (!key || !name) return NextResponse.json({ error: "Event name and key are required" }, { status: 400 });
   if (!/^[a-z][a-z0-9_]*$/.test(key)) {
     return NextResponse.json({ error: "Key must use lowercase letters, numbers, and underscores" }, { status: 400 });
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await database
     .from("flow_events")
     .insert({
       account_id: accountId,
       key,
       name,
-      description: body.description?.trim() || null,
-      payload_schema: body.payloadSchema ?? {},
+      description,
+      payload_schema: payloadSchema,
     })
     .select("id, key, name, description, payload_schema, is_active, created_at, updated_at")
     .single();
