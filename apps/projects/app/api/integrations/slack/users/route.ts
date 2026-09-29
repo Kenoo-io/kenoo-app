@@ -53,7 +53,13 @@ export async function GET() {
         const { error: cacheError } = await admin.from("slack_workspace_users").upsert(freshSlackUsers.map((slackUser) => ({ account_id: accountId, connection_id: connection.id, slack_user_id: slackUser.id, slack_email: slackUser.profile?.email ?? null, slack_display_name: slackUser.profile?.display_name || slackUser.profile?.real_name || slackUser.real_name || slackUser.name || slackUser.id, active: true, synced_at: syncedAt, updated_at: syncedAt })), { onConflict: "connection_id,slack_user_id" });
         if (cacheError) throw cacheError;
       }
-      slackUsers = freshSlackUsers;
+      slackUsers = freshSlackUsers.map((slackUser) => ({
+        id: slackUser.id,
+        profile: {
+          email: slackUser.profile?.email,
+          display_name: slackUser.profile?.display_name || slackUser.profile?.real_name || slackUser.real_name || slackUser.name || slackUser.id,
+        },
+      }));
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unable to list Slack users";
       const needsReconnect = message.includes("missing_scope") || message.includes("not_allowed_token_type");
