@@ -4,6 +4,8 @@ import { ChevronRight, Github } from "lucide-react";
 import Link from "next/link";
 
 import { useGitHubConnection } from "@/lib/github-connection";
+import { useSlackConnection } from "@/lib/slack-connection";
+import { SlackLogo } from "@/components/ui/slack-logo";
 
 function SectionLabel({ title, description }: { title: string; description?: string }) {
   return (
@@ -47,6 +49,7 @@ function SettingsActionPanel({
 export function ProjectsSettingsPage() {
   const { connection: githubConnection, loading: githubLoading } =
     useGitHubConnection();
+  const { connection: slackConnection, loading: slackLoading } = useSlackConnection();
 
   return (
     <main className="min-h-full w-full bg-kenoo-white px-6 pb-12 pt-6 md:px-10">
@@ -79,16 +82,44 @@ export function ProjectsSettingsPage() {
             </span>
             <ChevronRight className="h-4 w-4 shrink-0 text-neutral-400 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-neutral-600" />
           </Link>
+          <Link
+            href="/settings/connections/slack"
+            className="group mt-2 flex items-center gap-3 rounded-2xl bg-white/80 px-4 py-3 shadow-[0_8px_28px_rgba(15,23,42,0.07),inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-xl transition-colors duration-200 hover:bg-white/95"
+          >
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center"><SlackLogo className="h-6 w-6" /></span>
+            <span className="min-w-0 flex-1"><span className="block text-sm font-medium text-foreground">Slack</span><span className={`mt-0.5 block text-xs font-light ${slackConnection ? "text-emerald-700" : "text-neutral-500"}`}>{slackLoading ? "Checking connection…" : slackConnection ? slackConnection.teamName ?? "Connected" : "Connect a workspace for project notifications"}</span></span>
+            <ChevronRight className="h-4 w-4 shrink-0 text-neutral-400 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-neutral-600" />
+          </Link>
         </section>
 
         <section>
-          <SectionLabel title="Email notifications" />
+          <SectionLabel title="Email settings" />
           <SettingsActionPanel
-            title="Manage notifications"
+            title="Manage email notifications"
             description="Choose how Projects activity notifications are delivered to you."
             href="/settings/notifications"
             actionLabel="Manage notifications"
           />
+        </section>
+
+        <section>
+          <SectionLabel title="Slack settings" />
+          <div className="mt-2">
+            <SettingsActionPanel
+              title="Manage Slack notifications"
+              description="Choose which Slack channels receive Projects activity notifications."
+              href="/settings/notifications/slack"
+              actionLabel="Manage notifications"
+            />
+          </div>
+          <div className="mt-2">
+            <SettingsActionPanel
+              title="Manage Slack user mappings"
+              description="Connect Projects users to their Slack identities for true mentions."
+              href="/settings/notifications/slack/users"
+              actionLabel="Manage mappings"
+            />
+          </div>
         </section>
       </div>
     </main>

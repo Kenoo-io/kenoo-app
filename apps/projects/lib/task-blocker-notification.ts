@@ -1,6 +1,7 @@
 import { createAdminClient } from "@walls/supabase/admin";
 
 import { sendTaskBlockerCompletedEmail } from "@/lib/task-assignment-email";
+import { sendSlackTaskEventForAccount } from "@/lib/slack-task-notification-server";
 
 export const TASK_BLOCKER_COMPLETED_ALERT_KEY = "projects.task_blocker_completed";
 
@@ -46,6 +47,7 @@ export async function notifyTaskAssigneesWhenBlockerCompletes({
   if (blockerError || !completedBlocker || completedBlocker.status !== "completed" || !completedBlocker.completed_at) {
     return { queued: 0, unblockedTaskIds: [] };
   }
+  const project = Array.isArray(completedBlocker.projects) ? completedBlocker.projects[0] : completedBlocker.projects;
 
   const { data: dependencies, error: dependenciesError } = await admin
     .from("project_task_dependencies")
@@ -95,6 +97,15 @@ export async function notifyTaskAssigneesWhenBlockerCompletes({
     unblockedTaskIds.push(task.id);
   }
 
+  if (project?.account_id && unblockedTaskIds.length > 0) {
+    await Promise.all(unblockedTaskIds.map((unblockedTaskId) => sendSlackTaskEventForAccount({
+      accountId: project.account_id,
+      taskId: unblockedTaskId,
+      eventKey: "task_status_changed",
+      specificEventKey: "task_unblocked",
+    })));
+  }
+
   const assigneesByTask = new Map<string, Set<string>>();
   for (const link of assigneeLinks ?? []) {
     const ids = assigneesByTask.get(link.task_id as string) ?? new Set<string>();
@@ -105,7 +116,6 @@ export async function notifyTaskAssigneesWhenBlockerCompletes({
   const recipientIds = [...new Set([...assigneesByTask.values()].flatMap((ids) => [...ids]).filter((id) => id !== skipUserId))];
   if (!recipientIds.length) return { queued: 0, unblockedTaskIds };
 
-  const project = Array.isArray(completedBlocker.projects) ? completedBlocker.projects[0] : completedBlocker.projects;
   if (!project?.account_id) return { queued: 0, unblockedTaskIds };
   const [{ data: preferences }, { data: recipients }] = await Promise.all([
     admin.from("alert_subscriptions").select("user_id, notify_email, enabled")

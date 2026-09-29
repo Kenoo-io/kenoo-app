@@ -50,6 +50,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@walls/ui/slider";
+import { getSlackSpecificStatusEvent, notifySlackTaskEvent } from "@/lib/slack-task-events";
 import {
   addDays,
   differenceInDays,
@@ -778,6 +779,7 @@ function AgentsProjectsTimelineContent({
         .from("project_tasks")
         .update({ status })
         .eq("id", task.id);
+      void notifySlackTaskEvent(task.id, "task_status_changed", undefined, getSlackSpecificStatusEvent(task.status, status));
     } catch {
       setTasks((prev) =>
         prev.map((t) => (t.id === task.id ? { ...t, status: task.status } : t))

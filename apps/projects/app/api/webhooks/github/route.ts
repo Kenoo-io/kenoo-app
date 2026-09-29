@@ -4,6 +4,7 @@ import { createAdminClient } from "@walls/supabase/admin";
 import { setGitHubInstallationConnectionActive } from "@/lib/github-connections-server";
 import { hasMergedGitHubPullRequest } from "@/lib/github-app";
 import { notifyTaskAssigneesWhenBlockerCompletes } from "@/lib/task-blocker-notification";
+import { sendSlackTaskEventForAccount } from "@/lib/slack-task-notification-server";
 
 type Payload = {
   action?: string;
@@ -113,14 +114,22 @@ async function transition(event: string | null, payload: Payload) {
   }
 
   if (!status) return;
-  const previouslyCompletedIds = status === "completed"
-    ? (await admin.from("project_tasks").select("id").in("id", taskIds).eq("status", "completed")).data?.map((row) => row.id as string) ?? []
-    : [];
+  const { data: previousTasks } = await admin.from("project_tasks").select("id, status").in("id", taskIds);
+  const previousStatusById = new Map((previousTasks ?? []).map((row) => [row.id as string, row.status as string]));
   const update = status === "completed" ? { status, completed_at: new Date().toISOString() } : { status, completed_at: null };
   const { error: updateError } = await admin.from("project_tasks").update(update).in("id", taskIds);
   if (updateError) throw updateError;
+  const { data: taskAccounts } = await admin.from("project_tasks").select("id, projects!inner(account_id)").in("id", taskIds);
+  await Promise.all((taskAccounts ?? []).map((row) => {
+    const previousStatus = previousStatusById.get(row.id as string);
+    if (previousStatus === status) return Promise.resolve(0);
+    const project = Array.isArray(row.projects) ? row.projects[0] : row.projects;
+    return project?.account_id
+      ? sendSlackTaskEventForAccount({ accountId: project.account_id as string, taskId: row.id as string, eventKey: "task_status_changed", specificEventKey: status === "completed" ? "task_completed" : undefined })
+      : Promise.resolve(0);
+  }));
   if (status === "completed") {
-    const completedNow = taskIds.filter((id) => !previouslyCompletedIds.includes(id));
+    const completedNow = taskIds.filter((id) => previousStatusById.get(id) !== "completed");
     const origin = process.env.NEXT_PUBLIC_PROJECTS_URL?.replace(/\/$/, "") || "https://projects.kenoo.io";
     await Promise.all(completedNow.map((taskId) => notifyTaskAssigneesWhenBlockerCompletes({ taskId, origin })));
   }
