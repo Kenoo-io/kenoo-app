@@ -28,3 +28,8 @@
   .form-input:focus { border-color: #999; box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.04); }
   .form-input::placeholder { color: #aaa; }
 }
+
+@layer utilities {
+  .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+  .scrollbar-hide::-webkit-scrollbar { display: none; height: 0; width: 0; }
+}

@@ -45,13 +45,27 @@ export async function GET(_request: Request, { params }: { params: Promise<{ eve
   const { supabase, accountId } = await getAccountContext();
   if (!accountId) return NextResponse.json({ error: "No active account" }, { status: 401 });
   const { eventId } = await params;
-  const [{ data: event, error: eventError }, { data: occurrences, error: occurrencesError }] = await Promise.all([
+  const [{ data: event, error: eventError }, { data: occurrenceRows, error: occurrencesError }] = await Promise.all([
     supabase.from("flow_events").select("id, key, name, description, payload_schema, is_active, created_at, updated_at").eq("id", eventId).eq("account_id", accountId).maybeSingle(),
     supabase.from("flow_event_occurrences").select("id, audience_id, external_id, event_key, occurred_at, received_at, payload, context").eq("event_id", eventId).eq("account_id", accountId).order("occurred_at", { ascending: false }).limit(500),
   ]);
-  if (eventError || occurrencesError) return NextResponse.json({ error: "Unable to load event activity" }, { status: 500 });
+  if (eventError || occurrencesError) {
+    console.error("[flows] event activity load failed", { eventId, accountId, eventError, occurrencesError });
+    return NextResponse.json({ error: "Unable to load event activity" }, { status: 500 });
+  }
   if (!event) return NextResponse.json({ error: "Event not found" }, { status: 404 });
-  return NextResponse.json({ event, occurrences: occurrences ?? [] });
+
+  const rows = occurrenceRows ?? [];
+  const audienceIds = [...new Set(rows.map((occurrence) => occurrence.audience_id).filter((id): id is string => Boolean(id)))];
+  let audiences: Array<{ id: string; full_name: string | null; first_name: string | null; last_name: string | null; email: string | null }> = [];
+  if (audienceIds.length) {
+    const { data, error: audienceError } = await supabase.from("flow_audience").select("id, full_name, first_name, last_name, email").in("id", audienceIds);
+    if (audienceError) console.error("[flows] audience enrichment failed", { eventId, accountId, audienceError });
+    audiences = data ?? [];
+  }
+  const audienceById = new Map(audiences.map((audience) => [audience.id, audience]));
+  const occurrences = rows.map((occurrence) => ({ ...occurrence, audience: occurrence.audience_id ? audienceById.get(occurrence.audience_id) ?? null : null }));
+  return NextResponse.json({ event, occurrences });
 }
 
 export async function DELETE(_request: Request, { params }: { params: Promise<{ eventId: string }> }) {

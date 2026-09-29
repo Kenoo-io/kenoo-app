@@ -482,7 +482,7 @@ function ProfileAvatarCircle({
                 maxWidth: `${AVATAR_SIZE_PX}px`,
                 maxHeight: `${AVATAR_SIZE_PX}px`,
               }}
-              onLoadingComplete={() => setImageLoaded(true)}
+              onLoad={() => setImageLoaded(true)}
               onError={() => {
                 setImageError(true);
                 setImageLoaded(true);
