@@ -44,20 +44,40 @@ export async function GET() {
 
   let channels: unknown[] = [];
   try { channels = await listSlackChannels(connection.access_token as string); } catch (error) { console.error("[projects] list Slack channels:", error); }
-  const [{ data: projects }, { data: rules }] = await Promise.all([
+  const [{ data: projects, error: projectsError }, { data: rules, error: rulesError }] = await Promise.all([
     admin.from("projects").select("id, name").eq("account_id", accountId).order("name"),
-    admin.from("project_slack_notification_rules").select("id, channel_id, enabled, created_at, updated_at, project_slack_channels!inner(slack_channel_id, slack_channel_name, is_private), project_slack_notification_rule_events(event_key), project_slack_notification_rule_projects(project_id)").eq("account_id", accountId).order("created_at", { ascending: false }),
+    admin.from("project_slack_notification_rules").select("id, channel_id, enabled, created_at, updated_at").eq("account_id", accountId).order("created_at", { ascending: false }),
   ]);
+  if (projectsError || rulesError) {
+    console.error("[projects] load Slack notification rules:", projectsError ?? rulesError);
+    return NextResponse.json({ error: "Unable to load Slack notification rules", detail: (projectsError ?? rulesError)?.message }, { status: 500, headers: { "Cache-Control": "no-store" } });
+  }
+  const ruleIds = (rules ?? []).map((rule) => rule.id as string);
+  const channelIds = [...new Set((rules ?? []).map((rule) => rule.channel_id as string))];
+  const [{ data: channelRows }, { data: eventRows, error: eventsError }, { data: projectRows, error: ruleProjectsError }] = await Promise.all([
+    channelIds.length > 0 ? admin.from("project_slack_channels").select("id, slack_channel_id, slack_channel_name, is_private").in("id", channelIds) : Promise.resolve({ data: [] as unknown[] }),
+    ruleIds.length > 0 ? admin.from("project_slack_notification_rule_events").select("rule_id, event_key").in("rule_id", ruleIds) : Promise.resolve({ data: [] as unknown[] }),
+    ruleIds.length > 0 ? admin.from("project_slack_notification_rule_projects").select("rule_id, project_id").in("rule_id", ruleIds) : Promise.resolve({ data: [] as unknown[] }),
+  ]);
+  if (eventsError || ruleProjectsError) {
+    console.error("[projects] load Slack notification rule details:", eventsError ?? ruleProjectsError);
+    return NextResponse.json({ error: "Unable to load Slack notification details", detail: (eventsError ?? ruleProjectsError)?.message }, { status: 500, headers: { "Cache-Control": "no-store" } });
+  }
+  const channelsById = new Map((channelRows ?? []).map((channel) => [channel.id as string, channel]));
+  const eventsByRule = new Map<string, string[]>();
+  for (const row of (eventRows ?? []) as Array<{ rule_id: string; event_key: string }>) eventsByRule.set(row.rule_id, [...(eventsByRule.get(row.rule_id) ?? []), row.event_key]);
+  const projectsByRule = new Map<string, string[]>();
+  for (const row of (projectRows ?? []) as Array<{ rule_id: string; project_id: string }>) projectsByRule.set(row.rule_id, [...(projectsByRule.get(row.rule_id) ?? []), row.project_id]);
   return NextResponse.json({
     connected: true,
     connection: { teamName: (connection.token_payload as { team_name?: string } | null)?.team_name ?? null },
     channels,
     projects: projects ?? [],
     rules: (rules ?? []).map((rule) => {
-      const channel = Array.isArray(rule.project_slack_channels) ? rule.project_slack_channels[0] : rule.project_slack_channels;
-      return { id: rule.id, enabled: rule.enabled, createdAt: rule.created_at, channelId: channel?.slack_channel_id, channelName: channel?.slack_channel_name, isPrivate: channel?.is_private, eventKeys: (rule.project_slack_notification_rule_events ?? []).map((item: { event_key: string }) => item.event_key), projectIds: (rule.project_slack_notification_rule_projects ?? []).map((item: { project_id: string }) => item.project_id) };
+      const channel = channelsById.get(rule.channel_id as string);
+      return { id: rule.id, enabled: rule.enabled, createdAt: rule.created_at, channelId: channel?.slack_channel_id, channelName: channel?.slack_channel_name, isPrivate: channel?.is_private, eventKeys: eventsByRule.get(rule.id as string) ?? [], projectIds: projectsByRule.get(rule.id as string) ?? [] };
     }),
-  });
+  }, { headers: { "Cache-Control": "no-store, max-age=0" } });
 }
 
 async function saveRule(accountId: string, body: Record<string, unknown>, id?: string) {

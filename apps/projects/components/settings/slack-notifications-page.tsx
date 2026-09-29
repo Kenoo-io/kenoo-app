@@ -10,8 +10,8 @@ type Rule = { id: string; channelId: string; channelName: string; isPrivate?: bo
 type SlackData = { connected: boolean; connection?: { teamName: string | null }; channels: Channel[]; projects: Project[]; rules: Rule[] };
 const EVENT_OPTIONS = [["task_created", "New task created"], ["task_assigned", "Assignees added"], ["task_status_changed", "Task status changed"], ["task_completed", "Task completed"], ["task_blocked", "Task blocked"], ["task_unblocked", "Task unblocked"], ["task_overdue", "Task overdue"]] as const;
 
-type NotificationsCache = { data: SlackData | null; loaded: boolean; loading: boolean };
-let notificationsCache: NotificationsCache = { data: null, loaded: false, loading: false };
+type NotificationsCache = { data: SlackData | null; loaded: boolean; loading: boolean; loadedAt: number };
+let notificationsCache: NotificationsCache = { data: null, loaded: false, loading: false, loadedAt: 0 };
 let pendingNotificationsRequest: Promise<SlackData> | null = null;
 const notificationsListeners = new Set<() => void>();
 
@@ -19,14 +19,14 @@ function publishNotificationsCache() { notificationsListeners.forEach((listener)
 function updateNotificationsCache(update: Partial<NotificationsCache>) { notificationsCache = { ...notificationsCache, ...update }; publishNotificationsCache(); }
 
 async function loadSlackNotifications(force = false): Promise<SlackData> {
-  if (!force && notificationsCache.loaded && notificationsCache.data) return notificationsCache.data;
+  if (!force && notificationsCache.loaded && notificationsCache.data && Date.now() - notificationsCache.loadedAt < 30_000) return notificationsCache.data;
   if (pendingNotificationsRequest) return pendingNotificationsRequest;
   updateNotificationsCache({ loading: true });
-  pendingNotificationsRequest = fetch("/api/integrations/slack/notifications", { cache: "no-store" })
+  pendingNotificationsRequest = fetch(`/api/integrations/slack/notifications${force ? `?refresh=${Date.now()}` : ""}`, { cache: "no-store" })
     .then(async (response) => {
       const payload = await response.json() as SlackData & { error?: string };
       if (!response.ok) throw new Error(payload.error || "Unable to load Slack notifications");
-      updateNotificationsCache({ data: payload, loaded: true, loading: false });
+      updateNotificationsCache({ data: payload, loaded: true, loading: false, loadedAt: Date.now() });
       return payload;
     })
     .catch((error: unknown) => { updateNotificationsCache({ loading: false }); throw error; })
@@ -78,7 +78,7 @@ export function SlackNotificationsPage() {
   const [eventKeys, setEventKeys] = React.useState<string[]>(["task_completed"]);
 
   const load = React.useCallback(async (force = false) => {
-    try { await loadSlackNotifications(force); } catch (caught) { setError(caught instanceof Error ? caught.message : "Unable to load Slack notifications"); }
+    try { const refreshed = await loadSlackNotifications(force); setCacheState({ ...notificationsCache, data: refreshed, loaded: true, loading: false }); } catch (caught) { setError(caught instanceof Error ? caught.message : "Unable to load Slack notifications"); }
   }, []);
   React.useEffect(() => {
     const subscribe = () => setCacheState(notificationsCache);

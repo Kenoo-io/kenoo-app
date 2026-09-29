@@ -129,7 +129,13 @@ export async function slackApi<T>(token: string, method: string, body?: Record<s
     body: JSON.stringify(body ?? {}),
     cache: "no-store",
   });
-  const result = (await response.json()) as T & { ok?: boolean; error?: string };
+  const responseText = await response.text();
+  let result: T & { ok?: boolean; error?: string };
+  try {
+    result = (responseText ? JSON.parse(responseText) : {}) as T & { ok?: boolean; error?: string };
+  } catch {
+    throw new Error(`Slack ${method} returned an invalid response (${response.status})`);
+  }
   if (!response.ok || result.ok === false) throw new Error(result.error || `Slack ${method} failed`);
   return result;
 }
