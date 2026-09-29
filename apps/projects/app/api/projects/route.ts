@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 
-import { createClient } from "@walls/supabase/server";
+import { createAdminClient } from "@walls/supabase/admin";
 import {
+  getAccountMembership,
   getCurrentUserId,
   resolveActiveAccountId,
 } from "@/lib/account-context";
@@ -31,6 +32,11 @@ export async function POST(request: Request) {
     );
   }
 
+  const membership = await getAccountMembership(userId, accountId);
+  if (!membership) {
+    return NextResponse.json({ error: "You are not a member of this account" }, { status: 403 });
+  }
+
   const body = (await request.json().catch(() => null)) as Record<
     string,
     unknown
@@ -45,8 +51,8 @@ export async function POST(request: Request) {
   payload.name = body.name.trim();
   payload.account_id = accountId;
 
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const admin = createAdminClient();
+  const { data, error } = await admin
     .from("projects")
     .insert(payload)
     .select("id")
@@ -55,6 +61,16 @@ export async function POST(request: Request) {
   if (error) {
     console.error("[projects] create project:", error);
     return NextResponse.json({ error: error.message }, { status: 400 });
+  }
+
+  const { error: ownerError } = await admin.from("project_members").upsert(
+    { project_id: data.id, user_id: userId, role: "owner" },
+    { onConflict: "project_id,user_id" },
+  );
+  if (ownerError) {
+    await admin.from("projects").delete().eq("id", data.id);
+    console.error("[projects] create project owner:", ownerError);
+    return NextResponse.json({ error: ownerError.message }, { status: 500 });
   }
 
   return NextResponse.json({ id: data.id, accountId });

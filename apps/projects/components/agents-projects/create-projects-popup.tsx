@@ -122,7 +122,7 @@ export function CreateProjectsPopup({
   existing,
 }: CreateProjectsPopupProps) {
   const { user: authUser } = useAuth();
-  const { activeAccountId } = useActiveAccount();
+  const { activeAccountId, loading: accountLoading } = useActiveAccount();
   const [form, setForm] = useState<ProjectFormState>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -321,6 +321,7 @@ export function CreateProjectsPopup({
   };
 
   const handleSave = async () => {
+    if (accountLoading) return;
     if (!form.name.trim()) {
       setError("Project name is required.");
       return;
@@ -785,7 +786,12 @@ export function CreateProjectsPopup({
             <button
               type="button"
               onClick={handleSave}
-              disabled={saving || !form.name.trim()}
+              disabled={
+                saving ||
+                accountLoading ||
+                (!existing && !activeAccountId) ||
+                !form.name.trim()
+              }
               className={popupButtonOuterClass}
             >
               <div className={popupButtonInnerClass}>
