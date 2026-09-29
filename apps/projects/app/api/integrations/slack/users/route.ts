@@ -5,6 +5,8 @@ import { createClient } from "@walls/supabase/server";
 import { resolveActiveAccountId } from "@/lib/account-context";
 import { listSlackUsers, SLACK_PROVIDER, SLACK_SERVICE } from "@/lib/slack";
 
+const SLACK_USER_CACHE_TTL_MS = 60 * 60 * 1000;
+
 function displayName(user: { first_name?: string | null; last_name?: string | null; email?: string | null }) {
   return `${user.first_name ?? ""} ${user.last_name ?? ""}`.trim() || user.email || "Unnamed user";
 }
@@ -33,13 +35,30 @@ export async function GET() {
     .maybeSingle();
   if (!connection) return NextResponse.json({ connected: false, users: [], slackUsers: [] });
 
-  let slackUsers;
-  try {
-    slackUsers = await listSlackUsers(connection.access_token as string);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to list Slack users";
-    const needsReconnect = message.includes("missing_scope") || message.includes("not_allowed_token_type");
-    return NextResponse.json({ error: needsReconnect ? "Reconnect Slack to enable user mapping" : message, code: needsReconnect ? "slack_reconnect_required" : "slack_users_unavailable" }, { status: 400 });
+  const { data: cachedSlackUsers } = await admin
+    .from("slack_workspace_users")
+    .select("slack_user_id, slack_email, slack_display_name, active, synced_at")
+    .eq("account_id", accountId)
+    .eq("connection_id", connection.id)
+    .eq("active", true)
+    .order("synced_at", { ascending: false });
+  const latestSync = cachedSlackUsers?.[0]?.synced_at ? Date.parse(cachedSlackUsers[0].synced_at as string) : 0;
+  let slackUsers = (cachedSlackUsers ?? []).map((cachedUser) => ({ id: cachedUser.slack_user_id as string, profile: { email: cachedUser.slack_email as string | undefined, display_name: cachedUser.slack_display_name as string } }));
+  if (!latestSync || Date.now() - latestSync > SLACK_USER_CACHE_TTL_MS) {
+    try {
+      const freshSlackUsers = await listSlackUsers(connection.access_token as string);
+      const syncedAt = new Date().toISOString();
+      await admin.from("slack_workspace_users").update({ active: false, synced_at: syncedAt, updated_at: syncedAt }).eq("account_id", accountId).eq("connection_id", connection.id);
+      if (freshSlackUsers.length > 0) {
+        const { error: cacheError } = await admin.from("slack_workspace_users").upsert(freshSlackUsers.map((slackUser) => ({ account_id: accountId, connection_id: connection.id, slack_user_id: slackUser.id, slack_email: slackUser.profile?.email ?? null, slack_display_name: slackUser.profile?.display_name || slackUser.profile?.real_name || slackUser.real_name || slackUser.name || slackUser.id, active: true, synced_at: syncedAt, updated_at: syncedAt })), { onConflict: "connection_id,slack_user_id" });
+        if (cacheError) throw cacheError;
+      }
+      slackUsers = freshSlackUsers;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to list Slack users";
+      const needsReconnect = message.includes("missing_scope") || message.includes("not_allowed_token_type");
+      if (slackUsers.length === 0) return NextResponse.json({ error: needsReconnect ? "Reconnect Slack to enable user mapping" : message, code: needsReconnect ? "slack_reconnect_required" : "slack_users_unavailable" }, { status: 400 });
+    }
   }
 
   const { data: memberships, error: membershipError } = await admin.from("account_users").select("user_id").eq("account_id", accountId).not("user_id", "is", null);
@@ -89,15 +108,10 @@ export async function PUT(request: Request) {
     return NextResponse.json({ ok: true });
   }
   if (typeof body.slackUserId !== "string") return NextResponse.json({ error: "A Slack user is required" }, { status: 400 });
-  let slackUser;
-  try {
-    slackUser = (await listSlackUsers(connection.access_token as string)).find((candidate) => candidate.id === body.slackUserId);
-  } catch {
-    return NextResponse.json({ error: "Reconnect Slack before creating mappings" }, { status: 400 });
-  }
-  if (!slackUser) return NextResponse.json({ error: "Slack user is not available in this workspace" }, { status: 400 });
   const { data: profile } = await admin.from("users").select("email").eq("id", body.kenooUserId).single();
-  const { error } = await admin.from("slack_user_mappings").upsert({ account_id: accountId, connection_id: connection.id, kenoo_user_id: body.kenooUserId, slack_user_id: slackUser.id, slack_email: slackUser.profile?.email ?? null, slack_display_name: slackUser.profile?.display_name || slackUser.profile?.real_name || slackUser.real_name || slackUser.name || slackUser.id, active: true, last_synced_at: new Date().toISOString(), updated_at: new Date().toISOString() }, { onConflict: "connection_id,kenoo_user_id" });
+  const { data: cachedSlackUser } = await admin.from("slack_workspace_users").select("slack_user_id, slack_email, slack_display_name").eq("account_id", accountId).eq("connection_id", connection.id).eq("slack_user_id", body.slackUserId).eq("active", true).maybeSingle();
+  if (!cachedSlackUser) return NextResponse.json({ error: "Refresh the Slack user list before creating this mapping" }, { status: 400 });
+  const { error } = await admin.from("slack_user_mappings").upsert({ account_id: accountId, connection_id: connection.id, kenoo_user_id: body.kenooUserId, slack_user_id: cachedSlackUser.slack_user_id, slack_email: cachedSlackUser.slack_email, slack_display_name: cachedSlackUser.slack_display_name, active: true, last_synced_at: new Date().toISOString(), updated_at: new Date().toISOString() }, { onConflict: "connection_id,kenoo_user_id" });
   if (error) return NextResponse.json({ error: error.code === "23505" ? "That Slack user is already mapped to another Projects user" : "Unable to save Slack mapping" }, { status: 500 });
   return NextResponse.json({ ok: true, email: profile?.email ?? null });
 }
