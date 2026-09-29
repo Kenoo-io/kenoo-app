@@ -35,7 +35,8 @@ const sections: LegalSection[] = [
       "Voice and media: audio you submit for transcription or speech features in Wallie, plus generated audio responses where applicable.",
       "Technical and usage data: IP address, device and browser information, app version, pages and features used, session and analytics events, approximate location derived from IP, and security logs including login history.",
       "Enrichment and research data: business contact and company information obtained from enrichment providers (such as Apollo) or public web research tools you or your workspace enable.",
-      "Integration credentials: OAuth access and refresh tokens, API keys, and connection metadata for services you authorize (for example Google Workspace APIs, Google Ads, Meta, Strava, or Wise).",
+      "Integration credentials: OAuth access and refresh tokens, API keys, and connection metadata for services you authorize (for example Google Workspace APIs, Google Ads, Meta, Slack, Strava, or Wise).",
+      "Slack integration data: Slack workspace or team identifiers and names, OAuth connection and authorization metadata, selected public or private channel identifiers and names, channel membership or privacy metadata needed to deliver notifications, and Slack user identifiers and profile details that workspace administrators or authorized users map to Kenoo users for mentions. Kenoo may also retain delivery and configuration metadata for Slack notifications.",
     ],
   },
   {
@@ -69,6 +70,14 @@ const sections: LegalSection[] = [
       "If you connect Google services, Kenoo may access Google user data according to the OAuth scopes you approve. Depending on the integration, this may include Gmail (reading, sending, modifying, and organizing email), Google Calendar (reading and writing events, including Google Meet details), Google Contacts needed for messaging and scheduling, and Google Ads account data needed for AdPilot (accessible customer accounts, campaign structure, budgets, and performance metrics).",
       "We use Google user data only to provide and improve user-facing features that are apparent in the Kenoo interface, such as inbox sync, sending or scheduling email, CRM email sequences, invoice delivery, calendar sync, AdPilot reporting and spend automation you enable, and related product features. We do not sell Google user data. We do not use Google user data for serving advertisements unrelated to the advertising accounts you connect. We do not allow humans to read Google user data unless you give us permission for support, it is necessary for security or legal compliance, or the data is aggregated and anonymized for internal operations.",
       "Our use and transfer of information received from Google APIs complies with the Google API Services User Data Policy, including the Limited Use requirements. You may disconnect Google integrations in Settings (or AdPilot settings for Google Ads), after which we will stop new syncing and delete or de-identify stored Google tokens and related synced data in accordance with our retention practices, except where retention is required for security, legal, or accounting purposes.",
+    ],
+  },
+  {
+    title: "Slack integrations",
+    paragraphs: [
+      "If you connect a Slack workspace, Kenoo uses the OAuth permissions you approve to identify the connected workspace, list channels available to the installing user, list Slack users when needed for user mapping, post Kenoo notifications to channels you select, and format authorized Slack mentions. Kenoo does not use the Slack connection to read or store Slack message history, and it does not post to channels unless an authorized user configures that channel for a Kenoo notification.",
+      "Slack connection data is associated with the Kenoo account or organization that authorized the connection. Workspace administrators and other authorized users may configure notification rules, channel destinations, and Kenoo-to-Slack user mappings according to their permissions in Kenoo and Slack. Slack may separately record the installation and activity of the Kenoo app under its own policies.",
+      "You can disconnect Slack from Kenoo at any time. When you disconnect, Kenoo stops using the connection for new API requests and requests revocation of the Slack authorization where supported. We delete or de-identify the associated Slack token and connection data in accordance with the retention practices below, subject to security, legal, accounting, and backup requirements.",
     ],
   },
   {
@@ -123,7 +132,7 @@ const sections: LegalSection[] = [
     bullets: [
       "With service providers and subprocessors that help us host, authenticate, store, process, analyze, communicate (including SMS delivery via providers such as Twilio), pay out, enrich, or secure the Services (including providers such as Supabase, Vercel, Cloudflare, Google (including Google Ads API), Meta, Strava, Wise, OpenAI, Anthropic, Perplexity, Apollo, Twilio, search/enrichment providers, and infrastructure used to run Wallie), under confidentiality and data-protection obligations.",
       "With other members of your Kenoo workspace according to permissions set by your organization, including administrators with elevated access.",
-      "With third-party integrations you choose to enable.",
+      "With third-party integrations you choose to enable, including Slack. For Slack, Kenoo shares the notification content and related task or project information needed to post the messages to the channels and workspaces you configure, and may share Slack identifiers needed to resolve authorized user mentions.",
       "With invoice or document recipients when you create share links or send communications.",
       "If required by law, legal process, or to protect the rights, safety, or property of Kenoo, our users, or the public.",
       "In connection with a merger, acquisition, financing, or sale of assets, subject to appropriate safeguards.",
@@ -139,7 +148,7 @@ const sections: LegalSection[] = [
     title: "15. Data retention",
     paragraphs: [
       "We retain personal information for as long as needed to provide the Services, fulfill the purposes described in this Policy, resolve disputes, enforce agreements, and meet legal or accounting requirements. Backups, security logs, billing records, and SMS consent or opt-out records may persist for a limited additional period where needed for compliance.",
-      "When an account or workspace is closed, or when you disconnect an integration, we delete or de-identify personal information within a reasonable period, except where retention is required by law or for legitimate business purposes such as security investigation, fraud prevention, or financial recordkeeping.",
+      "When an account or workspace is closed, or when you disconnect an integration such as Slack, we delete or de-identify personal information, integration tokens, connection metadata, and related configuration data within a reasonable period, except where retention is required by law or for legitimate business purposes such as security investigation, fraud prevention, financial recordkeeping, or backup recovery.",
     ],
   },
   {
@@ -152,7 +161,7 @@ const sections: LegalSection[] = [
     title: "17. Your rights and choices",
     paragraphs: [
       "Depending on where you live, you may have rights to access, correct, delete, export, or restrict processing of your personal information, or to object to certain processing. You may also have the right to withdraw consent where processing is based on consent, including for optional Health features, SMS notifications, marketing, or certain integrations.",
-      "You can often manage profile data, SMS notification preferences, disconnect integrations, and control workspace content directly in Kenoo. You may also reply STOP to opt out of Kenoo SMS messages. To exercise privacy rights, contact us at hello@kenoo.io. We may need to verify your identity before responding. If your request relates to Customer Content controlled by an organization, we may redirect you to that organization's administrator.",
+      "You can often manage profile data, SMS notification preferences, disconnect integrations (including Slack), and control workspace content directly in Kenoo. You may also reply STOP to opt out of Kenoo SMS messages. To exercise privacy rights or request deletion of Slack-related connection data, contact us at hello@kenoo.io. We may need to verify your identity before responding. If your request relates to Customer Content controlled by an organization, we may redirect you to that organization's administrator.",
     ],
   },
   {
@@ -180,7 +189,7 @@ export default function PrivacyPolicyPage() {
     <LegalDocument
       eyebrow="Legal"
       title="Privacy Policy"
-      effectiveDate="August 7, 2026"
+      effectiveDate="September 29, 2026"
       intro="Please read this Privacy Policy carefully. It explains what information we collect across the Kenoo product suite, how we use it, and the choices available to you."
       sections={sections}
     />

@@ -34,19 +34,25 @@ async function validInput(accountId: string, body: Record<string, unknown>) {
   return { channelId, channelName, eventKeys, projectIds, isPrivate: body.isPrivate === true };
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const { user, accountId } = await getAccount();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!accountId) return NextResponse.json({ error: "No active account" }, { status: 400 });
+  const includeChannels = new URL(request.url).searchParams.get("includeChannels") === "1";
   const admin = createAdminClient();
   const { data: connection } = await getConnection(accountId);
   if (!connection) return NextResponse.json({ connected: false, channels: [], projects: [], rules: [] });
 
-  let channels: unknown[] = [];
-  try { channels = await listSlackChannels(connection.access_token as string); } catch (error) { console.error("[projects] list Slack channels:", error); }
-  const [{ data: projects, error: projectsError }, { data: rules, error: rulesError }] = await Promise.all([
+  const channelsPromise = includeChannels
+    ? listSlackChannels(connection.access_token as string).catch((error) => {
+      console.error("[projects] list Slack channels:", error);
+      return [] as unknown[];
+    })
+    : Promise.resolve([] as unknown[]);
+  const [{ data: projects, error: projectsError }, { data: rules, error: rulesError }, channels] = await Promise.all([
     admin.from("projects").select("id, name").eq("account_id", accountId).order("name"),
     admin.from("project_slack_notification_rules").select("id, channel_id, enabled, created_at, updated_at").eq("account_id", accountId).order("created_at", { ascending: false }),
+    channelsPromise,
   ]);
   if (projectsError || rulesError) {
     console.error("[projects] load Slack notification rules:", projectsError ?? rulesError);
