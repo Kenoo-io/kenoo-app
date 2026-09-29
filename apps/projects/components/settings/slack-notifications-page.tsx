@@ -18,11 +18,15 @@ const notificationsListeners = new Set<() => void>();
 function publishNotificationsCache() { notificationsListeners.forEach((listener) => listener()); }
 function updateNotificationsCache(update: Partial<NotificationsCache>) { notificationsCache = { ...notificationsCache, ...update }; publishNotificationsCache(); }
 
-async function loadSlackNotifications(force = false): Promise<SlackData> {
-  if (!force && notificationsCache.loaded && notificationsCache.data && Date.now() - notificationsCache.loadedAt < 30_000) return notificationsCache.data;
+async function loadSlackNotifications(force = false, includeChannels = false): Promise<SlackData> {
+  const hasChannels = notificationsCache.data?.channels.length;
+  if (!force && notificationsCache.loaded && notificationsCache.data && Date.now() - notificationsCache.loadedAt < 30_000 && (includeChannels ? hasChannels : true)) return notificationsCache.data;
   if (pendingNotificationsRequest) return pendingNotificationsRequest;
   updateNotificationsCache({ loading: true });
-  pendingNotificationsRequest = fetch(`/api/integrations/slack/notifications${force ? `?refresh=${Date.now()}` : ""}`, { cache: "no-store" })
+  const params = new URLSearchParams();
+  if (includeChannels) params.set("includeChannels", "1");
+  if (force) params.set("refresh", String(Date.now()));
+  pendingNotificationsRequest = fetch(`/api/integrations/slack/notifications${params.size > 0 ? `?${params.toString()}` : ""}`, { cache: "no-store" })
     .then(async (response) => {
       const payload = await response.json() as SlackData & { error?: string };
       if (!response.ok) throw new Error(payload.error || "Unable to load Slack notifications");
@@ -77,8 +81,8 @@ export function SlackNotificationsPage() {
   const [projectIds, setProjectIds] = React.useState<string[]>([]);
   const [eventKeys, setEventKeys] = React.useState<string[]>(["task_completed"]);
 
-  const load = React.useCallback(async (force = false) => {
-    try { const refreshed = await loadSlackNotifications(force); setCacheState({ ...notificationsCache, data: refreshed, loaded: true, loading: false }); } catch (caught) { setError(caught instanceof Error ? caught.message : "Unable to load Slack notifications"); }
+  const load = React.useCallback(async (force = false, includeChannels = false) => {
+    try { const refreshed = await loadSlackNotifications(force, includeChannels); setCacheState({ ...notificationsCache, data: refreshed, loaded: true, loading: false }); return refreshed; } catch (caught) { setError(caught instanceof Error ? caught.message : "Unable to load Slack notifications"); return null; }
   }, []);
   React.useEffect(() => {
     const subscribe = () => setCacheState(notificationsCache);
@@ -89,8 +93,15 @@ export function SlackNotificationsPage() {
   }, [load]);
   const data = cacheState.data;
   const loading = cacheState.loading || !cacheState.loaded;
-  function openCreate() { setEditing(null); setChannelId(data?.channels[0]?.id ?? ""); setProjectIds([]); setEventKeys(["task_completed"]); setError(null); setModalOpen(true); }
-  function openEdit(rule: Rule) { setEditing(rule); setChannelId(rule.channelId); setProjectIds(rule.projectIds); setEventKeys(rule.eventKeys); setError(null); setModalOpen(true); }
+  async function openCreate() {
+    setEditing(null); setProjectIds([]); setEventKeys(["task_completed"]); setError(null); setModalOpen(true);
+    const refreshed = await load(false, true);
+    setChannelId(refreshed?.channels[0]?.id ?? "");
+  }
+  async function openEdit(rule: Rule) {
+    setEditing(rule); setChannelId(rule.channelId); setProjectIds(rule.projectIds); setEventKeys(rule.eventKeys); setError(null); setModalOpen(true);
+    await load(false, true);
+  }
   async function save() {
     const channel = data?.channels.find((item) => item.id === channelId);
     if (!channel || eventKeys.length === 0) { setError("Choose a channel and at least one event."); return; }
@@ -99,7 +110,7 @@ export function SlackNotificationsPage() {
       const response = await fetch("/api/integrations/slack/notifications", { method: editing ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: editing?.id, channelId, channelName: channel.name, isPrivate: channel.is_private, eventKeys, projectIds }) });
       const payload = await response.json() as { error?: string };
       if (!response.ok) throw new Error(payload.error || "Unable to save notification");
-      setModalOpen(false); await load(true);
+      setModalOpen(false); await load(true, true);
     } catch (caught) { setError(caught instanceof Error ? caught.message : "Unable to save notification"); } finally { setPending(false); }
   }
   async function remove(rule: Rule) {
