@@ -49,7 +49,6 @@ import { AgentSearch } from "@/components/ui/searches/agent-search";
 import { SimpleMarkdownEditor } from "@/components/agents-projects/simple-markdown-editor";
 import {
   notifyTaskAssignee,
-  sendTaskAssignmentEmail,
   sendTaskBlockerCompletedEmail,
   resolveActorDisplayName,
 } from "@/lib/user-notifications";
@@ -59,7 +58,6 @@ import {
   getTaskAssigneeIds,
   syncProjectTaskAssignees,
 } from "./task-assignee";
-import { getSlackSpecificStatusEvent, notifySlackTaskEvent } from "@/lib/slack-task-events";
 
 /* ─── Form config ────────────────────────────────────────────────────────── */
 const popupButtonOuterClass =
@@ -969,17 +967,6 @@ export function CreateTasksPopup({
         assignedBy
       );
 
-      // Creation sends one complete task summary. Assignment updates are only
-      // sent for later additions, so a new task does not produce two messages.
-      if (!existing) {
-        void notifySlackTaskEvent(taskId, "task_created");
-      } else if (newlyAdded.length > 0) {
-        void notifySlackTaskEvent(taskId, "task_assigned", newlyAdded);
-      }
-      if (existing && existing.status !== form.status) {
-        void notifySlackTaskEvent(taskId, "task_status_changed", undefined, getSlackSpecificStatusEvent(existing.status, form.status));
-      }
-
       if (existing && existing.status !== "completed" && form.status === "completed") {
         // Await the request before the popup unmounts; this helper absorbs
         // delivery errors, so it never prevents the task from being saved.
@@ -998,7 +985,6 @@ export function CreateTasksPopup({
               actorUserId,
               actorName,
             }),
-            sendTaskAssignmentEmail({ taskId: taskId!, assigneeId }),
           ])
         )
       );

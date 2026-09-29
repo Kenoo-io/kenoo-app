@@ -85,8 +85,11 @@ installed Slack app.
 ## Notification outbox worker
 
 Task, assignment, and status changes are captured in Supabase's
-`project_notification_outbox` table. A scheduler should POST to
-`/api/internal/process-project-notifications` every minute with:
+`project_notification_outbox` table. Supabase asynchronously invokes
+`/api/internal/process-project-notifications` after each outbox insert using
+`pg_net`; the worker claims the durable outbox row and processes it.
+
+The worker is protected with:
 
 ```text
 Authorization: Bearer $PROJECT_NOTIFICATION_WORKER_SECRET
@@ -96,4 +99,5 @@ The worker owns delivery decisions and reuses the Projects SES email
 templates and Slack server helper. It is safe to run multiple workers because
 jobs are claimed with `FOR UPDATE SKIP LOCKED`; failed jobs are retried with
 backoff. Keep the endpoint private and never expose the worker secret to the
-browser.
+browser. Supabase Vault stores the matching worker secret, so no polling cron
+is required.
