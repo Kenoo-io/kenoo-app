@@ -20,11 +20,25 @@ export async function sendSlackTaskEventForAccount({ accountId, taskId, eventKey
     admin.from("account_connections").select("id, access_token").eq("account_id", accountId).eq("provider", SLACK_PROVIDER).eq("service", SLACK_SERVICE).is("revoked_at", null).order("created_at", { ascending: false }).limit(1).maybeSingle(),
   ]);
   if (!task || !connection) return 0;
-  const [{ data: assigneeRows }, { data: rules }, { data: mappingRows }] = await Promise.all([
+  const [{ data: assigneeRows }, { data: rules, error: rulesError }, { data: mappingRows }] = await Promise.all([
     admin.from("project_task_assignees").select("user_id, user:users!project_task_assignees_user_id_fkey(id, first_name, last_name, email)").eq("task_id", task.id),
-    admin.from("project_slack_notification_rules").select("id, project_slack_notification_rule_events(event_key), project_slack_notification_rule_projects(project_id), project_slack_channels!inner(slack_channel_id)").eq("account_id", accountId).eq("enabled", true),
+    admin.from("project_slack_notification_rules").select("id, channel_id").eq("account_id", accountId).eq("enabled", true),
     admin.from("slack_user_mappings").select("kenoo_user_id, slack_user_id").eq("account_id", accountId).eq("connection_id", connection.id).eq("active", true),
   ]);
+  if (rulesError) throw rulesError;
+  const ruleIds = (rules ?? []).map((rule) => rule.id as string);
+  const channelIds = [...new Set((rules ?? []).map((rule) => rule.channel_id as string))];
+  const [{ data: channelRows, error: channelError }, { data: eventRows, error: eventsError }, { data: projectRows, error: projectsError }] = await Promise.all([
+    channelIds.length > 0 ? admin.from("project_slack_channels").select("id, slack_channel_id").in("id", channelIds) : Promise.resolve({ data: [], error: null }),
+    ruleIds.length > 0 ? admin.from("project_slack_notification_rule_events").select("rule_id, event_key").in("rule_id", ruleIds) : Promise.resolve({ data: [], error: null }),
+    ruleIds.length > 0 ? admin.from("project_slack_notification_rule_projects").select("rule_id, project_id").in("rule_id", ruleIds) : Promise.resolve({ data: [], error: null }),
+  ]);
+  if (channelError || eventsError || projectsError) throw channelError ?? eventsError ?? projectsError;
+  const channelById = new Map((channelRows ?? []).map((channel) => [channel.id as string, channel.slack_channel_id as string]));
+  const eventsByRule = new Map<string, Set<string>>();
+  for (const row of (eventRows ?? []) as Array<{ rule_id: string; event_key: string }>) eventsByRule.set(row.rule_id, new Set([...(eventsByRule.get(row.rule_id) ?? []), row.event_key]));
+  const projectsByRule = new Map<string, Set<string>>();
+  for (const row of (projectRows ?? []) as Array<{ rule_id: string; project_id: string }>) projectsByRule.set(row.rule_id, new Set([...(projectsByRule.get(row.rule_id) ?? []), row.project_id]));
   const assignees = (assigneeRows ?? []).map((row) => {
     const raw = row.user as unknown;
     const person = Array.isArray(raw) ? raw[0] : raw;
@@ -36,13 +50,13 @@ export async function sendSlackTaskEventForAccount({ accountId, taskId, eventKey
   const project = Array.isArray(task.projects) ? task.projects[0] : task.projects;
   const channelEvents = new Map<string, Set<string>>();
   for (const rule of rules ?? []) {
-    const projects = (rule.project_slack_notification_rule_projects ?? []) as Array<{ project_id: string }>;
-    if (projects.length > 0 && !projects.some((item) => item.project_id === task.project_id)) continue;
-    const channel = Array.isArray(rule.project_slack_channels) ? rule.project_slack_channels[0] : rule.project_slack_channels;
-    if (!channel?.slack_channel_id) continue;
-    const configured = channelEvents.get(channel.slack_channel_id) ?? new Set<string>();
-    for (const event of (rule.project_slack_notification_rule_events ?? []) as Array<{ event_key: string }>) configured.add(event.event_key);
-    channelEvents.set(channel.slack_channel_id, configured);
+    const projects = projectsByRule.get(rule.id as string) ?? new Set<string>();
+    if (projects.size > 0 && !projects.has(task.project_id as string)) continue;
+    const slackChannelId = channelById.get(rule.channel_id as string);
+    if (!slackChannelId) continue;
+    const configured = channelEvents.get(slackChannelId) ?? new Set<string>();
+    for (const eventKey of eventsByRule.get(rule.id as string) ?? []) configured.add(eventKey);
+    channelEvents.set(slackChannelId, configured);
   }
   const channels = new Map<string, string>();
   for (const [channelId, configured] of channelEvents) {

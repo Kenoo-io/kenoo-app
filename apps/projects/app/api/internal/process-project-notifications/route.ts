@@ -55,17 +55,16 @@ async function processAssignmentEmail(admin: ReturnType<typeof createAdminClient
 async function processRow(admin: ReturnType<typeof createAdminClient>, row: OutboxRow) {
   if (row.event_key === "task_created") {
     const sent = await sendSlackTaskEventForAccount({ accountId: row.account_id, taskId: row.task_id, eventKey: "task_created" });
-    if (sent === 0) throw new Error("No matching Slack notification channel for task_created");
-    return;
+    return sent === 0;
   } else if (row.event_key === "task_assigned") {
     await Promise.all([
       row.payload.initial_assignment ? Promise.resolve(0) : sendSlackTaskEventForAccount({ accountId: row.account_id, taskId: row.task_id, eventKey: "task_assigned", assigneeIds: row.payload.assignee_id ? [row.payload.assignee_id] : undefined }),
       processAssignmentEmail(admin, row, row.payload.assignee_id ? [row.payload.assignee_id] : []),
     ]);
-    return;
+    return false;
   } else {
     const sent = await sendSlackTaskEventForAccount({ accountId: row.account_id, taskId: row.task_id, eventKey: "task_status_changed", specificEventKey: row.payload.specific_event_key as "task_completed" | "task_blocked" | "task_unblocked" | undefined });
-    if (sent === 0) throw new Error("No matching Slack notification channel for task_status_changed");
+    return sent === 0;
   }
 }
 
@@ -76,15 +75,17 @@ export async function POST(request: Request) {
   if (error) return NextResponse.json({ error: "Unable to claim notification jobs", detail: error.message }, { status: 500 });
 
   let sent = 0;
+  let skipped = 0;
   for (const row of (rows ?? []) as OutboxRow[]) {
     try {
-      await processRow(admin, row);
-      await admin.from("project_notification_outbox").update({ status: "sent", sent_at: new Date().toISOString(), locked_at: null, last_error: null, updated_at: new Date().toISOString() }).eq("id", row.id);
-      sent += 1;
+      const wasSkipped = await processRow(admin, row);
+      await admin.from("project_notification_outbox").update({ status: wasSkipped ? "skipped" : "sent", sent_at: wasSkipped ? null : new Date().toISOString(), locked_at: null, last_error: null, updated_at: new Date().toISOString() }).eq("id", row.id);
+      if (wasSkipped) skipped += 1;
+      else sent += 1;
     } catch (error) {
       const attempts = Number(row.attempts ?? 0) + 1;
       await admin.from("project_notification_outbox").update({ status: "failed", attempts, next_attempt_at: backoff(attempts), locked_at: null, last_error: error instanceof Error ? error.message : "Notification delivery failed", updated_at: new Date().toISOString() }).eq("id", row.id);
     }
   }
-  return NextResponse.json({ ok: true, claimed: rows?.length ?? 0, sent });
+  return NextResponse.json({ ok: true, claimed: rows?.length ?? 0, sent, skipped });
 }
