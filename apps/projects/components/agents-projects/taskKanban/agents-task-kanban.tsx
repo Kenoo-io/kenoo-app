@@ -78,7 +78,6 @@ import {
   resolveActorDisplayName,
   sendTaskBlockerCompletedEmail,
 } from "@/lib/user-notifications";
-import { getSlackSpecificStatusEvent, notifySlackTaskEvent } from "@/lib/slack-task-events";
 
 type TasksScreenCacheEntry = {
   projects: Project[];
@@ -1546,8 +1545,6 @@ function AgentsProjectsKanbanContent({
           .from("project_tasks")
           .update(updatePayload)
           .eq("id", taskId);
-        void notifySlackTaskEvent(taskId, "task_status_changed", undefined, getSlackSpecificStatusEvent(draggedTask.status, targetStatus));
-
         if (targetStatus === "completed" && draggedTask.status !== "completed") {
           void sendTaskBlockerCompletedEmail({ taskId: draggedTask.id }).then(({ unblockedTaskIds }) => {
             if (unblockedTaskIds.length === 0) return;
