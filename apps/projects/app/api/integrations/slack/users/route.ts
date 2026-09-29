@@ -87,7 +87,7 @@ export async function GET() {
   return NextResponse.json({
     connected: true,
     connection: { id: connection.id, teamId: connection.provider_account_id, teamName: (connection.token_payload as { team_name?: string } | null)?.team_name ?? null },
-    slackUsers: slackUsers.map((slackUser) => ({ id: slackUser.id, name: slackUser.profile?.display_name || slackUser.profile?.real_name || slackUser.real_name || slackUser.name || slackUser.id, email: slackUser.profile?.email ?? null })),
+    slackUsers: slackUsers.map((slackUser) => ({ id: slackUser.id, name: slackUser.profile?.display_name || slackUser.id, email: slackUser.profile?.email ?? null })),
     users: (kenooUsers ?? []).map((kenooUser) => {
       const mapping = mappedByUser.get(kenooUser.id as string);
       return { id: kenooUser.id, name: displayName(kenooUser), email: kenooUser.email, slackUserId: mapping?.slack_user_id ?? null, suggestedSlackUserId: mapping?.slack_user_id ?? (kenooUser.email ? byEmail.get(kenooUser.email.toLowerCase()) ?? null : null) };
