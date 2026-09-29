@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@walls/supabase/admin";
 import { createClient } from "@walls/supabase/server";
 import { resolveActiveAccountId } from "@/lib/account-context";
-import { sendSlackMessage, SLACK_PROVIDER, SLACK_SERVICE } from "@/lib/slack";
+import { formatSlackTaskStatus, sendSlackMessage, SLACK_PROVIDER, SLACK_SERVICE } from "@/lib/slack";
 
 const EVENT_KEYS = new Set(["task_created", "task_assigned", "task_status_changed"]);
 const SPECIFIC_STATUS_KEYS = new Set(["task_completed", "task_blocked", "task_unblocked"]);
@@ -44,11 +44,31 @@ export async function POST(request: Request) {
   ]);
   if (!task || !connection) return NextResponse.json({ ok: true, sent: 0 });
 
-  const [{ data: assigneeRows }, { data: rules }, { data: mappingRows }] = await Promise.all([
+  const [{ data: assigneeRows }, { data: rules, error: rulesError }, { data: mappingRows }] = await Promise.all([
     admin.from("project_task_assignees").select("user_id, user:users!project_task_assignees_user_id_fkey(id, first_name, last_name, email)").eq("task_id", task.id),
-    admin.from("project_slack_notification_rules").select("id, channel_id, project_slack_notification_rule_events(event_key), project_slack_notification_rule_projects(project_id), project_slack_channels!inner(slack_channel_id)").eq("account_id", accountId).eq("enabled", true),
+    admin.from("project_slack_notification_rules").select("id, channel_id").eq("account_id", accountId).eq("enabled", true),
     admin.from("slack_user_mappings").select("kenoo_user_id, slack_user_id").eq("account_id", accountId).eq("connection_id", connection.id).eq("active", true),
   ]);
+  if (rulesError) {
+    console.error("[projects] load Slack task notification rules:", rulesError);
+    return NextResponse.json({ error: "Unable to load Slack notification rules" }, { status: 500 });
+  }
+  const ruleIds = (rules ?? []).map((rule) => rule.id as string);
+  const channelIds = [...new Set((rules ?? []).map((rule) => rule.channel_id as string))];
+  const [{ data: channelRows, error: channelError }, { data: eventRows, error: eventsError }, { data: projectRows, error: projectsError }] = await Promise.all([
+    channelIds.length > 0 ? admin.from("project_slack_channels").select("id, slack_channel_id").in("id", channelIds) : Promise.resolve({ data: [], error: null }),
+    ruleIds.length > 0 ? admin.from("project_slack_notification_rule_events").select("rule_id, event_key").in("rule_id", ruleIds) : Promise.resolve({ data: [], error: null }),
+    ruleIds.length > 0 ? admin.from("project_slack_notification_rule_projects").select("rule_id, project_id").in("rule_id", ruleIds) : Promise.resolve({ data: [], error: null }),
+  ]);
+  if (channelError || eventsError || projectsError) {
+    console.error("[projects] load Slack task notification details:", channelError ?? eventsError ?? projectsError);
+    return NextResponse.json({ error: "Unable to load Slack notification details" }, { status: 500 });
+  }
+  const channelById = new Map((channelRows ?? []).map((channel) => [channel.id as string, channel.slack_channel_id as string]));
+  const eventsByRule = new Map<string, Set<string>>();
+  for (const row of (eventRows ?? []) as Array<{ rule_id: string; event_key: string }>) eventsByRule.set(row.rule_id, new Set([...(eventsByRule.get(row.rule_id) ?? []), row.event_key]));
+  const projectsByRule = new Map<string, Set<string>>();
+  for (const row of (projectRows ?? []) as Array<{ rule_id: string; project_id: string }>) projectsByRule.set(row.rule_id, new Set([...(projectsByRule.get(row.rule_id) ?? []), row.project_id]));
 
   const requestedAssigneeIds = Array.isArray(body.assigneeIds) ? body.assigneeIds.filter((id): id is string => typeof id === "string") : [];
   const assignees = (assigneeRows ?? []).map((row) => {
@@ -62,18 +82,17 @@ export async function POST(request: Request) {
 
   const project = Array.isArray(task.projects) ? task.projects[0] : task.projects;
   const matchingRules = (rules ?? []).filter((rule) => {
-    const events = (rule.project_slack_notification_rule_events ?? []) as Array<{ event_key: string }>;
-    const projects = (rule.project_slack_notification_rule_projects ?? []) as Array<{ project_id: string }>;
-    return (projects.length === 0 || projects.some((item) => item.project_id === task.project_id)) && events.length > 0;
+    const events = eventsByRule.get(rule.id as string) ?? new Set<string>();
+    const projects = projectsByRule.get(rule.id as string) ?? new Set<string>();
+    return (projects.size === 0 || projects.has(task.project_id as string)) && events.size > 0;
   });
   const channelEvents = new Map<string, Set<string>>();
   for (const rule of matchingRules) {
-    const channel = Array.isArray(rule.project_slack_channels) ? rule.project_slack_channels[0] : rule.project_slack_channels;
-    if (!channel?.slack_channel_id) continue;
-    const events = (rule.project_slack_notification_rule_events ?? []) as Array<{ event_key: string }>;
-    const configured = channelEvents.get(channel.slack_channel_id) ?? new Set<string>();
-    events.forEach((event) => configured.add(event.event_key));
-    channelEvents.set(channel.slack_channel_id, configured);
+    const slackChannelId = channelById.get(rule.channel_id as string);
+    if (!slackChannelId) continue;
+    const configured = channelEvents.get(slackChannelId) ?? new Set<string>();
+    for (const eventKey of eventsByRule.get(rule.id as string) ?? []) configured.add(eventKey);
+    channelEvents.set(slackChannelId, configured);
   }
   const channels = new Map<string, string>();
   for (const [channelId, configured] of channelEvents) {
@@ -99,11 +118,13 @@ export async function POST(request: Request) {
           ? `:no_entry_sign: *Task blocked*\n*${title}*\nProject: ${projectName}\nAssignees: ${assigneeText}`
           : eventKey === "task_unblocked"
             ? `:large_green_circle: *Task unblocked*\n*${title}*\nProject: ${projectName}\nAssignees: ${assigneeText}`
-            : `:arrows_counterclockwise: *Task status updated*\n*${title}* is now *${escapeSlack(String(task.status ?? "Unknown"))}*.\nProject: ${projectName}\nAssignees: ${assigneeText}`;
+            : `:arrows_counterclockwise: *Task status updated*\n*${title}* is now *${escapeSlack(formatSlackTaskStatus(task.status))}*.\nProject: ${projectName}\nAssignees: ${assigneeText}`;
 
   let sent = 0;
+  let lastError: string | null = null;
   for (const [channelId, eventKey] of channels) {
-    try { await sendSlackMessage(connection.access_token as string, channelId, textForEvent(eventKey)); sent += 1; } catch (error) { console.error("[projects] send Slack task notification:", error); }
+    try { await sendSlackMessage(connection.access_token as string, channelId, textForEvent(eventKey)); sent += 1; } catch (error) { lastError = error instanceof Error ? error.message : "Slack message failed"; console.error("[projects] send Slack task notification:", error); }
   }
+  if (sent === 0 && lastError) return NextResponse.json({ error: lastError }, { status: 502 });
   return NextResponse.json({ ok: true, sent });
 }

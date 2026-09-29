@@ -1,5 +1,5 @@
 import { createAdminClient } from "@walls/supabase/admin";
-import { sendSlackMessage, SLACK_PROVIDER, SLACK_SERVICE } from "@/lib/slack";
+import { formatSlackTaskStatus, sendSlackMessage, SLACK_PROVIDER, SLACK_SERVICE } from "@/lib/slack";
 
 type EventKey = "task_created" | "task_assigned" | "task_status_changed";
 type SpecificEventKey = "task_completed" | "task_blocked" | "task_unblocked";
@@ -60,7 +60,7 @@ export async function sendSlackTaskEventForAccount({ accountId, taskId, eventKey
       ? `:no_entry_sign: *Task blocked*\n*${title}*\nProject: ${projectName}\nAssignees: ${assigneeText}`
       : selectedEvent === "task_unblocked"
         ? `:large_green_circle: *Task unblocked*\n*${title}*\nProject: ${projectName}\nAssignees: ${assigneeText}`
-        : `:arrows_counterclockwise: *Task status updated*\n*${title}* is now *${escapeSlack(String(task.status ?? "Unknown"))}*.\nProject: ${projectName}\nDeadline: ${escapeSlack(formatDate(task.due_date as string | null))}\nAssignees: ${assigneeText}`;
+        : `:arrows_counterclockwise: *Task status updated*\n*${title}* is now *${escapeSlack(formatSlackTaskStatus(task.status))}*.\nProject: ${projectName}\nDeadline: ${escapeSlack(formatDate(task.due_date as string | null))}\nAssignees: ${assigneeText}`;
   let sent = 0;
   for (const [channelId, selectedEvent] of channels) {
     try { await sendSlackMessage(connection.access_token as string, channelId, messageFor(selectedEvent)); sent += 1; } catch (error) { console.error("[projects] send Slack task notification:", error); }
