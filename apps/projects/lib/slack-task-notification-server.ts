@@ -62,8 +62,18 @@ export async function sendSlackTaskEventForAccount({ accountId, taskId, eventKey
         ? `:large_green_circle: *Task unblocked*\n*${title}*\nProject: ${projectName}\nAssignees: ${assigneeText}`
         : `:arrows_counterclockwise: *Task status updated*\n*${title}* is now *${escapeSlack(formatSlackTaskStatus(task.status))}*.\nProject: ${projectName}\nDeadline: ${escapeSlack(formatDate(task.due_date as string | null))}\nAssignees: ${assigneeText}`;
   let sent = 0;
+  let lastError: unknown;
   for (const [channelId, selectedEvent] of channels) {
-    try { await sendSlackMessage(connection.access_token as string, channelId, messageFor(selectedEvent)); sent += 1; } catch (error) { console.error("[projects] send Slack task notification:", error); }
+    try {
+      await sendSlackMessage(connection.access_token as string, channelId, messageFor(selectedEvent));
+      sent += 1;
+    } catch (error) {
+      lastError = error;
+      console.error("[projects] send Slack task notification:", error);
+    }
+  }
+  if (sent === 0 && channels.size > 0) {
+    throw lastError instanceof Error ? lastError : new Error("Slack rejected the notification");
   }
   return sent;
 }
