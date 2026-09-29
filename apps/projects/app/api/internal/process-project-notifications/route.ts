@@ -54,14 +54,18 @@ async function processAssignmentEmail(admin: ReturnType<typeof createAdminClient
 
 async function processRow(admin: ReturnType<typeof createAdminClient>, row: OutboxRow) {
   if (row.event_key === "task_created") {
-    await sendSlackTaskEventForAccount({ accountId: row.account_id, taskId: row.task_id, eventKey: "task_created" });
+    const sent = await sendSlackTaskEventForAccount({ accountId: row.account_id, taskId: row.task_id, eventKey: "task_created" });
+    if (sent === 0) throw new Error("No matching Slack notification channel for task_created");
+    return;
   } else if (row.event_key === "task_assigned") {
     await Promise.all([
-      row.payload.initial_assignment ? Promise.resolve() : sendSlackTaskEventForAccount({ accountId: row.account_id, taskId: row.task_id, eventKey: "task_assigned", assigneeIds: row.payload.assignee_id ? [row.payload.assignee_id] : undefined }),
+      row.payload.initial_assignment ? Promise.resolve(0) : sendSlackTaskEventForAccount({ accountId: row.account_id, taskId: row.task_id, eventKey: "task_assigned", assigneeIds: row.payload.assignee_id ? [row.payload.assignee_id] : undefined }),
       processAssignmentEmail(admin, row, row.payload.assignee_id ? [row.payload.assignee_id] : []),
     ]);
+    return;
   } else {
-    await sendSlackTaskEventForAccount({ accountId: row.account_id, taskId: row.task_id, eventKey: "task_status_changed", specificEventKey: row.payload.specific_event_key as "task_completed" | "task_blocked" | "task_unblocked" | undefined });
+    const sent = await sendSlackTaskEventForAccount({ accountId: row.account_id, taskId: row.task_id, eventKey: "task_status_changed", specificEventKey: row.payload.specific_event_key as "task_completed" | "task_blocked" | "task_unblocked" | undefined });
+    if (sent === 0) throw new Error("No matching Slack notification channel for task_status_changed");
   }
 }
 
