@@ -53,13 +53,8 @@ async function processAssignmentEmail(admin: ReturnType<typeof createAdminClient
 }
 
 async function processRow(admin: ReturnType<typeof createAdminClient>, row: OutboxRow) {
-  const { data: assignees } = await admin.from("project_task_assignees").select("user_id").eq("task_id", row.task_id);
-  const assigneeIds = (assignees ?? []).map((assignee) => assignee.user_id as string);
   if (row.event_key === "task_created") {
-    await Promise.all([
-      sendSlackTaskEventForAccount({ accountId: row.account_id, taskId: row.task_id, eventKey: "task_created" }),
-      processAssignmentEmail(admin, row, assigneeIds),
-    ]);
+    await sendSlackTaskEventForAccount({ accountId: row.account_id, taskId: row.task_id, eventKey: "task_created" });
   } else if (row.event_key === "task_assigned") {
     await Promise.all([
       row.payload.initial_assignment ? Promise.resolve() : sendSlackTaskEventForAccount({ accountId: row.account_id, taskId: row.task_id, eventKey: "task_assigned", assigneeIds: row.payload.assignee_id ? [row.payload.assignee_id] : undefined }),
