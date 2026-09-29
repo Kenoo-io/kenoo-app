@@ -24,7 +24,10 @@ export async function middleware(request: NextRequest) {
 
   return handleProtectedAppRequest(request, {
     appSlug: process.env.NEXT_PUBLIC_PROJECTS_APP_SLUG || "projects",
-    publicPaths: ["/api/webhooks/github"],
+    publicPaths: [
+      "/api/webhooks/github",
+      "/api/internal/process-project-notifications",
+    ],
   });
 }
 

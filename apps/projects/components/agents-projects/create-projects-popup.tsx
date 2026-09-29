@@ -431,12 +431,19 @@ export function CreateProjectsPopup({
           }
         }
         payload.account_id = activeAccountId;
-        const { data: newProject, error: err } = await supabase
-          .from("projects")
-          .insert(payload)
-          .select("id")
-          .single();
-        if (err) throw err;
+        const response = await fetch("/api/projects", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const result = (await response.json().catch(() => null)) as {
+          id?: string;
+          error?: string;
+        } | null;
+        if (!response.ok || !result?.id) {
+          throw new Error(result?.error ?? "Failed to create project.");
+        }
+        const newProject = { id: result.id };
 
         const membersToSave = withOwnerAsMember(selectedMembers, newOwnerId)
           .filter((userId) => userId !== newOwnerId);
