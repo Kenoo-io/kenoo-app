@@ -13,11 +13,12 @@ export function getSlackSpecificStatusEvent(previousStatus: string, nextStatus: 
 
 export async function notifySlackTaskEvent(taskId: string, eventKey: SlackTaskEventKey, assigneeIds?: string[], specificEventKey?: SlackTaskSpecificEventKey) {
   try {
-    await fetch("/api/integrations/slack/task-event", {
+    const response = await fetch("/api/integrations/slack/task-event", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ taskId, eventKey, assigneeIds, specificEventKey }),
     });
+    if (!response.ok) console.error("[projects] Slack task notification failed:", response.status, await response.text());
   } catch {
     // Slack delivery is best-effort and should never block task saves.
   }

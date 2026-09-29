@@ -3,7 +3,21 @@ import { createAdminClient } from "@walls/supabase/admin";
 export const SLACK_PROVIDER = "slack";
 export const SLACK_SERVICE = "workspace";
 export const SLACK_OAUTH_STATE_COOKIE = "slack_oauth_state";
-export const SLACK_SCOPES = ["chat:write", "channels:read", "groups:read", "users:read", "users:read.email"] as const;
+export const SLACK_SCOPES = ["chat:write", "chat:write.public", "channels:read", "groups:read", "users:read", "users:read.email"] as const;
+
+const TASK_STATUS_LABELS: Record<string, string> = {
+  todo: "To Do",
+  in_progress: "In Progress",
+  in_review: "In Review",
+  on_hold: "On Hold",
+  completed: "Completed",
+  blocked: "Blocked",
+};
+
+export function formatSlackTaskStatus(status: unknown) {
+  const value = String(status ?? "Unknown");
+  return TASK_STATUS_LABELS[value] ?? value.replace(/_/g, " ").replace(/\b\w/g, (character) => character.toUpperCase());
+}
 
 type SlackOAuthResponse = {
   ok: boolean;
