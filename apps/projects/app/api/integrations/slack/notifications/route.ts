@@ -55,9 +55,9 @@ export async function GET() {
   const ruleIds = (rules ?? []).map((rule) => rule.id as string);
   const channelIds = [...new Set((rules ?? []).map((rule) => rule.channel_id as string))];
   const [{ data: channelRows }, { data: eventRows, error: eventsError }, { data: projectRows, error: ruleProjectsError }] = await Promise.all([
-    channelIds.length > 0 ? admin.from("project_slack_channels").select("id, slack_channel_id, slack_channel_name, is_private").in("id", channelIds) : Promise.resolve({ data: [] as unknown[] }),
-    ruleIds.length > 0 ? admin.from("project_slack_notification_rule_events").select("rule_id, event_key").in("rule_id", ruleIds) : Promise.resolve({ data: [] as unknown[] }),
-    ruleIds.length > 0 ? admin.from("project_slack_notification_rule_projects").select("rule_id, project_id").in("rule_id", ruleIds) : Promise.resolve({ data: [] as unknown[] }),
+    channelIds.length > 0 ? admin.from("project_slack_channels").select("id, slack_channel_id, slack_channel_name, is_private").in("id", channelIds) : Promise.resolve({ data: [], error: null }),
+    ruleIds.length > 0 ? admin.from("project_slack_notification_rule_events").select("rule_id, event_key").in("rule_id", ruleIds) : Promise.resolve({ data: [], error: null }),
+    ruleIds.length > 0 ? admin.from("project_slack_notification_rule_projects").select("rule_id, project_id").in("rule_id", ruleIds) : Promise.resolve({ data: [], error: null }),
   ]);
   if (eventsError || ruleProjectsError) {
     console.error("[projects] load Slack notification rule details:", eventsError ?? ruleProjectsError);
