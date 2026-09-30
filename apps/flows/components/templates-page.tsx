@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { FileText, Mail, MessageCircleMore, Plus, Search, Sparkles, X } from "lucide-react";
+import { FileText, Mail, MessageCircleMore, Plus, Search, Smartphone, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { cn } from "@walls/utils";
@@ -9,7 +9,7 @@ import { cn } from "@walls/utils";
 type TemplateChannel = "Email" | "SMS" | "Push";
 
 type Template = {
-  id: number;
+  id: string;
   name: string;
   description: string;
   channel: TemplateChannel;
@@ -21,7 +21,7 @@ const channelOptions: Array<"All" | TemplateChannel> = ["All", "Email", "SMS", "
 const channelIcons = {
   Email: Mail,
   SMS: MessageCircleMore,
-  Push: Sparkles,
+  Push: Smartphone,
 } satisfies Record<TemplateChannel, typeof Mail>;
 
 const panelGlassClass = "bg-white/80 backdrop-blur-xl shadow-[0_8px_28px_rgba(15,23,42,0.07),inset_0_1px_0_rgba(255,255,255,0.95)]";
@@ -32,6 +32,18 @@ export function TemplatesPage() {
   const [search, setSearch] = React.useState("");
   const [isCreateOpen, setIsCreateOpen] = React.useState(false);
   const router = useRouter();
+
+  React.useEffect(() => {
+    let cancelled = false;
+    fetch("/api/templates")
+      .then((response) => response.ok ? response.json() : { templates: [] })
+      .then((payload: { templates?: Array<{ id: string; name: string; description: string | null; channel: TemplateChannel; text_content: string | null }> }) => {
+        if (cancelled) return;
+        setTemplates((payload.templates ?? []).map((template) => ({ id: template.id, name: template.name, description: template.description ?? "No description", channel: `${template.channel.charAt(0).toUpperCase()}${template.channel.slice(1)}` as TemplateChannel, body: template.text_content ?? "" })));
+      })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, []);
 
   const filteredTemplates = templates.filter((template) => {
     const matchesChannel = activeChannel === "All" || template.channel === activeChannel;
@@ -86,7 +98,7 @@ export function TemplatesPage() {
         </section>
       </div>
 
-      {isCreateOpen ? <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/20 px-4 backdrop-blur-sm" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setIsCreateOpen(false); }}><div role="dialog" aria-modal="true" aria-labelledby="create-template-title" className="w-full max-w-lg rounded-[26px] bg-white p-6 shadow-[0_20px_80px_rgba(15,23,42,0.18)]"><div className="flex items-start justify-between gap-4"><div><h2 id="create-template-title" className="text-[18px] font-semibold tracking-[-0.03em] text-[#111]">What kind of template?</h2><p className="mt-1 text-[12px] text-[#8c8c8c]">Choose a channel to start building your message.</p></div><button type="button" onClick={() => setIsCreateOpen(false)} aria-label="Close" className="rounded-full p-2 text-[#999] transition hover:bg-[#f4f4f4] hover:text-[#444]"><X className="h-4 w-4" /></button></div><div className="mt-6 grid gap-4 sm:grid-cols-3">{(["Email", "SMS", "Push"] as TemplateChannel[]).map((option) => { const Icon = channelIcons[option]; return <button key={option} type="button" onClick={() => router.push(`/templates/new/${option.toLowerCase()}`)} className="group flex flex-col items-center rounded-2xl border border-white/70 bg-white/75 px-3 py-6 text-center shadow-[0_8px_28px_rgba(15,23,42,0.09),inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-xl transition duration-200 hover:-translate-y-1 hover:border-white hover:bg-white/90 hover:shadow-[0_14px_34px_rgba(15,23,42,0.14),inset_0_1px_0_rgba(255,255,255,1)]"><span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#f5f5f5] text-[#555] transition group-hover:bg-[#eee]"><Icon className="h-5 w-5" strokeWidth={1.6} /></span><span className="mt-3 text-[13px] font-medium text-[#333]">{option}</span><span className="mt-1 text-[11px] text-[#999]">{option === "Email" ? "Rich messages" : option === "SMS" ? "Short messages" : "App notifications"}</span></button>; })}</div></div></div> : null}
+      {isCreateOpen ? <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/20 px-4 backdrop-blur-sm" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setIsCreateOpen(false); }}><div role="dialog" aria-modal="true" aria-labelledby="create-template-title" className="w-full max-w-lg rounded-[26px] bg-white p-6 shadow-[0_20px_80px_rgba(15,23,42,0.18)]"><div className="flex items-start justify-between gap-4"><div><h2 id="create-template-title" className="text-[18px] font-semibold tracking-[-0.03em] text-[#111]">What kind of template?</h2><p className="mt-1 text-[12px] text-[#8c8c8c]">Choose a channel to start building your message.</p></div><button type="button" onClick={() => setIsCreateOpen(false)} aria-label="Close" className="rounded-full p-2 text-[#999] transition hover:bg-[#f4f4f4] hover:text-[#444]"><X className="h-4 w-4" /></button></div><div className="mt-6 grid gap-4 sm:grid-cols-3">{(["Email", "SMS", "Push"] as TemplateChannel[]).map((option) => { const Icon = channelIcons[option]; return <button key={option} type="button" onClick={() => router.push(`/templates/new/${option.toLowerCase()}`)} className="group flex flex-col items-center rounded-2xl border border-white/70 bg-white/75 px-3 py-6 text-center shadow-[0_8px_28px_rgba(15,23,42,0.09),inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-xl transition duration-200 hover:-translate-y-1 hover:border-white hover:bg-white/90 hover:shadow-[0_14px_34px_rgba(15,23,42,0.14),inset_0_1px_0_rgba(255,255,255,1)]"><span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#f5f5f5] text-[#555] transition group-hover:bg-[#eee]"><Icon className="h-5 w-5" strokeWidth={1.6} /></span><span className="mt-3 text-[13px] font-medium text-[#333]">{option}</span><span className="mt-1 text-[11px] text-[#999]">{option === "Email" ? "Rich messages" : option === "SMS" ? "Short messages" : "App notifications"}</span></button>; })}</div></div></div> : null}
     </div>
   );
 }
