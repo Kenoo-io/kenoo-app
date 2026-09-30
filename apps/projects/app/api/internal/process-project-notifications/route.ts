@@ -31,12 +31,15 @@ async function processAssignmentEmail(admin: ReturnType<typeof createAdminClient
   if (!task) return;
   const project = Array.isArray(task.projects) ? task.projects[0] : task.projects;
   if (!project?.account_id) return;
-  const ids = [...new Set(recipientIds.filter((id) => id && id !== task.assigned_by))];
+  const actorUserId = row.payload.actor_user_id || task.assigned_by;
+  const ids = [...new Set(recipientIds.filter((id) => id && id !== actorUserId))];
   if (ids.length === 0) return;
   const [{ data: preferences }, { data: recipients }, { data: actor }] = await Promise.all([
     admin.from("alert_subscriptions").select("user_id, notify_email, enabled").eq("account_id", project.account_id).eq("app_slug", APP_SLUG).eq("alert_key", ASSIGNMENT_ALERT_KEY).in("user_id", ids),
     admin.from("users").select("id, email, first_name").in("id", ids),
-    admin.from("users").select("first_name, last_name, email").eq("id", task.assigned_by).maybeSingle(),
+    actorUserId
+      ? admin.from("users").select("first_name, last_name, email").eq("id", actorUserId).maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
   const optedIn = new Set((preferences ?? []).filter((preference) => preference.enabled && preference.notify_email).map((preference) => preference.user_id as string));
   const recipientsById = new Map((recipients ?? []).filter((recipient) => recipient.email && optedIn.has(recipient.id as string)).map((recipient) => [recipient.id as string, recipient]));
