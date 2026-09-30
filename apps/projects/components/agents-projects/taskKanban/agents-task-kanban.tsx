@@ -1563,7 +1563,7 @@ function AgentsProjectsKanbanContent({
           draggedTask.assigned_by &&
           draggedTask.assigned_by !== user.id
         ) {
-          await requestProjectInternalNotification({ event: "task_completed", taskId: draggedTask.id });
+          void requestProjectInternalNotification({ event: "task_completed", taskId: draggedTask.id });
         }
       } catch {
         // Revert on error

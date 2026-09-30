@@ -971,7 +971,7 @@ export function CreateTasksPopup({
       }
 
       if (newlyAdded.length > 0) {
-        await requestProjectInternalNotification({ event: "task_assigned", taskId: taskId!, userIds: newlyAdded });
+        void requestProjectInternalNotification({ event: "task_assigned", taskId: taskId!, userIds: newlyAdded });
       }
 
       onSaved();
