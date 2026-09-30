@@ -1,6 +1,7 @@
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 
 import {
+  brandingLogoPrefix,
   organizationIconPrefix,
   userAvatarPrefix,
 } from "./prefixes";
@@ -101,6 +102,18 @@ export async function uploadImage({
       key,
       message: "Profile picture updated successfully",
     };
+  }
+
+  if (target.kind === "branding-logo") {
+    await assertCanEditOrganization(supabase, appUser.id, target.accountId);
+    const prefix = brandingLogoPrefix(target.accountId, target.variant);
+    const { url, key } = await uploadToPrefix(file, prefix);
+    const column = target.variant === "dark" ? "dark_logo_url" : "light_logo_url";
+    const { error } = await supabase
+      .from("account_branding")
+      .upsert({ account_id: target.accountId, [column]: url, updated_at: new Date().toISOString() }, { onConflict: "account_id" });
+    if (error) throw new Error(error.message || "Failed to save branding logo URL");
+    return { url, key, message: "Branding logo uploaded successfully" };
   }
 
   await assertCanEditOrganization(supabase, appUser.id, target.organizationId);

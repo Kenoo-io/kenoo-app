@@ -663,6 +663,9 @@ importers:
       '@walls/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@walls/storage':
+        specifier: workspace:*
+        version: link:../../packages/storage
       '@walls/supabase':
         specifier: workspace:*
         version: link:../../packages/supabase

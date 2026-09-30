@@ -57,6 +57,11 @@ export function FlowsSettingsPage() {
         </header>
 
         <section>
+          <SectionLabel title="Workspace" />
+          <SettingsActionPanel title="Branding" description="Choose the colors and logos that represent your company across Flows." href="/settings/branding" actionLabel="Manage branding" />
+        </section>
+
+        <section>
           <SectionLabel title="Connected sources" />
           <div className="flex flex-col gap-2">
             <IntegrationRow href="/documentation" icon={Code2} title="Event API" status="Learn how to send customer events into your flows" />
@@ -84,10 +89,6 @@ export function FlowsSettingsPage() {
           <SettingsActionPanel title="Manage alerts" description="Choose how your team is notified about flow errors, delivery issues, and weekly performance." href="/settings/alerts" actionLabel="Manage alerts" />
         </section>
 
-        <section>
-          <SectionLabel title="Documentation" />
-          <SettingsActionPanel title="Event API documentation" description="Learn how to define custom events and trigger flows from your product." href="/documentation" actionLabel="View documentation" />
-        </section>
       </div>
     </main>
   );

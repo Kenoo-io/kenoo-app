@@ -12,6 +12,7 @@
     "@walls/auth": "workspace:*",
     "@walls/config": "workspace:*",
     "@walls/supabase": "workspace:*",
+    "@walls/storage": "workspace:*",
     "@walls/ui": "workspace:*",
     "@walls/utils": "workspace:*",
     "class-variance-authority": "^0.7.1",

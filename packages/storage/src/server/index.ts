@@ -2,7 +2,7 @@ export {
   handleUploadImageRequest,
   UploadImageRequestError,
 } from "./handle-upload-request";
-export { organizationIconPrefix, userAvatarPrefix } from "./prefixes";
+export { brandingLogoPrefix, organizationIconPrefix, userAvatarPrefix } from "./prefixes";
 export { resolveAppUserRecord, type AppUserRecord } from "./resolve-user";
 export {
   deleteObjectsWithPrefix,
