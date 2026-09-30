@@ -76,3 +76,15 @@ export async function putImageObject(
     }),
   );
 }
+
+export async function deleteObject(key: string): Promise<void> {
+  const r2 = getR2Client();
+  const bucket = getR2Bucket();
+
+  await r2.send(
+    new DeleteObjectCommand({
+      Bucket: bucket,
+      Key: key,
+    }),
+  );
+}

@@ -6,3 +6,7 @@ export function userAvatarPrefix(userId: string): string {
 export function organizationIconPrefix(organizationId: string): string {
   return `organization-icons/${organizationId}/`;
 }
+
+export function brandingLogoPrefix(accountId: string, variant: "dark" | "light"): string {
+  return `account-branding/${accountId}/${variant}/`;
+}

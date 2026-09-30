@@ -1,5 +1,5 @@
 @import "tailwindcss";
-@import "@walls/ui/kenoo-theme.css";
+@import "../../../packages/ui/src/kenoo-theme.css";
 
 @source "../../../packages/ui/src";
 @source "../components";
