@@ -24,13 +24,17 @@ type NotificationPreferences = {
 // to a user and account, and successful mutations write through to that entry.
 const preferencesCache = new Map<string, NotificationPreferences>();
 
-function NotificationChannelSelect({
+export function NotificationChannelSelect({
   notifyEmail,
+  enabledLabel = "Email",
+  disabledLabel = "None",
   loading,
   saving,
   onChange,
 }: {
   notifyEmail: boolean;
+  enabledLabel?: string;
+  disabledLabel?: string;
   loading: boolean;
   saving: boolean;
   onChange: (notifyEmail: boolean) => void;
@@ -51,7 +55,7 @@ function NotificationChannelSelect({
           )}
         >
           <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
-            {saving ? "Saving…" : notifyEmail ? "Email" : "None"}
+            {saving ? "Saving…" : notifyEmail ? enabledLabel : disabledLabel}
           </span>
           <ChevronDown
             className={cn("h-3.5 w-3.5 shrink-0 text-neutral-400 transition-transform", open && "rotate-180")}
@@ -60,7 +64,7 @@ function NotificationChannelSelect({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" sideOffset={6} className="w-56 rounded-2xl border-0 bg-kenoo-white p-2 shadow-xl">
         <p className="px-2 pb-1 pt-1 text-xs font-medium text-neutral-500">Notify via</p>
-        {[{ label: "Email", enabled: true }, { label: "None", enabled: false }].map((option) => (
+        {[{ label: enabledLabel, enabled: true }, { label: disabledLabel, enabled: false }].map((option) => (
           <DropdownMenuItem
             key={option.label}
             onSelect={(event) => {
@@ -131,13 +135,13 @@ function NotificationsPageContent({ cacheKey, loadingContext }: { cacheKey: stri
     return () => { active = false; };
   }, [cacheKey, loadingContext]);
 
-  function cachePreference(preference: keyof NotificationPreferences, notifyEmail: boolean) {
+  function cachePreference(preference: keyof NotificationPreferences, value: boolean) {
     if (!cacheKey) return;
+    const cached = preferencesCache.get(cacheKey);
     preferencesCache.set(cacheKey, {
-      taskAssignedEmail,
-      taskBlockerCompletedEmail,
-      ...preferencesCache.get(cacheKey),
-      [preference]: notifyEmail,
+      taskAssignedEmail: cached?.taskAssignedEmail ?? taskAssignedEmail,
+      taskBlockerCompletedEmail: cached?.taskBlockerCompletedEmail ?? taskBlockerCompletedEmail,
+      [preference]: value,
     });
   }
 
@@ -191,7 +195,7 @@ function NotificationsPageContent({ cacheKey, loadingContext }: { cacheKey: stri
           <header>
             <p className="text-xs font-medium uppercase tracking-widest text-neutral-500">Projects</p>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight text-foreground">Email notifications</h1>
-            <p className="mt-2 max-w-xl text-sm font-light leading-6 text-neutral-500">Choose how you receive activity notifications from Projects.</p>
+            <p className="mt-2 max-w-xl text-sm font-light leading-6 text-neutral-500">Choose which Projects activity notifications are delivered by email.</p>
           </header>
         </div>
 

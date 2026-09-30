@@ -3,6 +3,14 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 export const PROJECT_NOTIFICATION_TYPE = "projects";
 export const SCOUTER_NOTIFICATION_TYPE = "scouter";
 export const SCOUTER_INDEX_URL = "/agents/scouter";
+export const PROJECTS_INTERNAL_ALERT_KEY = "projects.internal";
+export const PROJECTS_INTERNAL_EVENT_KEYS = {
+  projectMemberAdded: "projects.internal.project_member_added",
+  taskAssigned: "projects.internal.task_assigned",
+  taskCompleted: "projects.internal.task_completed",
+  taskBlockerCompleted: "projects.internal.task_blocker_completed",
+} as const;
+export type ProjectsInternalEventKey = keyof typeof PROJECTS_INTERNAL_EVENT_KEYS;
 
 export type UserNotificationInsert = {
   user_id: string;
@@ -11,6 +19,7 @@ export type UserNotificationInsert = {
   type?: string | null;
   redirect_url?: string | null;
   metadata?: Record<string, unknown> | null;
+  dedupe_key?: string | null;
 };
 
 export async function insertUserNotifications(
@@ -26,12 +35,42 @@ export async function insertUserNotifications(
     type: n.type ?? "info",
     redirect_url: n.redirect_url ?? null,
     metadata: n.metadata ?? null,
+    dedupe_key: n.dedupe_key ?? null,
   }));
 
   const { error } = await supabase.from("user_notifications").insert(rows);
   if (error) {
     console.error("Failed to insert user notifications:", error);
   }
+}
+
+/** Keep project inbox delivery opt-in/out separate from email and Slack. */
+export async function filterInternalNotificationRecipients(
+  supabase: SupabaseClient,
+  projectId: string,
+  userIds: string[],
+  eventKey: ProjectsInternalEventKey = "taskAssigned",
+): Promise<string[]> {
+  const recipients = [...new Set(userIds.filter(Boolean))];
+  if (!recipients.length) return [];
+  const { data: project } = await supabase.from("projects").select("account_id").eq("id", projectId).maybeSingle();
+  if (!project?.account_id) return recipients;
+  const { data: preferences } = await supabase
+    .from("alert_subscriptions")
+    .select("user_id, alert_key, notify_email, enabled")
+    .eq("account_id", project.account_id)
+    .eq("app_slug", "projects")
+    .in("alert_key", [PROJECTS_INTERNAL_EVENT_KEYS[eventKey], PROJECTS_INTERNAL_ALERT_KEY])
+    .in("user_id", recipients);
+  const disabled = new Set<string>();
+  for (const recipient of recipients) {
+    const rows = (preferences ?? []).filter((row) => row.user_id === recipient);
+    const eventPreference = rows.find((row) => row.alert_key === PROJECTS_INTERNAL_EVENT_KEYS[eventKey]);
+    const globalPreference = rows.find((row) => row.alert_key === PROJECTS_INTERNAL_ALERT_KEY);
+    const preference = eventPreference ?? globalPreference;
+    if (preference?.enabled === false || preference?.notify_email === false) disabled.add(recipient);
+  }
+  return recipients.filter((id) => !disabled.has(id));
 }
 
 export function projectBoardUrl(projectId: string): string {
@@ -77,6 +116,24 @@ export async function sendTaskBlockerCompletedEmail(options: { taskId: string })
     // Email delivery is secondary to completing the task.
     console.error("Failed to request task blocker email:", error);
     return { unblockedTaskIds: [] };
+  }
+}
+
+/** Ask the authenticated Projects server to create an internal notification. */
+export async function requestProjectInternalNotification(options: {
+  event: "project_member_added" | "task_assigned" | "task_completed";
+  projectId?: string;
+  userIds?: string[];
+  taskId?: string;
+}): Promise<void> {
+  try {
+    await fetch("/api/notifications/internal", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(options),
+    });
+  } catch (error) {
+    console.error("Failed to request project internal notification:", error);
   }
 }
 
@@ -150,7 +207,7 @@ export async function notifyProjectMembersAdded(
   }
 ): Promise<void> {
   const { userIds, projectId, projectName, actorUserId, actorName } = options;
-  const recipients = userIds.filter((id) => id && id !== actorUserId);
+  const recipients = await filterInternalNotificationRecipients(supabase, projectId, userIds.filter((id) => id && id !== actorUserId), "projectMemberAdded");
   if (recipients.length === 0) return;
 
   await insertUserNotifications(
@@ -186,6 +243,7 @@ export async function notifyTaskAssignee(
     options;
 
   if (!assigneeId || assigneeId === actorUserId) return;
+  if (!(await filterInternalNotificationRecipients(supabase, projectId, [assigneeId], "taskAssigned")).includes(assigneeId)) return;
 
   const projectLabel = projectName ? ` in "${projectName}"` : "";
 
@@ -254,6 +312,7 @@ export async function notifyTaskAssignerOnComplete(
   } = options;
 
   if (!assignerId || assignerId === completerUserId) return;
+  if (!(await filterInternalNotificationRecipients(supabase, projectId, [assignerId], "taskCompleted")).includes(assignerId)) return;
 
   const projectLabel = projectName ? ` in "${projectName}"` : "";
 

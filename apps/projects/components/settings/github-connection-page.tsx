@@ -7,7 +7,6 @@ import { AlertCircle, ArrowLeft, CheckCircle2, Github, Unplug } from "lucide-rea
 
 import { setCachedGitHubConnection, useGitHubConnection } from "@/lib/github-connection";
 import { Button } from "@/components/ui/button";
-import { GitHubAutomationSettings } from "@/components/settings/github-automation-settings";
 
 function connectionErrorMessage(error: string) {
   switch (error) {
@@ -114,15 +113,20 @@ export function GitHubConnectionPage() {
               <p className="mt-1 text-xs font-light text-neutral-400">
                 Connected {new Date(connection.created_at).toLocaleDateString()}
               </p>
-              <Button
-                type="button"
-                className="mt-5 rounded-full border border-rose-300/70 bg-rose-50/80 px-5 font-medium tracking-tight text-rose-700 shadow-[inset_0_1px_2px_rgba(127,29,29,0.04)] backdrop-blur-xl transition-all duration-300 ease-in-out hover:border-rose-400/70 hover:bg-rose-50 active:scale-[0.98]"
-                onClick={() => void disconnect()}
-                disabled={disconnecting}
-              >
-                <Unplug className="mr-2 h-4 w-4" />
-                {disconnecting ? "Disconnecting…" : "Disconnect"}
-              </Button>
+              <div className="mt-5 flex flex-col items-start gap-2">
+                <Link href="/settings/workflow/github" className="inline-flex h-9 items-center text-sm font-medium text-[var(--kenoo-sky)] hover:opacity-80">
+                  Manage task automation
+                </Link>
+                <Button
+                  type="button"
+                  className="inline-flex h-9 items-center rounded-md border-0 bg-transparent px-0 font-medium tracking-tight text-rose-600 shadow-none hover:bg-transparent hover:text-rose-700"
+                  onClick={() => void disconnect()}
+                  disabled={disconnecting}
+                >
+                  <Unplug className="mr-2 h-4 w-4" />
+                  {disconnecting ? "Disconnecting…" : "Disconnect"}
+                </Button>
+              </div>
             </>
           ) : (
             <>
@@ -150,7 +154,6 @@ export function GitHubConnectionPage() {
             </>
           )}
         </section>
-        {connection ? <GitHubAutomationSettings connectionId={connection.id} /> : null}
       </div>
     </main>
   );

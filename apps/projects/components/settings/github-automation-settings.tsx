@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { motion } from "framer-motion";
-import { Check, ChevronDown } from "lucide-react";
+import { Check, ChevronDown, Save } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -147,6 +147,11 @@ export function GitHubAutomationSettings({ connectionId }: { connectionId: strin
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const selectedRepositoryDetails = repositories.find((repository) => repository.full_name === selectedRepository);
+  const selectedAutomation = automations.find((item) => item.repository_full_name === selectedRepository);
+  const hasChanges = !selectedAutomation
+    || selectedAutomation.completion_mode !== completionMode
+    || (selectedAutomation.completion_branch ?? "main") !== completionBranch
+    || (selectedAutomation.deployment_environment ?? "production") !== deploymentEnvironment;
 
   const selectRepository = React.useCallback((repository: string, available: GitHubRepository[], settings: RepositoryAutomation[]) => {
     const automation = settings.find((item) => item.repository_full_name === repository);
@@ -225,7 +230,7 @@ export function GitHubAutomationSettings({ connectionId }: { connectionId: strin
 
   return (
     <section className="overflow-hidden rounded-[28px] bg-white/80 px-4 py-5 shadow-[0_8px_28px_rgba(15,23,42,0.07),inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-xl md:px-6 md:py-6">
-      {loading ? <p className="mt-5 text-sm font-light text-neutral-500">Loading repositories…</p> : repositories.length === 0 ? <p className="mt-5 text-sm font-light text-neutral-500">No repositories are available to this GitHub installation.</p> : (
+      {loading ? <div className="mt-5 space-y-6 animate-pulse" aria-label="Loading GitHub automation settings"><div className="h-12 w-full max-w-sm rounded-2xl bg-neutral-100" /><div className="space-y-2"><div className="h-5 w-64 rounded bg-neutral-100" /><div className="h-4 w-full max-w-xl rounded bg-neutral-100" /></div><div className="h-12 w-full max-w-sm rounded-2xl bg-neutral-100" /><div className="h-12 w-full max-w-sm rounded-2xl bg-neutral-100" /><div className="h-9 w-36 rounded-lg bg-neutral-100" /></div> : repositories.length === 0 ? <p className="mt-5 text-sm font-light text-neutral-500">No repositories are available to this GitHub installation.</p> : (
         <div className="space-y-6">
           <AutomationSelect label="Repository" value={selectedRepository} options={repositories.map((repository) => ({ value: repository.full_name, label: repository.full_name }))} onChange={(repository) => selectRepository(repository, repositories, automations)} />
           <div>
@@ -266,9 +271,13 @@ export function GitHubAutomationSettings({ connectionId }: { connectionId: strin
           <Button
             type="button"
             onClick={() => void save()}
-            disabled={saving}
-            className="rounded-full bg-neutral-900 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-neutral-700"
+            disabled={saving || !hasChanges}
+            className={cn(
+              "inline-flex h-9 items-center gap-1.5 rounded-lg px-3.5 text-sm font-medium text-white transition-colors",
+              hasChanges ? "bg-neutral-950 hover:bg-neutral-800" : "cursor-not-allowed bg-neutral-200 text-neutral-400",
+            )}
           >
+            <Save className="h-3.5 w-3.5" />
             {saving ? "Saving…" : "Save automation"}
           </Button>
         </div>
