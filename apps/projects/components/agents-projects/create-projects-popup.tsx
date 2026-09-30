@@ -388,7 +388,7 @@ export function CreateProjectsPopup({
             }))
           );
           if (addErr) throw addErr;
-          await requestProjectInternalNotification({ event: "project_member_added", projectId: existing.id, userIds: toAdd });
+          void requestProjectInternalNotification({ event: "project_member_added", projectId: existing.id, userIds: toAdd });
         }
         if (toRemove.length > 0) {
           const { error: removeErr } = await supabase
@@ -448,7 +448,7 @@ export function CreateProjectsPopup({
             }))
           );
           if (membersErr) throw membersErr;
-          await requestProjectInternalNotification({ event: "project_member_added", projectId: newProject.id, userIds: membersToSave });
+          void requestProjectInternalNotification({ event: "project_member_added", projectId: newProject.id, userIds: membersToSave });
         }
       }
       onSaved();
