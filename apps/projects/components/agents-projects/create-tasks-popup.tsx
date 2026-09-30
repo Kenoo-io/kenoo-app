@@ -299,8 +299,11 @@ export function CreateTasksPopup({
   const [activeTab, setActiveTab] = useState<TaskPanelTab>("basics");
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [checkingDeleteBranch, setCheckingDeleteBranch] = useState(false);
+  const [deleteBranchCheckComplete, setDeleteBranchCheckComplete] = useState(false);
+  const [deleteChoiceOpen, setDeleteChoiceOpen] = useState(false);
   const [linkedDeleteBranch, setLinkedDeleteBranch] = useState<LinkedBranch | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleteQueued, setDeleteQueued] = useState(false);
   /** True while a nested dropdown is open, and briefly after — blocks dialog dismiss / overlay click-through. */
   const [blockDialogDismiss, setBlockDialogDismiss] = useState(false);
   const blockDialogDismissRef = useRef(false);
@@ -799,22 +802,55 @@ export function CreateTasksPopup({
     return () => observer.disconnect();
   }, [selectedProjectName, open]);
 
-  const requestDelete = async () => {
+  const requestDelete = () => {
     if (!existing) return;
     setDeleteConfirmOpen(true);
-    setCheckingDeleteBranch(true);
+    setCheckingDeleteBranch(false);
+    setDeleteBranchCheckComplete(false);
+    setDeleteChoiceOpen(false);
     setLinkedDeleteBranch(null);
     setDeleteError(null);
-    try {
-      const response = await fetch(`/api/tasks/github/branch?taskId=${encodeURIComponent(existing.id)}`);
-      const result = await response.json();
-      if (response.ok && result.branch) setLinkedDeleteBranch(result.branch);
-    } finally {
-      setCheckingDeleteBranch(false);
-    }
+    setDeleteQueued(false);
   };
 
   const handleDelete = async (deleteBranch = false) => {
+    if (!existing) return;
+    if (checkingDeleteBranch || saving) return;
+
+    if (!deleteBranchCheckComplete) {
+      setCheckingDeleteBranch(true);
+      setDeleteQueued(true);
+      setDeleteError(null);
+      try {
+        const response = await fetch(`/api/tasks/github/branch?taskId=${encodeURIComponent(existing.id)}`);
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || "Unable to check the linked GitHub branch.");
+        const branch = (result.branch as LinkedBranch | null) ?? null;
+        setLinkedDeleteBranch(branch);
+        setDeleteBranchCheckComplete(true);
+        setCheckingDeleteBranch(false);
+        setDeleteQueued(false);
+        if (branch && !branch.branch_deleted_at) {
+          setDeleteChoiceOpen(true);
+          return;
+        }
+        await deleteTask(false);
+      } catch (cause) {
+        setCheckingDeleteBranch(false);
+        setDeleteQueued(false);
+        setDeleteError(cause instanceof Error ? cause.message : "Unable to check the linked GitHub branch.");
+      }
+      return;
+    }
+
+    if (linkedDeleteBranch && !linkedDeleteBranch.branch_deleted_at && !deleteChoiceOpen) {
+      setDeleteChoiceOpen(true);
+      return;
+    }
+    await deleteTask(deleteBranch);
+  };
+
+  const deleteTask = async (deleteBranch: boolean) => {
     if (!existing) return;
     setSaving(true);
     setDeleteError(null);
@@ -1474,14 +1510,20 @@ export function CreateTasksPopup({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-    <Dialog open={deleteConfirmOpen} onOpenChange={(next) => !saving && setDeleteConfirmOpen(next)}>
-      <DialogContent className="w-[calc(100vw-2rem)] max-w-[620px] gap-0 rounded-[28px] p-6">
+    <Dialog open={deleteConfirmOpen} onOpenChange={(next) => {
+      if (saving) return;
+      if (!next) {
+        setDeleteQueued(false);
+      }
+      setDeleteConfirmOpen(next);
+    }}>
+      <DialogContent className="w-[calc(100vw-2rem)] max-w-[440px] gap-0 rounded-[28px] p-6">
         <DialogHeader className="p-0"><DialogTitle className="text-lg font-semibold tracking-tight text-neutral-950">Delete task?</DialogTitle></DialogHeader>
         <div className="mt-2 flex flex-col gap-4">
           <p className="text-sm leading-6 text-neutral-500">&ldquo;{existing?.title}&rdquo; will be permanently deleted.</p>
-          {checkingDeleteBranch ? <div className="h-14 animate-pulse rounded-2xl bg-neutral-50" /> : linkedDeleteBranch && !linkedDeleteBranch.branch_deleted_at ? <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">This task is linked to <span className="font-medium">{linkedDeleteBranch.repository_full_name} · {linkedDeleteBranch.branch_name}</span>.<p className="mt-1 text-xs leading-5 text-amber-800">Would you also like to delete that GitHub branch?</p></div> : null}
+          {deleteChoiceOpen && linkedDeleteBranch && !linkedDeleteBranch.branch_deleted_at ? <p className="text-sm leading-6 text-neutral-700">This task is connected to a GitHub branch. Would you also like to delete that branch?</p> : null}
           {deleteError ? <p className="text-xs text-red-600">{deleteError}</p> : null}
-          <div className="mt-2 flex flex-wrap items-center justify-end gap-2"><button type="button" onClick={() => setDeleteConfirmOpen(false)} disabled={saving} className={cn(modalSecondaryButtonClass, "whitespace-nowrap")}>Cancel</button>{linkedDeleteBranch && !linkedDeleteBranch.branch_deleted_at && !checkingDeleteBranch ? <button type="button" onClick={() => void handleDelete(false)} disabled={saving} className={cn(modalSecondaryButtonClass, "whitespace-nowrap")}>Delete task only</button> : null}<button type="button" onClick={() => void handleDelete(Boolean(linkedDeleteBranch && !linkedDeleteBranch.branch_deleted_at))} disabled={saving || checkingDeleteBranch} className="inline-flex h-10 whitespace-nowrap items-center justify-center rounded-lg bg-red-600 px-4 text-sm font-medium text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50">{saving ? "Deleting…" : linkedDeleteBranch && !linkedDeleteBranch.branch_deleted_at ? "Delete task & branch" : "Delete"}</button></div>
+          <div className="mt-2 flex flex-wrap items-center justify-end gap-2">{!deleteChoiceOpen ? <button type="button" onClick={() => { setDeleteQueued(false); setDeleteConfirmOpen(false); }} disabled={saving || checkingDeleteBranch} className={cn(modalSecondaryButtonClass, "whitespace-nowrap")}>Cancel</button> : null}{deleteChoiceOpen && linkedDeleteBranch && !linkedDeleteBranch.branch_deleted_at ? <button type="button" onClick={() => void handleDelete(false)} disabled={saving} className={cn(modalSecondaryButtonClass, "whitespace-nowrap")}>Delete task only</button> : null}<button type="button" onClick={() => void handleDelete(Boolean(deleteChoiceOpen && linkedDeleteBranch && !linkedDeleteBranch.branch_deleted_at))} disabled={saving || Boolean(deleteError)} className="inline-flex h-10 whitespace-nowrap items-center justify-center rounded-lg bg-red-600 px-4 text-sm font-medium text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50">{saving || (checkingDeleteBranch && deleteQueued) ? "Deleting…" : deleteChoiceOpen && linkedDeleteBranch && !linkedDeleteBranch.branch_deleted_at ? "Delete task & branch" : "Delete"}</button></div>
         </div>
       </DialogContent>
     </Dialog>
