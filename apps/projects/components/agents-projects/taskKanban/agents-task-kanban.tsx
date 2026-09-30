@@ -74,8 +74,7 @@ import {
 } from "../load-accessible-projects";
 import { filterTasksVisibleToUser } from "../task-visibility";
 import {
-  notifyTaskAssignerOnComplete,
-  resolveActorDisplayName,
+  requestProjectInternalNotification,
   sendTaskBlockerCompletedEmail,
 } from "@/lib/user-notifications";
 
@@ -1564,16 +1563,7 @@ function AgentsProjectsKanbanContent({
           draggedTask.assigned_by &&
           draggedTask.assigned_by !== user.id
         ) {
-          const completerName = await resolveActorDisplayName(supabase, user.id);
-          await notifyTaskAssignerOnComplete(supabase, {
-            assignerId: draggedTask.assigned_by,
-            taskId: draggedTask.id,
-            taskTitle: draggedTask.title,
-            projectId: draggedTask.project_id,
-            projectName: draggedTask.project?.name,
-            completerUserId: user.id,
-            completerName,
-          });
+          await requestProjectInternalNotification({ event: "task_completed", taskId: draggedTask.id });
         }
       } catch {
         // Revert on error

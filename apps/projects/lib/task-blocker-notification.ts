@@ -2,7 +2,7 @@ import { createAdminClient } from "@walls/supabase/admin";
 
 import { sendTaskBlockerCompletedEmail } from "@/lib/task-assignment-email";
 import { sendSlackTaskEventForAccount } from "@/lib/slack-task-notification-server";
-import { PROJECTS_INTERNAL_ALERT_KEY } from "@/lib/user-notifications";
+import { PROJECTS_INTERNAL_EVENT_KEYS } from "@/lib/user-notifications";
 
 export const TASK_BLOCKER_COMPLETED_ALERT_KEY = "projects.task_blocker_completed";
 
@@ -119,16 +119,23 @@ export async function notifyTaskAssigneesWhenBlockerCompletes({
 
   if (!project?.account_id) return { queued: 0, unblockedTaskIds };
   const [{ data: preferences }, { data: recipients }, { data: internalPreferences }] = await Promise.all([
-    admin.from("alert_subscriptions").select("user_id, notify_email, enabled")
+    admin.from("alert_subscriptions").select("user_id, alert_key, notify_email, enabled")
       .eq("account_id", project.account_id).eq("app_slug", process.env.NEXT_PUBLIC_PROJECTS_APP_SLUG || "projects")
       .eq("alert_key", TASK_BLOCKER_COMPLETED_ALERT_KEY).in("user_id", recipientIds),
     admin.from("users").select("id, email, first_name").in("id", recipientIds),
-    admin.from("alert_subscriptions").select("user_id, notify_email, enabled")
+    admin.from("alert_subscriptions").select("user_id, alert_key, notify_email, enabled")
       .eq("account_id", project.account_id).eq("app_slug", process.env.NEXT_PUBLIC_PROJECTS_APP_SLUG || "projects")
-      .eq("alert_key", PROJECTS_INTERNAL_ALERT_KEY).in("user_id", recipientIds),
+      .in("alert_key", [PROJECTS_INTERNAL_EVENT_KEYS.taskBlockerCompleted, "projects.internal"]).in("user_id", recipientIds),
   ]);
   const optedIn = new Set((preferences ?? []).filter((row) => row.enabled && row.notify_email).map((row) => row.user_id as string));
-  const internalDisabled = new Set((internalPreferences ?? []).filter((row) => row.enabled === false || row.notify_email === false).map((row) => row.user_id as string));
+  const internalDisabled = new Set<string>();
+  for (const recipientId of recipientIds) {
+    const rows = (internalPreferences ?? []).filter((row) => row.user_id === recipientId);
+    const eventPreference = rows.find((row) => row.alert_key === PROJECTS_INTERNAL_EVENT_KEYS.taskBlockerCompleted);
+    const globalPreference = rows.find((row) => row.alert_key === "projects.internal");
+    const preference = eventPreference ?? globalPreference;
+    if (preference?.enabled === false || preference?.notify_email === false) internalDisabled.add(recipientId);
+  }
   const recipientsById = new Map((recipients ?? []).filter((row) => row.email).map((row) => [row.id as string, row]));
   let queued = 0;
 

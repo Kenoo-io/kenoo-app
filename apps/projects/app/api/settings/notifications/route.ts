@@ -1,18 +1,26 @@
 import { NextResponse } from "next/server";
 
 import { createClient } from "@walls/supabase/server";
-import { PROJECTS_APP_SLUG, resolveActiveAccountId } from "@/lib/account-context";
+import { getAccountMembership, PROJECTS_APP_SLUG, resolveActiveAccountId } from "@/lib/account-context";
+import { PROJECTS_INTERNAL_ALERT_KEY, PROJECTS_INTERNAL_EVENT_KEYS } from "@/lib/user-notifications";
 
 const TASK_ASSIGNED_ALERT_KEY = "projects.task_assigned";
 const TASK_BLOCKER_COMPLETED_ALERT_KEY = "projects.task_blocker_completed";
-const INTERNAL_ALERT_KEY = "projects.internal";
+const INTERNAL_ALERT_KEY = PROJECTS_INTERNAL_ALERT_KEY;
+const INTERNAL_EVENT_KEYS = Object.values(PROJECTS_INTERNAL_EVENT_KEYS);
 
-export async function GET() {
+async function getScopedAccountId(request: Request, userId: string) {
+  const requestedAccountId = new URL(request.url).searchParams.get("accountId");
+  if (requestedAccountId && await getAccountMembership(userId, requestedAccountId)) return requestedAccountId;
+  return resolveActiveAccountId(userId);
+}
+
+export async function GET(request: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const accountId = await resolveActiveAccountId(user.id);
+  const accountId = await getScopedAccountId(request, user.id);
   if (!accountId) return NextResponse.json({ error: "No active account" }, { status: 400 });
 
   const { data, error } = await supabase
@@ -21,15 +29,20 @@ export async function GET() {
     .eq("account_id", accountId)
     .eq("user_id", user.id)
     .eq("app_slug", PROJECTS_APP_SLUG)
-    .in("alert_key", [TASK_ASSIGNED_ALERT_KEY, TASK_BLOCKER_COMPLETED_ALERT_KEY]);
+    .in("alert_key", [TASK_ASSIGNED_ALERT_KEY, TASK_BLOCKER_COMPLETED_ALERT_KEY, INTERNAL_ALERT_KEY, ...INTERNAL_EVENT_KEYS]);
   if (error) return NextResponse.json({ error: "Unable to load preferences" }, { status: 500 });
 
   const preferences = new Map((data ?? []).map((row) => [row.alert_key, row.enabled && row.notify_email]));
   const internalPreference = (data ?? []).find((row) => row.alert_key === INTERNAL_ALERT_KEY);
+  const internalEvents = Object.fromEntries(Object.entries(PROJECTS_INTERNAL_EVENT_KEYS).map(([name, alertKey]) => {
+    const eventPreference = (data ?? []).find((row) => row.alert_key === alertKey);
+    return [name, eventPreference ? Boolean(eventPreference.enabled && eventPreference.notify_email !== false) : internalPreference ? Boolean(internalPreference.enabled && internalPreference.notify_email !== false) : true];
+  }));
   return NextResponse.json({
     taskAssignedEmail: preferences.get(TASK_ASSIGNED_ALERT_KEY) ?? false,
     taskBlockerCompletedEmail: preferences.get(TASK_BLOCKER_COMPLETED_ALERT_KEY) ?? false,
     internalNotifications: internalPreference?.enabled && internalPreference.notify_email !== false || !internalPreference,
+    internalEvents,
   });
 }
 
@@ -38,18 +51,20 @@ export async function PUT(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const accountId = await resolveActiveAccountId(user.id);
+  const accountId = await getScopedAccountId(request, user.id);
   if (!accountId) return NextResponse.json({ error: "No active account" }, { status: 400 });
 
   const body = (await request.json().catch(() => ({}))) as {
     taskAssignedEmail?: unknown;
     taskBlockerCompletedEmail?: unknown;
     internalNotifications?: unknown;
+    internalEvents?: unknown;
   };
   if (
     typeof body.taskAssignedEmail !== "boolean" &&
     typeof body.taskBlockerCompletedEmail !== "boolean"
     && typeof body.internalNotifications !== "boolean"
+    && (typeof body.internalEvents !== "object" || body.internalEvents === null)
   ) {
     return NextResponse.json({ error: "A notification preference must be a boolean" }, { status: 400 });
   }
@@ -58,6 +73,12 @@ export async function PUT(request: Request) {
   if (typeof body.taskAssignedEmail === "boolean") updates.push([TASK_ASSIGNED_ALERT_KEY, body.taskAssignedEmail]);
   if (typeof body.taskBlockerCompletedEmail === "boolean") updates.push([TASK_BLOCKER_COMPLETED_ALERT_KEY, body.taskBlockerCompletedEmail]);
   if (typeof body.internalNotifications === "boolean") updates.push([INTERNAL_ALERT_KEY, body.internalNotifications]);
+  if (body.internalEvents && typeof body.internalEvents === "object" && !Array.isArray(body.internalEvents)) {
+    for (const [name, alertKey] of Object.entries(PROJECTS_INTERNAL_EVENT_KEYS)) {
+      const value = (body.internalEvents as Record<string, unknown>)[name];
+      if (typeof value === "boolean") updates.push([alertKey, value]);
+    }
+  }
   const { error } = await supabase.from("alert_subscriptions").upsert(
     updates.map(([alertKey, notifyEmail]) => ({
       account_id: accountId, user_id: user.id, app_slug: PROJECTS_APP_SLUG, alert_key: alertKey,

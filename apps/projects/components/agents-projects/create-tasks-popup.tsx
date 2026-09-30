@@ -48,9 +48,8 @@ import { format, isValid, parseISO } from "date-fns";
 import { AgentSearch } from "@/components/ui/searches/agent-search";
 import { SimpleMarkdownEditor } from "@/components/agents-projects/simple-markdown-editor";
 import {
-  notifyTaskAssignee,
+  requestProjectInternalNotification,
   sendTaskBlockerCompletedEmail,
-  resolveActorDisplayName,
 } from "@/lib/user-notifications";
 import { useActiveAccount } from "@/components/active-account-context";
 import { loadAccessibleProjects as fetchAccessibleProjects } from "./load-accessible-projects";
@@ -857,8 +856,6 @@ export function CreateTasksPopup({
     try {
       const supabase = getSupabaseClient();
       const actorUserId = currentUserId ?? authUser?.id ?? null;
-      const actorName = await resolveActorDisplayName(supabase, actorUserId);
-      const taskTitle = form.title.trim();
       const previousAssigneeIds = existing ? getTaskAssigneeIds(existing) : [];
       const assigneeIds = [...new Set(form.assignee_ids.filter(Boolean))];
       const assignedBy = resolveAssignedBy(assigneeIds, actorUserId);
@@ -973,21 +970,9 @@ export function CreateTasksPopup({
         await sendTaskBlockerCompletedEmail({ taskId });
       }
 
-      await Promise.all(
-        newlyAdded.map((assigneeId) =>
-          Promise.all([
-            notifyTaskAssignee(supabase, {
-              assigneeId,
-              taskId: taskId!,
-              taskTitle,
-              projectId: form.project_id,
-              projectName: selectedProject?.name,
-              actorUserId,
-              actorName,
-            }),
-          ])
-        )
-      );
+      if (newlyAdded.length > 0) {
+        await requestProjectInternalNotification({ event: "task_assigned", taskId: taskId!, userIds: newlyAdded });
+      }
 
       onSaved();
       onClose();

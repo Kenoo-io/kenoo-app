@@ -102,7 +102,7 @@ export function ProjectsSettingsPage() {
           />
           <div className="mt-2">
             <SettingsActionPanel
-              title="Manage Kenoo notifications"
+              title="Manage in-app notifications"
               description="Choose whether Projects activity appears in your header notification inbox."
               href="/settings/notifications/kenoo"
               actionLabel="Manage notifications"

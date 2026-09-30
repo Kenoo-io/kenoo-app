@@ -42,8 +42,7 @@ import {
 } from "@/components/ui/searches/userSearch/user-search";
 import { useActiveAccount } from "@/components/active-account-context";
 import {
-  notifyProjectMembersAdded,
-  resolveActorDisplayName,
+  requestProjectInternalNotification,
 } from "@/lib/user-notifications";
 
 /* ─── Form config ────────────────────────────────────────────────────────── */
@@ -334,8 +333,6 @@ export function CreateProjectsPopup({
     setError(null);
     try {
       const supabase = getSupabaseClient();
-      const actorUserId = authUser?.id ?? null;
-      const actorName = await resolveActorDisplayName(supabase, actorUserId);
       const projectName = form.name.trim();
       let slug = nameToSlug(projectName);
       let slugCounter = 1;
@@ -391,13 +388,7 @@ export function CreateProjectsPopup({
             }))
           );
           if (addErr) throw addErr;
-          await notifyProjectMembersAdded(supabase, {
-            userIds: toAdd,
-            projectId: existing.id,
-            projectName,
-            actorUserId,
-            actorName,
-          });
+          await requestProjectInternalNotification({ event: "project_member_added", projectId: existing.id, userIds: toAdd });
         }
         if (toRemove.length > 0) {
           const { error: removeErr } = await supabase
@@ -457,13 +448,7 @@ export function CreateProjectsPopup({
             }))
           );
           if (membersErr) throw membersErr;
-          await notifyProjectMembersAdded(supabase, {
-            userIds: membersToSave,
-            projectId: newProject.id,
-            projectName,
-            actorUserId,
-            actorName,
-          });
+          await requestProjectInternalNotification({ event: "project_member_added", projectId: newProject.id, userIds: membersToSave });
         }
       }
       onSaved();
