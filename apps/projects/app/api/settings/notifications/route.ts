@@ -5,6 +5,7 @@ import { PROJECTS_APP_SLUG, resolveActiveAccountId } from "@/lib/account-context
 
 const TASK_ASSIGNED_ALERT_KEY = "projects.task_assigned";
 const TASK_BLOCKER_COMPLETED_ALERT_KEY = "projects.task_blocker_completed";
+const INTERNAL_ALERT_KEY = "projects.internal";
 
 export async function GET() {
   const supabase = await createClient();
@@ -16,7 +17,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("alert_subscriptions")
-    .select("alert_key, notify_email, enabled")
+    .select("alert_key, notify_email, notify_internal, enabled")
     .eq("account_id", accountId)
     .eq("user_id", user.id)
     .eq("app_slug", PROJECTS_APP_SLUG)
@@ -24,9 +25,11 @@ export async function GET() {
   if (error) return NextResponse.json({ error: "Unable to load preferences" }, { status: 500 });
 
   const preferences = new Map((data ?? []).map((row) => [row.alert_key, row.enabled && row.notify_email]));
+  const internalPreference = (data ?? []).find((row) => row.alert_key === INTERNAL_ALERT_KEY);
   return NextResponse.json({
     taskAssignedEmail: preferences.get(TASK_ASSIGNED_ALERT_KEY) ?? false,
     taskBlockerCompletedEmail: preferences.get(TASK_BLOCKER_COMPLETED_ALERT_KEY) ?? false,
+    internalNotifications: internalPreference?.notify_internal ?? true,
   });
 }
 
@@ -41,10 +44,12 @@ export async function PUT(request: Request) {
   const body = (await request.json().catch(() => ({}))) as {
     taskAssignedEmail?: unknown;
     taskBlockerCompletedEmail?: unknown;
+    internalNotifications?: unknown;
   };
   if (
     typeof body.taskAssignedEmail !== "boolean" &&
     typeof body.taskBlockerCompletedEmail !== "boolean"
+    && typeof body.internalNotifications !== "boolean"
   ) {
     return NextResponse.json({ error: "A notification preference must be a boolean" }, { status: 400 });
   }
@@ -52,10 +57,13 @@ export async function PUT(request: Request) {
   const updates: Array<[string, boolean]> = [];
   if (typeof body.taskAssignedEmail === "boolean") updates.push([TASK_ASSIGNED_ALERT_KEY, body.taskAssignedEmail]);
   if (typeof body.taskBlockerCompletedEmail === "boolean") updates.push([TASK_BLOCKER_COMPLETED_ALERT_KEY, body.taskBlockerCompletedEmail]);
+  if (typeof body.internalNotifications === "boolean") updates.push([INTERNAL_ALERT_KEY, body.internalNotifications]);
   const { error } = await supabase.from("alert_subscriptions").upsert(
     updates.map(([alertKey, notifyEmail]) => ({
       account_id: accountId, user_id: user.id, app_slug: PROJECTS_APP_SLUG, alert_key: alertKey,
-      notify_email: notifyEmail, notify_sms: false, enabled: notifyEmail, scope: {}, updated_at: new Date().toISOString(),
+      notify_email: alertKey === INTERNAL_ALERT_KEY ? false : notifyEmail,
+      notify_internal: alertKey === INTERNAL_ALERT_KEY ? notifyEmail : true,
+      notify_sms: false, enabled: alertKey === INTERNAL_ALERT_KEY ? true : notifyEmail, scope: {}, updated_at: new Date().toISOString(),
     })),
     { onConflict: "account_id,user_id,alert_key,app_slug" },
   );
@@ -64,5 +72,6 @@ export async function PUT(request: Request) {
   return NextResponse.json({
     taskAssignedEmail: body.taskAssignedEmail,
     taskBlockerCompletedEmail: body.taskBlockerCompletedEmail,
+    internalNotifications: body.internalNotifications,
   });
 }

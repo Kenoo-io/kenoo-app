@@ -93,31 +93,45 @@ export function ProjectsSettingsPage() {
         </section>
 
         <section>
-          <SectionLabel title="Email settings" />
+          <SectionLabel title="Notification settings" />
           <SettingsActionPanel
             title="Manage email notifications"
             description="Choose how Projects activity notifications are delivered to you."
             href="/settings/notifications"
             actionLabel="Manage notifications"
           />
-        </section>
-
-        <section>
-          <SectionLabel title="Slack settings" />
+          <div className="mt-2">
+            <SettingsActionPanel
+              title="Manage Kenoo notifications"
+              description="Choose whether Projects activity appears in your header notification inbox."
+              href="/settings/notifications#internal"
+              actionLabel="Manage notifications"
+            />
+          </div>
           <div className="mt-2">
             <SettingsActionPanel
               title="Manage Slack notifications"
               description="Choose which Slack channels receive Projects activity notifications."
               href="/settings/notifications/slack"
               actionLabel="Manage notifications"
-            />
+          />
           </div>
+        </section>
+
+        <section>
+          <SectionLabel title="Workflow settings" />
+          <SettingsActionPanel
+            title="Manage Slack user mappings"
+            description="Connect Projects users to their Slack identities for true mentions."
+            href="/settings/notifications/slack/users"
+            actionLabel="Manage mappings"
+          />
           <div className="mt-2">
             <SettingsActionPanel
-              title="Manage Slack user mappings"
-              description="Connect Projects users to their Slack identities for true mentions."
-              href="/settings/notifications/slack/users"
-              actionLabel="Manage mappings"
+              title="Manage GitHub task automation"
+              description="Choose when linked Projects tasks are marked complete from GitHub activity."
+              href="/settings/workflow/github"
+              actionLabel="Manage automation"
             />
           </div>
         </section>

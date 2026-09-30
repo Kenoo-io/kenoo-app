@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 export const PROJECT_NOTIFICATION_TYPE = "projects";
 export const SCOUTER_NOTIFICATION_TYPE = "scouter";
 export const SCOUTER_INDEX_URL = "/agents/scouter";
+export const PROJECTS_INTERNAL_ALERT_KEY = "projects.internal";
 
 export type UserNotificationInsert = {
   user_id: string;
@@ -32,6 +33,27 @@ export async function insertUserNotifications(
   if (error) {
     console.error("Failed to insert user notifications:", error);
   }
+}
+
+/** Keep project inbox delivery opt-in/out separate from email and Slack. */
+export async function filterInternalNotificationRecipients(
+  supabase: SupabaseClient,
+  projectId: string,
+  userIds: string[],
+): Promise<string[]> {
+  const recipients = [...new Set(userIds.filter(Boolean))];
+  if (!recipients.length) return [];
+  const { data: project } = await supabase.from("projects").select("account_id").eq("id", projectId).maybeSingle();
+  if (!project?.account_id) return recipients;
+  const { data: preferences } = await supabase
+    .from("alert_subscriptions")
+    .select("user_id, notify_internal")
+    .eq("account_id", project.account_id)
+    .eq("app_slug", "projects")
+    .eq("alert_key", PROJECTS_INTERNAL_ALERT_KEY)
+    .in("user_id", recipients);
+  const disabled = new Set((preferences ?? []).filter((row) => row.notify_internal === false).map((row) => row.user_id as string));
+  return recipients.filter((id) => !disabled.has(id));
 }
 
 export function projectBoardUrl(projectId: string): string {
@@ -150,7 +172,7 @@ export async function notifyProjectMembersAdded(
   }
 ): Promise<void> {
   const { userIds, projectId, projectName, actorUserId, actorName } = options;
-  const recipients = userIds.filter((id) => id && id !== actorUserId);
+  const recipients = await filterInternalNotificationRecipients(supabase, projectId, userIds.filter((id) => id && id !== actorUserId));
   if (recipients.length === 0) return;
 
   await insertUserNotifications(
@@ -186,6 +208,7 @@ export async function notifyTaskAssignee(
     options;
 
   if (!assigneeId || assigneeId === actorUserId) return;
+  if (!(await filterInternalNotificationRecipients(supabase, projectId, [assigneeId])).includes(assigneeId)) return;
 
   const projectLabel = projectName ? ` in "${projectName}"` : "";
 
@@ -254,6 +277,7 @@ export async function notifyTaskAssignerOnComplete(
   } = options;
 
   if (!assignerId || assignerId === completerUserId) return;
+  if (!(await filterInternalNotificationRecipients(supabase, projectId, [assignerId])).includes(assignerId)) return;
 
   const projectLabel = projectName ? ` in "${projectName}"` : "";
 
