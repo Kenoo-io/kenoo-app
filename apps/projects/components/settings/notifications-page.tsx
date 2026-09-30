@@ -18,14 +18,13 @@ import { cn } from "@/lib/utils";
 type NotificationPreferences = {
   taskAssignedEmail: boolean;
   taskBlockerCompletedEmail: boolean;
-  internalNotifications: boolean;
 };
 
 // This lives for the lifetime of the Projects app session. Each entry is scoped
 // to a user and account, and successful mutations write through to that entry.
 const preferencesCache = new Map<string, NotificationPreferences>();
 
-function NotificationChannelSelect({
+export function NotificationChannelSelect({
   notifyEmail,
   enabledLabel = "Email",
   disabledLabel = "None",
@@ -100,11 +99,10 @@ function NotificationsPageContent({ cacheKey, loadingContext }: { cacheKey: stri
   const initialPreferences = cacheKey ? preferencesCache.get(cacheKey) : undefined;
   const [taskAssignedEmail, setTaskAssignedEmail] = React.useState(() => initialPreferences?.taskAssignedEmail ?? false);
   const [taskBlockerCompletedEmail, setTaskBlockerCompletedEmail] = React.useState(() => initialPreferences?.taskBlockerCompletedEmail ?? false);
-  const [internalNotifications, setInternalNotifications] = React.useState(() => initialPreferences?.internalNotifications ?? true);
   const [loading, setLoading] = React.useState(() => !initialPreferences);
-  const [savingPreferences, setSavingPreferences] = React.useState<Set<"taskAssigned" | "taskBlockerCompleted" | "internal">>(new Set());
+  const [savingPreferences, setSavingPreferences] = React.useState<Set<"taskAssigned" | "taskBlockerCompleted">>(new Set());
 
-  function setPreferenceSaving(preference: "taskAssigned" | "taskBlockerCompleted" | "internal", saving: boolean) {
+  function setPreferenceSaving(preference: "taskAssigned" | "taskBlockerCompleted", saving: boolean) {
     setSavingPreferences((current) => {
       const next = new Set(current);
       if (saving) next.add(preference);
@@ -127,7 +125,6 @@ function NotificationsPageContent({ cacheKey, loadingContext }: { cacheKey: stri
         preferencesCache.set(cacheKey, data);
         if (active) setTaskAssignedEmail(data.taskAssignedEmail);
         if (active) setTaskBlockerCompletedEmail(data.taskBlockerCompletedEmail);
-        if (active) setInternalNotifications(data.internalNotifications ?? true);
       })
       .catch(() => {
         if (active) wallsToast.error("Couldn’t load settings", "Your default preferences are still shown.");
@@ -144,24 +141,8 @@ function NotificationsPageContent({ cacheKey, loadingContext }: { cacheKey: stri
     preferencesCache.set(cacheKey, {
       taskAssignedEmail: cached?.taskAssignedEmail ?? taskAssignedEmail,
       taskBlockerCompletedEmail: cached?.taskBlockerCompletedEmail ?? taskBlockerCompletedEmail,
-      internalNotifications: cached?.internalNotifications ?? internalNotifications,
       [preference]: value,
     });
-  }
-
-  async function updateInternalNotifications(enabled: boolean) {
-    const previous = internalNotifications;
-    setInternalNotifications(enabled);
-    setPreferenceSaving("internal", true);
-    try {
-      const response = await fetch("/api/settings/notifications", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ internalNotifications: enabled }) });
-      if (!response.ok) throw new Error("Unable to save notification preference");
-      cachePreference("internalNotifications", enabled);
-      wallsToast.success("Notification preference saved");
-    } catch {
-      setInternalNotifications(previous);
-      wallsToast.error("Couldn’t save settings", "Please try again.");
-    } finally { setPreferenceSaving("internal", false); }
   }
 
   async function updateTaskAssignedEmail(notifyEmail: boolean) {
@@ -213,21 +194,10 @@ function NotificationsPageContent({ cacheKey, loadingContext }: { cacheKey: stri
           </Link>
           <header>
             <p className="text-xs font-medium uppercase tracking-widest text-neutral-500">Projects</p>
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-foreground">Notification settings</h1>
-            <p className="mt-2 max-w-xl text-sm font-light leading-6 text-neutral-500">Choose how you receive activity notifications from Projects.</p>
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-foreground">Email notifications</h1>
+            <p className="mt-2 max-w-xl text-sm font-light leading-6 text-neutral-500">Choose which Projects activity notifications are delivered by email.</p>
           </header>
         </div>
-
-        <section id="internal">
-          <div className="mb-4">
-            <p className="text-xs font-medium uppercase tracking-widest text-neutral-500">Internal notifications</p>
-            <p className="mt-1.5 text-sm font-light text-neutral-500">Show Projects activity in the notification bell in your header.</p>
-          </div>
-          <div className="flex items-center gap-3 overflow-hidden rounded-2xl bg-white px-4 py-3 shadow-[0_8px_28px_rgba(15,23,42,0.07),inset_0_1px_0_rgba(255,255,255,0.95)] md:px-5">
-            <div className="min-w-0 flex-1"><p className="text-sm font-medium text-foreground">Projects notification inbox</p><p className="mt-0.5 text-xs font-light text-neutral-500">Task assignments, project membership, and task progress</p></div>
-            {loading ? <Loader2 className="h-4 w-4 shrink-0 animate-spin text-neutral-400" /> : <NotificationChannelSelect notifyEmail={internalNotifications} enabledLabel="On" disabledLabel="Off" loading={loading} saving={savingPreferences.has("internal")} onChange={(enabled) => void updateInternalNotifications(enabled)} />}
-          </div>
-        </section>
 
         <section>
           <div className="mb-4">

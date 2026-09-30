@@ -123,12 +123,12 @@ export async function notifyTaskAssigneesWhenBlockerCompletes({
       .eq("account_id", project.account_id).eq("app_slug", process.env.NEXT_PUBLIC_PROJECTS_APP_SLUG || "projects")
       .eq("alert_key", TASK_BLOCKER_COMPLETED_ALERT_KEY).in("user_id", recipientIds),
     admin.from("users").select("id, email, first_name").in("id", recipientIds),
-    admin.from("alert_subscriptions").select("user_id, notify_internal")
+    admin.from("alert_subscriptions").select("user_id, notify_email, enabled")
       .eq("account_id", project.account_id).eq("app_slug", process.env.NEXT_PUBLIC_PROJECTS_APP_SLUG || "projects")
       .eq("alert_key", PROJECTS_INTERNAL_ALERT_KEY).in("user_id", recipientIds),
   ]);
   const optedIn = new Set((preferences ?? []).filter((row) => row.enabled && row.notify_email).map((row) => row.user_id as string));
-  const internalDisabled = new Set((internalPreferences ?? []).filter((row) => row.notify_internal === false).map((row) => row.user_id as string));
+  const internalDisabled = new Set((internalPreferences ?? []).filter((row) => row.enabled === false || row.notify_email === false).map((row) => row.user_id as string));
   const recipientsById = new Map((recipients ?? []).filter((row) => row.email).map((row) => [row.id as string, row]));
   let queued = 0;
 

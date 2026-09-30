@@ -97,14 +97,14 @@ export function ProjectsSettingsPage() {
           <SettingsActionPanel
             title="Manage email notifications"
             description="Choose how Projects activity notifications are delivered to you."
-            href="/settings/notifications"
+            href="/settings/notifications/email"
             actionLabel="Manage notifications"
           />
           <div className="mt-2">
             <SettingsActionPanel
               title="Manage Kenoo notifications"
               description="Choose whether Projects activity appears in your header notification inbox."
-              href="/settings/notifications#internal"
+              href="/settings/notifications/kenoo"
               actionLabel="Manage notifications"
             />
           </div>

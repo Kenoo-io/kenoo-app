@@ -1,9 +1,3 @@
-alter table public.alert_subscriptions
-  add column if not exists notify_internal boolean not null default true;
-
-comment on column public.alert_subscriptions.notify_internal is
-  'Whether this alert may create an in-app notification for the recipient.';
-
 create or replace function public.projects_filter_internal_notification()
 returns trigger
 language plpgsql
@@ -33,7 +27,7 @@ begin
        and s.user_id = new.user_id
        and s.app_slug = 'projects'
        and s.alert_key = 'projects.internal'
-       and s.notify_internal = false
+       and (s.enabled = false or s.notify_email = false)
   ) then
     return null;
   end if;

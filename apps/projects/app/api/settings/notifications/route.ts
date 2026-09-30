@@ -17,7 +17,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("alert_subscriptions")
-    .select("alert_key, notify_email, notify_internal, enabled")
+    .select("alert_key, notify_email, enabled")
     .eq("account_id", accountId)
     .eq("user_id", user.id)
     .eq("app_slug", PROJECTS_APP_SLUG)
@@ -29,7 +29,7 @@ export async function GET() {
   return NextResponse.json({
     taskAssignedEmail: preferences.get(TASK_ASSIGNED_ALERT_KEY) ?? false,
     taskBlockerCompletedEmail: preferences.get(TASK_BLOCKER_COMPLETED_ALERT_KEY) ?? false,
-    internalNotifications: internalPreference?.notify_internal ?? true,
+    internalNotifications: internalPreference?.enabled && internalPreference.notify_email !== false || !internalPreference,
   });
 }
 
@@ -61,8 +61,7 @@ export async function PUT(request: Request) {
   const { error } = await supabase.from("alert_subscriptions").upsert(
     updates.map(([alertKey, notifyEmail]) => ({
       account_id: accountId, user_id: user.id, app_slug: PROJECTS_APP_SLUG, alert_key: alertKey,
-      notify_email: alertKey === INTERNAL_ALERT_KEY ? false : notifyEmail,
-      notify_internal: alertKey === INTERNAL_ALERT_KEY ? notifyEmail : true,
+      notify_email: notifyEmail,
       notify_sms: false, enabled: alertKey === INTERNAL_ALERT_KEY ? true : notifyEmail, scope: {}, updated_at: new Date().toISOString(),
     })),
     { onConflict: "account_id,user_id,alert_key,app_slug" },

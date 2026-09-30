@@ -47,12 +47,12 @@ export async function filterInternalNotificationRecipients(
   if (!project?.account_id) return recipients;
   const { data: preferences } = await supabase
     .from("alert_subscriptions")
-    .select("user_id, notify_internal")
+    .select("user_id, notify_email, enabled")
     .eq("account_id", project.account_id)
     .eq("app_slug", "projects")
     .eq("alert_key", PROJECTS_INTERNAL_ALERT_KEY)
     .in("user_id", recipients);
-  const disabled = new Set((preferences ?? []).filter((row) => row.notify_internal === false).map((row) => row.user_id as string));
+  const disabled = new Set((preferences ?? []).filter((row) => row.enabled === false || row.notify_email === false).map((row) => row.user_id as string));
   return recipients.filter((id) => !disabled.has(id));
 }
 
