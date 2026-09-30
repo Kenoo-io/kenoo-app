@@ -6,6 +6,7 @@ export { brandingLogoPrefix, organizationIconPrefix, userAvatarPrefix } from "./
 export { resolveAppUserRecord, type AppUserRecord } from "./resolve-user";
 export {
   deleteObjectsWithPrefix,
+  deleteObject,
   getR2Bucket,
   getR2Client,
   getR2PublicUrl,
