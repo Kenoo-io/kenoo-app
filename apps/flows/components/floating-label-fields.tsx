@@ -2,6 +2,9 @@
 
 import * as React from "react";
 import { motion } from "framer-motion";
+import { Check, ChevronDown } from "lucide-react";
+
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@walls/ui/dropdown-menu";
 
 const NEUTRAL_400 = "#a3a3a3";
 const NEUTRAL_500 = "#737373";
@@ -16,6 +19,14 @@ export function FloatingLabelInput({ label, value, onChange, className = "", ...
 
 export function FloatingLabelTextarea({ label, value, onChange, className = "", ...props }: React.TextareaHTMLAttributes<HTMLTextAreaElement> & { label: string }) {
   return <FloatingLabelControl label={label} value={value} className={className} topAligned><textarea {...props} value={value} onChange={onChange} className="min-h-[100px] w-full resize-none rounded-2xl border border-[#e5e5e5] bg-kenoo-white px-4 pt-3 pb-4 text-sm font-light leading-5 text-foreground outline-none placeholder:text-transparent focus:border-[var(--kenoo-sky)] focus:outline-none focus-visible:outline-none" /></FloatingLabelControl>;
+}
+
+export type FloatingLabelSelectOption = { value: string; label: string };
+
+export function FloatingLabelSelect({ label, value = "", onChange, options, className = "" }: { label: string; value?: string; onChange: (value: string) => void; options: FloatingLabelSelectOption[]; className?: string }) {
+  const [open, setOpen] = React.useState(false);
+  const selected = options.find((option) => option.value === value);
+  return <FloatingLabelControl label={label} value={value} className={className}><div className="relative"><DropdownMenu open={open} onOpenChange={setOpen}><DropdownMenuTrigger asChild><button type="button" className="relative flex h-12 w-full cursor-pointer items-center rounded-2xl border border-[#e5e5e5] bg-kenoo-white px-4 pr-11 text-left text-sm font-light leading-none text-foreground outline-none transition-colors hover:border-[#cfcfcf] focus:border-[var(--kenoo-sky)] focus:outline-none focus-visible:outline-none"><span className={selected ? "truncate" : "truncate text-transparent"}>{selected?.label ?? label}</span><ChevronDown className={`pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400 transition-transform ${open ? "rotate-180" : ""}`} /></button></DropdownMenuTrigger><DropdownMenuContent align="start" sideOffset={8} className="z-[240] w-[var(--radix-dropdown-menu-trigger-width)] min-w-[12rem] rounded-2xl border-0 bg-kenoo-white p-2 shadow-xl"><div className="space-y-0.5">{options.map((option) => <DropdownMenuItem key={option.value} onSelect={() => onChange(option.value)} className="cursor-pointer rounded-xl px-3 py-2.5 text-sm font-light hover:bg-neutral-100 focus:bg-neutral-100"><span className="flex-1">{option.label}</span>{option.value === value ? <Check className="h-4 w-4 shrink-0 text-[var(--kenoo-sky)]" /> : <span className="h-4 w-4 shrink-0" />}</DropdownMenuItem>)}</div></DropdownMenuContent></DropdownMenu></div></FloatingLabelControl>;
 }
 
 function FloatingLabelControl({ label, value, children, className, topAligned = false }: { label: string; value?: string | number | readonly string[]; children: React.ReactNode; className?: string; topAligned?: boolean }) {

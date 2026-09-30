@@ -16,7 +16,6 @@ export function FlowsPage() {
       <div className="mx-auto max-w-[1440px] px-6 py-8 sm:px-10 lg:px-12">
         <header className="mb-8 flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
           <div>
-            <p className="mb-2 text-[12px] font-medium uppercase tracking-[0.1em] text-[#9b9b9b]">Customer journeys</p>
             <h1 className="text-[30px] font-semibold tracking-[-0.04em] text-[#111]">Flows</h1>
             <p className="mt-2 max-w-xl text-[13px] font-light leading-6 text-[#858585]">Build automated journeys that respond to the moments happening across your applications.</p>
           </div>

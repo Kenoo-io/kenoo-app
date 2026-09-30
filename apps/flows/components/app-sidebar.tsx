@@ -3,7 +3,7 @@
 import { useAuth } from "@walls/auth";
 import { cn } from "@walls/utils";
 import { AnimatePresence, motion } from "framer-motion";
-import { BarChart3, ChevronLeft, GitBranch, LayoutDashboard, Lock, Mail, Settings, Sparkles, Users } from "lucide-react";
+import { BarChart3, ChevronLeft, GitBranch, LayoutDashboard, Lock, Mail, MessageCircleMore, Settings, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -11,11 +11,11 @@ import { useAppSidebar } from "./app-sidebar-context";
 
 const navItems = [
   { href: "/", label: "Overview", icon: LayoutDashboard },
-  { href: "/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/flows", label: "Flows", icon: GitBranch },
   { href: "/campaigns", label: "Campaigns", icon: Mail },
-  { href: "/audiences", label: "Audiences", icon: Users },
-  { href: "/templates", label: "Templates", icon: Sparkles },
+  { href: "/templates", label: "Templates", icon: MessageCircleMore },
+  { href: "/audiences", label: "Audience", icon: Users },
+  { href: "/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/settings", label: "Settings", icon: Settings },
 ] as const;
 
