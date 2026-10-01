@@ -2,7 +2,7 @@ import { type NextRequest } from "next/server";
 
 import { handleProtectedAppRequest } from "@walls/auth/middleware";
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   return handleProtectedAppRequest(request, {
     appSlug: process.env.NEXT_PUBLIC_FLOWS_APP_SLUG || "flows",
   });
