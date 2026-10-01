@@ -18,6 +18,14 @@ function parseUploadTarget(raw: FormDataEntryValue | null): ImageUploadTarget {
     return parsed;
   }
 
+  if (
+    parsed.kind === "branding-logo" &&
+    parsed.accountId &&
+    (parsed.variant === "dark" || parsed.variant === "light")
+  ) {
+    return parsed;
+  }
+
   throw new Error("Invalid upload target");
 }
 

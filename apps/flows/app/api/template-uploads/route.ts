@@ -36,7 +36,7 @@ export async function GET() {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("flows_template_uploads")
-    .select("id, original_name, storage_key, public_url, mime_type, size_bytes, created_at, updated_at")
+    .select("id, original_name, storage_key, public_url, mime_type, size_bytes, folder_id, created_at, updated_at")
     .eq("account_id", auth.accountId)
     .order("created_at", { ascending: false });
 
@@ -45,7 +45,16 @@ export async function GET() {
     return NextResponse.json({ error: "Unable to load uploads" }, { status: 500 });
   }
 
-  return NextResponse.json({ uploads: data ?? [] });
+  const uploadIds = (data ?? []).map((upload) => upload.id);
+  const { data: memberships, error: membershipError } = uploadIds.length ? await supabase
+    .from("flows_template_upload_folder_memberships")
+    .select("upload_id, folder_id")
+    .eq("account_id", auth.accountId)
+    .in("upload_id", uploadIds) : { data: [], error: null };
+  if (membershipError) return NextResponse.json({ error: "Unable to load upload folders" }, { status: 500 });
+  const membershipsByUpload = new Map<string, string[]>();
+  for (const membership of memberships ?? []) membershipsByUpload.set(membership.upload_id, [...(membershipsByUpload.get(membership.upload_id) ?? []), membership.folder_id]);
+  return NextResponse.json({ uploads: (data ?? []).map((upload) => ({ ...upload, folder_ids: membershipsByUpload.get(upload.id) ?? (upload.folder_id ? [upload.folder_id] : []) })) });
 }
 
 export async function POST(request: Request) {
@@ -54,6 +63,8 @@ export async function POST(request: Request) {
 
   const formData = await request.formData();
   const file = formData.get("file");
+  const folderIdValue = formData.get("folderId");
+  const folderId = typeof folderIdValue === "string" && folderIdValue ? folderIdValue : null;
   if (!(file instanceof File)) {
     return NextResponse.json({ error: "Image file is required" }, { status: 400 });
   }
@@ -80,8 +91,9 @@ export async function POST(request: Request) {
         public_url: getR2PublicUrl(storageKey),
         mime_type: file.type,
         size_bytes: file.size,
+        folder_id: folderId,
       })
-      .select("id, original_name, storage_key, public_url, mime_type, size_bytes, created_at, updated_at")
+      .select("id, original_name, storage_key, public_url, mime_type, size_bytes, folder_id, created_at, updated_at")
       .single();
 
     if (error) {
@@ -90,7 +102,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unable to save upload metadata" }, { status: 500 });
     }
 
-    return NextResponse.json({ upload: data }, { status: 201 });
+    if (folderId) {
+      const { error: membershipError } = await supabase.from("flows_template_upload_folder_memberships").insert({ account_id: auth.accountId, upload_id: data.id, folder_id: folderId });
+      if (membershipError) return NextResponse.json({ error: "Unable to save upload folder" }, { status: 500 });
+    }
+    return NextResponse.json({ upload: { ...data, folder_ids: folderId ? [folderId] : [] } }, { status: 201 });
   } catch (error) {
     await deleteObject(storageKey).catch(() => undefined);
     console.error("[flows] template upload failed", { accountId: auth.accountId, error });

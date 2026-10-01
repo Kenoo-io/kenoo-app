@@ -37,26 +37,28 @@ export async function deleteObjectsWithPrefix(prefix: string): Promise<void> {
   const r2 = getR2Client();
   const bucket = getR2Bucket();
 
-  const list = await r2.send(
-    new ListObjectsV2Command({
-      Bucket: bucket,
-      Prefix: prefix,
-    }),
-  );
-
-  if (!list.Contents?.length) {
-    return;
-  }
-
-  for (const obj of list.Contents) {
-    if (!obj.Key) continue;
-    await r2.send(
-      new DeleteObjectCommand({
+  let continuationToken: string | undefined;
+  do {
+    const list = await r2.send(
+      new ListObjectsV2Command({
         Bucket: bucket,
-        Key: obj.Key,
+        Prefix: prefix,
+        ContinuationToken: continuationToken,
       }),
     );
-  }
+
+    for (const obj of list.Contents ?? []) {
+      if (!obj.Key) continue;
+      await r2.send(
+        new DeleteObjectCommand({
+          Bucket: bucket,
+          Key: obj.Key,
+        }),
+      );
+    }
+
+    continuationToken = list.IsTruncated ? list.NextContinuationToken : undefined;
+  } while (continuationToken);
 }
 
 export async function putImageObject(
