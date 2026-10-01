@@ -33,6 +33,11 @@ function formatUploadDate(date: string) {
   return new Date(date).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 }
 
+function ImageUploadSkeleton({ variant }: { variant: number }) {
+  const widths = ["w-4/5", "w-3/5", "w-2/3", "w-1/2"];
+  return <div className="animate-pulse overflow-hidden rounded-2xl border border-[#edf0f1] bg-[#f6f8f8]"><div className="relative aspect-[4/3] w-full overflow-hidden bg-[#e3eaec]"><div className="absolute -inset-8 rotate-12 bg-gradient-to-r from-transparent via-white/30 to-transparent" /><div className="absolute inset-3 rounded-xl border border-white/30 bg-[#dce5e7]/45" /></div><div className="px-2 py-2"><span className={`block h-2.5 rounded-full bg-[#dfe6e8] ${widths[variant % widths.length]}`} /></div></div>;
+}
+
 export function EmailUploadsPanel({ initialView = "images" }: { initialView?: "images" | "folders" }) {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [uploads, setUploads] = React.useState<Upload[]>([]);
@@ -228,7 +233,7 @@ export function EmailUploadsPanel({ initialView = "images" }: { initialView?: "i
       <div className="min-h-0 flex-1 overflow-y-auto pr-1">
       {assetView === "images" ? <>
       <div className="flex items-center justify-between pt-4"><p className="text-[13px] font-semibold text-[#222]">{activeFolderId ? folders.find((folder) => folder.id === activeFolderId)?.name ?? "Folder" : "All images"}</p>{activeFolderId ? <button type="button" onClick={() => setActiveFolderId(null)} className="text-[11px] font-medium text-[#4d9eae] hover:underline">All images</button> : null}</div>
-      {loading ? <div className="mt-3 grid grid-cols-2 gap-2" aria-label="Loading images" role="status">{[0, 1, 2, 3].map((item) => <div key={item} className="animate-pulse overflow-hidden rounded-2xl border border-[#edf0f1] bg-[#f6f8f8]"><div className="relative aspect-[4/3] w-full bg-[#e8ecee]"><span className="absolute left-2 top-2 h-6 w-6 rounded-md bg-[#f4f6f6]" /><span className="absolute right-2 top-2 h-6 w-6 rounded-xl bg-[#f4f6f6]" /></div><div className="space-y-2 px-2.5 py-2.5"><span className="block h-2.5 w-4/5 rounded-full bg-[#e2e6e7]" /><span className="block h-2 w-2/5 rounded-full bg-[#e9edee]" /></div></div>)}</div> : filteredUploads.length ? <div className="mt-3 grid grid-cols-2 gap-2">{filteredUploads.map((upload) => {
+      {loading ? <div className="mt-3 grid grid-cols-2 gap-2" aria-label="Loading images" role="status">{[0, 1, 2, 3].map((item) => <ImageUploadSkeleton key={item} variant={item} />)}</div> : filteredUploads.length ? <div className="mt-3 grid grid-cols-2 gap-2">{filteredUploads.map((upload) => {
         const selected = selectedUploadIds.has(upload.id);
         return <div key={upload.id} className={`group relative overflow-hidden rounded-2xl border bg-[#f6f8f8] ${selected ? "border-[#222]" : "border-[#edf0f1]"}`}>
           <img src={upload.public_url} alt={upload.original_name} className="aspect-[4/3] w-full object-cover" />
