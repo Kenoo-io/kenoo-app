@@ -33,9 +33,8 @@ function formatUploadDate(date: string) {
   return new Date(date).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 }
 
-function ImageUploadSkeleton({ variant }: { variant: number }) {
-  const widths = ["w-4/5", "w-3/5", "w-2/3", "w-1/2"];
-  return <div className="animate-pulse overflow-hidden rounded-2xl border border-[#edf0f1] bg-[#f6f8f8]"><div className="relative aspect-[4/3] w-full overflow-hidden bg-[#e3eaec]"><div className="absolute -inset-8 rotate-12 bg-gradient-to-r from-transparent via-white/30 to-transparent" /><div className="absolute inset-3 rounded-xl border border-white/30 bg-[#dce5e7]/45" /></div><div className="px-2 py-2"><span className={`block h-2.5 rounded-full bg-[#dfe6e8] ${widths[variant % widths.length]}`} /></div></div>;
+function ImageUploadSkeleton() {
+  return <div className="animate-pulse overflow-hidden rounded-2xl border border-[#edf0f1] bg-[#f6f8f8]"><div className="relative aspect-[4/3] w-full overflow-hidden bg-[#e3eaec]"><div className="absolute -inset-8 rotate-12 bg-gradient-to-r from-transparent via-white/30 to-transparent" /><div className="absolute inset-3 rounded-xl border border-white/30 bg-[#dce5e7]/45" /></div></div>;
 }
 
 export function EmailUploadsPanel({ initialView = "images" }: { initialView?: "images" | "folders" }) {
@@ -56,6 +55,7 @@ export function EmailUploadsPanel({ initialView = "images" }: { initialView?: "i
   const [detailsUpload, setDetailsUpload] = React.useState<Upload | null>(null);
   const [createFolderOpen, setCreateFolderOpen] = React.useState(false);
   const [folderPickerOpen, setFolderPickerOpen] = React.useState(false);
+  const [folderPickerUploadIds, setFolderPickerUploadIds] = React.useState<Set<string>>(new Set());
   const [selectedFolderIds, setSelectedFolderIds] = React.useState<Set<string>>(new Set());
   const [error, setError] = React.useState<string | null>(null);
 
@@ -154,19 +154,62 @@ export function EmailUploadsPanel({ initialView = "images" }: { initialView?: "i
     }
   }
 
+  function openFolderPicker(upload?: Upload) {
+    if (upload) {
+      setFolderPickerUploadIds(new Set([upload.id]));
+      setSelectedFolderIds(new Set(upload.folder_ids ?? (upload.folder_id ? [upload.folder_id] : [])));
+    } else {
+      setFolderPickerUploadIds(new Set());
+      setSelectedFolderIds(new Set());
+    }
+    setError(null);
+    setFolderPickerOpen(true);
+  }
+
   async function addSelectedToFolders() {
-    if (!selectedUploadIds.size || !selectedFolderIds.size) return;
+    const uploadIds = folderPickerUploadIds.size ? [...folderPickerUploadIds] : [...selectedUploadIds];
+    if (!uploadIds.length || !selectedFolderIds.size) return;
     setError(null);
     try {
-      const response = await fetch("/api/template-upload-folder-memberships", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ uploadIds: [...selectedUploadIds], folderIds: [...selectedFolderIds] }) });
+      const response = await fetch("/api/template-upload-folder-memberships", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ uploadIds, folderIds: [...selectedFolderIds] }) });
       const payload = await response.json().catch(() => ({})) as { error?: string };
       if (!response.ok) throw new Error(payload.error ?? "Unable to add images to folders");
-      setUploads((current) => current.map((upload) => selectedUploadIds.has(upload.id) ? { ...upload, folder_ids: [...new Set([...(upload.folder_ids ?? (upload.folder_id ? [upload.folder_id] : [])), ...selectedFolderIds])] } : upload));
+      setUploads((current) => current.map((upload) => uploadIds.includes(upload.id) ? { ...upload, folder_ids: [...new Set([...(upload.folder_ids ?? (upload.folder_id ? [upload.folder_id] : [])), ...selectedFolderIds])] } : upload));
       setSelectedFolderIds(new Set());
+      setFolderPickerUploadIds(new Set());
       setFolderPickerOpen(false);
       setSelectedUploadIds(new Set());
     } catch (folderError) {
       setError(folderError instanceof Error ? folderError.message : "Unable to add images to folders");
+    }
+  }
+
+  async function saveFolderMemberships() {
+    const uploadIds = [...folderPickerUploadIds];
+    const upload = uploads.find((item) => item.id === uploadIds[0]);
+    if (!uploadIds.length || !upload) return;
+
+    const currentFolderIds = new Set(upload.folder_ids ?? (upload.folder_id ? [upload.folder_id] : []));
+    const foldersToAdd = [...selectedFolderIds].filter((folderId) => !currentFolderIds.has(folderId));
+    const foldersToRemove = [...currentFolderIds].filter((folderId) => !selectedFolderIds.has(folderId));
+    setError(null);
+    try {
+      if (foldersToAdd.length) {
+        const response = await fetch("/api/template-upload-folder-memberships", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ uploadIds, folderIds: foldersToAdd }) });
+        const payload = await response.json().catch(() => ({})) as { error?: string };
+        if (!response.ok) throw new Error(payload.error ?? "Unable to add image to folders");
+      }
+      if (foldersToRemove.length) {
+        const response = await fetch("/api/template-upload-folder-memberships", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ uploadIds, folderIds: foldersToRemove }) });
+        const payload = await response.json().catch(() => ({})) as { error?: string };
+        if (!response.ok) throw new Error(payload.error ?? "Unable to remove image from folders");
+      }
+      setUploads((current) => current.map((item) => item.id === upload.id ? { ...item, folder_id: selectedFolderIds.has(item.folder_id ?? "") ? item.folder_id : [...selectedFolderIds][0] ?? null, folder_ids: [...selectedFolderIds] } : item));
+      setFolderPickerOpen(false);
+      setFolderPickerUploadIds(new Set());
+      setSelectedFolderIds(new Set());
+    } catch (folderError) {
+      setError(folderError instanceof Error ? folderError.message : "Unable to update image folders");
     }
   }
 
@@ -225,7 +268,7 @@ export function EmailUploadsPanel({ initialView = "images" }: { initialView?: "i
         <FolderPlus className="h-4 w-4" /> Create folder
       </button>
     </>}
-    <div className="mt-6 flex min-h-0 flex-1 flex-col">
+    <div className={`flex min-h-0 flex-1 flex-col ${assetView === "folders" ? "mt-3" : "mt-6"}`}>
       {initialView === "images" ? <div role="tablist" aria-label="Upload library" className="flex items-center gap-5">
         {(["images", "folders"] as const).map((view) => <button key={view} type="button" role="tab" aria-selected={assetView === view} onClick={() => { setAssetView(view); setQuery(""); }} className={`relative px-1 pb-2.5 pt-1 text-[12px] capitalize transition ${assetView === view ? "font-semibold text-[#222] after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:rounded-full after:bg-[#6eadc0]" : "font-medium text-[#999] hover:text-[#555]"}`}>{view}</button>)}
       </div> : null}
@@ -233,7 +276,7 @@ export function EmailUploadsPanel({ initialView = "images" }: { initialView?: "i
       <div className="min-h-0 flex-1 overflow-y-auto pr-1">
       {assetView === "images" ? <>
       <div className="flex items-center justify-between pt-4"><p className="text-[13px] font-semibold text-[#222]">{activeFolderId ? folders.find((folder) => folder.id === activeFolderId)?.name ?? "Folder" : "All images"}</p>{activeFolderId ? <button type="button" onClick={() => setActiveFolderId(null)} className="text-[11px] font-medium text-[#4d9eae] hover:underline">All images</button> : null}</div>
-      {loading ? <div className="mt-3 grid grid-cols-2 gap-2" aria-label="Loading images" role="status">{[0, 1, 2, 3].map((item) => <ImageUploadSkeleton key={item} variant={item} />)}</div> : filteredUploads.length ? <div className="mt-3 grid grid-cols-2 gap-2">{filteredUploads.map((upload) => {
+      {loading ? <div className="mt-3 grid grid-cols-2 gap-2" aria-label="Loading images" role="status">{[0, 1, 2, 3].map((item) => <ImageUploadSkeleton key={item} />)}</div> : filteredUploads.length ? <div className="mt-3 grid grid-cols-2 gap-2">{filteredUploads.map((upload) => {
         const selected = selectedUploadIds.has(upload.id);
         return <div key={upload.id} className={`group relative overflow-hidden rounded-2xl border bg-[#f6f8f8] ${selected ? "border-[#222]" : "border-[#edf0f1]"}`}>
           <img src={upload.public_url} alt={upload.original_name} className="aspect-[4/3] w-full object-cover" />
@@ -261,7 +304,7 @@ export function EmailUploadsPanel({ initialView = "images" }: { initialView?: "i
                 Download
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem disabled className="rounded-none bg-[#f5f6f7] px-4 py-3 text-sm text-[#222]">
+              <DropdownMenuItem onSelect={() => openFolderPicker(upload)} className="cursor-pointer rounded-none px-4 py-3 text-sm text-[#222] focus:bg-[#edf8fa]">
                 <Folder className="mr-3 h-5 w-5" />
                 Move
               </DropdownMenuItem>
@@ -278,9 +321,9 @@ export function EmailUploadsPanel({ initialView = "images" }: { initialView?: "i
           </DropdownMenu>
         </div>;
       })}</div> : <div className="mt-3 flex aspect-[4/3] flex-col items-center justify-center rounded-2xl border border-dashed border-[#d9e5e8] bg-[#fbfdfd] px-4 text-center text-[11px] leading-5 text-[#99a1a4]"><ImageIcon className="mb-2 h-6 w-6 text-[#aabfc4]" /><span>{uploads.length ? "No images match your search" : "Uploaded images will appear here"}</span></div>}
-      </> : <div className="pt-4">
+      </> : <div className="pt-1">
         <div className="mb-3 flex items-center justify-between"><div><p className="text-[13px] font-semibold text-[#222]">{activeFolderId ? folders.find((folder) => folder.id === activeFolderId)?.name ?? "Folder" : "Folders"}</p><p className="mt-1 text-[11px] text-[#999]">{activeFolderId ? "Click an image folder to browse its contents." : "Create folders for your uploaded images."}</p></div>{activeFolderId ? <button type="button" onClick={() => { setActiveFolderId(null); setQuery(""); }} className="text-[11px] font-medium text-[#4d9eae] hover:underline">All folders</button> : null}</div>
-        {foldersLoading ? <div className="space-y-2" aria-label="Loading folders" role="status">{[0, 1, 2].map((item) => <div key={item} className="flex min-h-[74px] w-full animate-pulse items-center gap-3 rounded-2xl border border-[#edf0f1] bg-[#fbfbfc] p-3"><span className="h-12 w-12 shrink-0 rounded-xl bg-[#e8ecee]" /><span className="min-w-0 flex-1"><span className="block h-3 w-2/3 rounded bg-[#e8ecee]" /><span className="mt-2 block h-2.5 w-1/3 rounded bg-[#edf0f1]" /></span><span className="h-4 w-3 rounded bg-[#edf0f1]" /></div>)}</div> : !activeFolderId && filteredFolders.length ? <div className="space-y-2">{filteredFolders.map((folder) => <button key={folder.id} type="button" onClick={() => { setActiveFolderId(folder.id); setQuery(""); }} className="group flex min-h-[74px] w-full items-center gap-3 rounded-2xl border border-[#e8eaee] bg-[#fbfbfc] p-3 text-left transition hover:border-[#a8d7df] hover:bg-[#f1fbfc]"><span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#eee8ff] text-[#8a6bc2] shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]"><Folder className="h-6 w-6" /></span><span className="min-w-0 flex-1"><span className="block truncate text-[13px] font-semibold text-[#222]">{folder.name}</span><span className="mt-1 block text-[11px] text-[#888]">{uploads.filter((upload) => upload.folder_ids?.includes(folder.id) || upload.folder_id === folder.id).length} {uploads.filter((upload) => upload.folder_ids?.includes(folder.id) || upload.folder_id === folder.id).length === 1 ? "image" : "images"}</span></span><span className="text-[#b0b5b8] transition group-hover:translate-x-0.5 group-hover:text-[#6eadc0]">›</span></button>)}</div> : activeFolderId ? <div className="mt-2">{filteredUploads.length ? <div className="grid grid-cols-2 gap-2">{filteredUploads.map((upload) => <div key={upload.id} className="overflow-hidden rounded-2xl border border-[#edf0f1] bg-[#f6f8f8]"><img src={upload.public_url} alt={upload.original_name} className="aspect-[4/3] w-full object-cover" /><p className="truncate px-2 py-2 text-[10px] text-[#666]">{upload.original_name}</p></div>)}</div> : <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[#d9e5e8] bg-[#fbfdfd] px-4 py-12 text-center text-[11px] leading-5 text-[#99a1a4]"><Folder className="mb-2 h-6 w-6 text-[#aabfc4]" /><span>This folder is empty.</span></div>}</div> : <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[#d9e5e8] bg-[#fbfdfd] px-4 py-12 text-center text-[11px] leading-5 text-[#99a1a4]"><Folder className="mb-2 h-6 w-6 text-[#aabfc4]" /><span>{query ? "No folders match your search." : "Create a folder to organize your images."}</span></div>}
+        {foldersLoading ? <div className="space-y-2" aria-label="Loading folders" role="status">{[0, 1, 2].map((item) => <div key={item} className="flex min-h-[74px] w-full animate-pulse items-center gap-3 rounded-2xl border border-[#edf0f1] bg-[#fbfbfc] p-3"><span className="h-12 w-12 shrink-0 rounded-xl bg-[#e8ecee]" /><span className="min-w-0 flex-1"><span className="block h-3 w-2/3 rounded bg-[#e8ecee]" /><span className="mt-2 block h-2.5 w-1/3 rounded bg-[#edf0f1]" /></span><span className="h-4 w-3 rounded bg-[#edf0f1]" /></div>)}</div> : !activeFolderId && filteredFolders.length ? <div className="space-y-2">{filteredFolders.map((folder) => <button key={folder.id} type="button" onClick={() => { setActiveFolderId(folder.id); setQuery(""); }} className="group flex min-h-[74px] w-full items-center gap-3 rounded-2xl border border-[#e8eaee] bg-[#fbfbfc] p-3 text-left transition hover:border-[#a8d7df] hover:bg-[#f1fbfc]"><span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#eee8ff] text-[#8a6bc2] shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]"><Folder className="h-6 w-6" /></span><span className="min-w-0 flex-1"><span className="block truncate text-[13px] font-semibold text-[#222]">{folder.name}</span><span className="mt-1 block text-[11px] text-[#888]">{uploads.filter((upload) => upload.folder_ids?.includes(folder.id) || upload.folder_id === folder.id).length} {uploads.filter((upload) => upload.folder_ids?.includes(folder.id) || upload.folder_id === folder.id).length === 1 ? "image" : "images"}</span></span><span className="text-[#b0b5b8] transition group-hover:translate-x-0.5 group-hover:text-[#6eadc0]">›</span></button>)}</div> : activeFolderId ? <div className="mt-2">{filteredUploads.length ? <div className="grid grid-cols-2 gap-2">{filteredUploads.map((upload) => <div key={upload.id} className="overflow-hidden rounded-2xl border border-[#edf0f1] bg-[#f6f8f8]"><img src={upload.public_url} alt={upload.original_name} className="aspect-[4/3] w-full object-cover" /></div>)}</div> : <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[#d9e5e8] bg-[#fbfdfd] px-4 py-12 text-center text-[11px] leading-5 text-[#99a1a4]"><Folder className="mb-2 h-6 w-6 text-[#aabfc4]" /><span>This folder is empty.</span></div>}</div> : <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[#d9e5e8] bg-[#fbfdfd] px-4 py-12 text-center text-[11px] leading-5 text-[#99a1a4]"><Folder className="mb-2 h-6 w-6 text-[#aabfc4]" /><span>{query ? "No folders match your search." : "Create a folder to organize your images."}</span></div>}
       </div>}
       </div>
       {selectedUploadIds.size ? <div className="shrink-0 pt-3">
@@ -301,9 +344,9 @@ export function EmailUploadsPanel({ initialView = "images" }: { initialView?: "i
     </div> : null}
     {folderPickerOpen ? <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/10 p-4" onClick={() => setFolderPickerOpen(false)}>
       <section role="dialog" aria-modal="true" aria-labelledby="folder-picker-title" onClick={(event) => event.stopPropagation()} className="w-full max-w-sm rounded-2xl border border-[#e1e4e8] bg-white p-5 shadow-[0_18px_50px_rgba(15,23,42,0.2)]">
-        <div className="flex items-start justify-between gap-4"><div><h2 id="folder-picker-title" className="text-lg font-semibold text-[#222]">Add to folders</h2><p className="mt-1 text-xs text-[#888]">Choose one or more folders for the selected images.</p></div><button type="button" onClick={() => setFolderPickerOpen(false)} aria-label="Close folder picker" className="rounded-xl p-2 text-[#555] transition hover:bg-[#f3f4f4]"><X className="h-5 w-5" /></button></div>
+        <div className="flex items-start justify-between gap-4"><div><h2 id="folder-picker-title" className="text-lg font-semibold text-[#222]">{folderPickerUploadIds.size ? "Manage folders" : "Add to folders"}</h2><p className="mt-1 text-xs text-[#888]">{folderPickerUploadIds.size ? "Choose the folders this image should belong to." : "Choose one or more folders for the selected images."}</p></div><button type="button" onClick={() => setFolderPickerOpen(false)} aria-label="Close folder picker" className="rounded-xl p-2 text-[#555] transition hover:bg-[#f3f4f4]"><X className="h-5 w-5" /></button></div>
         <div className="mt-5 max-h-56 space-y-1 overflow-y-auto">{folders.length ? folders.map((folder) => { const checked = selectedFolderIds.has(folder.id); return <label key={folder.id} className={`flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 transition ${checked ? "bg-[#edf8fa]" : "hover:bg-[#f5f6f7]"}`}><input type="checkbox" checked={checked} onChange={() => setSelectedFolderIds((current) => { const next = new Set(current); if (next.has(folder.id)) next.delete(folder.id); else next.add(folder.id); return next; })} className="h-4 w-4 accent-[#6eadc0]" /><Folder className="h-4 w-4 text-[#6eadc0]" /><span className="min-w-0 flex-1 truncate text-[12px] text-[#333]">{folder.name}</span></label>; }) : <p className="rounded-xl border border-dashed border-[#d9e5e8] px-3 py-6 text-center text-[11px] text-[#99a1a4]">Create a folder first.</p>}</div>
-        <div className="mt-5 flex justify-end gap-2"><button type="button" onClick={() => setFolderPickerOpen(false)} className="rounded-lg px-3.5 py-2.5 text-[12px] font-medium text-[#666] transition hover:bg-[#f5f5f5]">Cancel</button><button type="button" onClick={() => void addSelectedToFolders()} disabled={!selectedFolderIds.size || !folders.length} className="rounded-lg bg-[#222] px-3.5 py-2.5 text-[12px] font-medium text-white transition hover:bg-[#3a3a3a] disabled:cursor-not-allowed disabled:opacity-40">Add to folders</button></div>
+        <div className="mt-5 flex justify-end gap-2"><button type="button" onClick={() => setFolderPickerOpen(false)} className="rounded-lg px-3.5 py-2.5 text-[12px] font-medium text-[#666] transition hover:bg-[#f5f5f5]">Cancel</button><button type="button" onClick={() => void (folderPickerUploadIds.size ? saveFolderMemberships() : addSelectedToFolders())} disabled={(!folderPickerUploadIds.size && !selectedFolderIds.size) || !folders.length} className="rounded-lg bg-[#222] px-3.5 py-2.5 text-[12px] font-medium text-white transition hover:bg-[#3a3a3a] disabled:cursor-not-allowed disabled:opacity-40">{folderPickerUploadIds.size ? "Save folders" : "Add to folders"}</button></div>
       </section>
     </div> : null}
     {detailsUpload ? <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/10 p-4" onClick={() => setDetailsUpload(null)}>
