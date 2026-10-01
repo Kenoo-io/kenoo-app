@@ -36,6 +36,11 @@
     "turbo": "^2.5.4"
   },
   "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "sharp",
+      "unrs-resolver"
+    ],
     "overrides": {
       "wallie-mobile>@types/react": "~18.3.12",
       "wallie-mobile>@types/react-dom": "~18.3.1"
