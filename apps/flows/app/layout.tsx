@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Suspense } from "react";
 
 import { createWallsMetadata } from "@walls/config/metadata";
 import { AppHeaderVisibilityProvider } from "@walls/ui/private-app-chrome";
@@ -37,7 +38,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body className="h-screen overflow-hidden bg-kenoo-white text-[#111111]">
         <Providers>
           <AppHeaderVisibilityProvider autoHideOnScroll>
-            <AppShell>{children}</AppShell>
+            <Suspense fallback={<div className="h-screen bg-kenoo-white" />}>
+              <AppShell>{children}</AppShell>
+            </Suspense>
           </AppHeaderVisibilityProvider>
         </Providers>
       </body>
