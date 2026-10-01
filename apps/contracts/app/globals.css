@@ -1,0 +1,11 @@
+@import "tailwindcss";
+@import "@walls/ui/kenoo-theme.css";
+
+@source "../../../packages/ui/src";
+@source "../components";
+
+:root { --font-sans: Arial, Helvetica, sans-serif; }
+
+* { box-sizing: border-box; }
+button, a, input { font: inherit; }
+button, a { cursor: pointer; }

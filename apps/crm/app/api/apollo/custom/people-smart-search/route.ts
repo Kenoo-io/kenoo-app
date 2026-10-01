@@ -350,6 +350,7 @@ Return ONLY a JSON object with this exact format:
   "rankedIndices": [0, 1, 2]
 }
 
+
 IMPORTANT: 
 - rankedIndices is an array of array indices (0-based) from the Contacts array below, in order from best to third best.
 - Only return up to 3 contacts, or fewer if there are less than 3 available.
@@ -453,4 +454,3 @@ ${contactsForAI.map((contact, index) => `[${index}] ${contact.firstName} ${conta
     );
   }
 }
-

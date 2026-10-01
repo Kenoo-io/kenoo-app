@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { authenticateEventKey } from "@/lib/api-key-auth";
-import { upsertFlowAudienceFromEvent } from "./flow-audience";
+import { upsertWorkflowAudienceFromEvent } from "./workflow-audience";
 
 type EventBody = {
   event?: string;
@@ -47,7 +47,7 @@ export async function POST(request: Request) {
   }
 
   const { data: definition, error: definitionError } = await auth.admin
-    .from("flow_events")
+    .from("workflow_events")
     .select("id, key, is_active")
     .eq("account_id", auth.accountId)
     .eq("key", eventKey)
@@ -62,7 +62,7 @@ export async function POST(request: Request) {
   }
 
   const { data: occurrence, error } = await auth.admin
-    .from("flow_event_occurrences")
+    .from("workflow_event_occurrences")
     .insert({
       account_id: auth.accountId,
       event_id: definition.id,
@@ -79,7 +79,7 @@ export async function POST(request: Request) {
 
   if (error?.code === "23505" && idempotencyKey) {
     const { data: existing } = await auth.admin
-      .from("flow_event_occurrences")
+      .from("workflow_event_occurrences")
       .select("id, event_key, external_id, payload, context, occurred_at, received_at, created_at")
       .eq("account_id", auth.accountId)
       .eq("idempotency_key", idempotencyKey)
@@ -87,7 +87,7 @@ export async function POST(request: Request) {
 
     if (existing) {
       try {
-        await upsertFlowAudienceFromEvent({
+        await upsertWorkflowAudienceFromEvent({
           admin: auth.admin,
           accountId: auth.accountId,
           occurrenceId: existing.id,
@@ -109,7 +109,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    await upsertFlowAudienceFromEvent({
+    await upsertWorkflowAudienceFromEvent({
       admin: auth.admin,
       accountId: auth.accountId,
       occurrenceId: occurrence.id,

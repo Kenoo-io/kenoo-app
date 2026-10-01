@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 
 export const PLATFORM_API_KEY_SCOPE = "platform:*";
-export const FLOWS_EVENTS_WRITE_SCOPE = "flows:events:write";
+export const WORKFLOWS_EVENTS_WRITE_SCOPE = "workflows:events:write";
 
 export function hashApiKey(secret: string): string {
   return createHash("sha256").update(secret).digest("hex");

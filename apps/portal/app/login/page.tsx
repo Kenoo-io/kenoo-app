@@ -138,7 +138,7 @@ function LoginPageContent() {
   const hasRedirectParam = Boolean(redirectParam);
   const mfaInputRef = React.useRef<HTMLInputElement>(null);
   const mfaFactorIdRef = React.useRef<string | null>(null);
-  const mfaFlowActiveRef = React.useRef(false);
+  const mfaWorkflowActiveRef = React.useRef(false);
   const autoRedirectStartedRef = React.useRef(false);
 
   // Invite / recovery emails sometimes land on /login when Supabase Site URL
@@ -188,9 +188,9 @@ function LoginPageContent() {
 
   const beginMfaVerification = React.useCallback((factorId: string) => {
     const alreadyActive =
-      mfaFlowActiveRef.current && mfaFactorIdRef.current === factorId;
+      mfaWorkflowActiveRef.current && mfaFactorIdRef.current === factorId;
 
-    mfaFlowActiveRef.current = true;
+    mfaWorkflowActiveRef.current = true;
     mfaFactorIdRef.current = factorId;
     setNeedsMfaVerification(true);
 
@@ -201,7 +201,7 @@ function LoginPageContent() {
   }, []);
 
   const resetMfaVerification = React.useCallback(() => {
-    mfaFlowActiveRef.current = false;
+    mfaWorkflowActiveRef.current = false;
     mfaFactorIdRef.current = null;
     setNeedsMfaVerification(false);
     setMfaCode("");
@@ -282,7 +282,7 @@ function LoginPageContent() {
   }, []);
 
   React.useEffect(() => {
-    if (hasLogged || needsMfaVerification || mfaFlowActiveRef.current) return;
+    if (hasLogged || needsMfaVerification || mfaWorkflowActiveRef.current) return;
 
     let cancelled = false;
 
@@ -291,13 +291,13 @@ function LoginPageContent() {
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      if (!session || cancelled || mfaFlowActiveRef.current) return;
+      if (!session || cancelled || mfaWorkflowActiveRef.current) return;
 
       const {
         data: { user: authUser },
         error,
       } = await supabase.auth.getUser();
-      if (error || !authUser || cancelled || mfaFlowActiveRef.current) return;
+      if (error || !authUser || cancelled || mfaWorkflowActiveRef.current) return;
 
       if (isMfaSecondFactorPending(authUser, session.access_token)) {
         localStorage.removeItem("authToken");
@@ -533,7 +533,7 @@ function LoginPageContent() {
           return;
         }
 
-        mfaFlowActiveRef.current = false;
+        mfaWorkflowActiveRef.current = false;
         mfaFactorIdRef.current = null;
         setNeedsMfaVerification(false);
         await completeLoginSuccess(

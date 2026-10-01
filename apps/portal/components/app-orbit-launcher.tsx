@@ -124,14 +124,14 @@ function AppSlider({ apps }: { apps: PortalLauncherApp[] }) {
   const scrollerRef = React.useRef<HTMLDivElement>(null);
   const [canPrev, setCanPrev] = React.useState(false);
   const [canNext, setCanNext] = React.useState(false);
-  const [overflows, setOverflows] = React.useState(false);
+  const [overflow, setOverflow] = React.useState(false);
 
   const updateEdges = React.useCallback(() => {
     const el = scrollerRef.current;
     if (!el) return;
     const max = el.scrollWidth - el.clientWidth;
     const hasOverflow = max > 4;
-    setOverflows(hasOverflow);
+    setOverflow(hasOverflow);
     setCanPrev(hasOverflow && el.scrollLeft > 4);
     setCanNext(hasOverflow && el.scrollLeft < max - 4);
   }, []);
@@ -225,7 +225,7 @@ function AppSlider({ apps }: { apps: PortalLauncherApp[] }) {
         ref={scrollerRef}
         className={cn(
           "flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth py-2 [-ms-overflow-style:none] [scrollbar-width:none] sm:gap-4 [&::-webkit-scrollbar]:hidden",
-          overflows
+          overflow
             ? "justify-start px-10 sm:px-14"
             : "justify-center px-4 sm:px-6",
         )}

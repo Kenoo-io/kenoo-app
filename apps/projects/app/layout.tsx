@@ -4,6 +4,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { createWallsMetadata } from "@walls/config/metadata";
 import { AccountSwitcher } from "@/components/account-switcher";
 import { AppSidebarLayout } from "@/components/app-sidebar-layout";
+import { navItems } from "@/components/app-sidebar";
 import { AppTopChrome } from "@/components/app-top-chrome";
 import { ProjectsHeaderVisibility } from "@/components/projects-header-visibility";
 import { Providers } from "@/components/providers";
@@ -46,6 +47,8 @@ export default function RootLayout({
             <ProjectsHeaderVisibility>
               <AppTopChrome
                 dashboardPath="/"
+                currentAppName="Projects"
+                mobileNavItems={navItems}
                 leftContent={<AccountSwitcher />}
               />
               <AppSidebarLayout>{children}</AppSidebarLayout>

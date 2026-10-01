@@ -15,7 +15,8 @@ pnpm + Turborepo monorepo for the WALLS Entertainment ecosystem.
 | **admin**       | `apps/admin`       | Agency admin ([admin.walls.agency](https://admin.walls.agency)) — users, apps, jobs, teams |
 | **platform**    | `apps/platform`    | API marketplace ([platform.kenoo.io](https://platform.kenoo.io)) — catalog, keys, prepaid credits |
 | **api**         | `apps/api`         | Public integration API (`api.kenoo.io`) — versioned event ingestion |
-| **flows**       | `apps/flows`       | Customer journeys and email automations |
+| **workflows**       | `apps/workflows`       | Customer journeys and email automations |
+| **contracts**       | `apps/contracts`       | Contract preparation, review, and signing |
 
 
 Future apps will live under `apps/`.

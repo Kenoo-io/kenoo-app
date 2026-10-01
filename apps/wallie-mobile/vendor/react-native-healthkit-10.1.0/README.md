@@ -189,4 +189,3 @@ At Kingstinct we're also able to provide enterprise-grade support for this packa
 ## License
 
 MIT
-
