@@ -17,7 +17,7 @@ import { usePathname } from "next/navigation";
 
 import { useAppSidebar } from "./app-sidebar-context";
 
-const navItems = [
+export const navItems = [
   { href: "/", label: "Overview", icon: LayoutDashboard },
   { href: "/projects", label: "Projects", icon: FolderKanban },
   { href: "/tasks", label: "Tasks", icon: ClipboardCheck },

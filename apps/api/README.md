@@ -4,7 +4,7 @@ The public integration API for external Kenoo apps such as MurphsLife.
 
 ## Ingest an event
 
-Create the event definition first in Flows, then send occurrences with a
+Create the event definition first in Workflows, then send occurrences with a
 scoped API key:
 
 ```bash
@@ -28,7 +28,7 @@ The endpoint returns `202 Accepted` after durably recording the event. The
 event occurrence is the input for future workflow triggers and analytics.
 
 When an event payload includes an `email` or stable external identifier such as
-`user_id`, Kenoo also upserts a separate account-scoped Flow audience record.
+`user_id`, Kenoo also upserts a separate account-scoped Workflows audience record.
 This audience is intentionally separate from CRM people. Standard fields such
 as `first_name`, `last_name`, `full_name`, `phone`, `company`, and `job_title`
 are enriched when present, while other payload fields are retained in the

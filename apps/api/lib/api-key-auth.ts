@@ -1,7 +1,7 @@
 import { createAdminClient } from "@walls/supabase/admin";
 import {
   extractBearerToken,
-  FLOWS_EVENTS_WRITE_SCOPE,
+  WORKFLOWS_EVENTS_WRITE_SCOPE,
   hashApiKey,
 } from "@walls/supabase/api-keys";
 
@@ -22,7 +22,7 @@ export async function authenticateEventKey(request: Request) {
     error ||
     !data ||
     data.revoked_at ||
-    !(data.scopes as string[] | null)?.includes(FLOWS_EVENTS_WRITE_SCOPE)
+    !(data.scopes as string[] | null)?.includes(WORKFLOWS_EVENTS_WRITE_SCOPE)
   ) {
     return { error: "Invalid event API key", status: 401 as const };
   }

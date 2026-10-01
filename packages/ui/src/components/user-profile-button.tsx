@@ -8,6 +8,7 @@ import {
   resolveAppHref,
   readActiveAccountIdFromDocumentCookie,
   writeActiveAccountIdToDocumentCookie,
+  resolvePortalLoginOrigin,
   type UserProfileApp,
 } from "@walls/auth";
 import { Button } from "./button";
@@ -32,7 +33,6 @@ import {
   ChevronDown,
   Bell,
   Settings,
-  BookOpen,
   Building2,
   Check,
   Plus,
@@ -396,7 +396,15 @@ export interface UserProfileButtonProps {
   settingsPath?: string;
   documentationPath?: string;
   adminSettingsPath?: string;
+  currentAppName?: string;
+  mobileNavItems?: readonly MobileNavigationItem[];
 }
+
+export type MobileNavigationItem = {
+  href: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+};
 
 /** Profile photo with skeleton until the image has loaded (or failed). */
 function ProfileAvatarCircle({
@@ -542,6 +550,8 @@ export default function UserProfileButton({
   settingsPath = DEFAULT_SETTINGS_PATH,
   documentationPath = "/documentation",
   adminSettingsPath,
+  currentAppName = "Kenoo",
+  mobileNavItems,
 }: UserProfileButtonProps = {}) {
   const { user, profile, profileLoading, updateProfileApps, isLoading } =
     useAuth();
@@ -564,6 +574,7 @@ export default function UserProfileButton({
 
   const apps = profile?.userApps ?? [];
   const { adminApp, regularApps } = partitionProfileApps(apps);
+  const currentAppIcon = regularApps.find((app) => app.name === currentAppName)?.icon;
   // Only show when the active account has an Admin app grant.
   const showAdminConsole = adminApp != null;
   const adminConsolePath = adminApp?.path ?? ADMIN_CONSOLE_PATH;
@@ -695,6 +706,10 @@ export default function UserProfileButton({
     setIsMobileMenuOpen(false);
   };
 
+  const handleSwitchApp = () => {
+    window.location.assign(resolvePortalLoginOrigin(window.location.origin));
+  };
+
   const LONG_PRESS_MS = 500;
   const startLongPress = useCallback(() => {
     longPressTimerRef.current = setTimeout(() => {
@@ -762,7 +777,6 @@ export default function UserProfileButton({
   };
 
   const allMenuItems: MenuItem[] = [
-    { name: "Dashboard", path: dashboardPath },
     ...regularApps,
     ...(showAdminConsole
       ? [{ name: "Admin console", path: adminConsolePath }]
@@ -808,10 +822,13 @@ export default function UserProfileButton({
       {/* Mobile Menu Button */}
       <div className="md:hidden">
         <button
+          type="button"
           onClick={() => setIsMobileMenuOpen(true)}
-          className="p-3 rounded-lg transition-colors"
+          aria-label="Open app menu"
+          aria-expanded={isMobileMenuOpen}
+          className="flex h-10 w-10 items-center justify-center rounded-lg text-foreground transition-colors hover:bg-neutral-100 active:opacity-60"
         >
-          <Menu className="h-7 w-7 text-foreground" />
+          <Menu className="h-[19px] w-[19px]" strokeWidth={1.8} />
         </button>
       </div>
 
@@ -1032,18 +1049,7 @@ export default function UserProfileButton({
                 </div>
 
                 {/* Quick actions */}
-                <div className="mt-3 grid grid-cols-3 gap-1.5 border-t border-neutral-100 pt-3">
-                  <DropdownMenuItem
-                    onClick={navigate("documentation")}
-                    className="group/qa flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-2xl px-2 py-2.5 outline-none transition-colors focus:bg-transparent"
-                  >
-                    <span className="flex h-9 w-9 items-center justify-center rounded-full text-neutral-500 transition-all duration-200 group-hover/qa:bg-neutral-700 group-hover/qa:text-white group-focus/qa:bg-neutral-700 group-focus/qa:text-white">
-                      <BookOpen className="h-[18px] w-[18px]" />
-                    </span>
-                    <span className="text-[11px] font-medium text-neutral-500 transition-colors group-hover/qa:text-neutral-700 group-focus/qa:text-neutral-700">
-                      Docs
-                    </span>
-                  </DropdownMenuItem>
+                <div className="mt-3 grid grid-cols-2 gap-1.5 border-t border-neutral-100 pt-3">
                   <DropdownMenuItem
                     onClick={navigate("settings")}
                     className="group/qa flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-2xl px-2 py-2.5 outline-none transition-colors focus:bg-transparent"
@@ -1079,22 +1085,49 @@ export default function UserProfileButton({
           <div className="fixed inset-0 z-[9999] md:hidden">
             {/* Backdrop */}
             <div
-              className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+              className="absolute inset-0 bg-slate-950/35 backdrop-blur-[3px]"
               onClick={() => setIsMobileMenuOpen(false)}
             />
 
             {/* Menu Content */}
-            <div className="relative h-full w-full bg-white flex flex-col">
+            <div className="relative flex h-full w-full flex-col overflow-y-auto bg-kenoo-white">
               {/* Close Button */}
               <button
                 onClick={() => setIsMobileMenuOpen(false)}
-                className="absolute top-4 right-4 z-10"
+                type="button"
+                aria-label="Close app menu"
+                className="absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-xl text-neutral-500 transition hover:bg-neutral-100 active:opacity-60"
               >
-                <X className="h-8 w-8" />
+                <X className="h-5 w-5" strokeWidth={1.8} />
               </button>
 
-              {!accountsLoading && accounts.length > 0 ? (
-                <div className="shrink-0 border-b border-neutral-100 px-4 pb-3 pt-16">
+              <div className="shrink-0 border-b border-neutral-100 px-6 pb-5 pt-[calc(1.5rem+env(safe-area-inset-top))]">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-neutral-100 text-lg font-semibold text-neutral-500">
+                    {currentAppIcon ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={currentAppIcon} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      currentAppName.charAt(0)
+                    )}
+                  </span>
+                  <div>
+                    <h1 className="text-[30px] font-semibold leading-none tracking-[-0.045em] text-neutral-900">
+                      {currentAppName}
+                    </h1>
+                    <button
+                      type="button"
+                      onClick={handleSwitchApp}
+                      className="mt-0 p-0 text-[15px] font-medium leading-tight text-kenoo-blue transition-colors hover:text-kenoo-blue/75"
+                    >
+                      Switch app
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {false && !accountsLoading && accounts.length > 0 ? (
+                <div className="shrink-0 border-b border-neutral-100 px-4 pb-3 pt-20">
                   <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-neutral-400">
                     Switch account
                   </p>
@@ -1184,8 +1217,53 @@ export default function UserProfileButton({
                 </div>
               ) : null}
 
+              <div className="flex min-h-0 flex-1 flex-col px-4 pt-6">
+                <div className="min-h-0 flex-1 overflow-y-auto pb-4">
+                  <div className="space-y-1">
+                  {mobileNavItems?.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                    <button
+                      key={item.href}
+                      type="button"
+                      onClick={() => handleMobileNavigation(item.href)}
+                      className="group flex min-h-16 w-full items-center justify-center gap-3 rounded-2xl px-4 text-center text-black transition-colors hover:bg-neutral-50 active:bg-neutral-100"
+                    >
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center text-neutral-400 transition-colors group-hover:text-neutral-600">
+                        <Icon className="h-6 w-6" strokeWidth={1.6} />
+                      </span>
+                      <span className="text-[28px] font-medium tracking-[-0.035em]">{item.label}</span>
+                    </button>
+                    );
+                  })}
+                  </div>
+                </div>
+                <div className="grid shrink-0 grid-cols-2 gap-1.5 border-t border-neutral-100 bg-kenoo-white py-4">
+                  <button
+                    type="button"
+                    onClick={navigate("settings")}
+                    className="flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-2xl px-2 py-2.5 text-neutral-500 transition-colors hover:bg-neutral-50 active:bg-neutral-100"
+                  >
+                    <span className="flex h-9 w-9 items-center justify-center rounded-full">
+                      <Settings className="h-[18px] w-[18px]" />
+                    </span>
+                    <span className="text-[14px] font-medium">Settings</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleMobileLogout()}
+                    className="flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-2xl px-2 py-2.5 text-red-500 transition-colors hover:bg-red-50 active:bg-red-100"
+                  >
+                    <span className="flex h-9 w-9 items-center justify-center rounded-full">
+                      <LogOut className="h-[18px] w-[18px]" />
+                    </span>
+                    <span className="text-[14px] font-medium">Log out</span>
+                  </button>
+                </div>
+              </div>
+
               {/* Carousel Menu */}
-              <div className="flex flex-col items-center justify-center flex-1 py-16 px-4">
+              <div className="hidden flex-col items-center justify-center flex-1 py-16 px-4">
                 {/* Up Chevron Button */}
                 <button onClick={prevMenuItem} className="mb-12 p-2 z-10">
                   <ChevronUp className="h-8 w-8 text-muted-foreground" />
