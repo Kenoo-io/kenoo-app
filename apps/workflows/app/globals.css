@@ -37,3 +37,42 @@
 /* Viewing mode is a clean email preview: hide editor chrome and disable editing. */
 .email-template-preview-mode aside { display: none !important; }
 .email-template-preview-mode [contenteditable="true"] { pointer-events: none; }
+
+/* HTML email builder block controls. The grip is intentionally a pseudo-element so
+   it never becomes part of the editable email content or the saved markup. */
+.email-template-sortable-block { position: relative; }
+.email-template-sortable-block:not([style*="display: none"])::before,
+.email-template-sortable-selected-element::before {
+  content: "⋮⋮  Drag to move";
+  position: absolute;
+  top: 7px;
+  left: 50%;
+  z-index: 5;
+  display: flex;
+  height: 24px;
+  align-items: center;
+  transform: translateX(-50%);
+  border: 1px solid rgba(110, 173, 192, 0.25);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.88);
+  padding: 0 9px;
+  color: #6d9da7;
+  cursor: grab;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  opacity: var(--email-drag-opacity, 0);
+  pointer-events: none;
+  box-shadow: 0 3px 10px rgba(15, 23, 42, 0.08);
+  transition: opacity 160ms ease, background-color 160ms ease;
+}
+.email-template-sortable-block-selected::before,
+.email-template-sortable-selected-element::before,
+.email-template-sortable-block-dragging::before { opacity: 1 !important; }
+.email-template-sortable-selected-element { position: relative; }
+.email-template-sortable-selected-element::before { top: -31px; }
+.email-template-sortable-block-dragging { opacity: 0.55; }
+.email-template-sortable-block-over { box-shadow: inset 0 3px 0 #6eadc0; }
+.email-template-sortable-block-over::before { background: #edf8fa; }
+.email-template-preview-mode .email-template-sortable-block::before,
+.email-template-preview-mode .email-template-sortable-selected-element::before { display: none; }
