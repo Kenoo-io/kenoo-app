@@ -268,7 +268,7 @@ export function EmailUploadsPanel({ initialView = "images" }: { initialView?: "i
         <FolderPlus className="h-4 w-4" /> Create folder
       </button>
     </>}
-    <div className={`flex min-h-0 flex-1 flex-col ${assetView === "folders" ? "mt-3" : "mt-6"}`}>
+    <div className="mt-6 flex min-h-0 flex-1 flex-col">
       {initialView === "images" ? <div role="tablist" aria-label="Upload library" className="flex items-center gap-5">
         {(["images", "folders"] as const).map((view) => <button key={view} type="button" role="tab" aria-selected={assetView === view} onClick={() => { setAssetView(view); setQuery(""); }} className={`relative px-1 pb-2.5 pt-1 text-[12px] capitalize transition ${assetView === view ? "font-semibold text-[#222] after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:rounded-full after:bg-[#6eadc0]" : "font-medium text-[#999] hover:text-[#555]"}`}>{view}</button>)}
       </div> : null}

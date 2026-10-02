@@ -130,7 +130,8 @@ export function CreateTemplatePage({ channel, initialFormat }: { channel: string
   const [editorMode, setEditorMode] = React.useState<(typeof emailEditorModes)[number]["value"]>("editing");
   const [editorModeOpen, setEditorModeOpen] = React.useState(false);
   const [selectedBlock, setSelectedBlock] = React.useState<"hero" | "text" | "image" | "button" | "divider">("hero");
-  const [canvasSelectionActive, setCanvasSelectionActive] = React.useState(true);
+  const [canvasSelectionActive, setCanvasSelectionActive] = React.useState(false);
+  const buttonPositionRef = React.useRef({ x: 0, y: 0 });
   const [zoom, setZoom] = React.useState(100);
   const canvasRef = React.useRef<HTMLElement>(null);
   const zoomInputRef = React.useRef<HTMLInputElement>(null);
@@ -266,81 +267,157 @@ export function CreateTemplatePage({ channel, initialFormat }: { channel: string
     canvas.style.flexDirection = "column";
     const blocks = Array.from(canvas.children).filter((child): child is HTMLElement => child instanceof HTMLElement).slice(0, 4);
     const blockKeys: EmailSectionKey[] = ["hero", "text", "image", "divider"];
+    const zoomScale = zoom / 100;
+    const hero = blocks[0];
+    const heroButton = hero?.querySelector<HTMLElement>("button");
+    if (heroButton) heroButton.style.transform = `translate(${buttonPositionRef.current.x}px, ${buttonPositionRef.current.y}px)`;
+
+    function makeHandle(label: string) {
+      const handle = document.createElement("div");
+      handle.className = "email-template-drag-handle";
+      handle.setAttribute("role", "button");
+      handle.setAttribute("tabindex", "0");
+      handle.setAttribute("aria-label", `Drag to move ${label}`);
+      handle.innerHTML = '<span aria-hidden="true">⋮⋮</span><span>Drag to move</span>';
+      handle.addEventListener("click", (event) => event.stopPropagation());
+      return handle;
+    }
+
     const cleanups = blocks.map((block, index) => {
       const sectionKey = blockKeys[index];
       block.classList.add("email-template-sortable-block");
-      const isSelected = canvasSelectionActive && selectedBlock !== "button" && selectedBlock === sectionKey;
-      block.classList.toggle("email-template-sortable-block-selected", isSelected);
-      block.setAttribute("data-drag-selected", isSelected ? "true" : "false");
-      block.style.setProperty("--email-drag-opacity", isSelected ? "1" : "0");
-      const nestedButton = sectionKey === "hero" ? block.querySelector<HTMLElement>("button") : null;
-      const isNestedButtonSelected = canvasSelectionActive && selectedBlock === "button" && sectionKey === "hero";
-      nestedButton?.classList.toggle("email-template-sortable-selected-element", isNestedButtonSelected);
-      nestedButton?.setAttribute("data-drag-selected", isNestedButtonSelected ? "true" : "false");
       block.setAttribute("data-section-key", sectionKey);
-      block.setAttribute("aria-label", `${sectionKey} section. Drag from the grip at the top to move it.`);
-      block.draggable = !isPreviewMode;
       block.style.order = String(sectionOrder.indexOf(sectionKey));
+      if (isPreviewMode || !canvasSelectionActive || selectedBlock !== sectionKey) return () => {};
 
-      const handleDragStart = (event: DragEvent) => {
-        if (isPreviewMode || event.clientY > block.getBoundingClientRect().top + 44) {
-          event.preventDefault();
-          return;
-        }
-        event.dataTransfer?.setData("text/plain", sectionKey);
-        if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
+      const handle = makeHandle(`${sectionKey} section`);
+      block.appendChild(handle);
+      let startY = 0;
+      let insertionIndex = sectionOrder.indexOf(sectionKey);
+      const clearDropMarkers = () => blocks.forEach((item) => item.classList.remove("email-template-drop-before", "email-template-drop-after"));
+      const onPointerDown = (event: PointerEvent) => {
+        if (event.button !== 0) return;
+        event.preventDefault();
+        event.stopPropagation();
+        startY = event.clientY;
+        insertionIndex = sectionOrder.indexOf(sectionKey);
+        handle.setPointerCapture(event.pointerId);
+        handle.classList.add("email-template-drag-handle-active");
         block.classList.add("email-template-sortable-block-dragging");
       };
-      const handleDragOver = (event: DragEvent) => {
-        if (isPreviewMode) return;
+      const onPointerMove = (event: PointerEvent) => {
+        if (!handle.hasPointerCapture(event.pointerId)) return;
         event.preventDefault();
-        if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
-        block.classList.add("email-template-sortable-block-over");
+        block.style.transform = `translateY(${(event.clientY - startY) / zoomScale}px)`;
+        clearDropMarkers();
+        const otherBlocks = sectionOrder.filter((key) => key !== sectionKey && !hiddenSections.includes(key));
+        insertionIndex = otherBlocks.findIndex((key) => {
+          const target = blocks[blockKeys.indexOf(key)];
+          const bounds = target.getBoundingClientRect();
+          return event.clientY < bounds.top + bounds.height / 2;
+        });
+        if (insertionIndex < 0) insertionIndex = otherBlocks.length;
+        const targetKey = otherBlocks[Math.min(insertionIndex, otherBlocks.length - 1)];
+        if (targetKey) blocks[blockKeys.indexOf(targetKey)].classList.add(insertionIndex === otherBlocks.length ? "email-template-drop-after" : "email-template-drop-before");
       };
-      const handleDragLeave = () => block.classList.remove("email-template-sortable-block-over");
-      const handleDrop = (event: DragEvent) => {
-        event.preventDefault();
-        const draggedKey = event.dataTransfer?.getData("text/plain") as EmailSectionKey | undefined;
-        block.classList.remove("email-template-sortable-block-over");
-        if (!draggedKey || draggedKey === sectionKey) return;
+      const finishDrag = (event: PointerEvent) => {
+        if (!handle.hasPointerCapture(event.pointerId)) return;
+        handle.releasePointerCapture(event.pointerId);
+        handle.classList.remove("email-template-drag-handle-active");
+        block.classList.remove("email-template-sortable-block-dragging");
+        block.style.transform = "";
+        clearDropMarkers();
+        if (event.type === "pointercancel" || Math.abs(event.clientY - startY) < 4) return;
         setSectionOrder((current) => {
-          const next = current.filter((key) => key !== draggedKey);
-          const targetIndex = next.indexOf(sectionKey);
-          const insertIndex = event.clientY > block.getBoundingClientRect().top + block.getBoundingClientRect().height / 2 ? targetIndex + 1 : targetIndex;
-          next.splice(insertIndex, 0, draggedKey);
+          const next = current.filter((key) => key !== sectionKey);
+          const visible = next.filter((key) => !hiddenSections.includes(key));
+          const beforeKey = visible[insertionIndex];
+          next.splice(beforeKey ? next.indexOf(beforeKey) : next.length, 0, sectionKey);
           return next;
         });
       };
-      const handleDragEnd = () => block.classList.remove("email-template-sortable-block-dragging");
-
-      block.addEventListener("dragstart", handleDragStart);
-      block.addEventListener("dragover", handleDragOver);
-      block.addEventListener("dragleave", handleDragLeave);
-      block.addEventListener("drop", handleDrop);
-      block.addEventListener("dragend", handleDragEnd);
+      handle.addEventListener("pointerdown", onPointerDown);
+      handle.addEventListener("pointermove", onPointerMove);
+      handle.addEventListener("pointerup", finishDrag);
+      handle.addEventListener("pointercancel", finishDrag);
       return () => {
-        block.removeEventListener("dragstart", handleDragStart);
-        block.removeEventListener("dragover", handleDragOver);
-        block.removeEventListener("dragleave", handleDragLeave);
-        block.removeEventListener("drop", handleDrop);
-        block.removeEventListener("dragend", handleDragEnd);
-        block.classList.remove("email-template-sortable-block", "email-template-sortable-block-selected", "email-template-sortable-block-dragging", "email-template-sortable-block-over");
-        block.removeAttribute("data-section-key");
-        block.removeAttribute("aria-label");
-        block.removeAttribute("data-drag-selected");
-        block.style.removeProperty("--email-drag-opacity");
-        nestedButton?.classList.remove("email-template-sortable-selected-element");
-        nestedButton?.removeAttribute("data-drag-selected");
-        block.draggable = false;
-        block.style.order = "";
+        handle.removeEventListener("pointerdown", onPointerDown);
+        handle.removeEventListener("pointermove", onPointerMove);
+        handle.removeEventListener("pointerup", finishDrag);
+        handle.removeEventListener("pointercancel", finishDrag);
+        handle.remove();
+        block.style.transform = "";
+        clearDropMarkers();
       };
     });
+    let buttonCleanup = () => {};
+    if (!isPreviewMode && canvasSelectionActive && selectedBlock === "button" && hero && heroButton) {
+      const handle = makeHandle("button");
+      handle.classList.add("email-template-button-drag-handle");
+      hero.appendChild(handle);
+      const placeHandle = () => {
+        const buttonBounds = heroButton.getBoundingClientRect();
+        const heroBounds = hero.getBoundingClientRect();
+        handle.style.left = `${(buttonBounds.left + buttonBounds.width / 2 - heroBounds.left) / zoomScale}px`;
+        handle.style.top = `${Math.max(4, (buttonBounds.top - heroBounds.top) / zoomScale - 30)}px`;
+      };
+      placeHandle();
+      let startX = 0;
+      let startY = 0;
+      let origin = { x: 0, y: 0 };
+      const onPointerDown = (event: PointerEvent) => {
+        if (event.button !== 0) return;
+        event.preventDefault();
+        event.stopPropagation();
+        startX = event.clientX;
+        startY = event.clientY;
+        origin = { ...buttonPositionRef.current };
+        handle.setPointerCapture(event.pointerId);
+        handle.classList.add("email-template-drag-handle-active");
+      };
+      const onPointerMove = (event: PointerEvent) => {
+        if (!handle.hasPointerCapture(event.pointerId)) return;
+        event.preventDefault();
+        const x = Math.max(16 - heroButton.offsetLeft, Math.min(hero.clientWidth - heroButton.offsetLeft - heroButton.offsetWidth - 16, origin.x + (event.clientX - startX) / zoomScale));
+        const y = Math.max(32 - heroButton.offsetTop, Math.min(hero.clientHeight - heroButton.offsetTop - heroButton.offsetHeight - 16, origin.y + (event.clientY - startY) / zoomScale));
+        buttonPositionRef.current = { x, y };
+        heroButton.style.transform = `translate(${x}px, ${y}px)`;
+        placeHandle();
+      };
+      const finishDrag = (event: PointerEvent) => {
+        if (!handle.hasPointerCapture(event.pointerId)) return;
+        handle.releasePointerCapture(event.pointerId);
+        handle.classList.remove("email-template-drag-handle-active");
+        if (event.type === "pointercancel") {
+          buttonPositionRef.current = origin;
+          heroButton.style.transform = `translate(${origin.x}px, ${origin.y}px)`;
+          placeHandle();
+        }
+      };
+      handle.addEventListener("pointerdown", onPointerDown);
+      handle.addEventListener("pointermove", onPointerMove);
+      handle.addEventListener("pointerup", finishDrag);
+      handle.addEventListener("pointercancel", finishDrag);
+      buttonCleanup = () => {
+        handle.removeEventListener("pointerdown", onPointerDown);
+        handle.removeEventListener("pointermove", onPointerMove);
+        handle.removeEventListener("pointerup", finishDrag);
+        handle.removeEventListener("pointercancel", finishDrag);
+        handle.remove();
+      };
+    }
     return () => {
+      buttonCleanup();
       cleanups.forEach((cleanup) => cleanup());
+      blocks.forEach((block) => {
+        block.classList.remove("email-template-sortable-block", "email-template-sortable-block-dragging", "email-template-drop-before", "email-template-drop-after");
+        block.removeAttribute("data-section-key");
+        block.style.order = "";
+      });
       canvas.style.display = "";
       canvas.style.flexDirection = "";
     };
-  }, [emailFormat, isPreviewMode, sectionOrder, `${selectedBlock}:${canvasSelectionActive}`]);
+  }, [canvasSelectionActive, emailFormat, hiddenSections, isPreviewMode, sectionOrder, selectedBlock, zoom]);
 
   function toggleSidebarTool(tool: NonNullable<typeof activeSidebarTool>) {
     setActiveSidebarTool((current) => current === tool ? null : tool);
@@ -496,6 +573,7 @@ export function CreateTemplatePage({ channel, initialFormat }: { channel: string
     function handleTextToolbarOutsideClick(event: MouseEvent) {
       const target = event.target as Node;
       const activeEditor = activeTextEditorRef.current;
+      if (target instanceof Element && target.closest(".email-template-drag-handle")) return;
       if (activeEditor?.contains(target) || textToolbarRef.current?.contains(target)) return;
       setTextToolbarOpen(false);
       activeTextEditorRef.current = null;
