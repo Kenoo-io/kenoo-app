@@ -125,6 +125,65 @@ function toolError(message: string) {
   };
 }
 
+async function callAdpilotBridge(
+  url: string,
+  accessToken: string,
+  body: Record<string, unknown>,
+): Promise<
+  | { ok: true; payload: Record<string, unknown> }
+  | { ok: false; message: string }
+> {
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: "POST",
+      redirect: "manual",
+      headers: {
+        accept: "application/json",
+        authorization: `Bearer ${accessToken}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    return { ok: false, message: "Unable to reach the AdPilot write service." };
+  }
+
+  if (response.status >= 300 && response.status < 400) {
+    return {
+      ok: false,
+      message: "AdPilot redirected the authenticated MCP request instead of processing it.",
+    };
+  }
+
+  const contentType = response.headers.get("content-type")?.toLowerCase() ?? "";
+  if (!contentType.includes("application/json")) {
+    return {
+      ok: false,
+      message: `AdPilot returned an invalid response (${response.status}).`,
+    };
+  }
+
+  const payload = await response.json().catch(() => null) as Record<string, unknown> | null;
+  if (!payload) {
+    return {
+      ok: false,
+      message: `AdPilot returned unreadable JSON (${response.status}).`,
+    };
+  }
+
+  if (!response.ok) {
+    return {
+      ok: false,
+      message: typeof payload.error === "string"
+        ? payload.error
+        : `AdPilot rejected the request (${response.status}).`,
+    };
+  }
+
+  return { ok: true, payload };
+}
+
 const HEALTH_SUMMARY_SELECT =
   "id, summary_date, calories_consumed, calories_burned, calories_net, protein_g, carbs_g, fat_g, fiber_g, sugar_g, sodium_mg, water_ml, meal_count, activity_count, active_minutes, steps, distance_walking_meters, flights_climbed, active_energy_kcal, basal_energy_kcal, exercise_minutes, stand_minutes, stand_hours, resting_heart_rate, avg_heart_rate, walking_heart_rate_avg, hrv_sdnn_ms, respiratory_rate, oxygen_saturation, body_temperature_c, blood_glucose_mg_dl, vo2_max, mindfulness_minutes, sleep_asleep_minutes, sleep_in_bed_minutes, sleep_deep_minutes, sleep_rem_minutes, sleep_core_minutes, sleep_awake_minutes, apple_health_synced_at";
 const HEALTH_ACTIVITY_SELECT =
@@ -1222,16 +1281,21 @@ export function createKenooMcpServer(identity: KenooIdentity | null, authChallen
       const accountId = await requireAccountForApp(identity, "adpilot");
       const adpilotApiUrl = process.env.MCP_ADPILOT_API_URL?.trim().replace(/\/$/, "")
         || (process.env.NODE_ENV === "production" ? "https://adpilot.kenoo.io" : "http://localhost:3001");
-      const response = await fetch(`${adpilotApiUrl}/api/mcp/daily-budget`, {
-        method: "POST",
-        headers: {
-          authorization: `Bearer ${identity.accessToken}`,
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({ entityId, dailyBudgetMicros }),
-      });
-      const result = await response.json().catch(() => ({})) as Record<string, unknown>;
-      if (!response.ok) return toolError(typeof result.error === "string" ? result.error : "Unable to update daily budget.");
+      const bridgeResult = await callAdpilotBridge(
+        `${adpilotApiUrl}/api/mcp/daily-budget`,
+        identity.accessToken,
+        { entityId, dailyBudgetMicros },
+      );
+      if (!bridgeResult.ok) return toolError(bridgeResult.message);
+      const result = bridgeResult.payload;
+      if (
+        typeof result.dailyBudgetMicros !== "number" ||
+        !Number.isInteger(result.dailyBudgetMicros) ||
+        result.dailyBudgetMicros <= 0 ||
+        typeof result.dailyBudgetInherited !== "boolean"
+      ) {
+        return toolError("AdPilot returned an invalid daily-budget result.");
+      }
       return text({
         accountId,
         entityId,
@@ -1256,16 +1320,16 @@ export function createKenooMcpServer(identity: KenooIdentity | null, authChallen
       const accountId = await requireAccountForApp(identity, "adpilot");
       const adpilotApiUrl = process.env.MCP_ADPILOT_API_URL?.trim().replace(/\/$/, "")
         || (process.env.NODE_ENV === "production" ? "https://adpilot.kenoo.io" : "http://localhost:3001");
-      const response = await fetch(`${adpilotApiUrl}/api/mcp/ad-delivery-status`, {
-        method: "POST",
-        headers: {
-          authorization: `Bearer ${identity.accessToken}`,
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({ adId, status }),
-      });
-      const result = await response.json().catch(() => ({})) as Record<string, unknown>;
-      if (!response.ok) return toolError(typeof result.error === "string" ? result.error : "Unable to update ad delivery status.");
+      const bridgeResult = await callAdpilotBridge(
+        `${adpilotApiUrl}/api/mcp/ad-delivery-status`,
+        identity.accessToken,
+        { adId, status },
+      );
+      if (!bridgeResult.ok) return toolError(bridgeResult.message);
+      const result = bridgeResult.payload;
+      if (typeof result.status !== "string") {
+        return toolError("AdPilot returned an invalid delivery-status result.");
+      }
       return text({ accountId, adId, status: result.status, providerResult: (result.providerResult as Record<string, unknown>) ?? {} });
     },
   );
