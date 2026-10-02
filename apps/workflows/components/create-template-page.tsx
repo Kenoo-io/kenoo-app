@@ -1826,8 +1826,22 @@ export function CreateTemplatePage({ channel, initialFormat, templateId: initial
         input.value = sectionNames[section];
         input.size = Math.max(1, input.value.length);
         input.setAttribute("aria-label", "Section name");
-        input.className = "absolute left-14 top-[7px] z-30 h-6 w-auto border-0 border-b border-[#4d9eae] bg-transparent px-0 text-[12px] font-medium text-[#3f4548] outline-none focus:ring-0";
-        if (label) label.style.color = "transparent";
+        input.className = "absolute z-30 w-auto border-0 border-b border-[#4d9eae] bg-transparent px-0 outline-none focus:ring-0";
+        if (label) {
+          const labelBounds = label.getBoundingClientRect();
+          const containerBounds = rowContainer.getBoundingClientRect();
+          const labelStyle = window.getComputedStyle(label);
+          input.style.left = `${labelBounds.left - containerBounds.left}px`;
+          input.style.top = `${labelBounds.top - containerBounds.top}px`;
+          input.style.height = `${labelBounds.height}px`;
+          input.style.fontFamily = labelStyle.fontFamily;
+          input.style.fontSize = labelStyle.fontSize;
+          input.style.fontWeight = labelStyle.fontWeight;
+          input.style.lineHeight = labelStyle.lineHeight;
+          input.style.letterSpacing = labelStyle.letterSpacing;
+          input.style.color = labelStyle.color;
+          label.style.color = "transparent";
+        }
         let finished = false;
         const finishRename = (save: boolean) => {
           if (finished) return;
