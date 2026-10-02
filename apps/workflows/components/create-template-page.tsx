@@ -73,6 +73,7 @@ type BuilderSnapshot = {
   footerUnsubscribeText?: string;
   footerUnsubscribeUrl?: string;
   footerSocialLinks?: { instagram: string; facebook: string; linkedin: string };
+  emailBackgroundColor?: string;
   sectionColors: Record<EmailSectionKey, string>;
   sectionHeights: Record<EmailSectionKey, string>;
   hiddenSections: EmailSectionKey[];
@@ -226,6 +227,9 @@ export function CreateTemplatePage({ channel, initialFormat, templateId: initial
   const [footerUnsubscribeText, setFooterUnsubscribeText] = React.useState("Unsubscribe");
   const [footerUnsubscribeUrl, setFooterUnsubscribeUrl] = React.useState("");
   const [footerSocialLinks, setFooterSocialLinks] = React.useState({ instagram: "", facebook: "", linkedin: "" });
+  // This is the color outside the 640px email content column. It is part of
+  // the email markup, rather than only the editor workspace chrome.
+  const [emailBackgroundColor, setEmailBackgroundColor] = React.useState("#f4f5f7");
   const [sectionColors, setSectionColors] = React.useState<Record<EmailSectionKey, string>>(defaultSectionColors);
   const [sectionHeights, setSectionHeights] = React.useState<Record<EmailSectionKey, string>>(defaultSectionHeights);
   // Images are placed into the section the user selected. The standalone image
@@ -381,6 +385,14 @@ export function CreateTemplatePage({ channel, initialFormat, templateId: initial
   }, [emailFormat, isPreviewMode, zoom]);
 
   React.useEffect(() => {
+    if (emailFormat !== "html") return;
+    const workspace = document.querySelector<HTMLElement>("main > div");
+    if (!workspace) return;
+    workspace.style.backgroundColor = emailBackgroundColor;
+    return () => { workspace.style.backgroundColor = ""; };
+  }, [emailBackgroundColor, emailFormat]);
+
+  React.useEffect(() => {
     if (!initialTemplateId) return;
     let cancelled = false;
     void fetch(`/api/templates/${initialTemplateId}`)
@@ -436,6 +448,7 @@ export function CreateTemplatePage({ channel, initialFormat, templateId: initial
     footerUnsubscribeText,
     footerUnsubscribeUrl,
     footerSocialLinks,
+    emailBackgroundColor,
     sectionColors,
     sectionHeights,
     hiddenSections,
@@ -451,7 +464,7 @@ export function CreateTemplatePage({ channel, initialFormat, templateId: initial
     imageRotations,
     imageLayers,
     canvasUploads,
-  }), [name, description, subject, heroEyebrow, heroLogoUrl, heroHeadline, heroDescription, heroButtonLabel, buttonColor, buttonTextColor, buttonWidth, buttonHeight, buttonRadius, buttonFontFamily, buttonFontSize, buttonFontWeight, bodyHeading, bodyDescription, imagePlaceholder, footerCompany, footerNote, footerUnsubscribeText, footerUnsubscribeUrl, footerSocialLinks, sectionColors, sectionHeights, hiddenSections, deletedSections, sectionOrder, sectionNames, actionUrl, imageUrl, buttonPosition, textPositions, imagePositions, imageSizes, imageRotations, imageLayers, canvasUploads]);
+  }), [name, description, subject, heroEyebrow, heroLogoUrl, heroHeadline, heroDescription, heroButtonLabel, buttonColor, buttonTextColor, buttonWidth, buttonHeight, buttonRadius, buttonFontFamily, buttonFontSize, buttonFontWeight, bodyHeading, bodyDescription, imagePlaceholder, footerCompany, footerNote, footerUnsubscribeText, footerUnsubscribeUrl, footerSocialLinks, emailBackgroundColor, sectionColors, sectionHeights, hiddenSections, deletedSections, sectionOrder, sectionNames, actionUrl, imageUrl, buttonPosition, textPositions, imagePositions, imageSizes, imageRotations, imageLayers, canvasUploads]);
 
   function updateHistoryControls() {
     setHistoryState({ canUndo: historyRef.current.past.length > 0, canRedo: historyRef.current.future.length > 0 });
@@ -503,6 +516,7 @@ export function CreateTemplatePage({ channel, initialFormat, templateId: initial
     setFooterUnsubscribeText(snapshot.footerUnsubscribeText ?? "Unsubscribe");
     setFooterUnsubscribeUrl(snapshot.footerUnsubscribeUrl ?? "");
     setFooterSocialLinks(snapshot.footerSocialLinks ?? { instagram: "", facebook: "", linkedin: "" });
+    setEmailBackgroundColor(snapshot.emailBackgroundColor ?? "#f4f5f7");
     setSectionColors(Object.fromEntries(emailSectionKeys.map((section) => [section, snapshot.sectionColors?.[section] || defaultSectionColors[section]])) as Record<EmailSectionKey, string>);
     setSectionHeights(Object.fromEntries(emailSectionKeys.map((section) => [section, snapshot.sectionHeights?.[section] || defaultSectionHeights[section]])) as Record<EmailSectionKey, string>);
     // Older templates always exposed the dedicated image placeholder. Keep
@@ -1544,6 +1558,16 @@ export function CreateTemplatePage({ channel, initialFormat, templateId: initial
       return next;
     });
   }
+  const emailBackgroundControls = <div className="mt-0 min-h-full bg-white text-[#222]">
+    <div className="border-b border-[#e9eaec] px-5 py-4">
+      <p className="text-[14px] font-semibold tracking-[-0.01em] text-[#222]">Email background</p>
+      <p className="mt-1 text-[11px] leading-5 text-[#8b8f94]">This color appears around the email content in recipients’ inboxes.</p>
+    </div>
+    <div className="border-b border-[#e9eaec] px-5 py-5">
+      <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#8b9095]">Background color</p>
+      <FigmaColorRow label="Email background color" color={emailBackgroundColor} onChange={setEmailBackgroundColor} />
+    </div>
+  </div>;
   const buttonControls = <>
     <div className="border-b border-[#e5e6e8] px-5 py-5">
       <p className="mb-4 text-[14px] font-semibold tracking-[-0.01em]">Button content</p>
@@ -1590,7 +1614,7 @@ export function CreateTemplatePage({ channel, initialFormat, templateId: initial
     {selectedImageKey === "hero-logo" ? <div className="px-5 py-5"><button type="button" onClick={() => logoInputRef.current?.click()} className="h-9 w-full rounded-lg border border-[#dfe4e6] text-[11px] font-medium text-[#555] transition hover:bg-[#f5fafb]">Replace image</button></div> : null}
     {canvasUploads.some((upload) => upload.key === selectedImageKey) ? <div className="px-5 py-5"><button type="button" onClick={removeSelectedUpload} className="h-9 w-full rounded-lg border border-red-200 text-[11px] font-medium text-red-600 transition hover:bg-red-50">Delete image</button></div> : null}
   </> : null;
-  const selectedSectionControls = <div className="mt-0 min-h-full bg-white text-[#222]"><div className="flex items-center justify-between border-b border-[#e9eaec] px-5 py-4"><div><p className="text-[14px] font-semibold tracking-[-0.01em] text-[#222]">{selectedImageKey ? "Image" : textToolbarOpen ? "Text formatting" : selectedSectionLabel}</p></div>{!textToolbarOpen && !selectedImageKey && selectedBlock !== "button" ? <span className="h-2.5 w-2.5 rounded-full ring-2 ring-[#f1f2f3]" style={{ backgroundColor: sectionColors[selectedSection] }} /> : null}</div>
+  const selectedSectionControls = !canvasSelectionActive ? emailBackgroundControls : <div className="mt-0 min-h-full bg-white text-[#222]"><div className="flex items-center justify-between border-b border-[#e9eaec] px-5 py-4"><div><p className="text-[14px] font-semibold tracking-[-0.01em] text-[#222]">{selectedImageKey ? "Image" : textToolbarOpen ? "Text formatting" : selectedSectionLabel}</p></div>{!textToolbarOpen && !selectedImageKey && selectedBlock !== "button" ? <span className="h-2.5 w-2.5 rounded-full ring-2 ring-[#f1f2f3]" style={{ backgroundColor: sectionColors[selectedSection] }} /> : null}</div>
 {selectedImageKey ? imageControls : null}
 {!selectedImageKey && textToolbarOpen ? textFormattingToolbar : null}
 {!textToolbarOpen && !selectedImageKey && selectedBlock === "button" ? buttonControls : null}
@@ -1720,7 +1744,7 @@ export function CreateTemplatePage({ channel, initialFormat, templateId: initial
       return `<tr>${cell.outerHTML}</tr>`;
     }).join("");
 
-    return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="640" style="width:640px;max-width:100%;margin:0 auto;border-collapse:collapse;background:#ffffff"><tbody>${rows}</tbody></table>`;
+    return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="${emailBackgroundColor}" style="width:100%;border-collapse:collapse;background-color:${emailBackgroundColor}"><tbody><tr><td align="center"><table role="presentation" cellpadding="0" cellspacing="0" border="0" width="640" style="width:640px;max-width:100%;margin:0 auto;border-collapse:collapse;background:#ffffff"><tbody>${rows}</tbody></table></td></tr></tbody></table>`;
   }
 
   async function copyEmailHtml() {
