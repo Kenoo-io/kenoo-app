@@ -132,6 +132,8 @@ export function CreateTemplatePage({ channel, initialFormat }: { channel: string
   const [selectedBlock, setSelectedBlock] = React.useState<"hero" | "text" | "image" | "button" | "divider">("hero");
   const [canvasSelectionActive, setCanvasSelectionActive] = React.useState(false);
   const buttonPositionRef = React.useRef({ x: 0, y: 0 });
+  const textPositionsRef = React.useRef<Record<string, { x: number; y: number }>>({});
+  const [selectedTextKey, setSelectedTextKey] = React.useState<string | null>(null);
   const [zoom, setZoom] = React.useState(100);
   const canvasRef = React.useRef<HTMLElement>(null);
   const zoomInputRef = React.useRef<HTMLInputElement>(null);
@@ -251,6 +253,7 @@ export function CreateTemplatePage({ channel, initialFormat }: { channel: string
       event.preventDefault();
       event.stopPropagation();
       setSelectedBlock("button");
+      setSelectedTextKey(null);
       setActiveSidebarTool("design");
       setCanvasSelectionActive(true);
     };
@@ -271,6 +274,10 @@ export function CreateTemplatePage({ channel, initialFormat }: { channel: string
     const hero = blocks[0];
     const heroButton = hero?.querySelector<HTMLElement>("button");
     if (heroButton) heroButton.style.transform = `translate(${buttonPositionRef.current.x}px, ${buttonPositionRef.current.y}px)`;
+    canvas.querySelectorAll<HTMLElement>("[data-editor-key]").forEach((editor) => {
+      const position = textPositionsRef.current[editor.dataset.editorKey ?? ""];
+      if (position) editor.style.transform = `translate(${position.x}px, ${position.y}px)`;
+    });
 
     function makeHandle(label: string) {
       const handle = document.createElement("div");
@@ -288,7 +295,7 @@ export function CreateTemplatePage({ channel, initialFormat }: { channel: string
       block.classList.add("email-template-sortable-block");
       block.setAttribute("data-section-key", sectionKey);
       block.style.order = String(sectionOrder.indexOf(sectionKey));
-      if (isPreviewMode || !canvasSelectionActive || selectedBlock !== sectionKey) return () => {};
+      if (isPreviewMode || !canvasSelectionActive || selectedBlock !== sectionKey || selectedTextKey) return () => {};
 
       const handle = makeHandle(`${sectionKey} section`);
       block.appendChild(handle);
@@ -310,7 +317,7 @@ export function CreateTemplatePage({ channel, initialFormat }: { channel: string
         event.preventDefault();
         block.style.transform = `translateY(${(event.clientY - startY) / zoomScale}px)`;
         clearDropMarkers();
-        const otherBlocks = sectionOrder.filter((key) => key !== sectionKey && !hiddenSections.includes(key));
+        const otherBlocks = sectionOrder.filter((key) => key !== sectionKey && blocks[blockKeys.indexOf(key)].style.display !== "none");
         insertionIndex = otherBlocks.findIndex((key) => {
           const target = blocks[blockKeys.indexOf(key)];
           const bounds = target.getBoundingClientRect();
@@ -330,7 +337,7 @@ export function CreateTemplatePage({ channel, initialFormat }: { channel: string
         if (event.type === "pointercancel" || Math.abs(event.clientY - startY) < 4) return;
         setSectionOrder((current) => {
           const next = current.filter((key) => key !== sectionKey);
-          const visible = next.filter((key) => !hiddenSections.includes(key));
+          const visible = next.filter((key) => blocks[blockKeys.indexOf(key)].style.display !== "none");
           const beforeKey = visible[insertionIndex];
           next.splice(beforeKey ? next.indexOf(beforeKey) : next.length, 0, sectionKey);
           return next;
@@ -426,7 +433,107 @@ export function CreateTemplatePage({ channel, initialFormat }: { channel: string
         horizontalGuide.remove();
       };
     }
+    let textCleanup = () => {};
+    const selectedEditor = Array.from(canvas.querySelectorAll<HTMLElement>("[data-editor-key]")).find((editor) => editor.dataset.editorKey === selectedTextKey);
+    const textBlock = selectedEditor?.closest<HTMLElement>("[data-section-key]");
+    if (!isPreviewMode && canvasSelectionActive && selectedTextKey && selectedEditor && textBlock?.dataset.sectionKey === selectedBlock) {
+      const handle = makeHandle("text");
+      handle.classList.add("email-template-text-drag-handle");
+      textBlock.appendChild(handle);
+      const verticalGuide = document.createElement("div");
+      verticalGuide.className = "email-template-center-guide email-template-center-guide-vertical";
+      verticalGuide.setAttribute("aria-hidden", "true");
+      const horizontalGuide = document.createElement("div");
+      horizontalGuide.className = "email-template-center-guide email-template-center-guide-horizontal";
+      horizontalGuide.setAttribute("aria-hidden", "true");
+      textBlock.append(verticalGuide, horizontalGuide);
+      const position = textPositionsRef.current[selectedTextKey] ?? { x: 0, y: 0 };
+      const textBounds = () => {
+        const range = document.createRange();
+        range.selectNodeContents(selectedEditor);
+        const bounds = range.getBoundingClientRect();
+        return bounds.width && bounds.height ? bounds : selectedEditor.getBoundingClientRect();
+      };
+      const placeHandle = () => {
+        const bounds = textBounds();
+        const parentBounds = textBlock.getBoundingClientRect();
+        handle.style.left = `${(bounds.left + bounds.width / 2 - parentBounds.left) / zoomScale}px`;
+        handle.style.top = `${Math.max(4, (bounds.top - parentBounds.top) / zoomScale - 30)}px`;
+      };
+      placeHandle();
+      const resizeObserver = new ResizeObserver(placeHandle);
+      resizeObserver.observe(selectedEditor);
+      selectedEditor.addEventListener("input", placeHandle);
+      let startX = 0;
+      let startY = 0;
+      let origin = position;
+      let originBounds = textBounds();
+      let parentBounds = textBlock.getBoundingClientRect();
+      const onPointerDown = (event: PointerEvent) => {
+        if (event.button !== 0) return;
+        event.preventDefault();
+        event.stopPropagation();
+        startX = event.clientX;
+        startY = event.clientY;
+        origin = { ...(textPositionsRef.current[selectedTextKey] ?? { x: 0, y: 0 }) };
+        originBounds = textBounds();
+        parentBounds = textBlock.getBoundingClientRect();
+        handle.setPointerCapture(event.pointerId);
+        handle.classList.add("email-template-drag-handle-active");
+      };
+      const onPointerMove = (event: PointerEvent) => {
+        if (!handle.hasPointerCapture(event.pointerId)) return;
+        event.preventDefault();
+        const minX = origin.x + (parentBounds.left + 12 * zoomScale - originBounds.left) / zoomScale;
+        const maxX = origin.x + (parentBounds.right - 12 * zoomScale - originBounds.right) / zoomScale;
+        const minY = origin.y + (parentBounds.top + 12 * zoomScale - originBounds.top) / zoomScale;
+        const maxY = origin.y + (parentBounds.bottom - 12 * zoomScale - originBounds.bottom) / zoomScale;
+        const rawX = Math.max(minX, Math.min(maxX, origin.x + (event.clientX - startX) / zoomScale));
+        const rawY = Math.max(minY, Math.min(maxY, origin.y + (event.clientY - startY) / zoomScale));
+        const offsetX = (originBounds.left + originBounds.width / 2 - parentBounds.left - parentBounds.width / 2) / zoomScale;
+        const offsetY = (originBounds.top + originBounds.height / 2 - parentBounds.top - parentBounds.height / 2) / zoomScale;
+        const centerX = origin.x - offsetX;
+        const centerY = origin.y - offsetY;
+        const snapX = centerX >= minX && centerX <= maxX && Math.abs(rawX - centerX) <= 10 / zoomScale;
+        const snapY = centerY >= minY && centerY <= maxY && Math.abs(rawY - centerY) <= 10 / zoomScale;
+        const x = snapX ? centerX : rawX;
+        const y = snapY ? centerY : rawY;
+        verticalGuide.classList.toggle("email-template-center-guide-visible", snapX);
+        horizontalGuide.classList.toggle("email-template-center-guide-visible", snapY);
+        textPositionsRef.current[selectedTextKey] = { x, y };
+        selectedEditor.style.transform = `translate(${x}px, ${y}px)`;
+        placeHandle();
+      };
+      const finishDrag = (event: PointerEvent) => {
+        if (!handle.hasPointerCapture(event.pointerId)) return;
+        handle.releasePointerCapture(event.pointerId);
+        handle.classList.remove("email-template-drag-handle-active");
+        verticalGuide.classList.remove("email-template-center-guide-visible");
+        horizontalGuide.classList.remove("email-template-center-guide-visible");
+        if (event.type === "pointercancel") {
+          textPositionsRef.current[selectedTextKey] = origin;
+          selectedEditor.style.transform = `translate(${origin.x}px, ${origin.y}px)`;
+          placeHandle();
+        }
+      };
+      handle.addEventListener("pointerdown", onPointerDown);
+      handle.addEventListener("pointermove", onPointerMove);
+      handle.addEventListener("pointerup", finishDrag);
+      handle.addEventListener("pointercancel", finishDrag);
+      textCleanup = () => {
+        resizeObserver.disconnect();
+        selectedEditor.removeEventListener("input", placeHandle);
+        handle.removeEventListener("pointerdown", onPointerDown);
+        handle.removeEventListener("pointermove", onPointerMove);
+        handle.removeEventListener("pointerup", finishDrag);
+        handle.removeEventListener("pointercancel", finishDrag);
+        handle.remove();
+        verticalGuide.remove();
+        horizontalGuide.remove();
+      };
+    }
     return () => {
+      textCleanup();
       buttonCleanup();
       cleanups.forEach((cleanup) => cleanup());
       blocks.forEach((block) => {
@@ -438,7 +545,7 @@ export function CreateTemplatePage({ channel, initialFormat }: { channel: string
       canvas.style.flexDirection = "";
       canvas.style.overflow = "";
     };
-  }, [canvasSelectionActive, emailFormat, hiddenSections, isPreviewMode, sectionOrder, selectedBlock, zoom]);
+  }, [canvasSelectionActive, emailFormat, isPreviewMode, sectionOrder, selectedBlock, selectedTextKey, zoom]);
 
   function toggleSidebarTool(tool: NonNullable<typeof activeSidebarTool>) {
     setActiveSidebarTool((current) => current === tool ? null : tool);
@@ -479,9 +586,11 @@ export function CreateTemplatePage({ channel, initialFormat }: { channel: string
   }
 
   function activateTextEditor(event?: React.SyntheticEvent<HTMLElement>) {
-    const editor = event?.currentTarget ?? activeTextEditorRef.current;
+    const focusedEditor = document.activeElement instanceof HTMLElement && document.activeElement.dataset.editorKey ? document.activeElement : null;
+    const editor = event?.currentTarget ?? focusedEditor ?? activeTextEditorRef.current;
     if (!editor) return;
     activeTextEditorRef.current = editor;
+    setSelectedTextKey(editor.dataset.editorKey === "hero-button" ? null : editor.dataset.editorKey ?? null);
     setActiveSidebarTool("design");
     setTextToolbarOpen(true);
     if (!applyingTextCommandRef.current) syncTextFormatControls(editor);
@@ -608,6 +717,17 @@ export function CreateTemplatePage({ channel, initialFormat }: { channel: string
     document.addEventListener("mousedown", handleTextToolbarOutsideClick);
     return () => document.removeEventListener("mousedown", handleTextToolbarOutsideClick);
   }, [textToolbarOpen]);
+
+  React.useEffect(() => {
+    function clearTextSelectionOnCanvasClick(event: MouseEvent) {
+      const target = event.target;
+      if (target instanceof Element && target.closest("main") && !target.closest("[data-editor-key], .email-template-drag-handle")) {
+        setSelectedTextKey(null);
+      }
+    }
+    document.addEventListener("mousedown", clearTextSelectionOnCanvasClick);
+    return () => document.removeEventListener("mousedown", clearTextSelectionOnCanvasClick);
+  }, []);
 
   const selectedSectionLabel = selectedBlock === "hero" ? "Hero section" : selectedBlock === "text" ? "Text section" : selectedBlock === "image" ? "Image section" : selectedBlock === "button" ? "Hero button" : "Divider";
   const selectedSection = selectedBlock === "button" ? "hero" : selectedBlock;

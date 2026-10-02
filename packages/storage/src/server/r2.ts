@@ -1,9 +1,11 @@
 import {
   DeleteObjectCommand,
+  GetObjectCommand,
   ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 function requireEnv(name: string): string {
   const value = process.env[name];
@@ -89,4 +91,31 @@ export async function deleteObject(key: string): Promise<void> {
       Key: key,
     }),
   );
+}
+
+export async function getR2DownloadUrl({
+  key,
+  contentType,
+  contentDisposition,
+  expiresIn = 300,
+}: {
+  key: string;
+  contentType?: string;
+  contentDisposition?: string;
+  expiresIn?: number;
+}): Promise<string> {
+  const url = await getSignedUrl(
+    // The repo currently resolves slightly different Smithy type versions for
+    // the S3 client and presigner; both are AWS SDK-compatible at runtime.
+    getR2Client() as unknown as Parameters<typeof getSignedUrl>[0],
+    new GetObjectCommand({
+      Bucket: getR2Bucket(),
+      Key: key,
+      ResponseContentType: contentType,
+      ResponseContentDisposition: contentDisposition,
+    }) as unknown as Parameters<typeof getSignedUrl>[1],
+    { expiresIn },
+  );
+
+  return url;
 }
