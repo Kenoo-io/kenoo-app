@@ -12,8 +12,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   const searchParams = useSearchParams();
   const isWorkflowBuilder = pathname === "/workflows/new" || pathname.startsWith("/workflows/new/");
   const isEmailBuilder = pathname === "/templates/new/email" && searchParams.get("format") === "html";
+  const isTemplateEditor = pathname.startsWith("/templates/") && !pathname.startsWith("/templates/new/");
 
-  if (isWorkflowBuilder || isEmailBuilder) return <div className="h-screen overflow-hidden">{children}</div>;
+  if (isWorkflowBuilder || isEmailBuilder || isTemplateEditor) return <div className="h-screen overflow-hidden">{children}</div>;
 
   return <>
     <AppTopChrome dashboardPath="/" leftContent={<AccountSwitcher />} />
