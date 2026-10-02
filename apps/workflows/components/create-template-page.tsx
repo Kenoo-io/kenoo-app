@@ -26,6 +26,16 @@ const emailEditorModes = [
 
 type EmailSectionKey = "hero" | "text" | "image" | "divider";
 type ImageLayer = "foreground" | "background";
+type LayerTarget =
+  | { type: "text"; editorKey: string }
+  | { type: "image"; imageKey: string }
+  | { type: "button" };
+
+type LayerItem = {
+  key: string;
+  label: string;
+  target: LayerTarget;
+};
 
 const DEFAULT_HERO_EYEBROW = '<img src="/favicon.ico" alt="Kenoo" style="display:inline-block;width:96px;height:auto;max-height:40px;object-fit:contain" />';
 
@@ -93,6 +103,17 @@ function visibleImageSize(image: HTMLImageElement) {
   const ratio = image.naturalWidth / image.naturalHeight;
   const visibleWidth = Math.min(width, height * ratio);
   return { width: visibleWidth, height: visibleWidth / ratio };
+}
+
+function setCanvasTopWorkspace(overflow: number) {
+  const scroller = document.querySelector<HTMLElement>("main");
+  const workspace = scroller?.firstElementChild;
+  if (!scroller || !(workspace instanceof HTMLElement)) return;
+  const currentPadding = Number.parseFloat(window.getComputedStyle(workspace).paddingTop) || 40;
+  const nextPadding = 40 + Math.ceil(Math.max(0, overflow));
+  if (Math.abs(nextPadding - currentPadding) < 1) return;
+  workspace.style.paddingTop = nextPadding === 40 ? "" : `${nextPadding}px`;
+  scroller.scrollTop += nextPadding - currentPadding;
 }
 
 function FigmaColorRow({ label, color, onChange }: { label: string; color: string; onChange: (color: string) => void }) {
@@ -220,8 +241,6 @@ export function CreateTemplatePage({ channel, initialFormat, templateId: initial
   const [canvasUploads, setCanvasUploads] = React.useState<CanvasUploadImage[]>([]);
   const [zoom, setZoom] = React.useState(100);
   const canvasRef = React.useRef<HTMLElement>(null);
-  const canvasScrollRef = React.useRef<HTMLElement>(null);
-  const canvasScrollInitializedRef = React.useRef(false);
   const zoomInputRef = React.useRef<HTMLInputElement>(null);
   const zoomLabelRef = React.useRef<HTMLSpanElement>(null);
   const zoomFrameRef = React.useRef<number | null>(null);
@@ -579,22 +598,6 @@ export function CreateTemplatePage({ channel, initialFormat, templateId: initial
     if (zoomLabelRef.current) zoomLabelRef.current.textContent = `${zoom}%`;
     canvasRef.current?.style.setProperty("transform", `scale(${zoom / 100})`);
   }, [zoom]);
-
-  React.useLayoutEffect(() => {
-    if (emailFormat !== "html") {
-      canvasScrollInitializedRef.current = false;
-      return;
-    }
-    const scroller = canvasScrollRef.current;
-    if (!scroller || canvasScrollInitializedRef.current) return;
-    const frame = window.requestAnimationFrame(() => {
-      const workspace = scroller.firstElementChild;
-      const topWorkspace = workspace instanceof HTMLElement ? Number.parseFloat(window.getComputedStyle(workspace).paddingTop) : 0;
-      scroller.scrollTop = Math.max(0, topWorkspace - 40);
-      canvasScrollInitializedRef.current = true;
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, [emailFormat, templateLoaded]);
 
   React.useEffect(() => {
     const zoomInput = document.querySelector<HTMLInputElement>('input[aria-label="Zoom level"]');
@@ -996,6 +999,9 @@ export function CreateTemplatePage({ channel, initialFormat, templateId: initial
           grip.style.left = `${(point.x - parentBounds.left) / zoomScale}px`;
           grip.style.top = `${(point.y - parentBounds.top) / zoomScale}px`;
         });
+        const canvasBounds = canvas.getBoundingClientRect();
+        const handleBounds = handle.getBoundingClientRect();
+        setCanvasTopWorkspace((canvasBounds.top - handleBounds.top) / zoomScale);
       };
       placeControls();
       const size = imageSizes[selectedImageKey] ?? { width: selectedImage.offsetWidth, height: selectedImage.offsetHeight };
@@ -1151,6 +1157,7 @@ export function CreateTemplatePage({ channel, initialFormat, templateId: initial
         handle.remove();
         verticalGuide.remove();
         horizontalGuide.remove();
+        setCanvasTopWorkspace(0);
       };
     }
     const onArrowKey = (event: KeyboardEvent) => {
@@ -1694,27 +1701,61 @@ export function CreateTemplatePage({ channel, initialFormat, templateId: initial
   }, [emailFormat, name]);
 
   const layerLabel: Record<EmailSectionKey, string> = { hero: "Hero", text: "Text", image: "Image", divider: "Divider" };
-  const layerChildren = (section: EmailSectionKey) => {
-    const builtIn = section === "hero" ? ["Logo", "Heading", "Description", "Button"] : section === "text" ? ["Heading", "Description"] : section === "image" ? [canvasUploads.some((upload) => upload.section === "image") ? null : "Image placeholder"] : ["Divider"];
+  const layerChildren = (section: EmailSectionKey): LayerItem[] => {
+    const builtIn: LayerItem[] = section === "hero" ? [
+      { key: "hero-logo", label: "Logo", target: { type: "image", imageKey: "hero-logo" } },
+      { key: "hero-headline", label: "Heading", target: { type: "text", editorKey: "hero-headline" } },
+      { key: "hero-description", label: "Description", target: { type: "text", editorKey: "hero-description" } },
+      { key: "hero-button", label: "Button", target: { type: "button" } },
+    ] : section === "text" ? [
+      { key: "body-heading", label: "Heading", target: { type: "text", editorKey: "body-heading" } },
+      { key: "body-description", label: "Description", target: { type: "text", editorKey: "body-description" } },
+    ] : section === "image" && !canvasUploads.some((upload) => upload.section === "image") ? [
+      { key: "image-placeholder", label: "Image placeholder", target: { type: "text", editorKey: "image-placeholder" } },
+    ] : [];
     return [
-      ...builtIn.filter((item): item is string => Boolean(item)).map((label) => ({ key: `${section}-${label}`, label, imageKey: null as string | null })),
-      ...canvasUploads.filter((upload) => upload.section === section).map((upload) => ({ key: upload.key, label: upload.original_name, imageKey: upload.key })),
+      ...builtIn,
+      ...canvasUploads.filter((upload) => upload.section === section).map((upload) => ({ key: upload.key, label: upload.original_name, target: { type: "image" as const, imageKey: upload.key } })),
     ];
   };
-  const selectLayer = (section: EmailSectionKey, imageKey?: string | null) => {
-    setSelectedBlock(section);
+  const selectLayer = (section: EmailSectionKey, target?: LayerTarget) => {
     setSelectedTextKey(null);
+    setSelectedImageKey(null);
     setEditingTextKey(null);
+    setTextToolbarOpen(false);
+    activeTextEditorRef.current = null;
+    savedTextSelectionRef.current = null;
     setCanvasSelectionActive(true);
-    if (imageKey) {
-      setSelectedImageKey(imageKey);
-      setImageSelectionVersion((current) => current + 1);
-      setActiveSidebarTool("design");
-    } else {
-      setSelectedImageKey(null);
+
+    if (!target) {
+      setSelectedBlock(section);
+      return;
     }
+
+    setActiveSidebarTool("design");
+    if (target.type === "button") {
+      setSelectedBlock("button");
+      return;
+    }
+
+    setSelectedBlock(section);
+    if (target.type === "image") {
+      setSelectedImageKey(target.imageKey);
+      setImageSelectionVersion((current) => current + 1);
+      return;
+    }
+
+    setSelectedTextKey(target.editorKey);
+    setTextToolbarOpen(true);
+    const editor = document.querySelector<HTMLElement>(`main section [data-editor-key="${target.editorKey}"]`);
+    if (!editor) return;
+    activeTextEditorRef.current = editor;
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    savedTextSelectionRef.current = range;
+    syncTextFormatControls(editor);
   };
-  const layersPanel = <AnimatePresence>{layersOpen ? <motion.aside initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 24 }} transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }} aria-label="Layers" className="absolute inset-y-0 right-0 z-50 flex w-[280px] flex-col border-l border-[#e2e6e9] bg-white shadow-[-12px_0_30px_rgba(15,23,42,0.08)]"><div className="flex h-14 shrink-0 items-center justify-between border-b border-[#e9ecef] px-4"><div className="flex items-center gap-2 text-[13px] font-semibold text-[#222]"><Layers className="h-4 w-4 text-[#4d9eae]" />Layers</div><button type="button" onClick={() => setLayersOpen(false)} aria-label="Close layers" className="rounded-lg p-1.5 text-[#777] transition hover:bg-[#f3f5f6] hover:text-[#222]"><X className="h-4 w-4" /></button></div><div className="min-h-0 flex-1 overflow-y-auto px-2 py-3">{sectionOrder.map((section) => { const selected = selectedBlock === section && !selectedImageKey; const children = layerChildren(section); return <div key={section} className="mb-1"><button type="button" onClick={() => selectLayer(section)} className={cn("flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-left text-[12px] transition", selected ? "bg-[#edf8fa] font-semibold text-[#3d8f9d]" : "font-medium text-[#3f4548] hover:bg-[#f5f6f7]")}><ChevronDown className="h-3.5 w-3.5 text-[#9aa1a5]" /><LayoutTemplate className="h-3.5 w-3.5 text-[#6eadc0]" /><span className="flex-1">{layerLabel[section]}</span>{hiddenSections.includes(section) ? <span className="text-[10px] font-normal text-[#a0a5a8]">Hidden</span> : null}</button><div className="ml-5 border-l border-[#edf0f1] py-1">{children.map((item) => { const itemSelected = item.imageKey === selectedImageKey; return <button key={item.key} type="button" onClick={() => selectLayer(section, item.imageKey)} className={cn("flex h-8 w-full items-center gap-2 rounded-r-lg px-3 text-left text-[11px] transition", itemSelected ? "bg-[#edf8fa] font-medium text-[#3d8f9d]" : "text-[#72787b] hover:bg-[#f5f6f7] hover:text-[#444]")}><span className="flex h-4 w-4 items-center justify-center text-[#98a0a4]">{item.imageKey ? <Image className="h-3.5 w-3.5" /> : <Type className="h-3.5 w-3.5" />}</span><span className="truncate">{item.label}</span></button>; })}</div></div>; })}</div></motion.aside> : null}</AnimatePresence>;
+  const layersPanel = <AnimatePresence>{layersOpen ? <motion.aside initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 24 }} transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }} aria-label="Layers" className="absolute inset-y-0 right-0 z-50 flex w-[280px] flex-col border-l border-[#e2e6e9] bg-white shadow-[-12px_0_30px_rgba(15,23,42,0.08)]"><div className="flex h-14 shrink-0 items-center justify-between border-b border-[#e9ecef] px-4"><div className="flex items-center gap-2 text-[13px] font-semibold text-[#222]"><Layers className="h-4 w-4 text-[#4d9eae]" />Layers</div><button type="button" onClick={() => setLayersOpen(false)} aria-label="Close layers" className="rounded-lg p-1.5 text-[#777] transition hover:bg-[#f3f5f6] hover:text-[#222]"><X className="h-4 w-4" /></button></div><div className="min-h-0 flex-1 overflow-y-auto px-2 py-3">{sectionOrder.map((section) => { const selected = canvasSelectionActive && selectedBlock === section && !selectedTextKey && !selectedImageKey; const children = layerChildren(section); return <div key={section} className="mb-1"><button type="button" aria-pressed={selected} onClick={() => selectLayer(section)} className={cn("flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-left text-[12px] transition", selected ? "bg-[#edf8fa] font-semibold text-[#3d8f9d]" : "font-medium text-[#3f4548] hover:bg-[#f5f6f7]")}><ChevronDown className="h-3.5 w-3.5 text-[#9aa1a5]" /><LayoutTemplate className="h-3.5 w-3.5 text-[#6eadc0]" /><span className="flex-1">{layerLabel[section]}</span>{hiddenSections.includes(section) ? <span className="text-[10px] font-normal text-[#a0a5a8]">Hidden</span> : null}</button>{children.length ? <div className="ml-5 border-l border-[#edf0f1] py-1">{children.map((item) => { const itemSelected = canvasSelectionActive && (item.target.type === "button" ? selectedBlock === "button" : item.target.type === "text" ? selectedBlock === section && selectedTextKey === item.target.editorKey : selectedBlock === section && selectedImageKey === item.target.imageKey); const ItemIcon = item.target.type === "image" ? Image : item.target.type === "button" ? MousePointerClick : Type; return <button key={item.key} type="button" aria-pressed={itemSelected} onClick={() => selectLayer(section, item.target)} className={cn("flex h-8 w-full items-center gap-2 rounded-r-lg px-3 text-left text-[11px] transition", itemSelected ? "bg-[#edf8fa] font-medium text-[#3d8f9d]" : "text-[#72787b] hover:bg-[#f5f6f7] hover:text-[#444]")}><span className="flex h-4 w-4 items-center justify-center text-[#98a0a4]"><ItemIcon className="h-3.5 w-3.5" /></span><span className="truncate">{item.label}</span></button>; })}</div> : null}</div>; })}</div></motion.aside> : null}</AnimatePresence>;
 
   if (initialTemplateId && !templateLoaded) return <div className="flex min-h-full items-center justify-center bg-kenoo-white text-[13px] text-[#999]">Loading template…</div>;
   if (key === "email" && emailFormat === null) return null;
