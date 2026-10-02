@@ -33,3 +33,7 @@
   .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
   .scrollbar-hide::-webkit-scrollbar { display: none; height: 0; width: 0; }
 }
+
+/* Viewing mode is a clean email preview: hide editor chrome and disable editing. */
+.email-template-preview-mode aside { display: none !important; }
+.email-template-preview-mode [contenteditable="true"] { pointer-events: none; }

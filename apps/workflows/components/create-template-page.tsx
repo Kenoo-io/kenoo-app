@@ -144,6 +144,20 @@ export function CreateTemplatePage({ channel, initialFormat }: { channel: string
   const [textLetterSpacing, setTextLetterSpacing] = React.useState("0%");
   const [textColor, setTextColor] = React.useState("#333333");
   const [openTextDropdown, setOpenTextDropdown] = React.useState<string | null>(null);
+  const isPreviewMode = editorMode === "viewing";
+
+  React.useEffect(() => {
+    document.body.classList.toggle("email-template-preview-mode", isPreviewMode);
+    if (!isPreviewMode) return () => document.body.classList.remove("email-template-preview-mode");
+    const frame = window.requestAnimationFrame(() => {
+      setActiveSidebarTool(null);
+      setCanvasSelectionActive(false);
+    });
+    return () => {
+      window.cancelAnimationFrame(frame);
+      document.body.classList.remove("email-template-preview-mode");
+    };
+  }, [isPreviewMode]);
 
   function toggleSidebarTool(tool: NonNullable<typeof activeSidebarTool>) {
     setActiveSidebarTool((current) => current === tool ? null : tool);
