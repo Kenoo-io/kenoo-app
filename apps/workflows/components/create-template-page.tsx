@@ -212,11 +212,11 @@ export function CreateTemplatePage({ channel, initialFormat, templateId: initial
   const [imagePlaceholder, setImagePlaceholder] = React.useState("Drop an image here");
   const [sectionColors, setSectionColors] = React.useState<Record<EmailSectionKey, string>>({ hero: "#f7f4eb", text: "#ffffff", image: "#f4fbfc", divider: "#ffffff" });
   const [sectionHeights, setSectionHeights] = React.useState<Record<EmailSectionKey, string>>({ hero: "360", text: "190", image: "220", divider: "64" });
-  // Images are placed into the section the user selected. Keep the legacy
-  // image block available for older templates, but don't show it in new ones.
+  // Images are placed into the section the user selected. The standalone image
+  // placeholder is retained only for templates that already use it.
   const [hiddenSections, setHiddenSections] = React.useState<EmailSectionKey[]>(["image"]);
   const [deletedSections, setDeletedSections] = React.useState<EmailSectionKey[]>([]);
-  const [sectionOrder, setSectionOrder] = React.useState<EmailSectionKey[]>(["hero", "text", "divider", "image"]);
+  const [sectionOrder, setSectionOrder] = React.useState<EmailSectionKey[]>(["hero", "text", "divider"]);
   const [sectionNames, setSectionNames] = React.useState<Record<EmailSectionKey, string>>(defaultSectionNames);
   const [actionUrl, setActionUrl] = React.useState("");
   const [imageUrl, setImageUrl] = React.useState("");
@@ -1636,6 +1636,12 @@ export function CreateTemplatePage({ channel, initialFormat, templateId: initial
 
     editorChrome.forEach((element) => element.remove());
 
+    const sectionKeys: EmailSectionKey[] = ["hero", "text", "image", "divider"];
+    Array.from(clone.children).forEach((child, index) => {
+      const section = sectionKeys[index];
+      if (section && !sectionOrder.includes(section)) child.remove();
+    });
+
     clone.querySelectorAll("button").forEach((button) => {
       button.removeAttribute("type");
       button.removeAttribute("onclick");
@@ -1798,7 +1804,7 @@ export function CreateTemplatePage({ channel, initialFormat, templateId: initial
       menuButton.setAttribute("aria-label", `Section options for ${sectionNames[section]}`);
       menuButton.setAttribute("aria-haspopup", "menu");
       menuButton.textContent = "⋮";
-      menuButton.className = "absolute right-1 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-lg leading-none text-[#7b8387] opacity-0 transition hover:bg-[#e7f3f5] hover:text-[#3d8f9d] focus:opacity-100 group-hover:opacity-100";
+      menuButton.className = "absolute right-1 top-[18px] z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-lg leading-none text-[#7b8387] opacity-0 transition hover:bg-[#e7f3f5] hover:text-[#3d8f9d] focus:opacity-100 group-hover:opacity-100";
 
       const closeMenu = () => menu.remove();
       const menu = document.createElement("div");
@@ -1812,10 +1818,35 @@ export function CreateTemplatePage({ channel, initialFormat, templateId: initial
         action.className = `flex w-full rounded-md px-2.5 py-2 text-left text-[12px] font-medium transition hover:bg-[#f3f5f6] ${destructive ? "text-red-600 hover:bg-red-50" : "text-[#3f4548]"}`;
         action.addEventListener("click", (event) => { event.stopPropagation(); onClick(); closeMenu(); });
         menu.append(action);
+        return action;
       };
-      addMenuAction("Rename", () => {
-        const nextName = window.prompt("Rename section", sectionNames[section]);
-        if (nextName?.trim()) setSectionNames((current) => ({ ...current, [section]: nextName.trim() }));
+      const renameAction = addMenuAction("Rename", () => {
+        const input = document.createElement("input");
+        input.type = "text";
+        input.value = sectionNames[section];
+        input.size = Math.max(1, input.value.length);
+        input.setAttribute("aria-label", "Section name");
+        input.className = "absolute left-14 top-[7px] z-30 h-6 w-auto border-0 border-b border-[#4d9eae] bg-transparent px-0 text-[12px] font-medium text-[#3f4548] outline-none focus:ring-0";
+        if (label) label.style.color = "transparent";
+        let finished = false;
+        const finishRename = (save: boolean) => {
+          if (finished) return;
+          finished = true;
+          const nextName = input.value.trim();
+          input.remove();
+          if (label) label.style.color = "";
+          if (save && nextName) setSectionNames((current) => ({ ...current, [section]: nextName }));
+        };
+        input.addEventListener("mousedown", (event) => event.stopPropagation());
+        input.addEventListener("click", (event) => event.stopPropagation());
+        input.addEventListener("blur", () => finishRename(true));
+        input.addEventListener("keydown", (event) => {
+          if (event.key === "Enter") finishRename(true);
+          if (event.key === "Escape") finishRename(false);
+        });
+        rowContainer.append(input);
+        input.focus();
+        input.select();
       });
       addMenuAction(hiddenSections.includes(section) ? "Show" : "Hide", () => {
         setHiddenSections((current) => current.includes(section) ? current.filter((item) => item !== section) : [...current, section]);
@@ -1838,10 +1869,23 @@ export function CreateTemplatePage({ channel, initialFormat, templateId: initial
         if (menu.isConnected) closeMenu();
         else rowContainer.append(menu);
       };
+      const onRowDoubleClick = (event: MouseEvent) => {
+        event.preventDefault();
+        event.stopPropagation();
+        renameAction.click();
+      };
+      const onPanelClick = (event: MouseEvent) => {
+        const target = event.target;
+        if (target instanceof Node && !menu.contains(target) && !menuButton.contains(target)) closeMenu();
+      };
       menuButton.addEventListener("click", onMenuButtonClick);
+      row.addEventListener("dblclick", onRowDoubleClick);
+      panel.addEventListener("click", onPanelClick);
       rowContainer.append(menuButton);
       return () => {
         menuButton.removeEventListener("click", onMenuButtonClick);
+        row.removeEventListener("dblclick", onRowDoubleClick);
+        panel.removeEventListener("click", onPanelClick);
         menuButton.remove();
         closeMenu();
         rowContainer.style.position = "";
