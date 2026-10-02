@@ -988,6 +988,7 @@ export function CreateTemplatePage({ channel, initialFormat, templateId: initial
       let originSize = size;
       let originBounds = selectedImage.getBoundingClientRect();
       let fixedCorner = { x: 0, y: 0 };
+      let movingImage = false;
       const beginPointer = (event: PointerEvent, target: HTMLElement, corner?: string) => {
         if (event.button !== 0) return;
         event.preventDefault();
@@ -997,6 +998,7 @@ export function CreateTemplatePage({ channel, initialFormat, templateId: initial
         originPosition = imagePositionsRef.current[selectedImageKey] ?? { x: 0, y: 0 };
         originSize = imageSizes[selectedImageKey] ?? { width: selectedImage.offsetWidth, height: selectedImage.offsetHeight };
         originBounds = selectedImage.getBoundingClientRect();
+        movingImage = !corner;
         if (corner) {
           const bounds = selectedImage.getBoundingClientRect();
           fixedCorner = rotatedCorner(originSize.width, originSize.height, corner.endsWith("left") ? 1 : -1, corner.startsWith("top") ? 1 : -1, bounds.left + bounds.width / 2, bounds.top + bounds.height / 2);
@@ -1067,10 +1069,28 @@ export function CreateTemplatePage({ channel, initialFormat, templateId: initial
           setImagePositions({ ...imagePositionsRef.current });
           setImageSizes((current) => ({ ...current, [selectedImageKey]: originSize }));
         } else {
-          setImagePositions({ ...imagePositionsRef.current });
           const styles = window.getComputedStyle(selectedImage);
-          setImageSizes((current) => ({ ...current, [selectedImageKey]: { width: Number.parseFloat(styles.width), height: Number.parseFloat(styles.height) } }));
+          const finishedSize = { width: Number.parseFloat(styles.width), height: Number.parseFloat(styles.height) };
+          const targetBlock = movingImage && canvasUploads.some((upload) => upload.key === selectedImageKey)
+            ? blocks.find((block) => {
+              const bounds = block.getBoundingClientRect();
+              return event.clientX >= bounds.left && event.clientX <= bounds.right && event.clientY >= bounds.top && event.clientY <= bounds.bottom;
+            })
+            : null;
+          const targetSection = targetBlock?.dataset.sectionKey as EmailSectionKey | undefined;
+          if (targetBlock && targetSection && targetBlock !== imageBlock) {
+            const bounds = targetBlock.getBoundingClientRect();
+            const nextLeft = Math.max(0, Math.min(targetBlock.clientWidth - finishedSize.width, (event.clientX - bounds.left) / zoomScale - finishedSize.width / 2));
+            const nextTop = Math.max(0, Math.min(targetBlock.clientHeight - finishedSize.height, (event.clientY - bounds.top) / zoomScale - finishedSize.height / 2));
+            imagePositionsRef.current[selectedImageKey] = { x: 0, y: 0 };
+            setCanvasUploads((current) => current.map((upload) => upload.key === selectedImageKey ? { ...upload, section: targetSection, left: nextLeft, top: nextTop, width: finishedSize.width, height: finishedSize.height } : upload));
+            setHiddenSections((current) => current.filter((section) => section !== targetSection));
+            setSelectedBlock(targetSection);
+          }
+          setImagePositions({ ...imagePositionsRef.current });
+          setImageSizes((current) => ({ ...current, [selectedImageKey]: finishedSize }));
         }
+        movingImage = false;
         placeControls();
       };
       const beginMove = (event: PointerEvent) => beginPointer(event, handle);
@@ -1483,6 +1503,8 @@ export function CreateTemplatePage({ channel, initialFormat, templateId: initial
     <div className="px-5 py-5"><label className="block"><span className="mb-1.5 block text-[11px] text-[#8b8f94]">Button URL</span><div className="flex h-9 items-center rounded-lg bg-[#f5f5f5] px-3 focus-within:bg-[#eeeeef]"><input type="url" value={actionUrl} onChange={(event) => setActionUrl(event.target.value)} placeholder="https://example.com" className="min-w-0 flex-1 bg-transparent text-[12px] text-[#222] outline-none placeholder:text-[#9b9da0]" /></div></label></div>
   </>;
   const selectedImageSize = selectedImageKey ? imageSizes[selectedImageKey] : null;
+  const selectedImageIsUpload = Boolean(selectedImageKey && canvasUploads.some((upload) => upload.key === selectedImageKey));
+  const selectedImageLayer = selectedImageKey ? imageLayers[selectedImageKey] ?? "foreground" : "foreground";
   const imageControls = selectedImageKey ? <>
     <div className="border-b border-[#e5e6e8] px-5 py-5">
       <p className="mb-4 text-[14px] font-semibold tracking-[-0.01em]">Dimensions</p>
@@ -1494,6 +1516,7 @@ export function CreateTemplatePage({ channel, initialFormat, templateId: initial
         <ScrubField label="Rotation" value={String(imageRotations[selectedImageKey] ?? 0)} onChange={(value) => { const rotation = Number(value); if (Number.isFinite(rotation)) setImageRotations((current) => ({ ...current, [selectedImageKey]: Math.max(-180, Math.min(180, rotation)) })); }} min={-180} max={180} suffix="°" />
       </div>
     </div>
+    {selectedImageIsUpload ? <div className="border-b border-[#e5e6e8] px-5 py-5"><p className="mb-3 text-[14px] font-semibold tracking-[-0.01em]">Layer</p><div className="grid grid-cols-2 gap-2 rounded-lg bg-[#f5f5f5] p-1"><button type="button" aria-pressed={selectedImageLayer === "foreground"} onClick={() => setImageLayers((current) => ({ ...current, [selectedImageKey]: "foreground" }))} className={cn("h-8 rounded-md text-[11px] font-medium transition", selectedImageLayer === "foreground" ? "bg-white text-[#4d9eae] shadow-sm" : "text-[#777] hover:text-[#444]")}>Foreground</button><button type="button" aria-pressed={selectedImageLayer === "background"} onClick={() => setImageLayers((current) => ({ ...current, [selectedImageKey]: "background" }))} className={cn("h-8 rounded-md text-[11px] font-medium transition", selectedImageLayer === "background" ? "bg-white text-[#4d9eae] shadow-sm" : "text-[#777] hover:text-[#444]")}>Background</button></div><p className="mt-2 text-[11px] leading-5 text-[#8b8f94]">Background images stay behind this section’s content.</p></div> : null}
     {selectedImageKey === "hero-logo" ? <div className="px-5 py-5"><button type="button" onClick={() => logoInputRef.current?.click()} className="h-9 w-full rounded-lg border border-[#dfe4e6] text-[11px] font-medium text-[#555] transition hover:bg-[#f5fafb]">Replace image</button></div> : null}
     {canvasUploads.some((upload) => upload.key === selectedImageKey) ? <div className="px-5 py-5"><button type="button" onClick={removeSelectedUpload} className="h-9 w-full rounded-lg border border-red-200 text-[11px] font-medium text-red-600 transition hover:bg-red-50">Delete image</button></div> : null}
   </> : null;
@@ -1530,7 +1553,7 @@ export function CreateTemplatePage({ channel, initialFormat, templateId: initial
     const clone = source.cloneNode(true) as HTMLElement;
     const sourceElements = [source, ...Array.from(source.querySelectorAll<HTMLElement>("*"))];
     const cloneElements = [clone, ...Array.from(clone.querySelectorAll<HTMLElement>("*"))];
-    const inlineProperties = ["backgroundColor", "color", "fontFamily", "fontSize", "fontWeight", "lineHeight", "letterSpacing", "textAlign", "width", "minHeight", "height", "padding", "margin", "border", "borderRadius", "boxShadow", "boxSizing", "display", "justifyContent", "alignItems", "objectFit", "maxWidth", "position", "left", "top", "transform", "overflow"] as const;
+    const inlineProperties = ["backgroundColor", "color", "fontFamily", "fontSize", "fontWeight", "lineHeight", "letterSpacing", "textAlign", "width", "minHeight", "height", "padding", "margin", "border", "borderRadius", "boxShadow", "boxSizing", "display", "justifyContent", "alignItems", "objectFit", "maxWidth", "position", "zIndex", "left", "top", "transform", "overflow"] as const;
     const editorChrome = sourceElements.flatMap((element, index) => element.matches(".email-template-drag-handle, .email-template-center-guide, .email-template-text-selection-outline, .email-template-image-selection-outline, .email-template-image-resize-handle") ? [cloneElements[index]] : []);
 
     cloneElements.forEach((element, index) => {

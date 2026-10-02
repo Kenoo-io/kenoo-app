@@ -40,6 +40,10 @@
 
 /* The selected block gets a real, pointer-draggable control above its content. */
 .email-template-sortable-block { position: relative; }
+.email-template-sortable-block > :not(img):not([class*="email-template-"]) {
+  position: relative;
+  z-index: 1;
+}
 .email-template-sortable-block [data-editor-key]:not(:focus) { cursor: default; }
 .email-template-sortable-block [data-selected-text="true"]:focus { box-shadow: none; }
 .email-template-text-selection-outline {
