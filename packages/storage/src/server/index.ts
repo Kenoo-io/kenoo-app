@@ -9,6 +9,7 @@ export {
   deleteObject,
   getR2Bucket,
   getR2Client,
+  getR2DownloadUrl,
   getR2PublicUrl,
   putImageObject,
 } from "./r2";

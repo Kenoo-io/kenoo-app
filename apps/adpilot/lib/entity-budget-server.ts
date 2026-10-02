@@ -1,5 +1,6 @@
 import { createAdminClient } from "@walls/supabase/admin";
 import { createClient } from "@walls/supabase/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { type AdDataScope, withAdScope } from "@/lib/ad-scope";
 import { applyProviderDailyBudget } from "@/lib/ad-provider-write";
@@ -10,13 +11,18 @@ export async function updateEntityDailyBudget(input: {
   scope: AdDataScope;
   entityId: string;
   dailyBudgetMicros: number;
+  /**
+   * A caller-authenticated client, used by the MCP bridge. The standard
+   * AdPilot UI continues to use its server-session client.
+   */
+  userClient?: SupabaseClient;
 }): Promise<{ dailyBudgetMicros: number; dailyBudgetInherited: boolean }> {
   const amount = Math.round(input.dailyBudgetMicros);
   if (!Number.isFinite(amount) || amount <= 0) {
     throw new Error("Daily budget must be greater than zero.");
   }
 
-  const supabase = await createClient();
+  const supabase = input.userClient ?? await createClient();
   const admin = createAdminClient();
 
   const { data: entity, error: entityError } = await withAdScope(

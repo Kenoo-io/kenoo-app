@@ -24,7 +24,7 @@ export async function requireWorkflowsAccount() {
     .maybeSingle();
   if (!membership) return { error: "No access to this account" as const, status: 403 as const };
 
-  return { userId: user.id, accountId: membership.account_id as string, role: membership.role as string };
+  return { supabase, userId: user.id, accountId: membership.account_id as string, role: membership.role as string };
 }
 
 export function canManageWorkflowsKeys(role: string): boolean {

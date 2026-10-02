@@ -81,6 +81,12 @@ const AD_RUNTIME_OUTPUT_SCHEMA = {
   daysSinceFirstRecordedDelivery: z.number().int().nullable(),
   dateMeaning: z.string(),
 };
+const DAILY_BUDGET_UPDATE_OUTPUT_SCHEMA = {
+  accountId: z.string().uuid(),
+  entityId: z.string().uuid(),
+  dailyBudgetMicros: z.number().int().positive(),
+  dailyBudgetInherited: z.boolean(),
+};
 const HEALTH_SUMMARIES_OUTPUT_SCHEMA = {
   source: z.literal("Kenoo Apple Health sync"),
   summaries: z.array(z.record(z.unknown())),
@@ -1199,6 +1205,43 @@ export function createKenooMcpServer(identity: KenooIdentity | null, authChallen
   );
 
   server.registerTool(
+    "adpilot_set_daily_budget",
+    {
+      title: "Set daily budget",
+      description: "Directly set the actual provider daily budget for one AdPilot campaign or ad set. This immediately changes delivery on the connected Meta or Google Ads account; it is not an automation guardrail. Before calling, inspect the entity's current budget and follow any account-specific budget-change policy (for example, a maximum percentage move).",
+      annotations: { readOnlyHint: false, destructiveHint: false },
+      _meta: { securitySchemes: OAUTH_SECURITY_SCHEMES },
+      inputSchema: {
+        entityId: z.string().uuid(),
+        dailyBudgetMicros: z.number().int().positive(),
+      },
+      outputSchema: DAILY_BUDGET_UPDATE_OUTPUT_SCHEMA,
+    },
+    async ({ entityId, dailyBudgetMicros }) => {
+      if (!identity) return authenticationRequired(authChallenge);
+      const accountId = await requireAccountForApp(identity, "adpilot");
+      const adpilotApiUrl = process.env.MCP_ADPILOT_API_URL?.trim().replace(/\/$/, "")
+        || (process.env.NODE_ENV === "production" ? "https://adpilot.kenoo.io" : "http://localhost:3001");
+      const response = await fetch(`${adpilotApiUrl}/api/mcp/daily-budget`, {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${identity.accessToken}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ entityId, dailyBudgetMicros }),
+      });
+      const result = await response.json().catch(() => ({})) as Record<string, unknown>;
+      if (!response.ok) return toolError(typeof result.error === "string" ? result.error : "Unable to update daily budget.");
+      return text({
+        accountId,
+        entityId,
+        dailyBudgetMicros: result.dailyBudgetMicros,
+        dailyBudgetInherited: result.dailyBudgetInherited,
+      });
+    },
+  );
+
+  server.registerTool(
     "adpilot_set_ad_delivery_status",
     {
       title: "Activate or pause an ad",
@@ -1582,6 +1625,14 @@ export function createKenooMcpServer(identity: KenooIdentity | null, authChallen
         inputSchema: { type: "object", properties: { adId: { type: "string", format: "uuid" } }, required: ["adId"] },
         outputSchema: { type: "object", properties: { accountId: { type: "string", format: "uuid" }, ad: { type: "object", additionalProperties: true }, firstRecordedDeliveryDate: { type: ["string", "null"] }, daysSinceFirstRecordedDelivery: { type: ["integer", "null"] }, dateMeaning: { type: "string" } }, required: ["accountId", "ad", "firstRecordedDeliveryDate", "daysSinceFirstRecordedDelivery", "dateMeaning"] },
         annotations: { readOnlyHint: true }, securitySchemes: OAUTH_SECURITY_SCHEMES, _meta: { securitySchemes: OAUTH_SECURITY_SCHEMES },
+      },
+      {
+        name: "adpilot_set_daily_budget",
+        title: "Set daily budget",
+        description: "Directly set the actual provider daily budget for a campaign or ad set; this immediately changes provider delivery and is not an automation guardrail.",
+        inputSchema: { type: "object", properties: { entityId: { type: "string", format: "uuid" }, dailyBudgetMicros: { type: "integer", minimum: 1 } }, required: ["entityId", "dailyBudgetMicros"] },
+        outputSchema: { type: "object", properties: { accountId: { type: "string", format: "uuid" }, entityId: { type: "string", format: "uuid" }, dailyBudgetMicros: { type: "integer", minimum: 1 }, dailyBudgetInherited: { type: "boolean" } }, required: ["accountId", "entityId", "dailyBudgetMicros", "dailyBudgetInherited"] },
+        annotations: { readOnlyHint: false, destructiveHint: false }, securitySchemes: OAUTH_SECURITY_SCHEMES, _meta: { securitySchemes: OAUTH_SECURITY_SCHEMES },
       },
       {
         name: "adpilot_set_ad_delivery_status",

@@ -31,12 +31,23 @@ export async function POST(request: Request) {
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!accountId) return NextResponse.json({ error: "No active account" }, { status: 401 });
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
-  const name = typeof body.name === "string" ? body.name.trim() : "";
+  let name = typeof body.name === "string" ? body.name.trim() : "";
   const channel = typeof body.channel === "string" ? body.channel.toLowerCase() : "";
   const textContent = typeof body.textContent === "string" ? body.textContent.trim() : "";
   const htmlContent = typeof body.htmlContent === "string" ? body.htmlContent.trim() : "";
   const title = typeof body.title === "string" ? body.title.trim() : null;
-  if (!name) return NextResponse.json({ error: "Template name is required" }, { status: 400 });
+  if (!name) {
+    const { data: existingNames, error: namesError } = await supabase
+      .from("workflows_templates")
+      .select("name")
+      .eq("account_id", accountId)
+      .like("name", "Template %");
+    if (namesError) return NextResponse.json({ error: "Unable to choose a template name" }, { status: 500 });
+    const taken = new Set((existingNames ?? []).map((row) => row.name));
+    let number = 1;
+    while (taken.has(`Template ${number}`)) number += 1;
+    name = `Template ${number}`;
+  }
   if (!channels.has(channel)) return NextResponse.json({ error: "Invalid template channel" }, { status: 400 });
   if (channel === "email" && !textContent && !htmlContent) return NextResponse.json({ error: "Email content is required" }, { status: 400 });
   if (channel !== "email" && !textContent) return NextResponse.json({ error: "Template message is required" }, { status: 400 });

@@ -3,12 +3,13 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlignCenter, AlignLeft, AlignRight, ArrowLeft, Bold, Check, ChevronDown, ChevronLeft, Code2, Eye, Folder, Image, Italic, LayoutTemplate, Link2, List, ListOrdered, Mail, MessageCircleMore, Minus, MousePointerClick, Palette, Pencil, Plus, Redo2, Save, Search, Send, Settings2, Smartphone, Sparkles, Strikethrough, Type, Underline, Undo2, Upload, UploadCloud, ZoomIn, ZoomOut } from "lucide-react";
+import { AlignCenter, AlignLeft, AlignRight, ArrowDown, ArrowLeft, ArrowUp, Bold, Check, ChevronDown, ChevronLeft, Code2, Eye, Image, Italic, Layers, LayoutTemplate, Link2, List, ListOrdered, Mail, MessageCircleMore, Minus, MousePointerClick, Palette, Pencil, Plus, Redo2, Save, Search, Send, Settings2, Share, Smartphone, Sparkles, Strikethrough, Type, Underline, Undo2, Upload, UploadCloud, X, ZoomIn, ZoomOut } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 
 import { cn } from "@walls/utils";
 
-import { EmailUploadsPanel } from "./email-uploads-panel";
+import { EMAIL_UPLOAD_DRAG_MIME, EmailUploadsPanel, type EmailUploadAsset } from "./email-uploads-panel";
+import { KenooAIPanel } from "./kenoo-ai-panel";
 
 const channelDetails = {
   email: { label: "Email", description: "Build a rich message with a subject line and formatted content.", icon: Mail, color: "bg-[#edf5ff] text-[#4776b8]" },
@@ -23,7 +24,95 @@ const emailEditorModes = [
   { value: "viewing", label: "Viewing", description: "Read-only", icon: Eye },
 ] as const;
 
-type EmailSectionKey = "hero" | "text" | "image" | "divider";
+type EmailSectionKey = "hero" | "text" | "image" | "divider" | "footer";
+type ImageLayer = "foreground" | "background";
+type LayerTarget =
+  | { type: "text"; editorKey: string }
+  | { type: "image"; imageKey: string }
+  | { type: "button" };
+
+type LayerItem = {
+  key: string;
+  label: string;
+  target: LayerTarget;
+};
+
+const DEFAULT_HERO_EYEBROW = '<img src="/favicon.ico" alt="Kenoo" style="display:inline-block;width:96px;height:auto;max-height:40px;object-fit:contain" />';
+
+type CanvasUploadImage = EmailUploadAsset & {
+  key: string;
+  section: EmailSectionKey;
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+};
+
+type SectionBackgrounds = Partial<Record<EmailSectionKey, EmailUploadAsset>>;
+type SectionBorderSides = Record<"top" | "right" | "bottom" | "left", boolean>;
+
+type BuilderSnapshot = {
+  name: string;
+  description: string;
+  subject: string;
+  heroEyebrow: string;
+  heroLogoUrl: string | null;
+  heroHeadline: string;
+  heroDescription: string;
+  heroButtonLabel: string;
+  buttonColor: string;
+  buttonTextColor: string;
+  buttonWidth: string;
+  buttonHeight: string;
+  buttonRadius: string;
+  buttonFontFamily: string;
+  buttonFontSize: string;
+  buttonFontWeight: string;
+  bodyHeading: string;
+  bodyDescription: string;
+  imagePlaceholder: string;
+  footerCompany?: string;
+  footerNote?: string;
+  footerUnsubscribeText?: string;
+  footerUnsubscribeUrl?: string;
+  footerSocialLinks?: { instagram: string; facebook: string; linkedin: string };
+  emailBackgroundColor?: string;
+  emailBorderColor?: string;
+  emailBorderWidth?: string;
+  sectionColors: Record<EmailSectionKey, string>;
+  sectionBorderColors?: Record<EmailSectionKey, string>;
+  sectionBorderWidths?: Record<EmailSectionKey, string>;
+  sectionBackgrounds?: SectionBackgrounds;
+  sectionHeights: Record<EmailSectionKey, string>;
+  hiddenSections: EmailSectionKey[];
+  deletedSections?: EmailSectionKey[];
+  sectionOrder: EmailSectionKey[];
+  sectionNames?: Record<EmailSectionKey, string>;
+  actionUrl: string;
+  imageUrl: string;
+  buttonPosition: { x: number; y: number };
+  textPositions: Record<string, { x: number; y: number }>;
+  imagePositions?: Record<string, { x: number; y: number }>;
+  imageSizes?: Record<string, { width: number; height: number }>;
+  imageRotations?: Record<string, number>;
+  imageLayers?: Record<string, ImageLayer>;
+  canvasUploads?: CanvasUploadImage[];
+};
+
+const defaultSectionNames: Record<EmailSectionKey, string> = {
+  hero: "Hero",
+  text: "Text",
+  image: "Image",
+  divider: "Divider",
+  footer: "Footer",
+};
+
+const defaultSectionColors: Record<EmailSectionKey, string> = { hero: "#f7f4eb", text: "#ffffff", image: "#f4fbfc", divider: "#ffffff", footer: "#f7f9f9" };
+const defaultSectionBorderColors: Record<EmailSectionKey, string> = { hero: "#dfe4e6", text: "#dfe4e6", image: "#dfe4e6", divider: "#dfe4e6", footer: "#dfe4e6" };
+const defaultSectionBorderWidths: Record<EmailSectionKey, string> = { hero: "0", text: "0", image: "0", divider: "0", footer: "0" };
+const defaultSectionBorderSides: SectionBorderSides = { top: true, right: false, bottom: true, left: false };
+const defaultSectionHeights: Record<EmailSectionKey, string> = { hero: "360", text: "190", image: "220", divider: "64", footer: "200" };
+const emailSectionKeys: EmailSectionKey[] = ["hero", "text", "image", "divider", "footer"];
 
 const textFontSizes = [
   { command: "1", label: "10", pixels: 10 },
@@ -35,14 +124,39 @@ const textFontSizes = [
   { command: "7", label: "40", pixels: 40 },
 ] as const;
 
-function FigmaColorRow({ label, color, onChange }: { label: string; color: string; onChange: (color: string) => void }) {
+function visibleImageSize(image: HTMLImageElement) {
+  const width = image.getBoundingClientRect().width;
+  const height = image.getBoundingClientRect().height;
+  const fit = window.getComputedStyle(image).objectFit;
+  if ((fit !== "contain" && fit !== "scale-down") || !image.naturalWidth || !image.naturalHeight) {
+    return { width, height };
+  }
+  const ratio = image.naturalWidth / image.naturalHeight;
+  const visibleWidth = Math.min(width, height * ratio);
+  return { width: visibleWidth, height: visibleWidth / ratio };
+}
+
+function setCanvasTopWorkspace(overflow: number) {
+  const scroller = document.querySelector<HTMLElement>("main");
+  const workspace = scroller?.firstElementChild;
+  if (!scroller || !(workspace instanceof HTMLElement)) return;
+  const currentPadding = Number.parseFloat(window.getComputedStyle(workspace).paddingTop) || 40;
+  const nextPadding = 40 + Math.ceil(Math.max(0, overflow));
+  if (Math.abs(nextPadding - currentPadding) < 1) return;
+  workspace.style.paddingTop = nextPadding === 40 ? "" : `${nextPadding}px`;
+  scroller.scrollTop += nextPadding - currentPadding;
+}
+
+function FigmaColorRow({ label, color, onChange }: { label: string; color?: string; onChange: (color: string) => void }) {
+  const safeColor = color && /^#[0-9a-f]{6}$/i.test(color) ? color : "#ffffff";
   return <div className="flex h-10 items-center rounded-xl bg-[#f4f5f6] px-2">
     <label className="relative flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md border border-[#dfe1e3] bg-white shadow-sm">
-      <span className="h-5 w-5 rounded-[3px]" style={{ backgroundColor: color }} />
-      <input type="color" aria-label={label} value={color} onChange={(event) => onChange(event.target.value)} className="absolute inset-0 cursor-pointer opacity-0" />
+      <span className="h-5 w-5 rounded-[3px]" style={{ backgroundColor: safeColor }} />
+      <input type="color" aria-label={label} value={safeColor} onChange={(event) => onChange(event.target.value)} className="absolute inset-0 cursor-pointer opacity-0" />
     </label>
     <span className="mx-2 h-6 w-px bg-white" />
-    <input key={color} aria-label={`${label} hex code`} defaultValue={color.replace("#", "").toUpperCase()} maxLength={6} onChange={(event) => { const nextValue = event.target.value.replace(/^#/, "").replace(/[^0-9a-f]/gi, "").slice(0, 6).toUpperCase(); event.currentTarget.value = nextValue; if (/^[0-9A-F]{6}$/.test(nextValue)) onChange(`#${nextValue.toLowerCase()}`); }} onBlur={(event) => { if (!/^[0-9A-F]{6}$/i.test(event.currentTarget.value)) event.currentTarget.value = color.replace("#", "").toUpperCase(); }} className="min-w-0 flex-1 bg-transparent font-mono text-[12px] uppercase text-[#333] outline-none" />
+    <span aria-hidden="true" className="font-mono text-[12px] text-[#777]">#</span>
+    <input key={safeColor} aria-label={`${label} hex code`} defaultValue={safeColor.replace("#", "").toUpperCase()} maxLength={7} onChange={(event) => { const nextValue = event.target.value.replace(/#/g, "").replace(/[^0-9a-f]/gi, "").slice(0, 6).toUpperCase(); event.currentTarget.value = nextValue; if (/^[0-9A-F]{6}$/.test(nextValue)) onChange(`#${nextValue.toLowerCase()}`); }} onBlur={(event) => { if (!/^[0-9A-F]{6}$/i.test(event.currentTarget.value)) event.currentTarget.value = safeColor.replace("#", "").toUpperCase(); }} className="min-w-0 flex-1 bg-transparent px-1 font-mono text-[12px] uppercase text-[#333] outline-none" />
   </div>;
 }
 
@@ -86,23 +200,26 @@ function ToolbarDropdown({ id, openId, setOpenId, label, value, options, onChang
     onChange(closest.value);
   }
 
-  return <div className={`relative ${width}`}>{editable ? <div className="flex h-8 items-center rounded-lg bg-[#f5f6f7] focus-within:ring-2 focus-within:ring-[#dff3f6]"><input aria-label={label} inputMode="numeric" value={draftValue} onChange={(event) => setDraftValue(event.target.value.replace(/[^0-9]/g, ""))} onBlur={(event) => commitDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); commitDraft(event.currentTarget.value); event.currentTarget.blur(); } }} className="min-w-0 flex-1 bg-transparent px-2.5 text-[11px] text-[#444] outline-none" /><button type="button" aria-label={`Choose ${label}`} aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpenId(open ? null : id)} className="flex h-full items-center px-2 text-[#666] transition hover:text-[#4d9eae]"><ChevronDown className={cn("h-3 w-3 transition-transform", open ? "rotate-180" : "")} /></button></div> : <button type="button" aria-label={label} aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpenId(open ? null : id)} className="flex h-8 w-full items-center justify-between gap-2 rounded-lg bg-[#f5f6f7] px-2.5 text-[11px] text-[#444] outline-none transition hover:bg-[#edf8fa] hover:text-[#4d9eae]"><span className="truncate" style={id === "font" ? { fontFamily: selected?.value } : undefined}>{selected?.label}</span><ChevronDown className={cn("h-3 w-3 shrink-0 transition-transform", open ? "rotate-180" : "")} /></button>}{open ? <div role="listbox" aria-label={label} className="absolute left-0 top-[calc(100%+6px)] z-[60] min-w-full overflow-hidden rounded-xl border border-[#e1e4e7] bg-white p-1 shadow-[0_10px_24px_rgba(15,23,42,0.16)]">{options.map((option) => <button key={option.value} type="button" role="option" aria-selected={option.value === value} onClick={() => { onChange(option.value); setDraftValue(option.label); setOpenId(null); }} className={cn("flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left text-[11px] transition", option.value === value ? "bg-[#edf8fa] font-medium text-[#4d9eae]" : "text-[#444] hover:bg-[#f5f6f7]")} style={id === "font" ? { fontFamily: option.value } : undefined}>{option.label}{option.value === value ? <Check className="h-3 w-3" /> : null}</button>)}</div> : null}</div>;
+  return <div className={`relative ${width}`}>{editable ? <div className="flex h-8 items-center rounded-lg bg-[#f5f6f7] focus-within:ring-2 focus-within:ring-[#dff3f6]"><input aria-label={label} inputMode="numeric" value={draftValue} onChange={(event) => setDraftValue(event.target.value.replace(/[^0-9]/g, ""))} onBlur={(event) => commitDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); commitDraft(event.currentTarget.value); event.currentTarget.blur(); } }} className="min-w-0 flex-1 bg-transparent px-2.5 text-[11px] text-[#444] outline-none" /><button type="button" aria-label={`Choose ${label}`} aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpenId(open ? null : id)} className="flex h-full shrink-0 items-center gap-1.5 border-l border-[#e1e3e5] px-2.5 text-[#666] transition hover:bg-[#edf8fa] hover:text-[#4d9eae]"><ChevronDown className={cn("h-3 w-3 transition-transform", open ? "rotate-180" : "")} /></button></div> : <button type="button" aria-label={label} aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpenId(open ? null : id)} className="flex h-8 w-full items-center justify-between gap-2 rounded-lg bg-[#f5f6f7] px-2.5 text-[11px] text-[#444] outline-none transition hover:bg-[#edf8fa] hover:text-[#4d9eae]"><span className="truncate" style={id === "font" ? { fontFamily: selected?.value } : undefined}>{selected?.label}</span><ChevronDown className={cn("h-3 w-3 shrink-0 transition-transform", open ? "rotate-180" : "")} /></button>}{open ? <div role="listbox" aria-label={label} className="absolute left-0 top-[calc(100%+6px)] z-[60] min-w-full overflow-hidden rounded-xl border border-[#e1e4e7] bg-white p-1 shadow-[0_10px_24px_rgba(15,23,42,0.16)]">{options.map((option) => <button key={option.value} type="button" role="option" aria-selected={option.value === value} onClick={() => { onChange(option.value); setDraftValue(option.label); setOpenId(null); }} className={cn("flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left text-[11px] transition", option.value === value ? "bg-[#edf8fa] font-medium text-[#4d9eae]" : "text-[#444] hover:bg-[#f5f6f7]")} style={id === "font" ? { fontFamily: option.value } : undefined}>{option.label}{option.value === value ? <Check className="h-3 w-3" /> : null}</button>)}</div> : null}</div>;
 }
 
-export function CreateTemplatePage({ channel, initialFormat }: { channel: string; initialFormat?: string }) {
+export function CreateTemplatePage({ channel, initialFormat, templateId: initialTemplateId }: { channel: string; initialFormat?: string; templateId?: string }) {
   const router = useRouter();
-  const key = channel.toLowerCase() as keyof typeof channelDetails;
+  const [resolvedChannel, setResolvedChannel] = React.useState(channel.toLowerCase());
+  const key = resolvedChannel as keyof typeof channelDetails;
   const details = channelDetails[key] ?? channelDetails.email;
   const Icon = details.icon;
   const isPush = key === "push";
-  const [name, setName] = React.useState(key === "email" && initialFormat === "html" ? "Template 1" : "");
+  const [name, setName] = React.useState("");
   const [description, setDescription] = React.useState("");
   const initialEmailFormat = key === "email" && initialFormat === "html" ? "html" : key === "email" && initialFormat === "plain" ? "plain" : key === "email" ? null : "plain";
   const [emailFormat, setEmailFormat] = React.useState<"plain" | "html" | null>(initialEmailFormat);
   const [subject, setSubject] = React.useState("");
   const [title, setTitle] = React.useState("");
   const [message, setMessage] = React.useState("");
-  const [heroEyebrow, setHeroEyebrow] = React.useState("A note for you");
+  const [heroEyebrow, setHeroEyebrow] = React.useState(DEFAULT_HERO_EYEBROW);
+  const [heroLogoUrl, setHeroLogoUrl] = React.useState<string | null>(null);
+  const logoInputRef = React.useRef<HTMLInputElement>(null);
   const [heroHeadline, setHeroHeadline] = React.useState("Make something people remember.");
   const [heroDescription, setHeroDescription] = React.useState("Build a beautiful email with the same thoughtful details your customers expect from Kenoo.");
   const [heroButtonLabel, setHeroButtonLabel] = React.useState("Shop the collection");
@@ -111,29 +228,80 @@ export function CreateTemplatePage({ channel, initialFormat }: { channel: string
   const [buttonWidth, setButtonWidth] = React.useState("auto");
   const [buttonHeight, setButtonHeight] = React.useState("44");
   const [buttonRadius, setButtonRadius] = React.useState("12");
+  const [buttonFontFamily, setButtonFontFamily] = React.useState("Arial");
+  const [buttonFontSize, setButtonFontSize] = React.useState("3");
+  const [buttonFontWeight, setButtonFontWeight] = React.useState("600");
   const [bodyHeading, setBodyHeading] = React.useState("A little more context goes here");
-  const [bodyDescription, setBodyDescription] = React.useState("Click any section to select it. In the next pass, these blocks will become draggable, editable, and ready for real content.");
+  const [bodyDescription, setBodyDescription] = React.useState("Click any section to select it. Use the design sidebar to change its order.");
   const [imagePlaceholder, setImagePlaceholder] = React.useState("Drop an image here");
-  const [sectionColors, setSectionColors] = React.useState<Record<EmailSectionKey, string>>({ hero: "#f7f4eb", text: "#ffffff", image: "#f4fbfc", divider: "#ffffff" });
-  const [sectionHeights, setSectionHeights] = React.useState<Record<EmailSectionKey, string>>({ hero: "360", text: "190", image: "220", divider: "64" });
-  const [hiddenSections, setHiddenSections] = React.useState<EmailSectionKey[]>([]);
+  const [footerCompany, setFooterCompany] = React.useState("Your company name");
+  const [footerNote, setFooterNote] = React.useState("You're receiving this email because you signed up for updates.");
+  const [footerUnsubscribeText, setFooterUnsubscribeText] = React.useState("Unsubscribe");
+  const [footerUnsubscribeUrl, setFooterUnsubscribeUrl] = React.useState("");
+  const [footerSocialLinks, setFooterSocialLinks] = React.useState({ instagram: "", facebook: "", linkedin: "" });
+  // This is the color outside the 640px email content column. It is part of
+  // the email markup, rather than only the editor workspace chrome.
+  const [emailBackgroundColor, setEmailBackgroundColor] = React.useState("#f4f5f7");
+  const [emailBorderColor, setEmailBorderColor] = React.useState("#dfe4e6");
+  const [emailBorderWidth, setEmailBorderWidth] = React.useState("0");
+  const [sectionColors, setSectionColors] = React.useState<Record<EmailSectionKey, string>>(defaultSectionColors);
+  const [sectionBorderColors, setSectionBorderColors] = React.useState<Record<EmailSectionKey, string>>(defaultSectionBorderColors);
+  const [sectionBorderWidths, setSectionBorderWidths] = React.useState<Record<EmailSectionKey, string>>(defaultSectionBorderWidths);
+  const [sectionBorderSides, setSectionBorderSides] = React.useState<Record<EmailSectionKey, SectionBorderSides>>(() => Object.fromEntries(emailSectionKeys.map((section) => [section, { ...defaultSectionBorderSides }])) as Record<EmailSectionKey, SectionBorderSides>);
+  const [sectionBackgrounds, setSectionBackgrounds] = React.useState<SectionBackgrounds>({});
+  const [sectionHeights, setSectionHeights] = React.useState<Record<EmailSectionKey, string>>(defaultSectionHeights);
+  // Images are placed into the section the user selected. The standalone image
+  // placeholder is retained only for templates that already use it.
+  const [hiddenSections, setHiddenSections] = React.useState<EmailSectionKey[]>(["image"]);
+  const [deletedSections, setDeletedSections] = React.useState<EmailSectionKey[]>([]);
+  const [sectionOrder, setSectionOrder] = React.useState<EmailSectionKey[]>(["hero", "text", "divider", "footer"]);
+  const [sectionNames, setSectionNames] = React.useState<Record<EmailSectionKey, string>>(defaultSectionNames);
   const [actionUrl, setActionUrl] = React.useState("");
   const [imageUrl, setImageUrl] = React.useState("");
   const [saving, setSaving] = React.useState(false);
+  const [templateId, setTemplateId] = React.useState<string | null>(initialTemplateId ?? null);
+  const [templateLoaded, setTemplateLoaded] = React.useState(!initialTemplateId);
+  const [saveStatus, setSaveStatus] = React.useState<"creating" | "saving" | "saved" | "error">("saved");
+  const [historyState, setHistoryState] = React.useState({ canUndo: false, canRedo: false });
+  const [aiThreadId, setAiThreadId] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [sendTestOpen, setSendTestOpen] = React.useState(false);
   const [testEmail, setTestEmail] = React.useState("");
+  const [sendingTest, setSendingTest] = React.useState(false);
+  const [testSendError, setTestSendError] = React.useState<string | null>(null);
+  const [testSendSuccess, setTestSendSuccess] = React.useState(false);
   const [editorMode, setEditorMode] = React.useState<(typeof emailEditorModes)[number]["value"]>("editing");
   const [editorModeOpen, setEditorModeOpen] = React.useState(false);
-  const [selectedBlock, setSelectedBlock] = React.useState<"hero" | "text" | "image" | "button" | "divider">("hero");
-  const [canvasSelectionActive, setCanvasSelectionActive] = React.useState(true);
+  const [selectedBlock, setSelectedBlock] = React.useState<EmailSectionKey | "button">("hero");
+  const [canvasSelectionActive, setCanvasSelectionActive] = React.useState(false);
+  const buttonPositionRef = React.useRef({ x: 0, y: 0 });
+  const textPositionsRef = React.useRef<Record<string, { x: number; y: number }>>({});
+  const [buttonPosition, setButtonPosition] = React.useState({ x: 0, y: 0 });
+  const [textPositions, setTextPositions] = React.useState<Record<string, { x: number; y: number }>>({});
+  const [selectedTextKey, setSelectedTextKey] = React.useState<string | null>(null);
+  const [selectedImageKey, setSelectedImageKey] = React.useState<string | null>(null);
+  const [imageSelectionVersion, setImageSelectionVersion] = React.useState(0);
+  const [editingTextKey, setEditingTextKey] = React.useState<string | null>(null);
+  const imagePositionsRef = React.useRef<Record<string, { x: number; y: number }>>({});
+  const [imagePositions, setImagePositions] = React.useState<Record<string, { x: number; y: number }>>({});
+  const [imageSizes, setImageSizes] = React.useState<Record<string, { width: number; height: number }>>({});
+  const [imageRotations, setImageRotations] = React.useState<Record<string, number>>({});
+  const [imageLayers, setImageLayers] = React.useState<Record<string, ImageLayer>>({});
+  const [canvasUploads, setCanvasUploads] = React.useState<CanvasUploadImage[]>([]);
   const [zoom, setZoom] = React.useState(100);
-  const [activeSidebarTool, setActiveSidebarTool] = React.useState<"add" | "layouts" | "uploads" | "folders" | "ai" | "design" | null>(null);
+  const canvasRef = React.useRef<HTMLElement>(null);
+  const zoomInputRef = React.useRef<HTMLInputElement>(null);
+  const zoomLabelRef = React.useRef<HTMLSpanElement>(null);
+  const zoomFrameRef = React.useRef<number | null>(null);
+  const pendingZoomRef = React.useRef<number | null>(null);
+  const [activeSidebarTool, setActiveSidebarTool] = React.useState<"add" | "layouts" | "uploads" | "ai" | "design" | null>(null);
+  const [backgroundPickerSection, setBackgroundPickerSection] = React.useState<EmailSectionKey | null>(null);
+  const [layersOpen, setLayersOpen] = React.useState(false);
+  const [expandedLayerSections, setExpandedLayerSections] = React.useState<Record<EmailSectionKey, boolean>>({ hero: true, text: true, image: true, divider: true, footer: true });
   const templateNameMeasureRef = React.useRef<HTMLSpanElement>(null);
   const editorModeRef = React.useRef<HTMLDivElement>(null);
   const activeTextEditorRef = React.useRef<HTMLElement | null>(null);
   const savedTextSelectionRef = React.useRef<Range | null>(null);
-  const applyingTextCommandRef = React.useRef(false);
   const textToolbarRef = React.useRef<HTMLDivElement>(null);
   const [templateNameWidth, setTemplateNameWidth] = React.useState(110);
   const [textToolbarOpen, setTextToolbarOpen] = React.useState(false);
@@ -144,9 +312,1081 @@ export function CreateTemplatePage({ channel, initialFormat }: { channel: string
   const [textLetterSpacing, setTextLetterSpacing] = React.useState("0%");
   const [textColor, setTextColor] = React.useState("#333333");
   const [openTextDropdown, setOpenTextDropdown] = React.useState<string | null>(null);
+  const heroEyebrowMarkup = React.useMemo(() => ({ __html: heroEyebrow }), [heroEyebrow]);
+  const isPreviewMode = editorMode === "viewing";
+  const historyRef = React.useRef<{ past: BuilderSnapshot[]; future: BuilderSnapshot[]; last: BuilderSnapshot | null; restoring: boolean }>({ past: [], future: [], last: null, restoring: false });
+  const templateIdRef = React.useRef<string | null>(initialTemplateId ?? null);
+  const templateLoadedRef = React.useRef(!initialTemplateId);
+  const creatingTemplateRef = React.useRef(false);
+
+  React.useEffect(() => {
+    // Branding is only a starting default. An existing template's saved HTML wins.
+    if (initialTemplateId || heroLogoUrl) return;
+    let cancelled = false;
+    void fetch("/api/branding")
+      .then(async (response) => {
+        const payload = await response.json().catch(() => ({})) as { branding?: { dark_logo_url?: string | null } };
+        if (response.ok && !cancelled) {
+          const logoUrl = payload.branding?.dark_logo_url ?? null;
+          if (logoUrl) setHeroEyebrow((current) => current === DEFAULT_HERO_EYEBROW ? `<img src="${logoUrl}" alt="Account logo" style="display:inline-block;width:180px;height:auto;max-height:48px;object-fit:contain" />` : current);
+        }
+      })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [heroLogoUrl, initialTemplateId]);
+
+  React.useEffect(() => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/png,image/jpeg,image/gif,image/webp";
+    input.className = "hidden";
+    input.addEventListener("change", () => {
+      const file = input.files?.[0];
+      if (file) void replaceHeroLogo(file);
+      input.value = "";
+    });
+    document.body.appendChild(input);
+    logoInputRef.current = input;
+    return () => {
+      input.remove();
+      logoInputRef.current = null;
+    };
+  }, []);
+
+  React.useEffect(() => {
+    if (emailFormat !== "html") return;
+    const editorImage = (target: EventTarget | null) => target instanceof HTMLImageElement && target.closest("main section") ? target : null;
+    const onMouseDown = (event: MouseEvent) => {
+      if (isPreviewMode || !editorImage(event.target)) return;
+      event.preventDefault();
+      event.stopPropagation();
+    };
+    const onClick = (event: MouseEvent) => {
+      if (isPreviewMode) return;
+      const image = editorImage(event.target);
+      if (!image) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const images = Array.from(document.querySelectorAll<HTMLImageElement>("main section img"));
+      const imageKey = image.dataset.imageKey ?? (image.closest('[data-editor-key="hero-eyebrow"]') ? "hero-logo" : `image-${images.indexOf(image)}`);
+      const measured = visibleImageSize(image);
+      const canvasZoom = zoom / 100;
+      const width = measured.width / canvasZoom;
+      const height = measured.height / canvasZoom;
+      if (width && height) setImageSizes((current) => current[imageKey] ? current : ({ ...current, [imageKey]: { width, height } }));
+      setSelectedImageKey(imageKey);
+      setImageSelectionVersion((current) => current + 1);
+      setSelectedTextKey(null);
+      setEditingTextKey(null);
+      setTextToolbarOpen(false);
+      activeTextEditorRef.current = null;
+      savedTextSelectionRef.current = null;
+      const section = image.closest<HTMLElement>("[data-section-key]")?.dataset.sectionKey;
+      setSelectedBlock(section === "text" || section === "image" || section === "divider" || section === "footer" ? section : "hero");
+      setCanvasSelectionActive(true);
+      setActiveSidebarTool("design");
+    };
+    const onDoubleClick = (event: MouseEvent) => {
+      const image = editorImage(event.target);
+      if (!image?.closest('[data-editor-key="hero-eyebrow"]') || isPreviewMode) return;
+      event.preventDefault();
+      event.stopPropagation();
+      logoInputRef.current?.click();
+    };
+    document.addEventListener("mousedown", onMouseDown, true);
+    document.addEventListener("click", onClick, true);
+    document.addEventListener("dblclick", onDoubleClick, true);
+    return () => {
+      document.removeEventListener("mousedown", onMouseDown, true);
+      document.removeEventListener("click", onClick, true);
+      document.removeEventListener("dblclick", onDoubleClick, true);
+    };
+  }, [emailFormat, isPreviewMode, zoom]);
+
+  React.useEffect(() => {
+    if (emailFormat !== "html") return;
+    const workspace = document.querySelector<HTMLElement>("main > div");
+    if (!workspace) return;
+    workspace.style.backgroundColor = emailBackgroundColor;
+    return () => { workspace.style.backgroundColor = ""; };
+  }, [emailBackgroundColor, emailFormat]);
+
+  React.useEffect(() => {
+    if (!initialTemplateId) return;
+    let cancelled = false;
+    void fetch(`/api/templates/${initialTemplateId}`)
+      .then(async (response) => {
+        const result = await response.json().catch(() => ({})) as { template?: { channel?: string; name?: string; description?: string | null; subject?: string | null; title?: string | null; text_content?: string | null; html_content?: string | null; action_url?: string | null; image_url?: string | null; metadata?: { builder?: BuilderSnapshot } }; error?: string };
+        if (!response.ok || !result.template) throw new Error(result.error ?? "Unable to load template");
+        if (cancelled) return;
+        const template = result.template;
+        if (template.channel) setResolvedChannel(template.channel);
+        setName(template.name ?? "");
+        setDescription(template.description ?? "");
+        setSubject(template.subject ?? "");
+        setTitle(template.title ?? "");
+        setMessage(template.text_content ?? "");
+        setActionUrl(template.action_url ?? "");
+        setImageUrl(template.image_url ?? "");
+        if (template.channel === "email") setEmailFormat(template.html_content ? "html" : "plain");
+        const builder = template.metadata?.builder;
+        if (builder) applyBuilderSnapshot(builder);
+        templateLoadedRef.current = true;
+        setTemplateLoaded(true);
+      })
+      .catch((caught) => { if (!cancelled) { templateLoadedRef.current = true; setError(caught instanceof Error ? caught.message : "Unable to load template"); setTemplateLoaded(true); } });
+    return () => { cancelled = true; };
+  }, [initialTemplateId]);
+
+  React.useEffect(() => {
+    if (key === "email" && emailFormat === null && templateLoadedRef.current) router.replace("/templates");
+  }, [emailFormat, initialTemplateId, key, router]);
+
+  const builderSnapshot = React.useMemo<BuilderSnapshot>(() => ({
+    name,
+    description,
+    subject,
+    heroEyebrow,
+    heroLogoUrl,
+    heroHeadline,
+    heroDescription,
+    heroButtonLabel,
+    buttonColor,
+    buttonTextColor,
+    buttonWidth,
+    buttonHeight,
+    buttonRadius,
+    buttonFontFamily,
+    buttonFontSize,
+    buttonFontWeight,
+    bodyHeading,
+    bodyDescription,
+    imagePlaceholder,
+    footerCompany,
+    footerNote,
+    footerUnsubscribeText,
+    footerUnsubscribeUrl,
+    footerSocialLinks,
+    emailBackgroundColor,
+    emailBorderColor,
+    emailBorderWidth,
+    sectionColors,
+    sectionBorderColors,
+    sectionBorderWidths,
+    sectionBackgrounds,
+    sectionHeights,
+    hiddenSections,
+    deletedSections,
+    sectionOrder,
+    sectionNames,
+    actionUrl,
+    imageUrl,
+    buttonPosition,
+    textPositions,
+    imagePositions,
+    imageSizes,
+    imageRotations,
+    imageLayers,
+    canvasUploads,
+  }), [name, description, subject, heroEyebrow, heroLogoUrl, heroHeadline, heroDescription, heroButtonLabel, buttonColor, buttonTextColor, buttonWidth, buttonHeight, buttonRadius, buttonFontFamily, buttonFontSize, buttonFontWeight, bodyHeading, bodyDescription, imagePlaceholder, footerCompany, footerNote, footerUnsubscribeText, footerUnsubscribeUrl, footerSocialLinks, emailBackgroundColor, emailBorderColor, emailBorderWidth, sectionColors, sectionBorderColors, sectionBorderWidths, sectionBackgrounds, sectionHeights, hiddenSections, deletedSections, sectionOrder, sectionNames, actionUrl, imageUrl, buttonPosition, textPositions, imagePositions, imageSizes, imageRotations, imageLayers, canvasUploads]);
+
+  function updateHistoryControls() {
+    setHistoryState({ canUndo: historyRef.current.past.length > 0, canRedo: historyRef.current.future.length > 0 });
+  }
+
+  React.useEffect(() => {
+    const history = historyRef.current;
+    if (history.last === null) {
+      history.last = builderSnapshot;
+      updateHistoryControls();
+      return;
+    }
+    if (JSON.stringify(history.last) === JSON.stringify(builderSnapshot)) return;
+    if (history.restoring) {
+      history.restoring = false;
+      history.last = builderSnapshot;
+      updateHistoryControls();
+      return;
+    }
+    history.past.push(history.last);
+    history.future = [];
+    history.last = builderSnapshot;
+    updateHistoryControls();
+  }, [builderSnapshot]);
+
+  function applyBuilderSnapshot(snapshot: BuilderSnapshot) {
+    historyRef.current.restoring = true;
+    setName(snapshot.name);
+    setDescription(snapshot.description);
+    setSubject(snapshot.subject);
+    setHeroEyebrow(snapshot.heroEyebrow);
+    setHeroLogoUrl(snapshot.heroLogoUrl ?? null);
+    setHeroHeadline(snapshot.heroHeadline);
+    setHeroDescription(snapshot.heroDescription);
+    setHeroButtonLabel(snapshot.heroButtonLabel);
+    setButtonColor(snapshot.buttonColor);
+    setButtonTextColor(snapshot.buttonTextColor);
+    setButtonWidth(snapshot.buttonWidth);
+    setButtonHeight(snapshot.buttonHeight);
+    setButtonRadius(snapshot.buttonRadius);
+    setButtonFontFamily(snapshot.buttonFontFamily);
+    setButtonFontSize(snapshot.buttonFontSize);
+    setButtonFontWeight(snapshot.buttonFontWeight);
+    setBodyHeading(snapshot.bodyHeading);
+    setBodyDescription(snapshot.bodyDescription);
+    setImagePlaceholder(snapshot.imagePlaceholder);
+    setFooterCompany(snapshot.footerCompany ?? "Your company name");
+    setFooterNote(snapshot.footerNote ?? "You're receiving this email because you signed up for updates.");
+    setFooterUnsubscribeText(snapshot.footerUnsubscribeText ?? "Unsubscribe");
+    setFooterUnsubscribeUrl(snapshot.footerUnsubscribeUrl ?? "");
+    setFooterSocialLinks(snapshot.footerSocialLinks ?? { instagram: "", facebook: "", linkedin: "" });
+    setEmailBackgroundColor(snapshot.emailBackgroundColor ?? "#f4f5f7");
+    setEmailBorderColor(snapshot.emailBorderColor ?? "#dfe4e6");
+    setEmailBorderWidth(snapshot.emailBorderWidth ?? "0");
+    setSectionColors(Object.fromEntries(emailSectionKeys.map((section) => [section, snapshot.sectionColors?.[section] || defaultSectionColors[section]])) as Record<EmailSectionKey, string>);
+    setSectionBorderColors(Object.fromEntries(emailSectionKeys.map((section) => [section, snapshot.sectionBorderColors?.[section] || defaultSectionBorderColors[section]])) as Record<EmailSectionKey, string>);
+    setSectionBorderWidths(Object.fromEntries(emailSectionKeys.map((section) => [section, snapshot.sectionBorderWidths?.[section] || defaultSectionBorderWidths[section]])) as Record<EmailSectionKey, string>);
+    setSectionBackgrounds(snapshot.sectionBackgrounds ?? {});
+    setSectionHeights(Object.fromEntries(emailSectionKeys.map((section) => [section, snapshot.sectionHeights?.[section] || defaultSectionHeights[section]])) as Record<EmailSectionKey, string>);
+    // Older templates always exposed the dedicated image placeholder. Keep
+    // existing uploaded images visible, but retire the empty placeholder.
+    const savedUploads = snapshot.canvasUploads ?? [];
+    setHiddenSections(snapshot.hiddenSections.includes("image") || savedUploads.some((upload) => upload.section === "image")
+      ? snapshot.hiddenSections
+      : [...snapshot.hiddenSections, "image"]);
+    setDeletedSections(snapshot.deletedSections ?? []);
+    setSectionOrder(snapshot.sectionOrder);
+    setSectionNames({ ...defaultSectionNames, ...snapshot.sectionNames });
+    setActionUrl(snapshot.actionUrl);
+    setImageUrl(snapshot.imageUrl);
+    buttonPositionRef.current = snapshot.buttonPosition;
+    setButtonPosition(snapshot.buttonPosition);
+    textPositionsRef.current = snapshot.textPositions;
+    setTextPositions(snapshot.textPositions);
+    imagePositionsRef.current = snapshot.imagePositions ?? {};
+    setImagePositions(snapshot.imagePositions ?? {});
+    setImageSizes(snapshot.imageSizes ?? {});
+    setImageRotations(snapshot.imageRotations ?? {});
+    setImageLayers(snapshot.imageLayers ?? {});
+    setCanvasUploads(savedUploads);
+  }
+
+  async function replaceHeroLogo(file: File) {
+    setError(null);
+    const formData = new FormData();
+    formData.set("file", file);
+    try {
+      const response = await fetch("/api/template-uploads", { method: "POST", body: formData });
+      const payload = await response.json().catch(() => ({})) as { upload?: { public_url?: string }; error?: string };
+      if (!response.ok || !payload.upload?.public_url) throw new Error(payload.error ?? "Unable to upload logo");
+      setHeroLogoUrl(payload.upload.public_url);
+      setHeroEyebrow(`<img src="${payload.upload.public_url}" alt="Account logo" style="display:inline-block;width:180px;height:auto;max-height:48px;object-fit:contain" />`);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Unable to upload logo");
+    } finally {
+      if (logoInputRef.current) logoInputRef.current.value = "";
+    }
+  }
+
+  function undoBuilderChange() {
+    const history = historyRef.current;
+    const previous = history.past.pop();
+    if (!previous || !history.last) return;
+    history.future.push(history.last);
+    history.last = previous;
+    applyBuilderSnapshot(previous);
+    updateHistoryControls();
+  }
+
+  function redoBuilderChange() {
+    const history = historyRef.current;
+    const next = history.future.pop();
+    if (!next || !history.last) return;
+    history.past.push(history.last);
+    history.last = next;
+    applyBuilderSnapshot(next);
+    updateHistoryControls();
+  }
+
+  React.useEffect(() => {
+    if (emailFormat !== "html" || !templateLoaded) return;
+    let cancelled = false;
+    const payload = {
+      name,
+      description,
+      channel: key,
+      subject,
+      textContent: "",
+      htmlContent: '<div data-kenoo-template="true"></div>',
+      metadata: { builder: builderSnapshot },
+    };
+    if (!templateIdRef.current && !initialTemplateId && !creatingTemplateRef.current) {
+      creatingTemplateRef.current = true;
+      setSaveStatus("creating");
+      void fetch("/api/templates", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
+        .then(async (response) => {
+          const result = await response.json().catch(() => ({})) as { template?: { id?: string; name?: string }; error?: string };
+          if (!response.ok || !result.template?.id) throw new Error(result.error ?? "Unable to create template");
+          if (cancelled) return;
+          templateIdRef.current = result.template.id;
+          setTemplateId(result.template.id);
+          if (result.template.name) setName(result.template.name);
+          if (aiThreadId) {
+            await fetch(`/api/ai/threads/${aiThreadId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ templateId: result.template.id }) });
+          }
+          setSaveStatus("saved");
+          router.replace(`/templates/${result.template.id}`);
+        })
+        .catch((caught) => { if (!cancelled) { setError(caught instanceof Error ? caught.message : "Unable to create template"); setSaveStatus("error"); } })
+        .finally(() => { creatingTemplateRef.current = false; });
+      return () => { cancelled = true; };
+    }
+    if (!templateIdRef.current) return;
+    const timer = window.setTimeout(() => {
+      setSaveStatus("saving");
+      void fetch(`/api/templates/${templateIdRef.current}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
+        .then((response) => { if (!response.ok) throw new Error("Unable to autosave template"); setSaveStatus("saved"); })
+        .catch((caught) => { setError(caught instanceof Error ? caught.message : "Unable to autosave template"); setSaveStatus("error"); });
+    }, 650);
+    return () => { window.clearTimeout(timer); };
+  }, [emailFormat, key, name, description, subject, builderSnapshot, aiThreadId, initialTemplateId, templateLoaded]);
+
+  function applyCanvasZoom(nextZoom: number) {
+    const clampedZoom = Math.min(150, Math.max(50, nextZoom));
+    pendingZoomRef.current = clampedZoom;
+    if (zoomFrameRef.current !== null) return;
+    zoomFrameRef.current = window.requestAnimationFrame(() => {
+      zoomFrameRef.current = null;
+      const frameZoom = pendingZoomRef.current;
+      if (frameZoom === null) return;
+      canvasRef.current?.style.setProperty("transform", `scale(${frameZoom / 100})`);
+      if (zoomLabelRef.current) zoomLabelRef.current.textContent = `${frameZoom}%`;
+    });
+  }
+
+  function commitCanvasZoom() {
+    const nextZoom = pendingZoomRef.current;
+    if (nextZoom === null) return;
+    if (zoomFrameRef.current !== null) {
+      window.cancelAnimationFrame(zoomFrameRef.current);
+      zoomFrameRef.current = null;
+    }
+    pendingZoomRef.current = null;
+    setZoom(nextZoom);
+  }
+
+  React.useEffect(() => {
+    canvasRef.current = document.querySelector<HTMLElement>('main div[class*="max-w-[640px]"]');
+    zoomInputRef.current = document.querySelector<HTMLInputElement>('input[aria-label="Zoom level"]');
+    zoomLabelRef.current = zoomInputRef.current?.parentElement?.querySelector<HTMLSpanElement>(":scope > span:last-child") ?? null;
+    if (zoomInputRef.current) zoomInputRef.current.value = String(zoom);
+    if (zoomLabelRef.current) zoomLabelRef.current.textContent = `${zoom}%`;
+    canvasRef.current?.style.setProperty("transform", `scale(${zoom / 100})`);
+  }, [zoom]);
+
+  React.useEffect(() => {
+    const zoomInput = document.querySelector<HTMLInputElement>('input[aria-label="Zoom level"]');
+    const canvas = document.querySelector<HTMLElement>('main div[class*="max-w-[640px]"]');
+    const zoomLabel = zoomInput?.parentElement?.querySelector<HTMLSpanElement>(":scope > span:last-child");
+    if (!zoomInput || !canvas) return;
+
+    zoomInput.step = "1";
+    canvas.style.willChange = "transform";
+    const handleInput = (event: Event) => {
+      event.stopPropagation();
+      applyCanvasZoom(Number((event.currentTarget as HTMLInputElement).value));
+    };
+    const commitInput = () => {
+      const nextZoom = Number(zoomInput.value);
+      if (!Number.isFinite(nextZoom)) return;
+      pendingZoomRef.current = nextZoom;
+      commitCanvasZoom();
+      if (zoomLabel) zoomLabel.textContent = `${nextZoom}%`;
+    };
+    zoomInput.addEventListener("input", handleInput);
+    zoomInput.addEventListener("pointerup", commitInput);
+    zoomInput.addEventListener("keyup", commitInput);
+    zoomInput.addEventListener("blur", commitInput);
+    return () => {
+      zoomInput.removeEventListener("input", handleInput);
+      zoomInput.removeEventListener("pointerup", commitInput);
+      zoomInput.removeEventListener("keyup", commitInput);
+      zoomInput.removeEventListener("blur", commitInput);
+    };
+  }, []);
+
+  React.useEffect(() => () => {
+    if (zoomFrameRef.current !== null) window.cancelAnimationFrame(zoomFrameRef.current);
+  }, []);
+
+  React.useEffect(() => {
+    document.body.classList.toggle("email-template-preview-mode", isPreviewMode);
+    if (!isPreviewMode) return () => document.body.classList.remove("email-template-preview-mode");
+    const frame = window.requestAnimationFrame(() => {
+      setActiveSidebarTool(null);
+      setCanvasSelectionActive(false);
+      setEditingTextKey(null);
+    });
+    return () => {
+      window.cancelAnimationFrame(frame);
+      document.body.classList.remove("email-template-preview-mode");
+    };
+  }, [isPreviewMode]);
+
+  React.useEffect(() => {
+    if (emailFormat !== "html") return;
+    const buttonText = document.querySelector<HTMLElement>('main section [data-editor-key="hero-button"]');
+    if (!buttonText) return;
+    const buttonFontSizePixels = textFontSizes.find((option) => option.command === buttonFontSize)?.pixels ?? 14;
+    buttonText.contentEditable = "false";
+    buttonText.style.fontFamily = buttonFontFamily;
+    buttonText.style.fontSize = `${buttonFontSizePixels}px`;
+    buttonText.style.fontWeight = buttonFontWeight;
+    buttonText.style.color = buttonTextColor;
+    const selectButton = (event: MouseEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      setSelectedBlock("button");
+      setSelectedTextKey(null);
+      setSelectedImageKey(null);
+      setEditingTextKey(null);
+      setTextToolbarOpen(false);
+      setActiveSidebarTool("design");
+      setCanvasSelectionActive(true);
+    };
+    buttonText.addEventListener("click", selectButton);
+    return () => buttonText.removeEventListener("click", selectButton);
+  }, [buttonFontFamily, buttonFontSize, buttonFontWeight, buttonTextColor, emailFormat]);
+
+  React.useLayoutEffect(() => {
+    if (emailFormat !== "html") return;
+    const canvas = document.querySelector("main section");
+    if (!(canvas instanceof HTMLElement)) return;
+    canvas.style.display = "flex";
+    canvas.style.flexDirection = "column";
+    canvas.style.overflow = isPreviewMode ? "" : "visible";
+    const outerBorderWidth = Math.max(0, Math.min(20, Number.parseFloat(emailBorderWidth) || 0));
+    canvas.style.boxSizing = "border-box";
+    canvas.style.border = outerBorderWidth ? `${outerBorderWidth}px solid ${emailBorderColor}` : "0";
+    const blocks = Array.from(canvas.children).filter((child): child is HTMLElement => child instanceof HTMLElement).slice(0, 5);
+    const blockKeys: EmailSectionKey[] = ["hero", "text", "image", "divider", "footer"];
+    const zoomScale = zoom / 100;
+    const canvasImages = Array.from(canvas.querySelectorAll<HTMLImageElement>("img"));
+    canvasImages.forEach((image, index) => {
+      const imageKey = image.dataset.imageKey ?? (image.closest('[data-editor-key="hero-eyebrow"]') ? "hero-logo" : `image-${index}`);
+      const size = imageSizes[imageKey];
+      const position = imagePositionsRef.current[imageKey];
+      if (size) {
+        image.style.width = `${size.width}px`;
+        image.style.height = `${size.height}px`;
+        image.style.maxWidth = "none";
+        image.style.maxHeight = "none";
+      }
+      image.style.transform = `translate(${position?.x ?? 0}px, ${position?.y ?? 0}px) rotate(${imageRotations[imageKey] ?? 0}deg)`;
+    });
+    const hero = blocks[0];
+    const heroButton = hero?.querySelector<HTMLElement>("button");
+    if (heroButton) heroButton.style.transform = `translate(${buttonPositionRef.current.x}px, ${buttonPositionRef.current.y}px)`;
+    canvas.querySelectorAll<HTMLElement>("[data-editor-key]").forEach((editor) => {
+      const position = textPositionsRef.current[editor.dataset.editorKey ?? ""];
+      if (position) editor.style.transform = `translate(${position.x}px, ${position.y}px)`;
+    });
+
+    function makeHandle(label: string) {
+      const handle = document.createElement("div");
+      handle.className = "email-template-drag-handle";
+      handle.setAttribute("role", "button");
+      handle.setAttribute("tabindex", "0");
+      handle.setAttribute("aria-label", `Drag to move ${label}`);
+      handle.innerHTML = '<span aria-hidden="true">⋮⋮</span><span>Drag to move</span>';
+      handle.addEventListener("click", (event) => event.stopPropagation());
+      return handle;
+    }
+
+    const cleanups = blocks.map((block, index) => {
+      const sectionKey = blockKeys[index];
+      block.classList.add("email-template-sortable-block");
+      block.setAttribute("data-section-key", sectionKey);
+      block.style.order = String(sectionOrder.indexOf(sectionKey));
+      const separatorWidth = Math.max(0, Math.min(20, Number.parseFloat(sectionBorderWidths[sectionKey]) || 0));
+      const border = separatorWidth ? `${separatorWidth}px solid ${sectionBorderColors[sectionKey]}` : "0";
+      const sides = sectionBorderSides[sectionKey];
+      block.style.borderTop = sides.top ? border : "0";
+      block.style.borderRight = sides.right ? border : "0";
+      block.style.borderBottom = sides.bottom ? border : "0";
+      block.style.borderLeft = sides.left ? border : "0";
+      if (isPreviewMode || !canvasSelectionActive || selectedBlock !== sectionKey || selectedTextKey || selectedImageKey) return () => {};
+
+      return () => {
+        block.style.transform = "";
+      };
+    });
+    let nudgeSelected: ((x: number, y: number) => void) | null = null;
+    let buttonCleanup = () => {};
+    if (!isPreviewMode && canvasSelectionActive && selectedBlock === "button" && hero && heroButton) {
+      const handle = makeHandle("button");
+      handle.title = "Arrow keys move 1 px. Hold Command (Ctrl on Windows) while dragging to disable snapping";
+      handle.classList.add("email-template-button-drag-handle");
+      hero.appendChild(handle);
+      const verticalGuide = document.createElement("div");
+      verticalGuide.className = "email-template-center-guide email-template-center-guide-vertical";
+      verticalGuide.setAttribute("aria-hidden", "true");
+      const horizontalGuide = document.createElement("div");
+      horizontalGuide.className = "email-template-center-guide email-template-center-guide-horizontal";
+      horizontalGuide.setAttribute("aria-hidden", "true");
+      hero.append(verticalGuide, horizontalGuide);
+      const placeHandle = () => {
+        handle.style.left = `${heroButton.offsetLeft + heroButton.offsetWidth / 2 + buttonPositionRef.current.x}px`;
+        handle.style.top = `${Math.max(4, heroButton.offsetTop + buttonPositionRef.current.y - 30)}px`;
+      };
+      placeHandle();
+      nudgeSelected = (dx, dy) => {
+        const current = buttonPositionRef.current;
+        const x = Math.max(16 - heroButton.offsetLeft, Math.min(hero.clientWidth - heroButton.offsetLeft - heroButton.offsetWidth - 16, current.x + dx));
+        const y = Math.max(32 - heroButton.offsetTop, Math.min(hero.clientHeight - heroButton.offsetTop - heroButton.offsetHeight - 16, current.y + dy));
+        buttonPositionRef.current = { x, y };
+        setButtonPosition({ x, y });
+        heroButton.style.transform = `translate(${x}px, ${y}px)`;
+        placeHandle();
+      };
+      let startX = 0;
+      let startY = 0;
+      let origin = { x: 0, y: 0 };
+      const onPointerDown = (event: PointerEvent) => {
+        if (event.button !== 0) return;
+        event.preventDefault();
+        event.stopPropagation();
+        startX = event.clientX;
+        startY = event.clientY;
+        origin = { ...buttonPositionRef.current };
+        heroButton.style.transitionProperty = "none";
+        handle.setPointerCapture(event.pointerId);
+        handle.classList.add("email-template-drag-handle-active");
+      };
+      const onPointerMove = (event: PointerEvent) => {
+        if (!handle.hasPointerCapture(event.pointerId)) return;
+        event.preventDefault();
+        const rawX = Math.max(16 - heroButton.offsetLeft, Math.min(hero.clientWidth - heroButton.offsetLeft - heroButton.offsetWidth - 16, origin.x + (event.clientX - startX) / zoomScale));
+        const rawY = Math.max(32 - heroButton.offsetTop, Math.min(hero.clientHeight - heroButton.offsetTop - heroButton.offsetHeight - 16, origin.y + (event.clientY - startY) / zoomScale));
+        const centerX = hero.clientWidth / 2 - heroButton.offsetLeft - heroButton.offsetWidth / 2;
+        const centerY = hero.clientHeight / 2 - heroButton.offsetTop - heroButton.offsetHeight / 2;
+        const snapDistance = 10 / zoomScale;
+        const disableSnap = event.metaKey || event.ctrlKey;
+        const snapX = !disableSnap && Math.abs(rawX - centerX) <= snapDistance;
+        const snapY = !disableSnap && Math.abs(rawY - centerY) <= snapDistance;
+        const x = snapX ? centerX : rawX;
+        const y = snapY ? centerY : rawY;
+        verticalGuide.classList.toggle("email-template-center-guide-visible", snapX);
+        horizontalGuide.classList.toggle("email-template-center-guide-visible", snapY);
+        buttonPositionRef.current = { x, y };
+        heroButton.style.transform = `translate(${x}px, ${y}px)`;
+        placeHandle();
+      };
+      const finishDrag = (event: PointerEvent) => {
+        if (!handle.hasPointerCapture(event.pointerId)) return;
+        handle.releasePointerCapture(event.pointerId);
+        handle.classList.remove("email-template-drag-handle-active");
+        verticalGuide.classList.remove("email-template-center-guide-visible");
+        horizontalGuide.classList.remove("email-template-center-guide-visible");
+        heroButton.style.removeProperty("transition-property");
+        if (event.type === "pointercancel") {
+          buttonPositionRef.current = origin;
+          setButtonPosition(origin);
+          heroButton.style.transform = `translate(${origin.x}px, ${origin.y}px)`;
+          placeHandle();
+        }
+        setButtonPosition({ ...buttonPositionRef.current });
+      };
+      handle.addEventListener("pointerdown", onPointerDown);
+      handle.addEventListener("pointermove", onPointerMove);
+      handle.addEventListener("pointerup", finishDrag);
+      handle.addEventListener("pointercancel", finishDrag);
+      buttonCleanup = () => {
+        handle.removeEventListener("pointerdown", onPointerDown);
+        handle.removeEventListener("pointermove", onPointerMove);
+        handle.removeEventListener("pointerup", finishDrag);
+        handle.removeEventListener("pointercancel", finishDrag);
+        handle.remove();
+        verticalGuide.remove();
+        horizontalGuide.remove();
+      };
+    }
+    let textCleanup = () => {};
+    const selectedEditor = Array.from(canvas.querySelectorAll<HTMLElement>("[data-editor-key]")).find((editor) => editor.dataset.editorKey === selectedTextKey);
+    const textBlock = selectedEditor?.closest<HTMLElement>("[data-section-key]");
+    if (!isPreviewMode && canvasSelectionActive && selectedTextKey && selectedEditor && textBlock?.dataset.sectionKey === selectedBlock) {
+      selectedEditor.setAttribute("data-selected-text", "true");
+      const outline = document.createElement("div");
+      outline.className = "email-template-text-selection-outline";
+      outline.setAttribute("aria-hidden", "true");
+      textBlock.appendChild(outline);
+      const handle = makeHandle("text");
+      handle.title = "Arrow keys move 1 px. Hold Command (Ctrl on Windows) while dragging to disable snapping";
+      handle.classList.add("email-template-text-drag-handle");
+      textBlock.appendChild(handle);
+      const verticalGuide = document.createElement("div");
+      verticalGuide.className = "email-template-center-guide email-template-center-guide-vertical";
+      verticalGuide.setAttribute("aria-hidden", "true");
+      const horizontalGuide = document.createElement("div");
+      horizontalGuide.className = "email-template-center-guide email-template-center-guide-horizontal";
+      horizontalGuide.setAttribute("aria-hidden", "true");
+      textBlock.append(verticalGuide, horizontalGuide);
+      const position = textPositionsRef.current[selectedTextKey] ?? { x: 0, y: 0 };
+      const textBounds = () => {
+        const range = document.createRange();
+        range.selectNodeContents(selectedEditor);
+        const bounds = range.getBoundingClientRect();
+        return bounds.width && bounds.height ? bounds : selectedEditor.getBoundingClientRect();
+      };
+      const placeHandle = () => {
+        const bounds = textBounds();
+        const parentBounds = textBlock.getBoundingClientRect();
+        handle.style.left = `${(bounds.left + bounds.width / 2 - parentBounds.left) / zoomScale}px`;
+        handle.style.top = `${Math.max(4, (bounds.top - parentBounds.top) / zoomScale - 30)}px`;
+        outline.style.left = `${(bounds.left - parentBounds.left) / zoomScale - 4}px`;
+        outline.style.top = `${(bounds.top - parentBounds.top) / zoomScale - 4}px`;
+        outline.style.width = `${bounds.width / zoomScale + 8}px`;
+        outline.style.height = `${bounds.height / zoomScale + 8}px`;
+      };
+      placeHandle();
+      nudgeSelected = (dx, dy) => {
+        const current = textPositionsRef.current[selectedTextKey] ?? { x: 0, y: 0 };
+        const bounds = textBounds();
+        const parentBounds = textBlock.getBoundingClientRect();
+        const minX = current.x + (parentBounds.left + 12 * zoomScale - bounds.left) / zoomScale;
+        const maxX = current.x + (parentBounds.right - 12 * zoomScale - bounds.right) / zoomScale;
+        const minY = current.y + (parentBounds.top + 12 * zoomScale - bounds.top) / zoomScale;
+        const maxY = current.y + (parentBounds.bottom - 12 * zoomScale - bounds.bottom) / zoomScale;
+        const x = Math.max(minX, Math.min(maxX, current.x + dx));
+        const y = Math.max(minY, Math.min(maxY, current.y + dy));
+        textPositionsRef.current[selectedTextKey] = { x, y };
+        setTextPositions({ ...textPositionsRef.current });
+        selectedEditor.style.transform = `translate(${x}px, ${y}px)`;
+        placeHandle();
+      };
+      const resizeObserver = new ResizeObserver(placeHandle);
+      resizeObserver.observe(selectedEditor);
+      selectedEditor.addEventListener("input", placeHandle);
+      let startX = 0;
+      let startY = 0;
+      let origin = position;
+      let originBounds = textBounds();
+      let parentBounds = textBlock.getBoundingClientRect();
+      const onPointerDown = (event: PointerEvent) => {
+        if (event.button !== 0) return;
+        event.preventDefault();
+        event.stopPropagation();
+        startX = event.clientX;
+        startY = event.clientY;
+        origin = { ...(textPositionsRef.current[selectedTextKey] ?? { x: 0, y: 0 }) };
+        originBounds = textBounds();
+        parentBounds = textBlock.getBoundingClientRect();
+        handle.setPointerCapture(event.pointerId);
+        handle.classList.add("email-template-drag-handle-active");
+      };
+      const onPointerMove = (event: PointerEvent) => {
+        if (!handle.hasPointerCapture(event.pointerId)) return;
+        event.preventDefault();
+        const minX = origin.x + (parentBounds.left + 12 * zoomScale - originBounds.left) / zoomScale;
+        const maxX = origin.x + (parentBounds.right - 12 * zoomScale - originBounds.right) / zoomScale;
+        const minY = origin.y + (parentBounds.top + 12 * zoomScale - originBounds.top) / zoomScale;
+        const maxY = origin.y + (parentBounds.bottom - 12 * zoomScale - originBounds.bottom) / zoomScale;
+        const rawX = Math.max(minX, Math.min(maxX, origin.x + (event.clientX - startX) / zoomScale));
+        const rawY = Math.max(minY, Math.min(maxY, origin.y + (event.clientY - startY) / zoomScale));
+        const offsetX = (originBounds.left + originBounds.width / 2 - parentBounds.left - parentBounds.width / 2) / zoomScale;
+        const offsetY = (originBounds.top + originBounds.height / 2 - parentBounds.top - parentBounds.height / 2) / zoomScale;
+        const centerX = origin.x - offsetX;
+        const centerY = origin.y - offsetY;
+        const disableSnap = event.metaKey || event.ctrlKey;
+        const snapX = !disableSnap && centerX >= minX && centerX <= maxX && Math.abs(rawX - centerX) <= 10 / zoomScale;
+        const snapY = !disableSnap && centerY >= minY && centerY <= maxY && Math.abs(rawY - centerY) <= 10 / zoomScale;
+        const x = snapX ? centerX : rawX;
+        const y = snapY ? centerY : rawY;
+        verticalGuide.classList.toggle("email-template-center-guide-visible", snapX);
+        horizontalGuide.classList.toggle("email-template-center-guide-visible", snapY);
+        textPositionsRef.current[selectedTextKey] = { x, y };
+        selectedEditor.style.transform = `translate(${x}px, ${y}px)`;
+        placeHandle();
+      };
+      const finishDrag = (event: PointerEvent) => {
+        if (!handle.hasPointerCapture(event.pointerId)) return;
+        handle.releasePointerCapture(event.pointerId);
+        handle.classList.remove("email-template-drag-handle-active");
+        verticalGuide.classList.remove("email-template-center-guide-visible");
+        horizontalGuide.classList.remove("email-template-center-guide-visible");
+        if (event.type === "pointercancel") {
+          textPositionsRef.current[selectedTextKey] = origin;
+          setTextPositions({ ...textPositionsRef.current });
+          selectedEditor.style.transform = `translate(${origin.x}px, ${origin.y}px)`;
+          placeHandle();
+        }
+        setTextPositions({ ...textPositionsRef.current });
+      };
+      handle.addEventListener("pointerdown", onPointerDown);
+      handle.addEventListener("pointermove", onPointerMove);
+      handle.addEventListener("pointerup", finishDrag);
+      handle.addEventListener("pointercancel", finishDrag);
+      textCleanup = () => {
+        resizeObserver.disconnect();
+        selectedEditor.removeEventListener("input", placeHandle);
+        handle.removeEventListener("pointerdown", onPointerDown);
+        handle.removeEventListener("pointermove", onPointerMove);
+        handle.removeEventListener("pointerup", finishDrag);
+        handle.removeEventListener("pointercancel", finishDrag);
+        handle.remove();
+        outline.remove();
+        selectedEditor.removeAttribute("data-selected-text");
+        verticalGuide.remove();
+        horizontalGuide.remove();
+      };
+    }
+    let imageCleanup = () => {};
+    const selectedImage = selectedImageKey ? canvasImages.find((image, index) => (image.dataset.imageKey ?? (image.closest('[data-editor-key="hero-eyebrow"]') ? "hero-logo" : `image-${index}`)) === selectedImageKey) : null;
+    const imageBlock = selectedImage?.closest<HTMLElement>("[data-section-key]");
+    if (!isPreviewMode && canvasSelectionActive && selectedImageKey && selectedImage && imageBlock) {
+      const outline = document.createElement("div");
+      outline.className = "email-template-image-selection-outline";
+      outline.setAttribute("aria-hidden", "true");
+      const handle = makeHandle("image");
+      handle.title = "Hold Command (Ctrl on Windows) while dragging to disable snapping";
+      handle.classList.add("email-template-image-drag-handle");
+      const verticalGuide = document.createElement("div");
+      verticalGuide.className = "email-template-center-guide email-template-center-guide-vertical";
+      verticalGuide.setAttribute("aria-hidden", "true");
+      const horizontalGuide = document.createElement("div");
+      horizontalGuide.className = "email-template-center-guide email-template-center-guide-horizontal";
+      horizontalGuide.setAttribute("aria-hidden", "true");
+      const corners = (["top-left", "top-right", "bottom-right", "bottom-left"] as const).map((corner) => {
+        const grip = document.createElement("div");
+        grip.className = `email-template-image-resize-handle email-template-image-resize-${corner}`;
+        grip.setAttribute("role", "button");
+        grip.setAttribute("tabindex", "0");
+        grip.setAttribute("aria-label", `Resize image from ${corner.replace("-", " ")}`);
+        grip.title = "Drag to resize image";
+        return { corner, grip };
+      });
+      imageBlock.append(verticalGuide, horizontalGuide, outline, handle, ...corners.map(({ grip }) => grip));
+      const getBounds = () => imageBlock.getBoundingClientRect();
+      const rotation = imageRotations[selectedImageKey] ?? 0;
+      const angle = rotation * Math.PI / 180;
+      const rotatedCorner = (width: number, height: number, signX: number, signY: number, centerX: number, centerY: number) => ({
+        x: centerX + (signX * width / 2 * Math.cos(angle) - signY * height / 2 * Math.sin(angle)) * zoomScale,
+        y: centerY + (signX * width / 2 * Math.sin(angle) + signY * height / 2 * Math.cos(angle)) * zoomScale,
+      });
+      const placeControls = () => {
+        const bounds = selectedImage.getBoundingClientRect();
+        const parentBounds = getBounds();
+        const centerX = bounds.left + bounds.width / 2;
+        const centerY = bounds.top + bounds.height / 2;
+        const styles = window.getComputedStyle(selectedImage);
+        const width = Number.parseFloat(styles.width) || selectedImage.offsetWidth;
+        const height = Number.parseFloat(styles.height) || selectedImage.offsetHeight;
+        outline.style.left = `${(centerX - parentBounds.left) / zoomScale - width / 2}px`;
+        outline.style.top = `${(centerY - parentBounds.top) / zoomScale - height / 2}px`;
+        outline.style.width = `${width}px`;
+        outline.style.height = `${height}px`;
+        outline.style.transform = `rotate(${rotation}deg)`;
+        const top = rotatedCorner(width, height, 0, -1, centerX, centerY);
+        handle.style.left = `${(top.x - parentBounds.left) / zoomScale}px`;
+        handle.style.top = `${(top.y - parentBounds.top) / zoomScale - 30}px`;
+        corners.forEach(({ corner, grip }) => {
+          const point = rotatedCorner(width, height, corner.endsWith("left") ? -1 : 1, corner.startsWith("top") ? -1 : 1, centerX, centerY);
+          grip.style.left = `${(point.x - parentBounds.left) / zoomScale}px`;
+          grip.style.top = `${(point.y - parentBounds.top) / zoomScale}px`;
+        });
+        const canvasBounds = canvas.getBoundingClientRect();
+        const handleBounds = handle.getBoundingClientRect();
+        setCanvasTopWorkspace((canvasBounds.top - handleBounds.top) / zoomScale);
+      };
+      placeControls();
+      const size = imageSizes[selectedImageKey] ?? { width: selectedImage.offsetWidth, height: selectedImage.offsetHeight };
+      selectedImage.style.maxWidth = "none";
+      selectedImage.style.maxHeight = "none";
+      const position = imagePositionsRef.current[selectedImageKey] ?? { x: 0, y: 0 };
+      const resizeObserver = new ResizeObserver(placeControls);
+      resizeObserver.observe(selectedImage);
+      let startX = 0;
+      let startY = 0;
+      let originPosition = position;
+      let originSize = size;
+      let originBounds = selectedImage.getBoundingClientRect();
+      let fixedCorner = { x: 0, y: 0 };
+      let movingImage = false;
+      const beginPointer = (event: PointerEvent, target: HTMLElement, corner?: string) => {
+        if (event.button !== 0) return;
+        event.preventDefault();
+        event.stopPropagation();
+        startX = event.clientX;
+        startY = event.clientY;
+        originPosition = imagePositionsRef.current[selectedImageKey] ?? { x: 0, y: 0 };
+        originSize = imageSizes[selectedImageKey] ?? { width: selectedImage.offsetWidth, height: selectedImage.offsetHeight };
+        originBounds = selectedImage.getBoundingClientRect();
+        movingImage = !corner;
+        if (corner) {
+          const bounds = selectedImage.getBoundingClientRect();
+          fixedCorner = rotatedCorner(originSize.width, originSize.height, corner.endsWith("left") ? 1 : -1, corner.startsWith("top") ? 1 : -1, bounds.left + bounds.width / 2, bounds.top + bounds.height / 2);
+        }
+        target.setPointerCapture(event.pointerId);
+        target.classList.add("email-template-drag-handle-active");
+      };
+      const moveImage = (event: PointerEvent) => {
+        if (!(event.currentTarget as HTMLElement).hasPointerCapture(event.pointerId)) return;
+        event.preventDefault();
+        const parentBounds = getBounds();
+        const rawX = originPosition.x + (event.clientX - startX) / zoomScale;
+        const rawY = originPosition.y + (event.clientY - startY) / zoomScale;
+        const centerX = originPosition.x + (parentBounds.left + parentBounds.width / 2 - originBounds.left - originBounds.width / 2) / zoomScale;
+        const centerY = originPosition.y + (parentBounds.top + parentBounds.height / 2 - originBounds.top - originBounds.height / 2) / zoomScale;
+        const disableSnap = event.metaKey || event.ctrlKey;
+        const snapX = !disableSnap && Math.abs(rawX - centerX) <= 10 / zoomScale;
+        const snapY = !disableSnap && Math.abs(rawY - centerY) <= 10 / zoomScale;
+        const nextX = snapX ? centerX : rawX;
+        const nextY = snapY ? centerY : rawY;
+        verticalGuide.classList.toggle("email-template-center-guide-visible", snapX);
+        horizontalGuide.classList.toggle("email-template-center-guide-visible", snapY);
+        imagePositionsRef.current[selectedImageKey] = { x: nextX, y: nextY };
+        selectedImage.style.transform = `translate(${nextX}px, ${nextY}px) rotate(${rotation}deg)`;
+        placeControls();
+      };
+      const resizeImage = (event: PointerEvent, corner: string, grip: HTMLElement) => {
+        if (!grip.hasPointerCapture(event.pointerId)) return;
+        event.preventDefault();
+        const ratio = originSize.height / Math.max(1, originSize.width);
+        const dx = (event.clientX - startX) / zoomScale;
+        const dy = (event.clientY - startY) / zoomScale;
+        const localX = dx * Math.cos(angle) + dy * Math.sin(angle);
+        const localY = -dx * Math.sin(angle) + dy * Math.cos(angle);
+        const signX = corner.endsWith("left") ? -1 : 1;
+        const signY = corner.startsWith("top") ? -1 : 1;
+        const deltaWidth = (localX * signX + localY * signY / ratio) / 2;
+        const nextWidth = Math.max(32, Math.min(1200, originSize.width + deltaWidth));
+        const nextSize = { width: nextWidth, height: nextWidth * ratio };
+        selectedImage.style.width = `${nextSize.width}px`;
+        selectedImage.style.height = `${nextSize.height}px`;
+        selectedImage.style.maxWidth = "none";
+        selectedImage.style.maxHeight = "none";
+        selectedImage.style.transform = `translate(${originPosition.x}px, ${originPosition.y}px) rotate(${rotation}deg)`;
+        const bounds = selectedImage.getBoundingClientRect();
+        const opposite = rotatedCorner(nextSize.width, nextSize.height, -signX, -signY, bounds.left + bounds.width / 2, bounds.top + bounds.height / 2);
+        const nextPosition = { x: originPosition.x + (fixedCorner.x - opposite.x) / zoomScale, y: originPosition.y + (fixedCorner.y - opposite.y) / zoomScale };
+        imagePositionsRef.current[selectedImageKey] = nextPosition;
+        selectedImage.style.transform = `translate(${nextPosition.x}px, ${nextPosition.y}px) rotate(${rotation}deg)`;
+        placeControls();
+      };
+      const finishImagePointer = (event: PointerEvent) => {
+        const target = event.currentTarget as HTMLElement;
+        if (!target.hasPointerCapture(event.pointerId)) return;
+        target.releasePointerCapture(event.pointerId);
+        target.classList.remove("email-template-drag-handle-active");
+        verticalGuide.classList.remove("email-template-center-guide-visible");
+        horizontalGuide.classList.remove("email-template-center-guide-visible");
+        if (event.type === "pointercancel") {
+          imagePositionsRef.current[selectedImageKey] = originPosition;
+          selectedImage.style.width = `${originSize.width}px`;
+          selectedImage.style.height = `${originSize.height}px`;
+          selectedImage.style.transform = `translate(${originPosition.x}px, ${originPosition.y}px) rotate(${rotation}deg)`;
+          setImagePositions({ ...imagePositionsRef.current });
+          setImageSizes((current) => ({ ...current, [selectedImageKey]: originSize }));
+        } else {
+          const styles = window.getComputedStyle(selectedImage);
+          const finishedSize = { width: Number.parseFloat(styles.width), height: Number.parseFloat(styles.height) };
+          const targetBlock = movingImage && canvasUploads.some((upload) => upload.key === selectedImageKey)
+            ? blocks.find((block) => {
+              const bounds = block.getBoundingClientRect();
+              return event.clientX >= bounds.left && event.clientX <= bounds.right && event.clientY >= bounds.top && event.clientY <= bounds.bottom;
+            })
+            : null;
+          const targetSection = targetBlock?.dataset.sectionKey as EmailSectionKey | undefined;
+          if (targetBlock && targetSection && targetBlock !== imageBlock) {
+            const bounds = targetBlock.getBoundingClientRect();
+            const nextLeft = Math.max(0, Math.min(targetBlock.clientWidth - finishedSize.width, (event.clientX - bounds.left) / zoomScale - finishedSize.width / 2));
+            const nextTop = Math.max(0, Math.min(targetBlock.clientHeight - finishedSize.height, (event.clientY - bounds.top) / zoomScale - finishedSize.height / 2));
+            imagePositionsRef.current[selectedImageKey] = { x: 0, y: 0 };
+            setCanvasUploads((current) => current.map((upload) => upload.key === selectedImageKey ? { ...upload, section: targetSection, left: nextLeft, top: nextTop, width: finishedSize.width, height: finishedSize.height } : upload));
+            setHiddenSections((current) => current.filter((section) => section !== targetSection));
+            setSelectedBlock(targetSection);
+          }
+          setImagePositions({ ...imagePositionsRef.current });
+          setImageSizes((current) => ({ ...current, [selectedImageKey]: finishedSize }));
+        }
+        movingImage = false;
+        placeControls();
+      };
+      const beginMove = (event: PointerEvent) => beginPointer(event, handle);
+      handle.addEventListener("pointerdown", beginMove);
+      handle.addEventListener("pointermove", moveImage);
+      handle.addEventListener("pointerup", finishImagePointer);
+      handle.addEventListener("pointercancel", finishImagePointer);
+      const beginImageMove = (event: PointerEvent) => beginPointer(event, selectedImage);
+      selectedImage.addEventListener("pointerdown", beginImageMove);
+      selectedImage.addEventListener("pointermove", moveImage);
+      selectedImage.addEventListener("pointerup", finishImagePointer);
+      selectedImage.addEventListener("pointercancel", finishImagePointer);
+      const resizeListeners = corners.map(({ corner, grip }) => {
+        const onDown = (event: PointerEvent) => beginPointer(event, grip, corner);
+        const onMove = (event: PointerEvent) => resizeImage(event, corner, grip);
+        grip.addEventListener("pointerdown", onDown);
+        grip.addEventListener("pointermove", onMove);
+        grip.addEventListener("pointerup", finishImagePointer);
+        grip.addEventListener("pointercancel", finishImagePointer);
+        return () => {
+          grip.removeEventListener("pointerdown", onDown);
+          grip.removeEventListener("pointermove", onMove);
+          grip.removeEventListener("pointerup", finishImagePointer);
+          grip.removeEventListener("pointercancel", finishImagePointer);
+          grip.remove();
+        };
+      });
+      imageCleanup = () => {
+        resizeObserver.disconnect();
+        handle.removeEventListener("pointerdown", beginMove);
+        handle.removeEventListener("pointermove", moveImage);
+        handle.removeEventListener("pointerup", finishImagePointer);
+        handle.removeEventListener("pointercancel", finishImagePointer);
+        selectedImage.removeEventListener("pointerdown", beginImageMove);
+        selectedImage.removeEventListener("pointermove", moveImage);
+        selectedImage.removeEventListener("pointerup", finishImagePointer);
+        selectedImage.removeEventListener("pointercancel", finishImagePointer);
+        resizeListeners.forEach((cleanup) => cleanup());
+        outline.remove();
+        handle.remove();
+        verticalGuide.remove();
+        horizontalGuide.remove();
+        setCanvasTopWorkspace(0);
+      };
+    }
+    const onArrowKey = (event: KeyboardEvent) => {
+      if (!nudgeSelected || (selectedTextKey !== null && editingTextKey === selectedTextKey) || event.altKey || event.metaKey || event.ctrlKey || event.shiftKey) return;
+      const delta = event.key === "ArrowLeft" ? [-1, 0] : event.key === "ArrowRight" ? [1, 0] : event.key === "ArrowUp" ? [0, -1] : event.key === "ArrowDown" ? [0, 1] : null;
+      if (!delta) return;
+      const target = event.target;
+      if (target instanceof Element && target.closest("input, textarea, select, [role='textbox']")) return;
+      if (document.activeElement && document.activeElement !== document.body && !canvas.contains(document.activeElement)) return;
+      const editable = target instanceof Element ? target.closest('[contenteditable="true"]') : null;
+      if (editable && editable !== selectedEditor) return;
+      event.preventDefault();
+      nudgeSelected(delta[0], delta[1]);
+    };
+    document.addEventListener("keydown", onArrowKey);
+    return () => {
+      document.removeEventListener("keydown", onArrowKey);
+      textCleanup();
+      imageCleanup();
+      buttonCleanup();
+      cleanups.forEach((cleanup) => cleanup());
+      blocks.forEach((block) => {
+        block.classList.remove("email-template-sortable-block", "email-template-sortable-block-dragging", "email-template-drop-before", "email-template-drop-after");
+        block.removeAttribute("data-section-key");
+        block.style.order = "";
+        block.style.borderTop = "";
+        block.style.borderBottom = "";
+        block.style.borderLeft = "";
+        block.style.borderRight = "";
+      });
+      canvas.style.display = "";
+      canvas.style.flexDirection = "";
+      canvas.style.overflow = "";
+      canvas.style.border = "";
+      canvas.style.boxSizing = "";
+    };
+  }, [canvasSelectionActive, canvasUploads, editingTextKey, emailBorderColor, emailBorderWidth, emailFormat, heroEyebrow, imagePositions, imageRotations, imageSelectionVersion, imageSizes, isPreviewMode, sectionBorderColors, sectionBorderSides, sectionBorderWidths, sectionOrder, selectedBlock, selectedImageKey, selectedTextKey, zoom]);
 
   function toggleSidebarTool(tool: NonNullable<typeof activeSidebarTool>) {
+    if (tool !== "uploads" || activeSidebarTool === "uploads") setBackgroundPickerSection(null);
     setActiveSidebarTool((current) => current === tool ? null : tool);
+  }
+
+  function chooseSectionBackground() {
+    setBackgroundPickerSection(selectedSection);
+    setActiveSidebarTool("uploads");
+  }
+
+  function setSelectedSectionBackground(upload: EmailUploadAsset) {
+    if (!backgroundPickerSection || !upload.public_url || isPreviewMode) return;
+    const section = backgroundPickerSection;
+    setSectionBackgrounds((current) => ({ ...current, [section]: upload }));
+    setSelectedBlock(section);
+    setSelectedImageKey(null);
+    setSelectedTextKey(null);
+    setCanvasSelectionActive(true);
+    setBackgroundPickerSection(null);
+    setActiveSidebarTool("design");
+  }
+
+  function removeSectionBackground(section: EmailSectionKey) {
+    setSectionBackgrounds((current) => {
+      const next = { ...current };
+      delete next[section];
+      return next;
+    });
+  }
+
+  async function insertUpload(upload: EmailUploadAsset, section: EmailSectionKey = selectedBlock === "button" ? "hero" : selectedBlock, point?: { x: number; y: number }) {
+    if (!upload.public_url || isPreviewMode) return;
+    const canvas = document.querySelector<HTMLElement>("main section");
+    const sectionIndex = { hero: 0, text: 1, image: 2, divider: 3, footer: 4 }[section];
+    const block = canvas?.children[sectionIndex] as HTMLElement | undefined;
+    const natural = new window.Image();
+    natural.src = upload.public_url;
+    await natural.decode().catch(() => undefined);
+    const aspect = natural.naturalWidth && natural.naturalHeight ? natural.naturalWidth / natural.naturalHeight : 4 / 3;
+    const availableWidth = Math.max(64, (block?.clientWidth ?? 640) - 48);
+    const availableHeight = Math.max(64, (block?.clientHeight ?? Number(sectionHeights[section])) - 32);
+    const width = Math.max(32, Math.min(280, natural.naturalWidth || 280, availableWidth, availableHeight * aspect));
+    const height = width / aspect;
+    const left = Math.max(0, Math.min((block?.clientWidth ?? 640) - width, (point?.x ?? (block?.clientWidth ?? 640) / 2) - width / 2));
+    const top = Math.max(0, Math.min((block?.clientHeight ?? Number(sectionHeights[section])) - height, (point?.y ?? (block?.clientHeight ?? Number(sectionHeights[section])) / 2) - height / 2));
+    const key = `upload-${crypto.randomUUID()}`;
+    setCanvasUploads((current) => [...current, { ...upload, key, section, left, top, width, height }]);
+    setImageSizes((current) => ({ ...current, [key]: { width, height } }));
+    setHiddenSections((current) => current.filter((item) => item !== section));
+    setSelectedImageKey(key);
+    setSelectedBlock(section);
+    setSelectedTextKey(null);
+    setCanvasSelectionActive(true);
+    setActiveSidebarTool("design");
+  }
+
+  function removeSelectedUpload() {
+    if (!selectedImageKey || !canvasUploads.some((upload) => upload.key === selectedImageKey)) return;
+    const key = selectedImageKey;
+    setCanvasUploads((current) => current.filter((upload) => upload.key !== key));
+    setImagePositions((current) => { const next = { ...current }; delete next[key]; imagePositionsRef.current = next; return next; });
+    setImageSizes((current) => { const next = { ...current }; delete next[key]; return next; });
+    setImageRotations((current) => { const next = { ...current }; delete next[key]; return next; });
+    setImageLayers((current) => { const next = { ...current }; delete next[key]; return next; });
+    setSelectedImageKey(null);
+  }
+
+  function renderCanvasUploads(section: EmailSectionKey) {
+    return canvasUploads.filter((upload) => upload.section === section).map((upload) => {
+      const layer = imageLayers[upload.key] ?? "foreground";
+      return <div key={upload.key} className="email-template-upload-layer pointer-events-none absolute inset-0 overflow-hidden" style={{ zIndex: layer === "background" ? 0 : 10 }}><img data-image-key={upload.key} data-image-layer={layer} src={upload.public_url} alt={upload.original_name} draggable={false} className="pointer-events-auto" style={{ position: "absolute", left: upload.left, top: upload.top, width: upload.width, height: upload.height, maxWidth: "none", maxHeight: "none", objectFit: "contain", cursor: "grab", touchAction: "none" }} /></div>;
+    });
+  }
+
+  function dragUploadOverCanvas(event: React.DragEvent<HTMLElement>) {
+    if (!event.dataTransfer.types.includes(EMAIL_UPLOAD_DRAG_MIME)) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+  }
+
+  function dropUploadOnCanvas(event: React.DragEvent<HTMLElement>) {
+    const data = event.dataTransfer.getData(EMAIL_UPLOAD_DRAG_MIME);
+    if (!data) return;
+    event.preventDefault();
+    event.stopPropagation();
+    let upload: EmailUploadAsset;
+    try { upload = JSON.parse(data) as EmailUploadAsset; } catch { return; }
+    if (typeof upload.id !== "string" || typeof upload.original_name !== "string" || typeof upload.public_url !== "string") return;
+    const target = event.target instanceof Element ? event.target.closest<HTMLElement>("[data-section-key]") : null;
+    const sectionKey = target?.dataset.sectionKey;
+    const section: EmailSectionKey = sectionKey === "hero" || sectionKey === "text" || sectionKey === "image" || sectionKey === "divider" || sectionKey === "footer"
+      ? sectionKey
+      : selectedBlock === "button" ? "hero" : selectedBlock;
+    const block = target ?? event.currentTarget.children[{ hero: 0, text: 1, image: 2, divider: 3, footer: 4 }[section]] as HTMLElement;
+    const bounds = block.getBoundingClientRect();
+    void insertUpload(upload, section, { x: (event.clientX - bounds.left) / (zoom / 100), y: (event.clientY - bounds.top) / (zoom / 100) });
   }
 
   function rememberTextSelection(editor: HTMLElement) {
@@ -155,17 +1395,6 @@ export function CreateTemplatePage({ channel, initialFormat }: { channel: string
     const range = selection.getRangeAt(0);
     if (!editor.contains(range.commonAncestorContainer)) return;
     activeTextEditorRef.current = editor;
-    savedTextSelectionRef.current = range.cloneRange();
-  }
-
-  function selectTextEditorContents(editor: HTMLElement) {
-    editor.focus();
-    const selection = window.getSelection();
-    if (!selection) return;
-    const range = document.createRange();
-    range.selectNodeContents(editor);
-    selection.removeAllRanges();
-    selection.addRange(range);
     savedTextSelectionRef.current = range.cloneRange();
   }
 
@@ -183,15 +1412,59 @@ export function CreateTemplatePage({ channel, initialFormat }: { channel: string
     if (color) setTextColor(`#${[color[1], color[2], color[3]].map((channel) => Number(channel).toString(16).padStart(2, "0")).join("")}`);
   }
 
-  function activateTextEditor(event?: React.SyntheticEvent<HTMLElement>) {
-    const editor = event?.currentTarget ?? activeTextEditorRef.current;
-    if (!editor) return;
+  function prepareTextSelection(event: React.MouseEvent<HTMLElement>) {
+    if (event.detail === 1 && editingTextKey !== event.currentTarget.dataset.editorKey) event.preventDefault();
+  }
+
+  function selectTextContainer(event: React.MouseEvent<HTMLElement>, block: EmailSectionKey) {
+    event.stopPropagation();
+    if (event.detail > 1) return;
+    const editor = event.currentTarget;
+    const editorKey = editor.dataset.editorKey;
+    if (!editorKey || editingTextKey === editorKey) return;
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
     activeTextEditorRef.current = editor;
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    savedTextSelectionRef.current = range;
+    setEditingTextKey(null);
+    setSelectedImageKey(null);
+    setSelectedTextKey(editorKey);
+    setSelectedBlock(block);
+    setCanvasSelectionActive(true);
     setActiveSidebarTool("design");
     setTextToolbarOpen(true);
-    if (!applyingTextCommandRef.current) syncTextFormatControls(editor);
-    selectTextEditorContents(editor);
-    window.requestAnimationFrame(() => rememberTextSelection(editor));
+    syncTextFormatControls(editor);
+  }
+
+  function beginTextEditing(event: React.MouseEvent<HTMLElement>, block: EmailSectionKey) {
+    event.stopPropagation();
+    const editor = event.currentTarget;
+    const editorKey = editor.dataset.editorKey;
+    if (!editorKey) return;
+    const { clientX, clientY } = event;
+    activeTextEditorRef.current = editor;
+    setSelectedTextKey(editorKey);
+    setSelectedImageKey(null);
+    setSelectedBlock(block);
+    setCanvasSelectionActive(true);
+    setActiveSidebarTool("design");
+    setTextToolbarOpen(true);
+    setEditingTextKey(editorKey);
+    syncTextFormatControls(editor);
+    window.requestAnimationFrame(() => {
+      editor.focus();
+      const range = document.caretRangeFromPoint(clientX, clientY);
+      const caret = range && editor.contains(range.startContainer) ? range : document.createRange();
+      if (caret !== range) {
+        caret.selectNodeContents(editor);
+        caret.collapse(false);
+      }
+      const selection = window.getSelection();
+      selection?.removeAllRanges();
+      selection?.addRange(caret);
+      rememberTextSelection(editor);
+    });
   }
 
   function commitTextEditorContent(editor: HTMLElement) {
@@ -204,6 +1477,9 @@ export function CreateTemplatePage({ channel, initialFormat }: { channel: string
       case "body-heading": setBodyHeading(editorContent); break;
       case "body-description": setBodyDescription(editorContent); break;
       case "image-placeholder": setImagePlaceholder(editorContent); break;
+      case "footer-company": setFooterCompany(editorContent); break;
+      case "footer-note": setFooterNote(editorContent); break;
+      case "footer-unsubscribe": setFooterUnsubscribeText(editorContent); break;
     }
     editor.dispatchEvent(new Event("input", { bubbles: true }));
   }
@@ -222,9 +1498,8 @@ export function CreateTemplatePage({ channel, initialFormat }: { channel: string
   function applyTextWeight(weight: string) {
     const editor = activeTextEditorRef.current;
     if (!editor) return;
-    applyingTextCommandRef.current = true;
+    const keepEditing = editingTextKey === editor.dataset.editorKey;
     editor.focus();
-    applyingTextCommandRef.current = false;
     const selection = restoreTextSelection(editor);
     if (!selection?.rangeCount) return;
     editor.querySelectorAll<HTMLElement>("[style*='font-weight']").forEach((element) => element.style.removeProperty("font-weight"));
@@ -238,18 +1513,25 @@ export function CreateTemplatePage({ channel, initialFormat }: { channel: string
     savedTextSelectionRef.current = selection.getRangeAt(0).cloneRange();
     setTextFontWeight(weight);
     commitTextEditorContent(editor);
+    if (!keepEditing) {
+      editor.blur();
+      selection.removeAllRanges();
+    }
   }
 
   function applyTextCommand(command: string, value?: string) {
     const editor = activeTextEditorRef.current;
     if (!editor) return;
-    applyingTextCommandRef.current = true;
+    const keepEditing = editingTextKey === editor.dataset.editorKey;
     editor.focus();
-    applyingTextCommandRef.current = false;
     const selection = restoreTextSelection(editor);
     document.execCommand(command, false, value ?? "");
     savedTextSelectionRef.current = selection?.rangeCount ? selection.getRangeAt(0).cloneRange() : null;
     commitTextEditorContent(editor);
+    if (!keepEditing) {
+      editor.blur();
+      selection?.removeAllRanges();
+    }
   }
 
   function addTextLink() {
@@ -299,8 +1581,10 @@ export function CreateTemplatePage({ channel, initialFormat }: { channel: string
     function handleTextToolbarOutsideClick(event: MouseEvent) {
       const target = event.target as Node;
       const activeEditor = activeTextEditorRef.current;
+      if (target instanceof Element && target.closest(".email-template-drag-handle")) return;
       if (activeEditor?.contains(target) || textToolbarRef.current?.contains(target)) return;
       setTextToolbarOpen(false);
+      setEditingTextKey(null);
       activeTextEditorRef.current = null;
       savedTextSelectionRef.current = null;
       if (!(target instanceof Element) || !target.closest("aside")) {
@@ -313,9 +1597,80 @@ export function CreateTemplatePage({ channel, initialFormat }: { channel: string
     return () => document.removeEventListener("mousedown", handleTextToolbarOutsideClick);
   }, [textToolbarOpen]);
 
-  const selectedSectionLabel = selectedBlock === "hero" ? "Hero section" : selectedBlock === "text" ? "Text section" : selectedBlock === "image" ? "Image section" : selectedBlock === "button" ? "Hero button" : "Divider";
+  React.useEffect(() => {
+    function clearTextSelectionOnCanvasClick(event: MouseEvent) {
+      const target = event.target;
+      if (target instanceof Element && target.closest("main") && !target.closest("[data-editor-key], .email-template-drag-handle, .email-template-image-resize-handle")) {
+        setSelectedTextKey(null);
+        setEditingTextKey(null);
+        if (!target.closest("img")) setSelectedImageKey(null);
+      }
+    }
+    document.addEventListener("mousedown", clearTextSelectionOnCanvasClick);
+    return () => document.removeEventListener("mousedown", clearTextSelectionOnCanvasClick);
+  }, []);
+
+  const selectedSectionLabel = selectedBlock === "hero" ? "Hero section" : selectedBlock === "text" ? "Text section" : selectedBlock === "image" ? "Image section" : selectedBlock === "button" ? "Hero button" : selectedBlock === "footer" ? "Footer section" : "Divider";
   const selectedSection = selectedBlock === "button" ? "hero" : selectedBlock;
+  const selectedSectionIndex = sectionOrder.indexOf(selectedSection);
+  const visibleSectionOrder = sectionOrder.filter((section) => !hiddenSections.includes(section) && !deletedSections.includes(section));
+  const visibleSectionIndex = visibleSectionOrder.indexOf(selectedSection);
+  const canMoveSectionUp = visibleSectionIndex > 0;
+  const canMoveSectionDown = visibleSectionIndex >= 0 && visibleSectionIndex < visibleSectionOrder.length - 1;
+
+  function sectionCanvasStyle(section: EmailSectionKey): React.CSSProperties {
+    const background = sectionBackgrounds[section];
+    return {
+      backgroundColor: sectionColors[section],
+      backgroundImage: background ? `url("${background.public_url.replace(/"/g, "%22")}")` : undefined,
+      backgroundPosition: background ? "center" : undefined,
+      backgroundRepeat: background ? "no-repeat" : undefined,
+      backgroundSize: background ? "cover" : undefined,
+    };
+  }
+
+  function moveSelectedSection(direction: -1 | 1) {
+    if (selectedBlock === "button" || selectedSectionIndex < 0 || visibleSectionIndex < 0) return;
+    const neighboringSection = visibleSectionOrder[visibleSectionIndex + direction];
+    if (!neighboringSection) return;
+    setSectionOrder((current) => {
+      const next = [...current];
+      const neighboringIndex = next.indexOf(neighboringSection);
+      [next[selectedSectionIndex], next[neighboringIndex]] = [next[neighboringIndex], next[selectedSectionIndex]];
+      return next;
+    });
+  }
+  const emailBackgroundControls = <div className="mt-0 min-h-full bg-white text-[#222]">
+    <div className="border-b border-[#e9eaec] px-5 py-4">
+      <p className="text-[14px] font-semibold tracking-[-0.01em] text-[#222]">Email background</p>
+      <p className="mt-1 text-[11px] leading-5 text-[#8b8f94]">This color appears around the email content in recipients’ inboxes.</p>
+    </div>
+    <div className="border-b border-[#e9eaec] px-5 py-5">
+      <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#8b9095]">Background color</p>
+      <FigmaColorRow label="Email background color" color={emailBackgroundColor} onChange={setEmailBackgroundColor} />
+    </div>
+    <div className="border-b border-[#e9eaec] px-5 py-5">
+      <p className="mb-1 text-[14px] font-semibold tracking-[-0.01em]">Email outline</p>
+      <p className="mb-4 text-[11px] leading-5 text-[#8b8f94]">Draws a border around the entire email sheet.</p>
+      <div className="space-y-4">
+        <ScrubField label="Stroke weight" value={emailBorderWidth} onChange={setEmailBorderWidth} min={0} max={20} suffix="px" />
+        <div><p className="mb-2 text-[11px] text-[#8b8f94]">Stroke color</p><FigmaColorRow label="Email outline color" color={emailBorderColor} onChange={setEmailBorderColor} /></div>
+      </div>
+    </div>
+  </div>;
   const buttonControls = <>
+    <div className="border-b border-[#e5e6e8] px-5 py-5">
+      <p className="mb-4 text-[14px] font-semibold tracking-[-0.01em]">Button content</p>
+      <label className="block"><span className="mb-1.5 block text-[11px] text-[#8b8f94]">Text</span><input value={heroButtonLabel.replace(/<[^>]*>/g, "")} onChange={(event) => setHeroButtonLabel(event.target.value)} placeholder="Button label" className="h-9 w-full rounded-lg bg-[#f5f5f5] px-3 text-[12px] text-[#222] outline-none transition focus:bg-[#eeeeef] focus:ring-2 focus:ring-[#dff3f6]" /></label>
+      <div className="mt-4 space-y-3">
+        <ToolbarDropdown id="button-font" openId={openTextDropdown} setOpenId={setOpenTextDropdown} label="Button font family" value={buttonFontFamily} width="w-full" options={[{ value: "Geist", label: "Geist" }, { value: "Arial", label: "Arial" }, { value: "Georgia", label: "Georgia" }, { value: "Tahoma", label: "Tahoma" }, { value: "Verdana", label: "Verdana" }, { value: "Trebuchet MS", label: "Trebuchet" }]} onChange={setButtonFontFamily} />
+        <div className="grid grid-cols-2 gap-3">
+          <ToolbarDropdown id="button-weight" openId={openTextDropdown} setOpenId={setOpenTextDropdown} label="Button font weight" value={buttonFontWeight} width="w-full" options={[{ value: "400", label: "Regular" }, { value: "500", label: "Medium" }, { value: "600", label: "Semibold" }, { value: "700", label: "Bold" }]} onChange={setButtonFontWeight} />
+          <ToolbarDropdown key={`button-font-size-${buttonFontSize}`} id="button-font-size" openId={openTextDropdown} setOpenId={setOpenTextDropdown} label="Button font size" value={buttonFontSize} width="w-full" editable options={textFontSizes.map((option) => ({ value: option.command, label: String(option.pixels) }))} onChange={setButtonFontSize} />
+        </div>
+      </div>
+      <div className="mt-4"><p className="mb-2 text-[11px] text-[#8b8f94]">Text color</p><FigmaColorRow label="Button text color" color={buttonTextColor} onChange={setButtonTextColor} /></div>
+    </div>
     <div className="border-b border-[#e5e6e8] px-5 py-5">
       <p className="mb-4 text-[14px] font-semibold tracking-[-0.01em]">Layout</p>
       <div className="grid grid-cols-2 gap-3">
@@ -331,30 +1686,441 @@ export function CreateTemplatePage({ channel, initialFormat }: { channel: string
     </div>
     <div className="px-5 py-5"><label className="block"><span className="mb-1.5 block text-[11px] text-[#8b8f94]">Button URL</span><div className="flex h-9 items-center rounded-lg bg-[#f5f5f5] px-3 focus-within:bg-[#eeeeef]"><input type="url" value={actionUrl} onChange={(event) => setActionUrl(event.target.value)} placeholder="https://example.com" className="min-w-0 flex-1 bg-transparent text-[12px] text-[#222] outline-none placeholder:text-[#9b9da0]" /></div></label></div>
   </>;
-  const selectedSectionControls = <div className="mt-0 min-h-full bg-white text-[#222]"><div className="flex items-center justify-between border-b border-[#e9eaec] px-5 py-4"><div><p className="text-[14px] font-semibold tracking-[-0.01em] text-[#222]">{textToolbarOpen ? "Text formatting" : selectedSectionLabel}</p></div>{!textToolbarOpen && selectedBlock !== "button" ? <span className="h-2.5 w-2.5 rounded-full ring-2 ring-[#f1f2f3]" style={{ backgroundColor: sectionColors[selectedSection] }} /> : null}</div>
-{textToolbarOpen ? textFormattingToolbar : null}
-{!textToolbarOpen && selectedBlock === "button" ? buttonControls : null}
-{!textToolbarOpen && selectedBlock !== "button" ? <div className="border-b border-[#e9eaec] px-5 py-5"><p className="mb-4 text-[14px] font-semibold tracking-[-0.01em]">Layout</p><ScrubField label="Height" value={sectionHeights[selectedSection]} onChange={(value) => setSectionHeights((current) => ({ ...current, [selectedSection]: value }))} min={48} max={1200} prefix="H" suffix="px" /></div> : null}
-<div className={cn("border-b border-[#e9eaec] px-5 py-5", selectedBlock === "button" || textToolbarOpen ? "hidden" : "")}><p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#8b9095]">Section fill</p><FigmaColorRow label="Section fill" color={sectionColors[selectedSection]} onChange={(color) => setSectionColors((current) => ({ ...current, [selectedSection]: color }))} /></div><div className={cn("px-5 py-4", selectedBlock === "button" || textToolbarOpen ? "hidden" : "")}><button type="button" onClick={() => { setHiddenSections((current) => current.includes(selectedSection) ? current : [...current, selectedSection]); setActiveSidebarTool(null); }} className="flex h-9 w-full items-center justify-center rounded-lg border border-red-200 bg-white text-[11px] font-medium text-red-600 transition hover:bg-red-50">Delete section</button></div></div>;
+  const selectedImageSize = selectedImageKey ? imageSizes[selectedImageKey] : null;
+  const selectedImageIsUpload = Boolean(selectedImageKey && canvasUploads.some((upload) => upload.key === selectedImageKey));
+  const selectedImageLayer = selectedImageKey ? imageLayers[selectedImageKey] ?? "foreground" : "foreground";
+  const selectedSectionBackground = sectionBackgrounds[selectedSection];
+  const imageControls = selectedImageKey ? <>
+    <div className="border-b border-[#e5e6e8] px-5 py-5">
+      <p className="mb-4 text-[14px] font-semibold tracking-[-0.01em]">Dimensions</p>
+      <div className="grid grid-cols-2 gap-3">
+        <ScrubField label="Width" value={String(Math.round(selectedImageSize?.width ?? 0))} onChange={(value) => { const width = Number(value); if (Number.isFinite(width) && width >= 1) setImageSizes((current) => ({ ...current, [selectedImageKey]: { width: Math.min(1200, width), height: current[selectedImageKey]?.height ?? 1 } })); }} min={1} max={1200} prefix="W" suffix="px" />
+        <ScrubField label="Height" value={String(Math.round(selectedImageSize?.height ?? 0))} onChange={(value) => { const height = Number(value); if (Number.isFinite(height) && height >= 1) setImageSizes((current) => ({ ...current, [selectedImageKey]: { width: current[selectedImageKey]?.width ?? 1, height: Math.min(1200, height) } })); }} min={1} max={1200} prefix="H" suffix="px" />
+      </div>
+      <div className="mt-5 border-t border-[#eef0f1] pt-5">
+        <ScrubField label="Rotation" value={String(imageRotations[selectedImageKey] ?? 0)} onChange={(value) => { const rotation = Number(value); if (Number.isFinite(rotation)) setImageRotations((current) => ({ ...current, [selectedImageKey]: Math.max(-180, Math.min(180, rotation)) })); }} min={-180} max={180} suffix="°" />
+      </div>
+    </div>
+    {selectedImageIsUpload ? <div className="border-b border-[#e5e6e8] px-5 py-5"><p className="mb-3 text-[14px] font-semibold tracking-[-0.01em]">Layer</p><div className="grid grid-cols-2 gap-2 rounded-lg bg-[#f5f5f5] p-1"><button type="button" aria-pressed={selectedImageLayer === "foreground"} onClick={() => setImageLayers((current) => ({ ...current, [selectedImageKey]: "foreground" }))} className={cn("h-8 rounded-md text-[11px] font-medium transition", selectedImageLayer === "foreground" ? "bg-white text-[#4d9eae] shadow-sm" : "text-[#777] hover:text-[#444]")}>Foreground</button><button type="button" aria-pressed={selectedImageLayer === "background"} onClick={() => setImageLayers((current) => ({ ...current, [selectedImageKey]: "background" }))} className={cn("h-8 rounded-md text-[11px] font-medium transition", selectedImageLayer === "background" ? "bg-white text-[#4d9eae] shadow-sm" : "text-[#777] hover:text-[#444]")}>Background</button></div><p className="mt-2 text-[11px] leading-5 text-[#8b8f94]">Background images stay behind this section’s content.</p></div> : null}
+    {selectedImageKey === "hero-logo" ? <div className="px-5 py-5"><button type="button" onClick={() => logoInputRef.current?.click()} className="h-9 w-full rounded-lg border border-[#dfe4e6] text-[11px] font-medium text-[#555] transition hover:bg-[#f5fafb]">Replace image</button></div> : null}
+    {canvasUploads.some((upload) => upload.key === selectedImageKey) ? <div className="px-5 py-5"><button type="button" onClick={removeSelectedUpload} className="h-9 w-full rounded-lg border border-red-200 text-[11px] font-medium text-red-600 transition hover:bg-red-50">Delete image</button></div> : null}
+  </> : null;
+  const selectedSectionControlsBase = !canvasSelectionActive ? emailBackgroundControls : <div className="mt-0 min-h-full bg-white text-[#222]"><div className="flex items-center justify-between border-b border-[#e9eaec] px-5 py-4"><div><p className="text-[14px] font-semibold tracking-[-0.01em] text-[#222]">{selectedImageKey ? "Image" : textToolbarOpen ? "Text formatting" : selectedSectionLabel}</p></div></div>
+{selectedImageKey ? imageControls : null}
+{!selectedImageKey && textToolbarOpen ? textFormattingToolbar : null}
+{!textToolbarOpen && !selectedImageKey && selectedBlock === "button" ? buttonControls : null}
+{!textToolbarOpen && !selectedImageKey && selectedBlock !== "button" ? <div className="border-b border-[#e9eaec] px-5 py-5"><p className="mb-4 text-[14px] font-semibold tracking-[-0.01em]">Layout</p><ScrubField label="Height" value={sectionHeights[selectedSection]} onChange={(value) => setSectionHeights((current) => ({ ...current, [selectedSection]: value }))} min={48} max={1200} prefix="H" suffix="px" /></div> : null}
+{!textToolbarOpen && !selectedImageKey && selectedBlock !== "button" ? <div className="border-b border-[#e9eaec] px-5 py-5"><p className="mb-3 text-[14px] font-semibold tracking-[-0.01em]">Section order</p><div className="grid grid-cols-2 gap-2"><button type="button" onClick={() => moveSelectedSection(-1)} disabled={!canMoveSectionUp} className="flex h-9 items-center justify-center gap-1.5 rounded-lg border border-[#dfe4e6] text-[11px] font-medium text-[#555] transition hover:bg-[#f5fafb] hover:text-[#4d9eae] disabled:cursor-not-allowed disabled:opacity-35"><ArrowUp className="h-3.5 w-3.5" />Above</button><button type="button" onClick={() => moveSelectedSection(1)} disabled={!canMoveSectionDown} className="flex h-9 items-center justify-center gap-1.5 rounded-lg border border-[#dfe4e6] text-[11px] font-medium text-[#555] transition hover:bg-[#f5fafb] hover:text-[#4d9eae] disabled:cursor-not-allowed disabled:opacity-35"><ArrowDown className="h-3.5 w-3.5" />Below</button></div></div> : null}
+{!textToolbarOpen && !selectedImageKey && selectedBlock === "footer" ? <div className="border-b border-[#e9eaec] px-5 py-5"><p className="mb-3 text-[14px] font-semibold">Footer links</p><p className="mb-4 text-[11px] leading-5 text-[#8b8f94]">Add destinations for the social and unsubscribe links. Edit the text directly on the canvas.</p><div className="space-y-3">{(["instagram", "facebook", "linkedin"] as const).map((network) => <label key={network} className="block"><span className="mb-1 block text-[11px] capitalize text-[#777]">{network} URL</span><input type="url" aria-label={`${network} URL`} value={footerSocialLinks[network]} onChange={(event) => setFooterSocialLinks((current) => ({ ...current, [network]: event.target.value }))} placeholder="https://" className="form-input" /></label>)}<label className="block"><span className="mb-1 block text-[11px] text-[#777]">Unsubscribe URL</span><input type="text" aria-label="Unsubscribe URL" value={footerUnsubscribeUrl} onChange={(event) => setFooterUnsubscribeUrl(event.target.value)} placeholder="https://" className="form-input" /></label></div></div> : null}
+<div className={cn("border-b border-[#e9eaec] px-5 py-5", selectedImageKey || selectedBlock === "button" || textToolbarOpen ? "hidden" : "")}><p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#8b9095]">Section design</p><p className="mb-2 text-[12px] font-medium text-[#444]">Section fill</p><FigmaColorRow label="Section fill" color={sectionColors[selectedSection]} onChange={(color) => setSectionColors((current) => ({ ...current, [selectedSection]: color }))} /><div className="mt-3">{selectedSectionBackground ? <div className="overflow-hidden rounded-xl border border-[#e2e5e7] bg-[#f5f6f7]"><img src={selectedSectionBackground.public_url} alt="" className="h-24 w-full object-cover" /><div className="flex items-center justify-between gap-2 px-3 py-2"><span className="min-w-0 flex-1 truncate text-[11px] text-[#555]">{selectedSectionBackground.original_name}</span><button type="button" onClick={() => removeSectionBackground(selectedSection)} className="shrink-0 text-[11px] font-medium text-red-600 hover:underline">Remove</button></div></div> : null}<button type="button" onClick={chooseSectionBackground} className={cn("flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-[#dfe4e6] bg-white text-[11px] font-medium text-[#555] transition hover:border-[#a8d7df] hover:bg-[#f5fafb] hover:text-[#4d9eae]", selectedSectionBackground ? "mt-3" : "")}><Image className="h-3.5 w-3.5" />{selectedSectionBackground ? "Replace background image" : "Add background image"}</button></div><div className="mt-5"><p className="mb-2 text-[12px] font-medium text-[#444]">Section separators</p><div className="grid grid-cols-2 gap-3"><ScrubField label="Stroke weight" value={sectionBorderWidths[selectedSection]} onChange={(value) => setSectionBorderWidths((current) => ({ ...current, [selectedSection]: value }))} min={0} max={20} suffix="px" /><div><p className="mb-2 text-[11px] text-[#8b8f94]">Stroke color</p><FigmaColorRow label={`${selectedSectionLabel} separator color`} color={sectionBorderColors[selectedSection]} onChange={(color) => setSectionBorderColors((current) => ({ ...current, [selectedSection]: color }))} /></div></div><div className="mt-4"><p className="mb-2 text-[11px] text-[#8b8f94]">Stroke sides</p><div className="relative mx-auto h-12 w-12"><button type="button" aria-label="Toggle top stroke" aria-pressed={sectionBorderSides[selectedSection].top} onClick={() => setSectionBorderSides((current) => ({ ...current, [selectedSection]: { ...current[selectedSection], top: !current[selectedSection].top } }))} className={cn("absolute left-2 right-2 top-0 h-1.5 rounded-full", sectionBorderSides[selectedSection].top ? "bg-[var(--kenoo-sky)]" : "bg-[#dfe4e6]")} /><button type="button" aria-label="Toggle right stroke" aria-pressed={sectionBorderSides[selectedSection].right} onClick={() => setSectionBorderSides((current) => ({ ...current, [selectedSection]: { ...current[selectedSection], right: !current[selectedSection].right } }))} className={cn("absolute bottom-2 right-0 top-2 w-1.5 rounded-full", sectionBorderSides[selectedSection].right ? "bg-[var(--kenoo-sky)]" : "bg-[#dfe4e6]")} /><button type="button" aria-label="Toggle bottom stroke" aria-pressed={sectionBorderSides[selectedSection].bottom} onClick={() => setSectionBorderSides((current) => ({ ...current, [selectedSection]: { ...current[selectedSection], bottom: !current[selectedSection].bottom } }))} className={cn("absolute bottom-0 left-2 right-2 h-1.5 rounded-full", sectionBorderSides[selectedSection].bottom ? "bg-[var(--kenoo-sky)]" : "bg-[#dfe4e6]")} /><button type="button" aria-label="Toggle left stroke" aria-pressed={sectionBorderSides[selectedSection].left} onClick={() => setSectionBorderSides((current) => ({ ...current, [selectedSection]: { ...current[selectedSection], left: !current[selectedSection].left } }))} className={cn("absolute bottom-2 left-0 top-2 w-1.5 rounded-full", sectionBorderSides[selectedSection].left ? "bg-[var(--kenoo-sky)]" : "bg-[#dfe4e6]")} /></div></div></div></div><div className={cn("px-5 py-4", selectedImageKey || selectedBlock === "button" || textToolbarOpen ? "hidden" : "")}><button type="button" onClick={() => { setHiddenSections((current) => current.includes(selectedSection) ? current : [...current, selectedSection]); setActiveSidebarTool(null); }} className="flex h-9 w-full items-center justify-center rounded-lg border border-red-200 bg-white text-[11px] font-medium text-red-600 transition hover:bg-red-50">Delete section</button></div></div>;
+  const selectedSectionControls = selectedSectionControlsBase;
 
   async function saveTemplate(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaving(true);
     setError(null);
-    const response = await fetch("/api/templates", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, description, channel: key, subject, title, textContent: message, htmlContent: emailFormat === "html" ? message : "", actionUrl, imageUrl }) });
-    const payload = await response.json().catch(() => ({})) as { error?: string };
+    const payloadBody = { name, description, channel: key, subject, title, textContent: message, htmlContent: emailFormat === "html" ? message : "", actionUrl, imageUrl };
+    const response = await fetch(initialTemplateId ? `/api/templates/${initialTemplateId}` : "/api/templates", { method: initialTemplateId ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payloadBody) });
+    const payload = await response.json().catch(() => ({})) as { error?: string; template?: { id?: string } };
     if (!response.ok) {
       setError(payload.error ?? "Unable to save template");
       setSaving(false);
       return;
     }
+    if (aiThreadId && payload.template?.id) {
+      await fetch(`/api/ai/threads/${aiThreadId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ templateId: payload.template.id }) });
+    }
     router.push("/templates");
   }
 
-  if (key === "email" && emailFormat === null) return <div className="min-h-full bg-kenoo-white"><div className="mx-auto max-w-[1000px] px-6 py-8 sm:px-10 lg:px-12"><Link href="/templates" className="inline-flex items-center gap-2 text-[12px] text-[#888] transition hover:text-[#333]"><ArrowLeft className="h-3.5 w-3.5" /> Back to templates</Link><header className="mt-8"><div className={cn("flex h-11 w-11 items-center justify-center rounded-2xl", details.color)}><Icon className="h-5 w-5" strokeWidth={1.6} /></div><p className="mb-2 mt-5 text-[12px] font-medium uppercase tracking-[0.1em] text-[#9b9b9b]">New email template</p><h1 className="text-[30px] font-semibold tracking-[-0.04em] text-[#111]">How would you like to create it?</h1><p className="mt-2 max-w-xl text-[13px] font-light leading-6 text-[#858585]">Choose the format that fits the message you want to send.</p></header><div className="mt-8 grid gap-4 sm:grid-cols-2"><button type="button" onClick={() => setEmailFormat("plain")} className="group rounded-[24px] border border-white/70 bg-white/75 p-6 text-left shadow-[0_8px_28px_rgba(15,23,42,0.09),inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-xl transition hover:-translate-y-1 hover:bg-white/90 hover:shadow-[0_14px_34px_rgba(15,23,42,0.14),inset_0_1px_0_rgba(255,255,255,1)]"><span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#f5f5f5] text-[#555] text-[18px] font-medium">T</span><h2 className="mt-5 text-[15px] font-medium text-[#222]">Plain text</h2><p className="mt-2 text-[12px] leading-5 text-[#999]">A simple, personal email with a subject and message body.</p></button><button type="button" onClick={() => setEmailFormat("html")} className="group rounded-[24px] border border-white/70 bg-white/75 p-6 text-left shadow-[0_8px_28px_rgba(15,23,42,0.09),inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-xl transition hover:-translate-y-1 hover:bg-white/90 hover:shadow-[0_14px_34px_rgba(15,23,42,0.14),inset_0_1px_0_rgba(255,255,255,1)]"><span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#edf5ff] text-[#4776b8] text-[18px] font-medium">✦</span><h2 className="mt-5 text-[15px] font-medium text-[#222]">HTML email</h2><p className="mt-2 text-[12px] leading-5 text-[#999]">Design a rich, visual email with sections, buttons, images, and more.</p></button></div></div></div>;
+  async function sendTestEmail() {
+    if (!testEmail.trim() || sendingTest) return;
+    setSendingTest(true);
+    setTestSendError(null);
+    setTestSendSuccess(false);
+    try {
+      const response = await fetch("/api/templates/send-test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ to: testEmail, templateName: name, html: getExportEmailHtml() }),
+      });
+      const payload = await response.json().catch(() => ({})) as { error?: string };
+      if (!response.ok) throw new Error(payload.error ?? "Unable to send test email");
+      setTestSendSuccess(true);
+    } catch (caught) {
+      setTestSendError(caught instanceof Error ? caught.message : "Unable to send test email");
+    } finally {
+      setSendingTest(false);
+    }
+  }
 
-  if (key === "email" && emailFormat === "html") return <div className="flex h-screen min-h-0 flex-col overflow-hidden bg-[#f4f5f7] text-[#222]"><header className="relative flex h-[68px] shrink-0 items-center justify-between border-b border-[#e5e7eb] bg-white px-4 text-[#222] shadow-[0_4px_18px_rgba(15,23,42,0.06)] sm:px-6"><span ref={templateNameMeasureRef} aria-hidden="true" className="pointer-events-none absolute -z-10 whitespace-pre text-[15px] font-semibold tracking-[-0.02em]">{name || "Template 1"}</span><div className="flex min-w-0 items-center gap-5"><button type="button" onClick={() => setEmailFormat(null)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#f4f5f7] text-[#666] transition hover:bg-[#edf8fa] hover:text-[#4d9eae]" aria-label="Change email format"><ArrowLeft className="h-4 w-4" /></button><div className="hidden items-center gap-5 sm:flex"><span className="text-[15px] font-semibold tracking-[-0.02em] text-[#4d9eae]">Email studio</span><span className="h-7 w-px bg-[#e5e7eb]" /><div ref={editorModeRef} className="relative"><button type="button" aria-haspopup="menu" aria-expanded={editorModeOpen} onClick={() => setEditorModeOpen((open) => !open)} className="flex items-center gap-2 rounded-lg bg-[#f4f5f7] px-3 py-2 text-[12px] font-medium text-[#555] transition hover:bg-[#edf8fa] hover:text-[#4d9eae]"><Pencil className="h-4 w-4" />{emailEditorModes.find((mode) => mode.value === editorMode)?.label}<ChevronDown className={cn("h-3.5 w-3.5 transition-transform", editorModeOpen ? "rotate-180" : "")} /></button>{editorModeOpen ? <div role="menu" aria-label="Editor mode" className="absolute left-0 top-[calc(100%+10px)] z-40 w-[236px] rounded-2xl border border-[#e4e7e9] bg-white p-1.5 shadow-[0_14px_36px_rgba(15,23,42,0.14)]">{emailEditorModes.map((mode) => { const ModeIcon = mode.icon; const selected = editorMode === mode.value; return <button key={mode.value} type="button" role="menuitemradio" aria-checked={selected} onClick={() => { setEditorMode(mode.value); setEditorModeOpen(false); }} className={cn("flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition", selected ? "bg-[#edf8fa] text-[#4d9eae]" : "text-[#444] hover:bg-[#f4f5f7]")}><span className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-lg", selected ? "bg-white text-[#4d9eae]" : "bg-[#f4f5f7] text-[#777]")}><ModeIcon className="h-4 w-4" /></span><span className="min-w-0 flex-1"><span className="block text-[12px] font-medium">{mode.label}</span><span className="mt-0.5 block text-[11px] text-[#999]">{mode.description}</span></span>{selected ? <Check className="h-4 w-4 shrink-0" /> : null}</button>; })}</div> : null}</div><span className="h-7 w-px bg-[#e5e7eb]" /><Undo2 className="h-4 w-4 text-[#9aa0a6]" /><Redo2 className="h-4 w-4 text-[#9aa0a6]" /><span className="h-7 w-px bg-[#e5e7eb]" /><input value={name} onChange={(event) => setName(event.target.value)} aria-label="Template name" placeholder="Template 1" style={{ width: templateNameWidth }} className="hidden h-9 rounded-xl border border-transparent bg-transparent px-2 text-[15px] font-semibold tracking-[-0.02em] text-[#222] outline-none transition hover:border-[#c9cdd1] hover:bg-white focus:border-[#969ba1] focus:bg-white sm:block" /></div><input value={name} onChange={(event) => setName(event.target.value)} aria-label="Template name" placeholder="Template 1" style={{ width: templateNameWidth }} className="h-9 min-w-0 max-w-[calc(100vw-160px)] rounded-xl border border-transparent bg-transparent px-2 text-[14px] font-semibold text-[#222] outline-none transition hover:border-[#c9cdd1] hover:bg-white focus:border-[#969ba1] focus:bg-white sm:hidden" /></div><div className="flex shrink-0 items-center gap-2"><span className="hidden text-[11px] text-[#999] md:inline">Unsaved draft</span><div className="relative"><button type="button" onClick={() => setSendTestOpen((open) => !open)} className="flex items-center gap-2 rounded-xl bg-[#edf8fa] px-3.5 py-2.5 text-[12px] font-semibold text-[#4d9eae] transition hover:bg-[#dff3f6]"><Send className="h-3.5 w-3.5" /> Send test</button>{sendTestOpen ? <div className="absolute right-0 top-[calc(100%+10px)] z-30 w-[280px] rounded-2xl border border-[#e4e7e9] bg-white p-3 shadow-[0_14px_36px_rgba(15,23,42,0.14)]"><label className="block text-left"><span className="mb-1.5 block text-[11px] font-medium text-[#777]">Send a test email to</span><input type="email" value={testEmail} onChange={(event) => setTestEmail(event.target.value)} placeholder="you@example.com" className="h-9 w-full rounded-lg border border-[#dfe4e6] bg-white px-2.5 text-[12px] text-[#333] outline-none placeholder:text-[#aaa] focus:border-[#8fcbd5] focus:ring-2 focus:ring-[#dff3f6]" /></label><button type="button" disabled={!testEmail.trim()} className="mt-2.5 flex h-9 w-full items-center justify-center gap-2 rounded-lg bg-[#222] text-[12px] font-medium text-white transition hover:bg-[#3a3a3a] disabled:cursor-not-allowed disabled:opacity-40"><Send className="h-3.5 w-3.5" /> Send test email</button></div> : null}</div><button type="button" className="rounded-xl bg-[#222] px-4 py-2.5 text-[12px] font-semibold text-white shadow-sm transition hover:bg-[#3a3a3a]">Save</button></div></header><div className="relative flex min-h-0 flex-1"><aside className="hidden w-[76px] shrink-0 flex-col items-center gap-2 border-r border-[#e2e4e9] bg-white py-4 sm:flex"><button type="button" onClick={() => toggleSidebarTool("add")} className={cn("flex w-[60px] flex-col items-center gap-1.5 rounded-2xl py-3 text-[10px] font-medium transition", activeSidebarTool === "add" ? "bg-[#edf8fa] text-[#4d9eae]" : "text-[#999] hover:bg-[#f5f6f8] hover:text-[#555]")}><Plus className="h-5 w-5" /><span>Add</span></button><button type="button" onClick={() => toggleSidebarTool("layouts")} className={cn("flex w-[60px] flex-col items-center gap-1.5 rounded-2xl py-3 text-[10px] transition", activeSidebarTool === "layouts" ? "bg-[#edf8fa] font-medium text-[#4d9eae]" : "text-[#999] hover:bg-[#f5f6f8] hover:text-[#555]")}><LayoutTemplate className="h-5 w-5" /><span>Layouts</span></button><button type="button" onClick={() => toggleSidebarTool("uploads")} className={cn("flex w-[60px] flex-col items-center gap-1.5 rounded-2xl py-3 text-[10px] transition", activeSidebarTool === "uploads" ? "bg-[#edf8fa] font-medium text-[#4d9eae]" : "text-[#999] hover:bg-[#f5f6f8] hover:text-[#555]")}><Upload className="h-5 w-5" /><span>Uploads</span></button><button type="button" onClick={() => toggleSidebarTool("folders")} className={cn("flex w-[60px] flex-col items-center gap-1.5 rounded-2xl py-3 text-[10px] transition", activeSidebarTool === "folders" ? "bg-[#edf8fa] font-medium text-[#4d9eae]" : "text-[#999] hover:bg-[#f5f6f8] hover:text-[#555]")}><Folder className="h-5 w-5" /><span>Folders</span></button><button type="button" onClick={() => toggleSidebarTool("ai")} className={cn("flex w-[60px] flex-col items-center gap-1.5 rounded-2xl py-3 text-[10px] transition", activeSidebarTool === "ai" ? "bg-[#edf8fa] font-medium text-[#4d9eae]" : "text-[#999] hover:bg-[#f5f6f8] hover:text-[#555]")}><Sparkles className="h-5 w-5" /><span>Kenoo AI</span></button><button type="button" onClick={() => toggleSidebarTool("design")} className={cn("flex w-[60px] flex-col items-center gap-1.5 rounded-2xl py-3 text-[10px] transition", activeSidebarTool === "design" ? "bg-[#edf8fa] font-medium text-[#4d9eae]" : "text-[#999] hover:bg-[#f5f6f8] hover:text-[#555]")}><Settings2 className="h-5 w-5" /><span>Design</span></button></aside><AnimatePresence initial={false}>{activeSidebarTool ? <motion.aside key="email-sidebar-panel" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }} className={cn("absolute inset-y-0 left-[76px] z-30 hidden w-[360px] overflow-y-auto border-r border-[#e2e4e9] bg-white shadow-[8px_0_24px_rgba(15,23,42,0.08)] lg:block", activeSidebarTool === "design" ? "" : "p-4")}><>
-{activeSidebarTool === "add" ? <><div className="mt-5 grid grid-cols-2 gap-2.5"><button type="button" onClick={() => { setSelectedBlock("text"); setActiveSidebarTool("design"); }} className="flex h-[84px] flex-col items-center justify-center gap-2 rounded-2xl border border-[#e8eaee] bg-[#fbfbfc] text-[11px] text-[#666] transition hover:-translate-y-0.5 hover:border-[#a8d7df] hover:bg-[#f1fbfc]"><Type className="h-5 w-5 text-[#60aebc]" />Text</button><button type="button" onClick={() => { setSelectedBlock("image"); setActiveSidebarTool("design"); }} className="flex h-[84px] flex-col items-center justify-center gap-2 rounded-2xl border border-[#e8eaee] bg-[#fbfbfc] text-[11px] text-[#666] transition hover:-translate-y-0.5 hover:border-[#a8d7df] hover:bg-[#f1fbfc]"><Image className="h-5 w-5 text-[#60aebc]" />Image</button><button type="button" onClick={() => setSelectedBlock("button")} className="flex h-[84px] flex-col items-center justify-center gap-2 rounded-2xl border border-[#e8eaee] bg-[#fbfbfc] text-[11px] text-[#666] transition hover:-translate-y-0.5 hover:border-[#a8d7df] hover:bg-[#f1fbfc]"><MousePointerClick className="h-5 w-5 text-[#60aebc]" />Button</button><button type="button" onClick={() => { setSelectedBlock("divider"); setActiveSidebarTool("design"); }} className="flex h-[84px] flex-col items-center justify-center gap-2 rounded-2xl border border-[#e8eaee] bg-[#fbfbfc] text-[11px] text-[#666] transition hover:-translate-y-0.5 hover:border-[#a8d7df] hover:bg-[#f1fbfc]"><Minus className="h-5 w-5 text-[#60aebc]" />Divider</button></div><div className="mt-6 rounded-2xl bg-[#f5fafb] p-3.5"><p className="text-[11px] font-medium text-[#4d9eae]">Tip</p><p className="mt-1 text-[11px] leading-5 text-[#7d9298]">Select a block on the canvas to edit its content and styling.</p></div><div className="mt-5 border-t border-[#eef0f1] pt-5"><p className="text-[13px] font-semibold text-[#222]">Email settings</p><label className="mt-4 block"><span className="mb-1.5 block text-[11px] font-medium text-[#777]">Description</span><input value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Optional" className="form-input" /></label><div className="mt-4"><p className="mb-2 text-[11px] font-medium text-[#777]">Selected block</p><div className="flex items-center justify-between rounded-xl bg-[#f5fafb] px-3 py-2.5 text-[12px] text-[#4d9eae]"><span className="capitalize">{selectedBlock}</span><span className="h-2 w-2 rounded-full bg-[#6eadc0]" /></div></div><div className="mt-4"><p className="mb-2 text-[11px] font-medium text-[#777]">Canvas background</p><div className="flex gap-2"><button type="button" className="h-8 w-8 rounded-lg bg-[#f7f4eb] ring-2 ring-[#6eadc0] ring-offset-2" /><button type="button" className="h-8 w-8 rounded-lg bg-white ring-1 ring-[#e5e7e9]" /><button type="button" className="h-8 w-8 rounded-lg bg-[#edf8fa]" /></div></div></div></> : activeSidebarTool === "uploads" || activeSidebarTool === "folders" ? <EmailUploadsPanel key={activeSidebarTool} initialView={activeSidebarTool === "folders" ? "folders" : "images"} /> : activeSidebarTool === "design" ? selectedSectionControls : <div className="mt-5 rounded-2xl border border-dashed border-[#dce8ea] bg-[#fbfdfd] p-4"><p className="text-[12px] font-medium text-[#444]">{activeSidebarTool === "layouts" ? "Choose a starting point" : "Describe what you want to create"}</p><p className="mt-2 text-[11px] leading-5 text-[#8a9294]">{activeSidebarTool === "layouts" ? "Pick a template layout to give your email a strong first structure." : "Use Kenoo AI to help draft content and suggest layouts."}</p><div className="mt-4 rounded-xl bg-[#f5fafb] px-3 py-2.5 text-[11px] font-medium text-[#6b969e]">More options coming soon</div></div>}</></motion.aside> : null}</AnimatePresence>{activeSidebarTool ? <button type="button" onClick={() => setActiveSidebarTool(null)} aria-label="Close sidebar panel" className="absolute left-[436px] top-1/2 z-40 flex h-9 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-[#e1e5eb] bg-white text-[#333] shadow-[0_4px_14px_rgba(15,23,42,0.12)] transition hover:bg-[#f8fafb]"><ChevronLeft className="h-5 w-5" /></button> : null}<motion.main animate={{ x: activeSidebarTool ? 180 : 0 }} transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }} onClick={() => { setActiveSidebarTool(null); setCanvasSelectionActive(false); setSelectedBlock("hero"); }} className="relative min-w-0 flex-1 overflow-auto bg-[#f4f5f7] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"><div className="flex min-h-full justify-center px-5 py-10 sm:px-10"><div className="relative w-full max-w-[640px]" style={{ transform: `scale(${zoom / 100})`, transformOrigin: "top center" }}><section onClick={(event) => event.stopPropagation()} className="overflow-hidden border border-[#e4e6ea] bg-white shadow-[0_18px_50px_rgba(15,23,42,0.12)]"><div role="button" tabIndex={0} onClick={() => { setSelectedBlock("hero"); setActiveSidebarTool("design"); setCanvasSelectionActive(true); }} style={{ backgroundColor: sectionColors.hero, height: `${sectionHeights.hero}px`, display: hiddenSections.includes("hero") ? "none" : undefined }} className={cn("group relative block w-full px-10 pb-10 pt-12 text-center transition", canvasSelectionActive && selectedBlock === "hero" ? "ring-2 ring-inset ring-[var(--kenoo-sky)]" : "hover:brightness-[0.99]")}><div className="mx-auto flex h-9 w-28 items-center justify-center rounded-lg bg-white/80 text-[10px] font-semibold tracking-[0.15em] text-[#5d777d]">YOUR BRAND</div><p contentEditable suppressContentEditableWarning spellCheck="false" data-editor-key="hero-eyebrow" onInput={(event) => setHeroEyebrow(event.currentTarget.innerHTML)} onFocus={() => { activateTextEditor(); setCanvasSelectionActive(true); }} onMouseUp={(event) => rememberTextSelection(event.currentTarget)} onKeyUp={(event) => rememberTextSelection(event.currentTarget)} className="mt-10 cursor-text rounded-md outline-none focus:bg-white/60 focus:ring-2 focus:ring-[var(--kenoo-sky)]/40" onClick={(event) => { event.stopPropagation(); setSelectedBlock("hero"); activateTextEditor(event); setCanvasSelectionActive(true); }} dangerouslySetInnerHTML={{ __html: heroEyebrow }} /><h1 contentEditable suppressContentEditableWarning spellCheck="false" data-editor-key="hero-headline" onInput={(event) => setHeroHeadline(event.currentTarget.innerHTML)} onFocus={() => { activateTextEditor(); setCanvasSelectionActive(true); }} onMouseUp={(event) => rememberTextSelection(event.currentTarget)} onKeyUp={(event) => rememberTextSelection(event.currentTarget)} className="mt-4 cursor-text rounded-md text-[35px] font-semibold leading-[1.08] tracking-[-0.06em] text-[#171717] outline-none focus:bg-white/60 focus:ring-2 focus:ring-[var(--kenoo-sky)]/40" onClick={(event) => { event.stopPropagation(); setSelectedBlock("hero"); activateTextEditor(event); setCanvasSelectionActive(true); }} dangerouslySetInnerHTML={{ __html: heroHeadline }} /><p contentEditable suppressContentEditableWarning spellCheck="false" data-editor-key="hero-description" onInput={(event) => setHeroDescription(event.currentTarget.innerHTML)} onFocus={() => { activateTextEditor(); setCanvasSelectionActive(true); }} onMouseUp={(event) => rememberTextSelection(event.currentTarget)} onKeyUp={(event) => rememberTextSelection(event.currentTarget)} className="mx-auto mt-5 max-w-[400px] cursor-text rounded-md text-[13px] leading-6 text-[#727878] outline-none focus:bg-white/60 focus:ring-2 focus:ring-[var(--kenoo-sky)]/40" onClick={(event) => { event.stopPropagation(); setSelectedBlock("hero"); activateTextEditor(event); setCanvasSelectionActive(true); }} dangerouslySetInnerHTML={{ __html: heroDescription }} /><button type="button" onClick={(event) => { event.stopPropagation(); setSelectedBlock("button"); setActiveSidebarTool("design"); setCanvasSelectionActive(true); }} style={{ backgroundColor: buttonColor, color: buttonTextColor, width: buttonWidth === "auto" ? undefined : /^\d+$/.test(buttonWidth) ? buttonWidth + "px" : buttonWidth, minHeight: `${buttonHeight}px`, borderRadius: `${buttonRadius}px` }} className={cn("mt-7 rounded-xl px-6 py-3 text-[12px] font-semibold shadow-[0_8px_16px_rgba(110,173,192,0.28)] transition hover:brightness-95", canvasSelectionActive && selectedBlock === "button" ? "ring-2 ring-offset-2 ring-[var(--kenoo-sky)]" : "")}><span contentEditable suppressContentEditableWarning spellCheck="false" data-editor-key="hero-button" onInput={(event) => setHeroButtonLabel(event.currentTarget.innerHTML)} onFocus={() => { activateTextEditor(); setCanvasSelectionActive(true); }} onMouseUp={(event) => rememberTextSelection(event.currentTarget)} onKeyUp={(event) => rememberTextSelection(event.currentTarget)} className="cursor-text rounded outline-none focus:ring-2 focus:ring-white/70" onClick={(event) => { event.stopPropagation(); setSelectedBlock("button"); activateTextEditor(event); setCanvasSelectionActive(true); }} dangerouslySetInnerHTML={{ __html: heroButtonLabel }} /></button></div><button type="button" onClick={() => { setSelectedBlock("text"); setActiveSidebarTool("design"); setCanvasSelectionActive(true); }} style={{ backgroundColor: sectionColors.text, height: `${sectionHeights.text}px`, display: hiddenSections.includes("text") ? "none" : undefined }} className={cn("block w-full border-t border-[#f0f0ed] px-10 py-9 text-left transition", canvasSelectionActive && selectedBlock === "text" ? "ring-2 ring-inset ring-[var(--kenoo-sky)]" : "hover:brightness-[0.99]")}><p contentEditable suppressContentEditableWarning spellCheck="false" data-editor-key="body-heading" onInput={(event) => setBodyHeading(event.currentTarget.innerHTML)} onFocus={() => { activateTextEditor(); setCanvasSelectionActive(true); }} onMouseUp={(event) => rememberTextSelection(event.currentTarget)} onKeyUp={(event) => rememberTextSelection(event.currentTarget)} className="cursor-text rounded-md text-[15px] font-semibold text-[#252828] outline-none focus:bg-white focus:ring-2 focus:ring-[var(--kenoo-sky)]/40" onClick={(event) => { event.stopPropagation(); setSelectedBlock("text"); activateTextEditor(event); setCanvasSelectionActive(true); }} dangerouslySetInnerHTML={{ __html: bodyHeading }} /><p contentEditable suppressContentEditableWarning spellCheck="false" data-editor-key="body-description" onInput={(event) => setBodyDescription(event.currentTarget.innerHTML)} onFocus={() => { activateTextEditor(); setCanvasSelectionActive(true); }} onMouseUp={(event) => rememberTextSelection(event.currentTarget)} onKeyUp={(event) => rememberTextSelection(event.currentTarget)} className="mt-3 cursor-text rounded-md text-[12px] leading-6 text-[#747b7d] outline-none focus:bg-white focus:ring-2 focus:ring-[var(--kenoo-sky)]/40" onClick={(event) => { event.stopPropagation(); setSelectedBlock("text"); activateTextEditor(event); setCanvasSelectionActive(true); }} dangerouslySetInnerHTML={{ __html: bodyDescription }} /></button><button type="button" onClick={() => { setSelectedBlock("image"); setActiveSidebarTool("design"); setCanvasSelectionActive(true); }} style={{ backgroundColor: sectionColors.image, height: `${sectionHeights.image}px`, display: hiddenSections.includes("image") ? "none" : undefined }} className={cn("block w-full border-t border-[#f0f0ed] p-6 transition", canvasSelectionActive && selectedBlock === "image" ? "ring-2 ring-inset ring-[var(--kenoo-sky)]" : "hover:brightness-[0.99]")}><div style={{ backgroundColor: sectionColors.image }} className="flex h-[170px] items-center justify-center rounded-xl border border-dashed border-[#c8dfe3] text-center text-[#65aab7]"><Image className="h-7 w-7" /><span contentEditable suppressContentEditableWarning spellCheck="false" data-editor-key="image-placeholder" onInput={(event) => setImagePlaceholder(event.currentTarget.innerHTML)} onFocus={() => { activateTextEditor(); setCanvasSelectionActive(true); }} onMouseUp={(event) => rememberTextSelection(event.currentTarget)} onKeyUp={(event) => rememberTextSelection(event.currentTarget)} className="ml-3 cursor-text rounded outline-none focus:bg-white focus:ring-2 focus:ring-[var(--kenoo-sky)]/40" onClick={(event) => { event.stopPropagation(); setSelectedBlock("image"); activateTextEditor(event); setCanvasSelectionActive(true); }} dangerouslySetInnerHTML={{ __html: imagePlaceholder }} /></div></button><button type="button" onClick={() => { setSelectedBlock("divider"); setActiveSidebarTool("design"); setCanvasSelectionActive(true); }} style={{ backgroundColor: sectionColors.divider, height: `${sectionHeights.divider}px`, display: hiddenSections.includes("divider") ? "none" : undefined }} className={cn("block w-full border-t border-[#f0f0ed] px-10 py-7 transition", canvasSelectionActive && selectedBlock === "divider" ? "ring-2 ring-inset ring-[var(--kenoo-sky)]" : "hover:brightness-[0.99]")}><div className="h-px bg-[#d8e5e7]" /></button></section></div></div></motion.main></div><footer className="flex h-11 shrink-0 items-center justify-between border-t border-[#e2e4e9] bg-white px-4 text-[11px] text-[#92969d] sm:px-6"><div className="flex items-center gap-5"><span className="inline-flex items-center gap-1.5"><LayoutTemplate className="h-3.5 w-3.5" /> Email layout</span><span className="hidden sm:inline">Autosave on</span></div><div className="flex items-center gap-4"><div className="flex items-center gap-1 rounded-xl bg-[#f4f5f7] p-1"><button type="button" onClick={() => setZoom((value) => Math.max(50, value - 10))} className="rounded-lg p-1.5 text-[#777] transition hover:bg-white hover:text-[#4d9eae]" aria-label="Zoom out"><ZoomOut className="h-3.5 w-3.5" /></button><input type="range" min="50" max="150" step="10" value={zoom} onChange={(event) => setZoom(Number(event.target.value))} className="h-1 w-32 accent-[#6eadc0]" aria-label="Zoom level" /><button type="button" onClick={() => setZoom((value) => Math.min(150, value + 10))} className="rounded-lg p-1.5 text-[#777] transition hover:bg-white hover:text-[#4d9eae]" aria-label="Zoom in"><ZoomIn className="h-3.5 w-3.5" /></button><span className="min-w-[38px] px-1 text-center text-[11px] font-medium text-[#666]">{zoom}%</span></div><span>Draft</span><span className="font-medium text-[#666]">1 / 1</span></div></footer></div>;
+  function getExportEmailHtml() {
+    const source = document.querySelector<HTMLElement>("main section");
+    if (!source) return "";
 
-  return <div className="min-h-full bg-kenoo-white"><div className="mx-auto max-w-[1000px] px-6 py-8 sm:px-10 lg:px-12"><Link href="/templates" className="inline-flex items-center gap-2 text-[12px] text-[#888] transition hover:text-[#333]"><ArrowLeft className="h-3.5 w-3.5" /> Back to templates</Link><header className="mt-8"><div className={cn("flex h-11 w-11 items-center justify-center rounded-2xl", details.color)}><Icon className="h-5 w-5" strokeWidth={1.6} /></div><p className="mb-2 mt-5 text-[12px] font-medium uppercase tracking-[0.1em] text-[#9b9b9b]">New {details.label.toLowerCase()} template</p><h1 className="text-[30px] font-semibold tracking-[-0.04em] text-[#111]">Create a {details.label} template</h1><p className="mt-2 max-w-xl text-[13px] font-light leading-6 text-[#858585]">{details.description}</p></header><form onSubmit={saveTemplate} className="mt-8 rounded-[28px] bg-white/80 p-6 shadow-[0_8px_28px_rgba(15,23,42,0.07),inset_0_1px_0_rgba(255,255,255,0.95)] sm:p-8"><label className="block"><span className="mb-1.5 block text-[12px] font-medium text-[#555]">Template name</span><input required value={name} onChange={(event) => setName(event.target.value)} placeholder={isPush ? "e.g. Order ready" : "e.g. Appointment reminder"} className="form-input" /></label><label className="mt-5 block"><span className="mb-1.5 block text-[12px] font-medium text-[#555]">Description <span className="font-normal text-[#aaa]">(optional)</span></span><input value={description} onChange={(event) => setDescription(event.target.value)} placeholder="What is this template for?" className="form-input" /></label>{isPush ? <><label className="mt-5 block"><span className="mb-1.5 block text-[12px] font-medium text-[#555]">Notification title</span><input required value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Your order is ready" className="form-input" /></label><label className="mt-5 block"><span className="mb-1.5 block text-[12px] font-medium text-[#555]">Message</span><textarea required value={message} onChange={(event) => setMessage(event.target.value)} placeholder="Order #1234 is ready for pickup." className="min-h-28 w-full resize-y rounded-lg border border-[#dedede] bg-white px-3 py-2.5 text-[12px] leading-5 text-[#333] outline-none placeholder:text-[#aaa] focus:border-[#999] focus:ring-2 focus:ring-black/[0.04]" /></label><div className="mt-5 grid gap-5 sm:grid-cols-2"><label className="block"><span className="mb-1.5 block text-[12px] font-medium text-[#555]">Action link <span className="font-normal text-[#aaa]">(optional)</span></span><input type="url" value={actionUrl} onChange={(event) => setActionUrl(event.target.value)} placeholder="https://app.example.com/orders/1234" className="form-input" /></label><label className="block"><span className="mb-1.5 block text-[12px] font-medium text-[#555]">Image URL <span className="font-normal text-[#aaa]">(optional)</span></span><input type="url" value={imageUrl} onChange={(event) => setImageUrl(event.target.value)} placeholder="https://..." className="form-input" /></label></div></> : <><label className="mt-5 block"><span className="mb-1.5 block text-[12px] font-medium text-[#555]">Subject</span><input required={key === "email"} value={subject} onChange={(event) => setSubject(event.target.value)} placeholder="A quick note from us" className="form-input" /></label><label className="mt-5 block"><span className="mb-1.5 block text-[12px] font-medium text-[#555]">Message</span><textarea required maxLength={1600} value={message} onChange={(event) => setMessage(event.target.value)} placeholder={key === "email" ? "Write your plain-text email..." : "Hi {{first_name}}, just a quick reminder..."} className="min-h-36 w-full resize-y rounded-lg border border-[#dedede] bg-white px-3 py-2.5 text-[12px] leading-5 text-[#333] outline-none placeholder:text-[#aaa] focus:border-[#999] focus:ring-2 focus:ring-black/[0.04]" /><span className="mt-1.5 block text-right text-[11px] text-[#aaa]">{message.length}/1600</span></label></>}{error ? <p className="mt-4 text-[12px] text-red-500">{error}</p> : null}<div className="mt-6 flex justify-end gap-2"><Link href="/templates" className="rounded-lg px-3.5 py-2.5 text-[12px] font-medium text-[#666] transition hover:bg-[#f5f5f5]">Cancel</Link><button type="submit" disabled={saving} className="inline-flex items-center gap-2 rounded-lg bg-[#111] px-3.5 py-2.5 text-[12px] font-medium text-white transition hover:bg-[#2a2a2a] disabled:cursor-wait disabled:opacity-60"><Save className="h-3.5 w-3.5" />{saving ? "Saving…" : "Save template"}</button></div></form></div></div>;
+    const clone = source.cloneNode(true) as HTMLElement;
+    const sourceElements = [source, ...Array.from(source.querySelectorAll<HTMLElement>("*"))];
+    const cloneElements = [clone, ...Array.from(clone.querySelectorAll<HTMLElement>("*"))];
+    const inlineProperties = ["backgroundColor", "backgroundImage", "backgroundPosition", "backgroundRepeat", "backgroundSize", "color", "fontFamily", "fontSize", "fontWeight", "lineHeight", "letterSpacing", "textAlign", "width", "minHeight", "height", "padding", "margin", "border", "borderRadius", "boxShadow", "boxSizing", "display", "justifyContent", "alignItems", "objectFit", "maxWidth", "position", "zIndex", "left", "top", "transform", "overflow"] as const;
+    const editorChrome = sourceElements.flatMap((element, index) => element.matches(".email-template-drag-handle, .email-template-center-guide, .email-template-text-selection-outline, .email-template-image-selection-outline, .email-template-image-resize-handle") ? [cloneElements[index]] : []);
+
+    cloneElements.forEach((element, index) => {
+      const original = sourceElements[index];
+      if (!original) return;
+      const computed = window.getComputedStyle(original);
+      element.removeAttribute("class");
+      element.removeAttribute("contenteditable");
+      element.removeAttribute("data-editor-key");
+      element.removeAttribute("data-image-key");
+      element.removeAttribute("role");
+      element.removeAttribute("tabindex");
+      inlineProperties.forEach((property) => {
+        const value = computed[property];
+        if (value) element.style.setProperty(property.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`), value);
+      });
+    });
+
+    editorChrome.forEach((element) => element.remove());
+
+    const sectionKeys: EmailSectionKey[] = ["hero", "text", "image", "divider", "footer"];
+    const sections = Array.from(clone.children) as HTMLElement[];
+    const rows = sectionOrder.filter((section) => !hiddenSections.includes(section) && !deletedSections.includes(section)).map((section) => {
+      const sectionIndex = sectionKeys.indexOf(section);
+      const block = sections[sectionIndex];
+      if (!block) return "";
+
+      // Gmail does not support the absolute positioning used by the canvas layers.
+      // Paint background uploads on the cell itself so they stay behind the text.
+      const backgrounds = Array.from(block.querySelectorAll<HTMLImageElement>('img[data-image-layer="background"]'));
+      const backgroundStyles = backgrounds.map((image) => {
+        const sourceImage = sourceElements[cloneElements.indexOf(image)] as HTMLImageElement | undefined;
+        const upload = canvasUploads.find((item) => item.key === sourceImage?.dataset.imageKey);
+        if (!upload) return null;
+        const position = imagePositionsRef.current[upload.key] ?? { x: 0, y: 0 };
+        const size = imageSizes[upload.key] ?? { width: upload.width, height: upload.height };
+        const naturalWidth = sourceImage?.naturalWidth || size.width;
+        const naturalHeight = sourceImage?.naturalHeight || size.height;
+        const scale = Math.min(size.width / naturalWidth, size.height / naturalHeight);
+        const paintedWidth = Math.round(naturalWidth * scale);
+        const paintedHeight = Math.round(naturalHeight * scale);
+        const left = Math.round(upload.left + position.x + (size.width - paintedWidth) / 2);
+        const top = Math.round(upload.top + position.y + (size.height - paintedHeight) / 2);
+        image.parentElement?.remove();
+        return { url: upload.public_url, size: `${paintedWidth}px ${paintedHeight}px`, position: `${left}px ${top}px` };
+      }).filter((item): item is { url: string; size: string; position: string } => item !== null);
+      const sectionBackground = sectionBackgrounds[section];
+      if (sectionBackground) {
+        backgroundStyles.push({ url: sectionBackground.public_url, size: "cover", position: "center" });
+      }
+
+      const cell = document.createElement("td");
+      cell.setAttribute("width", "640");
+      cell.setAttribute("height", sectionHeights[section]);
+      cell.setAttribute("bgcolor", sectionColors[section]);
+      cell.style.cssText = `width:640px;height:${sectionHeights[section]}px;background-color:${sectionColors[section]};vertical-align:top;box-sizing:border-box;${section === "hero" ? "padding:48px 40px 40px;text-align:center;" : section === "text" ? "padding:36px 40px;text-align:left;" : section === "image" ? "padding:24px;" : "padding:28px 40px;"}`;
+      const separatorWidth = Math.max(0, Math.min(20, Number.parseFloat(sectionBorderWidths[section]) || 0));
+      if (separatorWidth) {
+        const separator = `${separatorWidth}px solid ${sectionBorderColors[section]}`;
+        cell.style.borderTop = separator;
+        cell.style.borderBottom = separator;
+      }
+      if (backgroundStyles.length) {
+        cell.style.backgroundImage = backgroundStyles.map((item) => `url("${item.url.replace(/"/g, "%22")}")`).join(",");
+        cell.style.backgroundSize = backgroundStyles.map((item) => item.size).join(",");
+        cell.style.backgroundPosition = backgroundStyles.map((item) => item.position).join(",");
+        cell.style.backgroundRepeat = "no-repeat";
+      }
+
+      // A button element has inconsistent default rendering in mail clients.
+      // Keep its styled content and make it a real email link when a URL exists.
+      block.querySelectorAll("button").forEach((button) => {
+        const replacement = document.createElement(actionUrl ? "a" : "div");
+        replacement.innerHTML = button.innerHTML;
+        replacement.style.cssText = button.style.cssText;
+        replacement.style.display = "inline-block";
+        replacement.style.textDecoration = "none";
+        if (actionUrl && replacement instanceof HTMLAnchorElement) replacement.href = actionUrl;
+        button.replaceWith(replacement);
+      });
+      while (block.firstChild) cell.appendChild(block.firstChild);
+      return `<tr>${cell.outerHTML}</tr>`;
+    }).join("");
+
+    const outerBorderWidth = Math.max(0, Math.min(20, Number.parseFloat(emailBorderWidth) || 0));
+    const outerBorder = outerBorderWidth ? `border:${outerBorderWidth}px solid ${emailBorderColor};` : "";
+    return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="${emailBackgroundColor}" style="width:100%;border-collapse:collapse;background-color:${emailBackgroundColor}"><tbody><tr><td align="center"><table role="presentation" cellpadding="0" cellspacing="0" border="0" width="640" style="width:640px;max-width:100%;margin:0 auto;border-collapse:collapse;background:#ffffff;${outerBorder}"><tbody>${rows}</tbody></table></td></tr></tbody></table>`;
+  }
+
+  async function copyEmailHtml() {
+    const html = getExportEmailHtml();
+    if (!html) return;
+    try {
+      if (typeof ClipboardItem !== "undefined" && navigator.clipboard?.write) {
+        await navigator.clipboard.write([new ClipboardItem({ "text/html": new Blob([html], { type: "text/html" }), "text/plain": new Blob([cloneTextFromHtml(html)], { type: "text/plain" }) })]);
+      } else {
+        await navigator.clipboard?.writeText(html);
+      }
+    } catch {
+      await navigator.clipboard?.writeText(html).catch(() => undefined);
+    }
+  }
+
+  function cloneTextFromHtml(html: string) {
+    const container = document.createElement("div");
+    container.innerHTML = html;
+    return container.textContent ?? "";
+  }
+
+  function printEmailAsPdf() {
+    const html = getExportEmailHtml();
+    if (!html) return;
+    const printWindow = window.open("", "_blank", "width=900,height=1000");
+    if (!printWindow) {
+      return;
+    }
+    const safeTitle = (name || "Email").replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character] ?? character);
+    printWindow.document.write(`<!doctype html><html><head><title>${safeTitle}</title><style>@page{margin:0.5in}html,body{margin:0;padding:0;background:#fff}body{font-family:Arial,sans-serif;color:#222}@media print{*{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body>${html}</body></html>`);
+    printWindow.document.close();
+    printWindow.focus();
+    window.setTimeout(() => printWindow.print(), 250);
+  }
+
+  React.useEffect(() => {
+    if (emailFormat !== "html") return;
+    const shareButton = Array.from(document.querySelectorAll<HTMLButtonElement>("header button")).find((button) => button.textContent?.trim() === "Share");
+    const parent = shareButton?.parentElement;
+    if (!shareButton || !parent) return;
+    parent.classList.add("relative");
+
+    let menu: HTMLDivElement | null = null;
+    const closeMenu = () => { menu?.remove(); menu = null; };
+    const handleShareClick = (event: MouseEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (menu) { closeMenu(); return; }
+      menu = document.createElement("div");
+      menu.setAttribute("role", "menu");
+      menu.setAttribute("aria-label", "Share email");
+      menu.className = "absolute right-0 top-[calc(100%+10px)] z-40 w-[230px] rounded-2xl border border-[#e4e7e9] bg-white p-1.5 shadow-[0_14px_36px_rgba(15,23,42,0.14)]";
+      const actions = [
+        { label: "Save as PDF", description: "Open print and save options", action: printEmailAsPdf },
+        { label: "Copy HTML", description: "Copy the email markup", action: () => void copyEmailHtml() },
+      ];
+      actions.forEach(({ label, description, action }) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.setAttribute("role", "menuitem");
+        button.className = "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[12px] text-[#444] transition hover:bg-[#f4f5f7]";
+        button.innerHTML = `<span><span class="block font-medium">${label}</span><span class="mt-0.5 block text-[11px] text-[#999]">${description}</span></span>`;
+        button.addEventListener("click", (actionEvent) => { actionEvent.stopPropagation(); action(); closeMenu(); });
+        menu?.append(button);
+      });
+      parent.append(menu);
+    };
+    const handleDocumentClick = () => closeMenu();
+    shareButton.addEventListener("click", handleShareClick, true);
+    document.addEventListener("click", handleDocumentClick);
+    return () => { shareButton.removeEventListener("click", handleShareClick, true); document.removeEventListener("click", handleDocumentClick); closeMenu(); };
+  }, [emailFormat, name]);
+
+  const layerLabel: Record<EmailSectionKey, string> = { hero: "Hero", text: "Text", image: "Image", divider: "Divider", footer: "Footer" };
+  const layerChildren = (section: EmailSectionKey): LayerItem[] => {
+    const builtIn: LayerItem[] = section === "hero" ? [
+      { key: "hero-logo", label: "Logo", target: { type: "image", imageKey: "hero-logo" } },
+      { key: "hero-headline", label: "Heading", target: { type: "text", editorKey: "hero-headline" } },
+      { key: "hero-description", label: "Description", target: { type: "text", editorKey: "hero-description" } },
+      { key: "hero-button", label: "Button", target: { type: "button" } },
+    ] : section === "text" ? [
+      { key: "body-heading", label: "Heading", target: { type: "text", editorKey: "body-heading" } },
+      { key: "body-description", label: "Description", target: { type: "text", editorKey: "body-description" } },
+    ] : section === "image" && !canvasUploads.some((upload) => upload.section === "image") ? [
+      { key: "image-placeholder", label: "Image placeholder", target: { type: "text", editorKey: "image-placeholder" } },
+    ] : section === "footer" ? [
+      { key: "footer-company", label: "Company name", target: { type: "text", editorKey: "footer-company" } },
+      { key: "footer-note", label: "Footer note", target: { type: "text", editorKey: "footer-note" } },
+      { key: "footer-unsubscribe", label: "Unsubscribe text", target: { type: "text", editorKey: "footer-unsubscribe" } },
+    ] : [];
+    return [
+      ...builtIn,
+      ...canvasUploads.filter((upload) => upload.section === section).map((upload) => ({ key: upload.key, label: upload.original_name, target: { type: "image" as const, imageKey: upload.key } })),
+    ];
+  };
+  const selectLayer = (section: EmailSectionKey, target?: LayerTarget) => {
+    setSelectedTextKey(null);
+    setSelectedImageKey(null);
+    setEditingTextKey(null);
+    setTextToolbarOpen(false);
+    activeTextEditorRef.current = null;
+    savedTextSelectionRef.current = null;
+    setCanvasSelectionActive(true);
+
+    if (!target) {
+      setSelectedBlock(section);
+      return;
+    }
+
+    setActiveSidebarTool("design");
+    if (target.type === "button") {
+      setSelectedBlock("button");
+      return;
+    }
+
+    setSelectedBlock(section);
+    if (target.type === "image") {
+      setSelectedImageKey(target.imageKey);
+      setImageSelectionVersion((current) => current + 1);
+      return;
+    }
+
+    setSelectedTextKey(target.editorKey);
+    setTextToolbarOpen(true);
+    const editor = document.querySelector<HTMLElement>(`main section [data-editor-key="${target.editorKey}"]`);
+    if (!editor) return;
+    activeTextEditorRef.current = editor;
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    savedTextSelectionRef.current = range;
+    syncTextFormatControls(editor);
+  };
+
+  React.useEffect(() => {
+    if (!layersOpen) return;
+    const panel = document.querySelector<HTMLElement>('aside[aria-label="Layers"]');
+    if (!panel) return;
+
+    const layerList = panel.children[1];
+    if (!(layerList instanceof HTMLElement)) return;
+    const rows = Array.from(layerList.children).map((container) => ({
+      container: container instanceof HTMLElement ? container : null,
+      row: container instanceof HTMLElement && container.firstElementChild instanceof HTMLButtonElement ? container.firstElementChild : null,
+    })).filter((item): item is { container: HTMLElement; row: HTMLButtonElement } => item.container !== null && item.row !== null);
+    const cleanups = rows.map(({ container: rowContainer, row }, index) => {
+      const section = sectionOrder[index];
+      if (!section) return () => {};
+
+      rowContainer.classList.add("group");
+      rowContainer.style.position = "relative";
+      row.style.paddingRight = "2rem";
+      const label = row.querySelector<HTMLElement>("span.flex-1");
+      if (label) label.textContent = sectionNames[section];
+
+      const menuButton = document.createElement("button");
+      menuButton.type = "button";
+      menuButton.setAttribute("aria-label", `Section options for ${sectionNames[section]}`);
+      menuButton.setAttribute("aria-haspopup", "menu");
+      menuButton.textContent = "⋮";
+      menuButton.className = "absolute right-1 top-[18px] z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-lg leading-none text-[#7b8387] opacity-0 transition hover:bg-[#e7f3f5] hover:text-[#3d8f9d] focus:opacity-100 group-hover:opacity-100";
+
+      const closeMenu = () => menu.remove();
+      const menu = document.createElement("div");
+      menu.setAttribute("role", "menu");
+      menu.className = "absolute right-1 top-9 z-20 w-36 rounded-lg border border-[#e1e5e7] bg-white p-1 shadow-[0_8px_20px_rgba(15,23,42,0.12)]";
+      const addMenuAction = (labelText: string, onClick: () => void, destructive = false) => {
+        const action = document.createElement("button");
+        action.type = "button";
+        action.setAttribute("role", "menuitem");
+        action.textContent = labelText;
+        action.className = `flex w-full rounded-md px-2.5 py-2 text-left text-[12px] font-medium transition hover:bg-[#f3f5f6] ${destructive ? "text-red-600 hover:bg-red-50" : "text-[#3f4548]"}`;
+        action.addEventListener("click", (event) => { event.stopPropagation(); onClick(); closeMenu(); });
+        menu.append(action);
+        return action;
+      };
+      const renameAction = addMenuAction("Rename", () => {
+        const input = document.createElement("input");
+        input.type = "text";
+        input.value = sectionNames[section];
+        input.size = Math.max(1, input.value.length);
+        input.setAttribute("aria-label", "Section name");
+        input.className = "absolute z-30 w-auto border-0 border-b border-[#4d9eae] bg-transparent px-0 outline-none focus:ring-0";
+        if (label) {
+          const labelBounds = label.getBoundingClientRect();
+          const containerBounds = rowContainer.getBoundingClientRect();
+          const labelStyle = window.getComputedStyle(label);
+          input.style.left = `${labelBounds.left - containerBounds.left}px`;
+          input.style.top = `${labelBounds.top - containerBounds.top}px`;
+          input.style.height = `${labelBounds.height}px`;
+          input.style.fontFamily = labelStyle.fontFamily;
+          input.style.fontSize = labelStyle.fontSize;
+          input.style.fontWeight = labelStyle.fontWeight;
+          input.style.lineHeight = labelStyle.lineHeight;
+          input.style.letterSpacing = labelStyle.letterSpacing;
+          input.style.color = labelStyle.color;
+          label.style.color = "transparent";
+        }
+        let finished = false;
+        const finishRename = (save: boolean) => {
+          if (finished) return;
+          finished = true;
+          const nextName = input.value.trim();
+          input.remove();
+          if (label) label.style.color = "";
+          if (save && nextName) setSectionNames((current) => ({ ...current, [section]: nextName }));
+        };
+        input.addEventListener("mousedown", (event) => event.stopPropagation());
+        input.addEventListener("click", (event) => event.stopPropagation());
+        input.addEventListener("blur", () => finishRename(true));
+        input.addEventListener("keydown", (event) => {
+          if (event.key === "Enter") finishRename(true);
+          if (event.key === "Escape") finishRename(false);
+        });
+        rowContainer.append(input);
+        input.focus();
+        input.select();
+      });
+      addMenuAction(hiddenSections.includes(section) ? "Show" : "Hide", () => {
+        setHiddenSections((current) => current.includes(section) ? current.filter((item) => item !== section) : [...current, section]);
+      });
+      addMenuAction("Delete", () => {
+        setDeletedSections((current) => current.includes(section) ? current : [...current, section]);
+        setHiddenSections((current) => current.includes(section) ? current : [...current, section]);
+        setSectionOrder((current) => current.filter((item) => item !== section));
+        setCanvasUploads((current) => current.filter((upload) => upload.section !== section));
+        if (selectedBlock === section || (selectedBlock === "button" && section === "hero")) {
+          const nextSection = sectionOrder.find((item) => item !== section) ?? "hero";
+          setSelectedBlock(nextSection);
+          setSelectedTextKey(null);
+          setSelectedImageKey(null);
+        }
+      }, true);
+
+      const onMenuButtonClick = (event: MouseEvent) => {
+        event.stopPropagation();
+        if (menu.isConnected) closeMenu();
+        else rowContainer.append(menu);
+      };
+      const onRowDoubleClick = (event: MouseEvent) => {
+        event.preventDefault();
+        event.stopPropagation();
+        renameAction.click();
+      };
+      const onPanelClick = (event: MouseEvent) => {
+        const target = event.target;
+        if (target instanceof Node && !menu.contains(target) && !menuButton.contains(target)) closeMenu();
+      };
+      menuButton.addEventListener("click", onMenuButtonClick);
+      row.addEventListener("dblclick", onRowDoubleClick);
+      panel.addEventListener("click", onPanelClick);
+      rowContainer.append(menuButton);
+      return () => {
+        menuButton.removeEventListener("click", onMenuButtonClick);
+        row.removeEventListener("dblclick", onRowDoubleClick);
+        panel.removeEventListener("click", onPanelClick);
+        menuButton.remove();
+        closeMenu();
+        rowContainer.style.position = "";
+        row.style.paddingRight = "";
+      };
+    });
+    return () => cleanups.forEach((cleanup) => cleanup());
+  }, [hiddenSections, layersOpen, sectionNames, sectionOrder, selectedBlock]);
+
+  const layersPanel = <AnimatePresence>{layersOpen ? <motion.aside initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 24 }} transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }} aria-label="Layers" className="absolute inset-y-0 right-0 z-50 flex w-[280px] flex-col border-l border-[#e2e6e9] bg-white shadow-[-12px_0_30px_rgba(15,23,42,0.08)]"><div className="flex h-14 shrink-0 items-center justify-between border-b border-[#e9ecef] px-4"><div className="flex items-center gap-2 text-[13px] font-semibold text-[#222]"><Layers className="h-4 w-4 text-[#4d9eae]" />Layers</div><button type="button" onClick={() => setLayersOpen(false)} aria-label="Close layers" className="rounded-lg p-1.5 text-[#777] transition hover:bg-[#f3f5f6] hover:text-[#222]"><X className="h-4 w-4" /></button></div><div className="min-h-0 flex-1 overflow-y-auto px-2 py-3">{sectionOrder.map((section) => { const selected = canvasSelectionActive && selectedBlock === section && !selectedTextKey && !selectedImageKey; const children = layerChildren(section); const expanded = expandedLayerSections[section]; return <div key={section} className="relative mb-1"><button type="button" aria-pressed={selected} onClick={() => selectLayer(section)} className={cn("flex h-9 w-full items-center gap-2 rounded-lg px-2.5 pl-9 text-left text-[12px] transition", selected ? "bg-[#edf8fa] font-semibold text-[#3d8f9d]" : "font-medium text-[#3f4548] hover:bg-[#f5f6f7]")}><LayoutTemplate className="h-3.5 w-3.5 text-[#6eadc0]" /><span className="flex-1">{layerLabel[section]}</span>{hiddenSections.includes(section) ? <span className="text-[10px] font-normal text-[#a0a5a8]">Hidden</span> : null}</button>{children.length ? <><button type="button" aria-label={`${expanded ? "Collapse" : "Expand"} ${layerLabel[section]} layers`} aria-expanded={expanded} onClick={() => setExpandedLayerSections((current) => ({ ...current, [section]: !current[section] }))} className="absolute left-1 top-1 z-10 flex h-7 w-7 items-center justify-center rounded-md text-[#9aa1a5] transition hover:bg-[#e7f3f5] hover:text-[#3d8f9d]"><ChevronDown className={cn("h-3.5 w-3.5 transition-transform", expanded ? "rotate-0" : "-rotate-90")} /></button>{expanded ? <div className="ml-5 border-l border-[#edf0f1] py-1">{children.map((item) => { const itemSelected = canvasSelectionActive && (item.target.type === "button" ? selectedBlock === "button" : item.target.type === "text" ? selectedBlock === section && selectedTextKey === item.target.editorKey : selectedBlock === section && selectedImageKey === item.target.imageKey); const ItemIcon = item.target.type === "image" ? Image : item.target.type === "button" ? MousePointerClick : Type; return <button key={item.key} type="button" aria-pressed={itemSelected} onClick={() => selectLayer(section, item.target)} className={cn("flex h-8 w-full items-center gap-2 rounded-r-lg px-3 text-left text-[11px] transition", itemSelected ? "bg-[#edf8fa] font-medium text-[#3d8f9d]" : "text-[#72787b] hover:bg-[#f5f6f7] hover:text-[#444]")}><span className="flex h-4 w-4 items-center justify-center text-[#98a0a4]"><ItemIcon className="h-3.5 w-3.5" /></span><span className="truncate">{item.label}</span></button>; })}</div> : null}</> : null}</div>; })}</div></motion.aside> : null}</AnimatePresence>;
+
+  if (initialTemplateId && !templateLoaded) return <div className="flex min-h-full items-center justify-center bg-kenoo-white text-[13px] text-[#999]">Loading template…</div>;
+  if (key === "email" && emailFormat === null) return null;
+
+  if (key === "email" && emailFormat === "html") return <div className="flex h-screen min-h-0 flex-col overflow-hidden bg-[#f4f5f7] text-[#222]"><header className="relative flex h-[68px] shrink-0 items-center justify-between border-b border-[#e5e7eb] bg-white px-4 text-[#222] shadow-[0_4px_18px_rgba(15,23,42,0.06)] sm:px-6"><span ref={templateNameMeasureRef} aria-hidden="true" className="pointer-events-none absolute -z-10 whitespace-pre text-[15px] font-semibold tracking-[-0.02em]">{name || "Template 1"}</span><div className="flex min-w-0 items-center gap-5"><button type="button" onClick={() => setEmailFormat(null)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#f4f5f7] text-[#666] transition hover:bg-[#edf8fa] hover:text-[#4d9eae]" aria-label="Change email format"><ArrowLeft className="h-4 w-4" /></button><div className="hidden items-center gap-5 sm:flex"><input value={name} onChange={(event) => setName(event.target.value)} aria-label="Template name" placeholder="Template 1" style={{ width: templateNameWidth }} className="h-9 rounded-xl border border-transparent bg-transparent px-2 text-[15px] font-semibold tracking-[-0.02em] text-[#222] outline-none transition hover:border-[#c9cdd1] hover:bg-white focus:border-[#969ba1] focus:bg-white" /><span className="h-7 w-px bg-[#e5e7eb]" /><div ref={editorModeRef} className="relative"><button type="button" aria-haspopup="menu" aria-expanded={editorModeOpen} onClick={() => setEditorModeOpen((open) => !open)} className="flex items-center gap-2 rounded-lg bg-[#f4f5f7] px-3 py-2 text-[12px] font-medium text-[#555] transition hover:bg-[#edf8fa] hover:text-[#4d9eae]"><Pencil className="h-4 w-4" />{emailEditorModes.find((mode) => mode.value === editorMode)?.label}<ChevronDown className={cn("h-3.5 w-3.5 transition-transform", editorModeOpen ? "rotate-180" : "")} /></button>{editorModeOpen ? <div role="menu" aria-label="Editor mode" className="absolute left-0 top-[calc(100%+10px)] z-40 w-[236px] rounded-2xl border border-[#e4e7e9] bg-white p-1.5 shadow-[0_14px_36px_rgba(15,23,42,0.14)]">{emailEditorModes.map((mode) => { const ModeIcon = mode.icon; const selected = editorMode === mode.value; return <button key={mode.value} type="button" role="menuitemradio" aria-checked={selected} onClick={() => { setEditorMode(mode.value); setEditorModeOpen(false); }} className={cn("flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition", selected ? "bg-[#edf8fa] text-[#4d9eae]" : "text-[#444] hover:bg-[#f4f5f7]")}><span className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-lg", selected ? "bg-white text-[#4d9eae]" : "bg-[#f4f5f7] text-[#777]")}><ModeIcon className="h-4 w-4" /></span><span className="min-w-0 flex-1"><span className="block text-[12px] font-medium">{mode.label}</span><span className="mt-0.5 block text-[11px] text-[#999]">{mode.description}</span></span>{selected ? <Check className="h-4 w-4 shrink-0" /> : null}</button>; })}</div> : null}</div><span className="h-7 w-px bg-[#e5e7eb]" /><button type="button" onClick={undoBuilderChange} disabled={!historyState.canUndo} aria-label="Undo" className="disabled:opacity-30"><Undo2 className="h-4 w-4 text-[#9aa0a6]" /></button><button type="button" onClick={redoBuilderChange} disabled={!historyState.canRedo} aria-label="Redo" className="disabled:opacity-30"><Redo2 className="h-4 w-4 text-[#9aa0a6]" /></button><span className="h-7 w-px bg-[#e5e7eb]" /></div><input value={name} onChange={(event) => setName(event.target.value)} aria-label="Template name" placeholder="Template 1" style={{ width: templateNameWidth }} className="h-9 min-w-0 max-w-[calc(100vw-160px)] rounded-xl border border-transparent bg-transparent px-2 text-[14px] font-semibold text-[#222] outline-none transition hover:border-[#c9cdd1] hover:bg-white focus:border-[#969ba1] focus:bg-white sm:hidden" /></div><div className="flex shrink-0 items-center gap-2"><div className="relative"><button type="button" onClick={() => setSendTestOpen((open) => !open)} className="flex items-center gap-2 rounded-xl bg-neutral-100 px-3.5 py-2.5 text-[12px] font-semibold text-neutral-950 transition hover:bg-neutral-200"><span>Send test</span></button>{sendTestOpen ? <div className="absolute right-0 top-[calc(100%+10px)] z-30 w-[280px] rounded-2xl border border-[#e4e7e9] bg-white p-3 shadow-[0_14px_36px_rgba(15,23,42,0.14)]"><label className="block text-left"><span className="mb-1.5 block text-[11px] font-medium text-[#777]">Send a test email to</span><input type="email" value={testEmail} onChange={(event) => setTestEmail(event.target.value)} placeholder="you@example.com" className="h-9 w-full rounded-lg border border-[#dfe4e6] bg-white px-2.5 text-[12px] text-[#333] outline-none placeholder:text-[#aaa] focus:border-[#8fcbd5] focus:ring-2 focus:ring-[#dff3f6]" /></label><motion.button type="button" onClick={() => void sendTestEmail()} disabled={!testEmail.trim() || sendingTest} initial={false} animate={testSendSuccess ? { backgroundColor: "#dcfce7", color: "#15803d" } : { backgroundColor: "#222", color: "#fff" }} transition={{ duration: 0.3 }} className="mt-2.5 flex h-9 w-full items-center justify-center gap-2 rounded-lg text-[12px] font-medium disabled:cursor-not-allowed disabled:opacity-40"><Send className="h-3.5 w-3.5" /> {sendingTest ? "Sending…" : testSendSuccess ? "Sent" : "Send test email"}</motion.button>{testSendError ? <p className="mt-2 text-[11px] text-red-600">{testSendError}</p> : null}</div> : null}</div><button type="button" onClick={() => { const shareUrl = window.location.href; void navigator.clipboard?.writeText(shareUrl); }} className="inline-flex items-center gap-2 rounded-xl bg-[#222] px-4 py-2.5 text-[12px] font-semibold text-white shadow-sm transition hover:bg-[#3a3a3a]">Share <Share className="h-3.5 w-3.5" /></button></div></header><div className="relative flex min-h-0 flex-1"><aside className="hidden w-[76px] shrink-0 flex-col items-center gap-2 border-r border-[#e2e4e9] bg-white py-4 sm:flex"><button type="button" onClick={() => toggleSidebarTool("add")} className={cn("flex w-[60px] flex-col items-center gap-1.5 rounded-2xl py-3 text-[10px] font-medium transition", activeSidebarTool === "add" ? "bg-[#edf8fa] text-[#4d9eae]" : "text-[#999] hover:bg-[#f5f6f8] hover:text-[#555]")}><Plus className="h-5 w-5" /><span>Add</span></button><button type="button" onClick={() => toggleSidebarTool("layouts")} className={cn("flex w-[60px] flex-col items-center gap-1.5 rounded-2xl py-3 text-[10px] transition", activeSidebarTool === "layouts" ? "bg-[#edf8fa] font-medium text-[#4d9eae]" : "text-[#999] hover:bg-[#f5f6f8] hover:text-[#555]")}><LayoutTemplate className="h-5 w-5" /><span>Layouts</span></button><button type="button" onClick={() => { setBackgroundPickerSection(null); toggleSidebarTool("uploads"); }} className={cn("flex w-[60px] flex-col items-center gap-1.5 rounded-2xl py-3 text-[10px] transition", activeSidebarTool === "uploads" ? "bg-[#edf8fa] font-medium text-[#4d9eae]" : "text-[#999] hover:bg-[#f5f6f8] hover:text-[#555]")}><Upload className="h-5 w-5" /><span>Uploads</span></button><button type="button" onClick={() => toggleSidebarTool("ai")} className={cn("flex w-[60px] flex-col items-center gap-1.5 rounded-2xl py-3 text-[10px] transition", activeSidebarTool === "ai" ? "bg-[#edf8fa] font-medium text-[#4d9eae]" : "text-[#999] hover:bg-[#f5f6f8] hover:text-[#555]")}><Sparkles className="h-5 w-5" /><span>Kenoo AI</span></button><button type="button" onClick={() => toggleSidebarTool("design")} className={cn("flex w-[60px] flex-col items-center gap-1.5 rounded-2xl py-3 text-[10px] transition", activeSidebarTool === "design" ? "bg-[#edf8fa] font-medium text-[#4d9eae]" : "text-[#999] hover:bg-[#f5f6f8] hover:text-[#555]")}><Settings2 className="h-5 w-5" /><span>Design</span></button></aside><AnimatePresence initial={false}>{activeSidebarTool ? <motion.aside key="email-sidebar-panel" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }} className={cn("absolute inset-y-0 left-[76px] z-30 hidden w-[360px] overflow-y-auto border-r border-[#e2e4e9] bg-white shadow-[8px_0_24px_rgba(15,23,42,0.08)] lg:block", activeSidebarTool === "design" ? "" : "p-4")}><>
+{activeSidebarTool === "add" ? <><div className="mt-5 grid grid-cols-2 gap-2.5"><button type="button" onClick={() => { setSelectedBlock("text"); setActiveSidebarTool("design"); }} className="flex h-[84px] flex-col items-center justify-center gap-2 rounded-2xl border border-[#e8eaee] bg-[#fbfbfc] text-[11px] text-[#666] transition hover:-translate-y-0.5 hover:border-[#a8d7df] hover:bg-[#f1fbfc]"><Type className="h-5 w-5 text-[#60aebc]" />Text</button><button type="button" onClick={() => { setSelectedBlock("image"); setActiveSidebarTool("design"); }} className="flex h-[84px] flex-col items-center justify-center gap-2 rounded-2xl border border-[#e8eaee] bg-[#fbfbfc] text-[11px] text-[#666] transition hover:-translate-y-0.5 hover:border-[#a8d7df] hover:bg-[#f1fbfc]"><Image className="h-5 w-5 text-[#60aebc]" />Image</button><button type="button" onClick={() => setSelectedBlock("button")} className="flex h-[84px] flex-col items-center justify-center gap-2 rounded-2xl border border-[#e8eaee] bg-[#fbfbfc] text-[11px] text-[#666] transition hover:-translate-y-0.5 hover:border-[#a8d7df] hover:bg-[#f1fbfc]"><MousePointerClick className="h-5 w-5 text-[#60aebc]" />Button</button><button type="button" onClick={() => { setSelectedBlock("divider"); setActiveSidebarTool("design"); }} className="flex h-[84px] flex-col items-center justify-center gap-2 rounded-2xl border border-[#e8eaee] bg-[#fbfbfc] text-[11px] text-[#666] transition hover:-translate-y-0.5 hover:border-[#a8d7df] hover:bg-[#f1fbfc]"><Minus className="h-5 w-5 text-[#60aebc]" />Divider</button></div><div className="mt-6 rounded-2xl bg-[#f5fafb] p-3.5"><p className="text-[11px] font-medium text-[#4d9eae]">Tip</p><p className="mt-1 text-[11px] leading-5 text-[#7d9298]">Select a block on the canvas to edit its content and styling.</p></div><div className="mt-5 border-t border-[#eef0f1] pt-5"><p className="text-[13px] font-semibold text-[#222]">Email settings</p><label className="mt-4 block"><span className="mb-1.5 block text-[11px] font-medium text-[#777]">Description</span><input value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Optional" className="form-input" /></label><div className="mt-4"><p className="mb-2 text-[11px] font-medium text-[#777]">Selected block</p><div className="flex items-center justify-between rounded-xl bg-[#f5fafb] px-3 py-2.5 text-[12px] text-[#4d9eae]"><span className="capitalize">{selectedBlock}</span><span className="h-2 w-2 rounded-full bg-[#6eadc0]" /></div></div><div className="mt-4"><p className="mb-2 text-[11px] font-medium text-[#777]">Canvas background</p><div className="flex gap-2"><button type="button" className="h-8 w-8 rounded-lg bg-[#f7f4eb] ring-2 ring-[#6eadc0] ring-offset-2" /><button type="button" className="h-8 w-8 rounded-lg bg-white ring-1 ring-[#e5e7e9]" /><button type="button" className="h-8 w-8 rounded-lg bg-[#edf8fa]" /></div></div></div></> : activeSidebarTool === "uploads" ? <>{backgroundPickerSection ? <div className="mb-3 rounded-xl border border-[#cfe7eb] bg-[#f2fbfc] px-3 py-2.5"><p className="text-[12px] font-medium text-[#397f8c]">Choose a section background</p><p className="mt-1 text-[11px] leading-4 text-[#70949a]">Select an image below. It will fill the whole {sectionNames[backgroundPickerSection].toLowerCase()} section.</p></div> : null}<EmailUploadsPanel key={backgroundPickerSection || activeSidebarTool} onInsert={(upload) => backgroundPickerSection ? setSelectedSectionBackground(upload) : void insertUpload(upload)} /></> : activeSidebarTool === "design" ? selectedSectionControls : activeSidebarTool === "ai" ? <KenooAIPanel templateId={templateId} onThreadIdChange={setAiThreadId} /> : <div className="mt-5 rounded-2xl border border-dashed border-[#dce8ea] bg-[#fbfdfd] p-4"><p className="text-[12px] font-medium text-[#444]">{activeSidebarTool === "layouts" ? "Choose a starting point" : "Describe what you want to create"}</p><p className="mt-2 text-[11px] leading-5 text-[#8a9294]">{activeSidebarTool === "layouts" ? "Pick a template layout to give your email a strong first structure." : "Use Kenoo AI to help draft content and suggest layouts."}</p><div className="mt-4 rounded-xl bg-[#f5fafb] px-3 py-2.5 text-[11px] font-medium text-[#6b969e]">More options coming soon</div></div>}</></motion.aside> : null}</AnimatePresence>{activeSidebarTool ? <button type="button" onClick={() => setActiveSidebarTool(null)} aria-label="Close sidebar panel" className="absolute left-[436px] top-1/2 z-40 flex h-9 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-[#e1e5eb] bg-white text-[#333] shadow-[0_4px_14px_rgba(15,23,42,0.12)] transition hover:bg-[#f8fafb]"><ChevronLeft className="h-5 w-5" /></button> : null}<motion.main animate={{ x: activeSidebarTool ? 180 : 0 }} transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }} onClick={() => { setActiveSidebarTool(null); setCanvasSelectionActive(false); setSelectedBlock("hero"); }} className="relative min-w-0 flex-1 overflow-auto bg-[#f4f5f7] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"><div className="flex min-h-full justify-center px-5 py-10 sm:px-10"><div className="relative w-full max-w-[640px]" style={{ transform: `scale(${zoom / 100})`, transformOrigin: "top center" }}><section onClick={(event) => event.stopPropagation()} onDragOver={dragUploadOverCanvas} onDrop={dropUploadOnCanvas} className="overflow-hidden border border-[#e4e6ea] bg-white shadow-[0_18px_50px_rgba(15,23,42,0.12)]"><div role="button" tabIndex={0} onClick={() => { setSelectedBlock("hero"); setActiveSidebarTool("design"); setCanvasSelectionActive(true); }} style={{ ...sectionCanvasStyle("hero"), height: `${sectionHeights.hero}px`, display: hiddenSections.includes("hero") ? "none" : undefined }} className={cn("group relative block w-full px-10 pb-10 pt-12 text-center transition", canvasSelectionActive && selectedBlock === "hero" && !selectedTextKey && !selectedImageKey ? "ring-2 ring-inset ring-[var(--kenoo-sky)]" : "hover:brightness-[0.99]")}><p contentEditable suppressContentEditableWarning spellCheck="false" data-editor-key="hero-eyebrow" onInput={(event) => setHeroEyebrow(event.currentTarget.innerHTML)} onMouseDown={prepareTextSelection} onMouseUp={(event) => rememberTextSelection(event.currentTarget)} onKeyUp={(event) => rememberTextSelection(event.currentTarget)} className="cursor-text rounded-md outline-none focus:bg-white/60 focus:ring-2 focus:ring-[var(--kenoo-sky)]/40" onClick={(event) => selectTextContainer(event, "hero")} onDoubleClick={(event) => beginTextEditing(event, "hero")} dangerouslySetInnerHTML={heroEyebrowMarkup} /><h1 contentEditable suppressContentEditableWarning spellCheck="false" data-editor-key="hero-headline" onInput={(event) => setHeroHeadline(event.currentTarget.innerHTML)} onMouseDown={prepareTextSelection} onMouseUp={(event) => rememberTextSelection(event.currentTarget)} onKeyUp={(event) => rememberTextSelection(event.currentTarget)} className="mt-4 cursor-text rounded-md text-[35px] font-semibold leading-[1.08] tracking-[-0.06em] text-[#171717] outline-none focus:bg-white/60 focus:ring-2 focus:ring-[var(--kenoo-sky)]/40" onClick={(event) => selectTextContainer(event, "hero")} onDoubleClick={(event) => beginTextEditing(event, "hero")} dangerouslySetInnerHTML={{ __html: heroHeadline }} /><p contentEditable suppressContentEditableWarning spellCheck="false" data-editor-key="hero-description" onInput={(event) => setHeroDescription(event.currentTarget.innerHTML)} onMouseDown={prepareTextSelection} onMouseUp={(event) => rememberTextSelection(event.currentTarget)} onKeyUp={(event) => rememberTextSelection(event.currentTarget)} className="mx-auto mt-5 max-w-[400px] cursor-text rounded-md text-[13px] leading-6 text-[#727878] outline-none focus:bg-white/60 focus:ring-2 focus:ring-[var(--kenoo-sky)]/40" onClick={(event) => selectTextContainer(event, "hero")} onDoubleClick={(event) => beginTextEditing(event, "hero")} dangerouslySetInnerHTML={{ __html: heroDescription }} /><button type="button" onClick={(event) => { event.stopPropagation(); setSelectedBlock("button"); setActiveSidebarTool("design"); setCanvasSelectionActive(true); }} style={{ backgroundColor: buttonColor, color: buttonTextColor, width: buttonWidth === "auto" ? undefined : /^\d+$/.test(buttonWidth) ? buttonWidth + "px" : buttonWidth, minHeight: `${buttonHeight}px`, borderRadius: `${buttonRadius}px` }} className={cn("mt-7 rounded-xl px-6 py-3 text-[12px] font-semibold shadow-[0_8px_16px_rgba(110,173,192,0.28)] transition hover:brightness-95", canvasSelectionActive && selectedBlock === "button" ? "ring-2 ring-offset-2 ring-[var(--kenoo-sky)]" : "")}><span contentEditable suppressContentEditableWarning spellCheck="false" data-editor-key="hero-button" onInput={(event) => setHeroButtonLabel(event.currentTarget.innerHTML)} onMouseUp={(event) => rememberTextSelection(event.currentTarget)} onKeyUp={(event) => rememberTextSelection(event.currentTarget)} className="cursor-default rounded outline-none focus:ring-2 focus:ring-white/70"  dangerouslySetInnerHTML={{ __html: heroButtonLabel }} /></button>{renderCanvasUploads("hero")}</div><button type="button" onClick={() => { setSelectedBlock("text"); setActiveSidebarTool("design"); setCanvasSelectionActive(true); }} style={{ ...sectionCanvasStyle("text"), height: `${sectionHeights.text}px`, display: hiddenSections.includes("text") ? "none" : undefined }} className={cn("relative block w-full border-t border-[#f0f0ed] px-10 py-9 text-left transition", canvasSelectionActive && selectedBlock === "text" && !selectedTextKey && !selectedImageKey ? "ring-2 ring-inset ring-[var(--kenoo-sky)]" : "hover:brightness-[0.99]")}><p contentEditable suppressContentEditableWarning spellCheck="false" data-editor-key="body-heading" onInput={(event) => setBodyHeading(event.currentTarget.innerHTML)} onMouseDown={prepareTextSelection} onMouseUp={(event) => rememberTextSelection(event.currentTarget)} onKeyUp={(event) => rememberTextSelection(event.currentTarget)} className="cursor-text rounded-md text-[15px] font-semibold text-[#252828] outline-none focus:bg-white focus:ring-2 focus:ring-[var(--kenoo-sky)]/40" onClick={(event) => selectTextContainer(event, "text")} onDoubleClick={(event) => beginTextEditing(event, "text")} dangerouslySetInnerHTML={{ __html: bodyHeading }} /><p contentEditable suppressContentEditableWarning spellCheck="false" data-editor-key="body-description" onInput={(event) => setBodyDescription(event.currentTarget.innerHTML)} onMouseDown={prepareTextSelection} onMouseUp={(event) => rememberTextSelection(event.currentTarget)} onKeyUp={(event) => rememberTextSelection(event.currentTarget)} className="mt-3 cursor-text rounded-md text-[12px] leading-6 text-[#747b7d] outline-none focus:bg-white focus:ring-2 focus:ring-[var(--kenoo-sky)]/40" onClick={(event) => selectTextContainer(event, "text")} onDoubleClick={(event) => beginTextEditing(event, "text")} dangerouslySetInnerHTML={{ __html: bodyDescription }} />{renderCanvasUploads("text")}</button><button type="button" onClick={() => { setSelectedBlock("image"); setActiveSidebarTool("design"); setCanvasSelectionActive(true); }} style={{ ...sectionCanvasStyle("image"), height: `${sectionHeights.image}px`, display: hiddenSections.includes("image") ? "none" : undefined }} className={cn("relative block w-full border-t border-[#f0f0ed] p-6 transition", canvasSelectionActive && selectedBlock === "image" && !selectedTextKey && !selectedImageKey ? "ring-2 ring-inset ring-[var(--kenoo-sky)]" : "hover:brightness-[0.99]")}>{!canvasUploads.some((upload) => upload.section === "image") ? <div style={{ backgroundColor: sectionBackgrounds.image ? "transparent" : sectionColors.image }} className="flex h-[170px] items-center justify-center rounded-xl border border-dashed border-[#c8dfe3] text-center text-[#65aab7]"><Image className="h-7 w-7" /><span contentEditable suppressContentEditableWarning spellCheck="false" data-editor-key="image-placeholder" onInput={(event) => setImagePlaceholder(event.currentTarget.innerHTML)} onMouseDown={prepareTextSelection} onMouseUp={(event) => rememberTextSelection(event.currentTarget)} onKeyUp={(event) => rememberTextSelection(event.currentTarget)} className="ml-3 cursor-text rounded outline-none focus:bg-white focus:ring-2 focus:ring-[var(--kenoo-sky)]/40" onClick={(event) => selectTextContainer(event, "image")} onDoubleClick={(event) => beginTextEditing(event, "image")} dangerouslySetInnerHTML={{ __html: imagePlaceholder }} /></div> : null}{renderCanvasUploads("image")}</button><button type="button" onClick={() => { setSelectedBlock("divider"); setActiveSidebarTool("design"); setCanvasSelectionActive(true); }} style={{ ...sectionCanvasStyle("divider"), height: `${sectionHeights.divider}px`, display: hiddenSections.includes("divider") ? "none" : undefined }} className={cn("relative block w-full border-t border-[#f0f0ed] px-10 py-7 transition", canvasSelectionActive && selectedBlock === "divider" ? "ring-2 ring-inset ring-[var(--kenoo-sky)]" : "hover:brightness-[0.99]")}><div className="h-px bg-[#d8e5e7]" />{renderCanvasUploads("divider")}</button><div role="button" tabIndex={0} onClick={() => { setSelectedBlock("footer"); setActiveSidebarTool("design"); setCanvasSelectionActive(true); }} style={{ ...sectionCanvasStyle("footer"), height: `${sectionHeights.footer}px`, display: hiddenSections.includes("footer") ? "none" : undefined }} className={cn("relative block w-full border-t border-[#e4e9e9] px-10 py-7 text-center transition", canvasSelectionActive && selectedBlock === "footer" && !selectedTextKey && !selectedImageKey ? "ring-2 ring-inset ring-[var(--kenoo-sky)]" : "hover:brightness-[0.99]")}><p contentEditable suppressContentEditableWarning spellCheck="false" data-editor-key="footer-company" onInput={(event) => setFooterCompany(event.currentTarget.innerHTML)} onMouseDown={prepareTextSelection} onMouseUp={(event) => rememberTextSelection(event.currentTarget)} onKeyUp={(event) => rememberTextSelection(event.currentTarget)} onClick={(event) => selectTextContainer(event, "footer")} onDoubleClick={(event) => beginTextEditing(event, "footer")} className="cursor-text rounded-md text-[14px] font-semibold text-[#273236] outline-none focus:bg-white focus:ring-2 focus:ring-[var(--kenoo-sky)]/40" dangerouslySetInnerHTML={{ __html: footerCompany }} /><p contentEditable suppressContentEditableWarning spellCheck="false" data-editor-key="footer-note" onInput={(event) => setFooterNote(event.currentTarget.innerHTML)} onMouseDown={prepareTextSelection} onMouseUp={(event) => rememberTextSelection(event.currentTarget)} onKeyUp={(event) => rememberTextSelection(event.currentTarget)} onClick={(event) => selectTextContainer(event, "footer")} onDoubleClick={(event) => beginTextEditing(event, "footer")} className="mx-auto mt-2 max-w-[430px] cursor-text rounded-md text-[11px] leading-5 text-[#788487] outline-none focus:bg-white focus:ring-2 focus:ring-[var(--kenoo-sky)]/40" dangerouslySetInnerHTML={{ __html: footerNote }} /><div className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[11px] text-[#4d9eae]">{(["instagram", "facebook", "linkedin"] as const).map((network) => footerSocialLinks[network].trim().match(/^https?:\/\//i) ? <a key={network} href={footerSocialLinks[network].trim()} onClick={(event) => event.preventDefault()} className="capitalize underline underline-offset-2">{network}</a> : <span key={network} className="capitalize">{network}</span>)}</div><div className="mt-4 text-[11px] text-[#788487]">{footerUnsubscribeUrl.trim().match(/^https?:\/\//i) ? <a href={footerUnsubscribeUrl.trim()} onClick={(event) => event.preventDefault()} className="underline underline-offset-2"><span contentEditable suppressContentEditableWarning spellCheck="false" data-editor-key="footer-unsubscribe" onInput={(event) => setFooterUnsubscribeText(event.currentTarget.innerHTML)} onMouseDown={prepareTextSelection} onMouseUp={(event) => rememberTextSelection(event.currentTarget)} onKeyUp={(event) => rememberTextSelection(event.currentTarget)} onClick={(event) => selectTextContainer(event, "footer")} onDoubleClick={(event) => beginTextEditing(event, "footer")} className="cursor-text rounded-md outline-none focus:bg-white focus:ring-2 focus:ring-[var(--kenoo-sky)]/40" dangerouslySetInnerHTML={{ __html: footerUnsubscribeText }} /></a> : <span contentEditable suppressContentEditableWarning spellCheck="false" data-editor-key="footer-unsubscribe" onInput={(event) => setFooterUnsubscribeText(event.currentTarget.innerHTML)} onMouseDown={prepareTextSelection} onMouseUp={(event) => rememberTextSelection(event.currentTarget)} onKeyUp={(event) => rememberTextSelection(event.currentTarget)} onClick={(event) => selectTextContainer(event, "footer")} onDoubleClick={(event) => beginTextEditing(event, "footer")} className="cursor-text rounded-md underline underline-offset-2 outline-none focus:bg-white focus:ring-2 focus:ring-[var(--kenoo-sky)]/40" dangerouslySetInnerHTML={{ __html: footerUnsubscribeText }} />}</div>{renderCanvasUploads("footer")}</div></section></div></div></motion.main>{layersPanel}</div><footer className="flex h-11 shrink-0 items-center justify-between border-t border-[#e2e4e9] bg-white px-4 text-[11px] text-[#92969d] sm:px-6"><div className="flex items-center gap-5"><span className="inline-flex items-center gap-1.5"><LayoutTemplate className="h-3.5 w-3.5" /> Email layout</span><span aria-hidden="true" className="hidden h-4 w-px bg-[#e5e7eb] sm:inline" /><span className="hidden sm:inline">{saveStatus === "creating" ? "Creating…" : saveStatus === "saving" ? "Autosaving…" : saveStatus === "error" ? "Autosave failed" : "Autosaved"}</span></div><div className="flex items-center gap-4"><div className="flex items-center gap-1 rounded-xl bg-[#f4f5f7] p-1"><button type="button" onClick={() => setZoom((value) => Math.max(50, value - 1))} className="rounded-lg p-1.5 text-[#777] transition hover:bg-white hover:text-[#4d9eae]" aria-label="Zoom out"><ZoomOut className="h-3.5 w-3.5" /></button><input type="range" min="50" max="150" step="1" value={zoom} onChange={(event) => setZoom(Number(event.target.value))} className="h-1 w-32 accent-[#6eadc0]" aria-label="Zoom level" /><button type="button" onClick={() => setZoom((value) => Math.min(150, value + 1))} className="rounded-lg p-1.5 text-[#777] transition hover:bg-white hover:text-[#4d9eae]" aria-label="Zoom in"><ZoomIn className="h-3.5 w-3.5" /></button><span className="min-w-[38px] px-1 text-center text-[11px] font-medium text-[#666]">{zoom}%</span></div><button type="button" onClick={() => setLayersOpen((open) => !open)} aria-expanded={layersOpen} className={cn("inline-flex items-center gap-1.5 rounded-lg px-2 py-1 font-medium transition", layersOpen ? "bg-[#edf8fa] text-[#4d9eae]" : "text-[#666] hover:bg-[#f3f5f6]")}><Layers className="h-3.5 w-3.5" />Layers</button></div></footer></div>;
+
+  return <div className="min-h-full bg-kenoo-white"><div className="mx-auto max-w-[1000px] px-6 py-8 sm:px-10 lg:px-12"><Link href="/templates" className="inline-flex items-center gap-2 text-[12px] text-[#888] transition hover:text-[#333]"><ArrowLeft className="h-3.5 w-3.5" /> Back to templates</Link><header className="mt-8"><div className={cn("flex h-11 w-11 items-center justify-center rounded-2xl", details.color)}><Icon className="h-5 w-5" strokeWidth={1.6} /></div><p className="mb-2 mt-5 text-[12px] font-medium uppercase tracking-[0.1em] text-[#9b9b9b]">New {details.label.toLowerCase()} template</p><h1 className="text-[30px] font-semibold tracking-[-0.04em] text-[#111]">Create a {details.label} template</h1><p className="mt-2 max-w-xl text-[13px] font-light leading-6 text-[#858585]">{details.description}</p></header><form onSubmit={saveTemplate} className="mt-8 rounded-[28px] bg-white/80 p-6 shadow-[0_8px_28px_rgba(15,23,42,0.07),inset_0_1px_0_rgba(255,255,255,0.95)] sm:p-8"><label className="block"><span className="mb-1.5 block text-[12px] font-medium text-[#555]">Template name</span><input value={name} onChange={(event) => setName(event.target.value)} placeholder={isPush ? "e.g. Order ready" : "e.g. Appointment reminder"} className="form-input" /></label><label className="mt-5 block"><span className="mb-1.5 block text-[12px] font-medium text-[#555]">Description <span className="font-normal text-[#aaa]">(optional)</span></span><input value={description} onChange={(event) => setDescription(event.target.value)} placeholder="What is this template for?" className="form-input" /></label>{isPush ? <><label className="mt-5 block"><span className="mb-1.5 block text-[12px] font-medium text-[#555]">Notification title</span><input required value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Your order is ready" className="form-input" /></label><label className="mt-5 block"><span className="mb-1.5 block text-[12px] font-medium text-[#555]">Message</span><textarea required value={message} onChange={(event) => setMessage(event.target.value)} placeholder="Order #1234 is ready for pickup." className="min-h-28 w-full resize-y rounded-lg border border-[#dedede] bg-white px-3 py-2.5 text-[12px] leading-5 text-[#333] outline-none placeholder:text-[#aaa] focus:border-[#999] focus:ring-2 focus:ring-black/[0.04]" /></label><div className="mt-5 grid gap-5 sm:grid-cols-2"><label className="block"><span className="mb-1.5 block text-[12px] font-medium text-[#555]">Action link <span className="font-normal text-[#aaa]">(optional)</span></span><input type="url" value={actionUrl} onChange={(event) => setActionUrl(event.target.value)} placeholder="https://app.example.com/orders/1234" className="form-input" /></label><label className="block"><span className="mb-1.5 block text-[12px] font-medium text-[#555]">Image URL <span className="font-normal text-[#aaa]">(optional)</span></span><input type="url" value={imageUrl} onChange={(event) => setImageUrl(event.target.value)} placeholder="https://..." className="form-input" /></label></div></> : <><label className="mt-5 block"><span className="mb-1.5 block text-[12px] font-medium text-[#555]">Subject</span><input required={key === "email"} value={subject} onChange={(event) => setSubject(event.target.value)} placeholder="A quick note from us" className="form-input" /></label><label className="mt-5 block"><span className="mb-1.5 block text-[12px] font-medium text-[#555]">Message</span><textarea required maxLength={1600} value={message} onChange={(event) => setMessage(event.target.value)} placeholder={key === "email" ? "Write your plain-text email..." : "Hi {{first_name}}, just a quick reminder..."} className="min-h-36 w-full resize-y rounded-lg border border-[#dedede] bg-white px-3 py-2.5 text-[12px] leading-5 text-[#333] outline-none placeholder:text-[#aaa] focus:border-[#999] focus:ring-2 focus:ring-black/[0.04]" /><span className="mt-1.5 block text-right text-[11px] text-[#aaa]">{message.length}/1600</span></label></>}{error ? <p className="mt-4 text-[12px] text-red-500">{error}</p> : null}<div className="mt-6 flex justify-end gap-2"><Link href="/templates" className="rounded-lg px-3.5 py-2.5 text-[12px] font-medium text-[#666] transition hover:bg-[#f5f5f5]">Cancel</Link><button type="submit" disabled={saving} className="inline-flex items-center gap-2 rounded-lg bg-[#111] px-3.5 py-2.5 text-[12px] font-medium text-white transition hover:bg-[#2a2a2a] disabled:cursor-wait disabled:opacity-60"><Save className="h-3.5 w-3.5" />{saving ? "Saving…" : "Save template"}</button></div></form></div></div>;
 }
