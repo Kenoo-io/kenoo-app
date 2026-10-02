@@ -904,7 +904,10 @@ export function createKenooMcpServer(identity: KenooIdentity | null, authChallen
         fiber_g: item.fiberG,
         sugar_g: item.sugarG,
         sodium_mg: item.sodiumMg,
-        source: "mcp",
+        // The shared Health schema only permits its established source values
+        // (for example, "manual"). Preserve MCP provenance in metadata rather
+        // than introducing a value the database constraint rejects.
+        source: "manual",
         source_metadata: { origin: "mcp", sort_order: index },
         sort_order: index,
       }));
@@ -917,7 +920,7 @@ export function createKenooMcpServer(identity: KenooIdentity | null, authChallen
           name: name ?? null,
           notes: notes ?? null,
           ...mealTotals(normalizedItems),
-          source: "mcp",
+          source: "manual",
           source_metadata: { origin: "mcp" },
         })
         .select("id")
