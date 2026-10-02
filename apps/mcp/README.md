@@ -43,6 +43,8 @@ the task's existing project-access rules.
   `adpilot_set_automation` for account-scoped AdPilot rules on campaigns and
   ad sets, including enable/disable, profile selection, budget bounds,
   cooldown, and supported stop-loss settings
+- `adpilot_set_daily_budget` to directly set the live provider daily budget for
+  a campaign or ad set (separate from AdPilot automation guardrails)
 - `adpilot_get_ad_runtime` for the earliest day with recorded ad impressions
   in Kenoo's available daily metrics history
 - `adpilot_set_ad_delivery_status` to activate or pause an individual ad on its
@@ -53,8 +55,9 @@ warehouse. It is not a rolling wall-clock 24-hour query. AdPilot write tools
 that can affect provider delivery or spend should be added through audited,
 explicit mutation endpoints rather than direct generic database writes. The
 current automation mutation changes AdPilot's rules state; it does not directly
-edit provider campaigns. Individual ad activation and pausing use a separate
-authenticated AdPilot endpoint and update provider delivery status.
+edit provider campaigns. Direct daily-budget changes and individual ad
+activation/pausing use separate authenticated AdPilot endpoints that update the
+connected provider.
 
 ## Local development
 
