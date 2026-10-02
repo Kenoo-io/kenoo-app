@@ -81,6 +81,26 @@ const AD_RUNTIME_OUTPUT_SCHEMA = {
   daysSinceFirstRecordedDelivery: z.number().int().nullable(),
   dateMeaning: z.string(),
 };
+const HEALTH_SUMMARIES_OUTPUT_SCHEMA = {
+  source: z.literal("Kenoo Apple Health sync"),
+  summaries: z.array(z.record(z.unknown())),
+};
+const HEALTH_ACTIVITIES_OUTPUT_SCHEMA = {
+  source: z.literal("Kenoo Apple Health sync"),
+  activities: z.array(z.record(z.unknown())),
+};
+const HEALTH_PROFILE_OUTPUT_SCHEMA = {
+  source: z.literal("Kenoo Health profile"),
+  profile: z.record(z.unknown()).nullable(),
+};
+const HEALTH_MEALS_OUTPUT_SCHEMA = {
+  source: z.literal("Kenoo meal log"),
+  meals: z.array(z.record(z.unknown())),
+};
+const HEALTH_MEAL_OUTPUT_SCHEMA = {
+  source: z.literal("Kenoo meal log"),
+  meal: z.record(z.unknown()),
+};
 
 const OAUTH_SECURITY_SCHEMES = [{ type: "oauth2", scopes: ["openid", "profile", "email"] }];
 
@@ -97,6 +117,68 @@ function toolError(message: string) {
     content: [{ type: "text" as const, text: message }],
     isError: true,
   };
+}
+
+const HEALTH_SUMMARY_SELECT =
+  "id, summary_date, calories_consumed, calories_burned, calories_net, protein_g, carbs_g, fat_g, fiber_g, sugar_g, sodium_mg, water_ml, meal_count, activity_count, active_minutes, steps, distance_walking_meters, flights_climbed, active_energy_kcal, basal_energy_kcal, exercise_minutes, stand_minutes, stand_hours, resting_heart_rate, avg_heart_rate, walking_heart_rate_avg, hrv_sdnn_ms, respiratory_rate, oxygen_saturation, body_temperature_c, blood_glucose_mg_dl, vo2_max, mindfulness_minutes, sleep_asleep_minutes, sleep_in_bed_minutes, sleep_deep_minutes, sleep_rem_minutes, sleep_core_minutes, sleep_awake_minutes, apple_health_synced_at";
+const HEALTH_ACTIVITY_SELECT =
+  "id, provider, activity_type, name, description, started_at, ended_at, duration_seconds, distance_meters, elevation_gain_meters, calories_burned, avg_heart_rate, max_heart_rate, avg_speed_mps, perceived_exertion";
+const HEALTH_PROFILE_SELECT =
+  "id, sex, height_cm, current_weight_kg, activity_level, bmr_calories, tdee_calories, calorie_target_daily, protein_target_g, carbs_target_g, fat_target_g, fiber_target_g, sugar_limit_g, sodium_limit_mg, goal_type, target_weight_kg, target_date, unit_system, timezone, settings";
+const HEALTH_MEAL_SELECT =
+  "id, meal_date, logged_at, meal_type, name, notes, calories, protein_g, carbs_g, fat_g, fiber_g, sugar_g, sodium_mg, source, source_metadata";
+
+function isoDate(value: string | undefined, fallback: string) {
+  return value ?? fallback;
+}
+
+function todayUtcDate() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function mealTotals(items: Array<Record<string, unknown>>) {
+  const fields = ["calories", "protein_g", "carbs_g", "fat_g", "fiber_g", "sugar_g", "sodium_mg"] as const;
+  return Object.fromEntries(
+    fields.map((field) => [
+      field,
+      items.reduce((sum, item) => sum + (Number(item[field]) || 0), 0),
+    ]),
+  );
+}
+
+async function listHealthMeals(identity: KenooIdentity, mealDate: string): Promise<Record<string, unknown>[]> {
+  const { data: meals, error } = await identity.supabase
+    .from("health_meals")
+    .select(HEALTH_MEAL_SELECT)
+    .eq("user_id", identity.user.id)
+    .eq("meal_date", mealDate)
+    .order("logged_at", { ascending: true });
+  if (error) throw error;
+
+  const mealRows = dataOrEmpty(meals);
+  if (!mealRows.length) return [];
+  const mealIds = mealRows.map((meal) => meal.id as string);
+  const { data: items, error: itemsError } = await identity.supabase
+    .from("health_meal_items")
+    .select("id, meal_id, name, quantity, serving_unit, calories, protein_g, carbs_g, fat_g, fiber_g, sugar_g, sodium_mg, notes, source, sort_order")
+    .eq("user_id", identity.user.id)
+    .in("meal_id", mealIds)
+    .order("sort_order", { ascending: true });
+  if (itemsError) throw itemsError;
+
+  const itemsByMeal = new Map<string, Record<string, unknown>[]>();
+  for (const item of dataOrEmpty(items)) {
+    const mealId = item.meal_id as string;
+    itemsByMeal.set(mealId, [...(itemsByMeal.get(mealId) ?? []), item]);
+  }
+  return mealRows.map((meal) => ({
+    ...meal,
+    items: itemsByMeal.get(meal.id as string) ?? [],
+  }));
+}
+
+function dataOrEmpty(data: unknown): Record<string, unknown>[] {
+  return Array.isArray(data) ? data as Record<string, unknown>[] : [];
 }
 
 async function resolveAccountId(identity: KenooIdentity) {
@@ -544,6 +626,201 @@ export function createKenooMcpServer(identity: KenooIdentity | null, authChallen
       if (!identity) return authenticationRequired(authChallenge);
       const accountId = await resolveAccountId(identity);
       return text({ accountId, connected: Boolean(accountId) });
+    },
+  );
+
+  server.registerTool(
+    "health_get_daily_summaries",
+    {
+      title: "Get synced health summaries",
+      description: "Read daily health metrics already synced from the user's Apple Health device into Kenoo. This does not read Apple Health live.",
+      annotations: { readOnlyHint: true },
+      _meta: { securitySchemes: OAUTH_SECURITY_SCHEMES },
+      inputSchema: {
+        startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        limit: z.number().int().min(1).max(365).default(30),
+      },
+      outputSchema: HEALTH_SUMMARIES_OUTPUT_SCHEMA,
+    },
+    async ({ startDate, endDate, limit = 30 }) => {
+      if (!identity) return authenticationRequired(authChallenge);
+      const end = isoDate(endDate, todayUtcDate());
+      const start = isoDate(startDate, new Date(Date.now() - 30 * 86_400_000).toISOString().slice(0, 10));
+      const { data, error } = await identity.supabase
+        .from("health_daily_summaries")
+        .select(HEALTH_SUMMARY_SELECT)
+        .eq("user_id", identity.user.id)
+        .gte("summary_date", start)
+        .lte("summary_date", end)
+        .order("summary_date", { ascending: false })
+        .limit(limit);
+      if (error) throw error;
+      return text({ source: "Kenoo Apple Health sync", summaries: dataOrEmpty(data) });
+    },
+  );
+
+  server.registerTool(
+    "health_list_activities",
+    {
+      title: "List synced health activities",
+      description: "Read workouts and activities already synced from the user's Apple Health device into Kenoo. This does not read Apple Health live.",
+      annotations: { readOnlyHint: true },
+      _meta: { securitySchemes: OAUTH_SECURITY_SCHEMES },
+      inputSchema: {
+        startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        limit: z.number().int().min(1).max(100).default(25),
+      },
+      outputSchema: HEALTH_ACTIVITIES_OUTPUT_SCHEMA,
+    },
+    async ({ startDate, endDate, limit = 25 }) => {
+      if (!identity) return authenticationRequired(authChallenge);
+      const end = endDate ? `${endDate}T23:59:59.999Z` : new Date().toISOString();
+      const start = startDate
+        ? `${startDate}T00:00:00.000Z`
+        : new Date(Date.now() - 30 * 86_400_000).toISOString();
+      const { data, error } = await identity.supabase
+        .from("health_activities")
+        .select(HEALTH_ACTIVITY_SELECT)
+        .eq("user_id", identity.user.id)
+        .gte("started_at", start)
+        .lte("started_at", end)
+        .order("started_at", { ascending: false })
+        .limit(limit);
+      if (error) throw error;
+      return text({ source: "Kenoo Apple Health sync", activities: dataOrEmpty(data) });
+    },
+  );
+
+  server.registerTool(
+    "health_get_profile",
+    {
+      title: "Get health profile",
+      description: "Read the authenticated person's Kenoo health profile. Health data is person-scoped and does not depend on the selected business account.",
+      annotations: { readOnlyHint: true },
+      _meta: { securitySchemes: OAUTH_SECURITY_SCHEMES },
+      inputSchema: {},
+      outputSchema: HEALTH_PROFILE_OUTPUT_SCHEMA,
+    },
+    async () => {
+      if (!identity) return authenticationRequired(authChallenge);
+      const { data, error } = await identity.supabase
+        .from("health_profiles")
+        .select(HEALTH_PROFILE_SELECT)
+        .eq("user_id", identity.user.id)
+        .maybeSingle();
+      if (error) throw error;
+      return text({ source: "Kenoo Health profile", profile: (data as Record<string, unknown> | null) ?? null });
+    },
+  );
+
+  server.registerTool(
+    "health_list_meals",
+    {
+      title: "List logged meals",
+      description: "List meals logged in Kenoo for a date. These are Kenoo meal-log records, not direct Apple Health samples.",
+      annotations: { readOnlyHint: true },
+      _meta: { securitySchemes: OAUTH_SECURITY_SCHEMES },
+      inputSchema: { mealDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional() },
+      outputSchema: HEALTH_MEALS_OUTPUT_SCHEMA,
+    },
+    async ({ mealDate }) => {
+      if (!identity) return authenticationRequired(authChallenge);
+      return text({ source: "Kenoo meal log", meals: await listHealthMeals(identity, mealDate ?? todayUtcDate()) });
+    },
+  );
+
+  server.registerTool(
+    "health_log_meal",
+    {
+      title: "Log a meal",
+      description: "Create a meal in Kenoo's health log for the authenticated person. Use only when the user explicitly asks to record food; this does not write to Apple Health.",
+      annotations: { readOnlyHint: false, destructiveHint: false },
+      _meta: { securitySchemes: OAUTH_SECURITY_SCHEMES },
+      inputSchema: {
+        mealType: z.enum(["breakfast", "lunch", "dinner", "snack", "other"]),
+        mealDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        name: z.string().max(200).optional(),
+        notes: z.string().max(2000).optional(),
+        items: z.array(z.object({
+          name: z.string().min(1).max(200),
+          quantity: z.number().positive().default(1),
+          servingUnit: z.string().max(50).default("serving"),
+          calories: z.number().min(0),
+          proteinG: z.number().min(0).default(0),
+          carbsG: z.number().min(0).default(0),
+          fatG: z.number().min(0).default(0),
+          fiberG: z.number().min(0).default(0),
+          sugarG: z.number().min(0).default(0),
+          sodiumMg: z.number().min(0).default(0),
+        })).min(1).max(50),
+      },
+      outputSchema: HEALTH_MEAL_OUTPUT_SCHEMA,
+    },
+    async ({ mealType, mealDate, name, notes, items }) => {
+      if (!identity) return authenticationRequired(authChallenge);
+      const normalizedItems = items.map((item, index) => ({
+        user_id: identity.user.id,
+        name: item.name,
+        quantity: item.quantity,
+        serving_unit: item.servingUnit,
+        calories: item.calories,
+        protein_g: item.proteinG,
+        carbs_g: item.carbsG,
+        fat_g: item.fatG,
+        fiber_g: item.fiberG,
+        sugar_g: item.sugarG,
+        sodium_mg: item.sodiumMg,
+        source: "mcp",
+        source_metadata: { origin: "mcp", sort_order: index },
+        sort_order: index,
+      }));
+      const { data: meal, error: mealError } = await identity.supabase
+        .from("health_meals")
+        .insert({
+          user_id: identity.user.id,
+          meal_date: mealDate ?? todayUtcDate(),
+          meal_type: mealType,
+          name: name ?? null,
+          notes: notes ?? null,
+          ...mealTotals(normalizedItems),
+          source: "mcp",
+          source_metadata: { origin: "mcp" },
+        })
+        .select("id")
+        .single();
+      if (mealError) throw mealError;
+      const mealId = (meal as { id: string }).id;
+      const { error: itemsError } = await identity.supabase
+        .from("health_meal_items")
+        .insert(normalizedItems.map(({ source_metadata, ...item }) => ({ ...item, meal_id: mealId, source_metadata })));
+      if (itemsError) throw itemsError;
+      const meals = await listHealthMeals(identity, mealDate ?? todayUtcDate());
+      const created = meals.find((candidate) => candidate.id === mealId) ?? { id: mealId };
+      return text({ source: "Kenoo meal log", meal: created });
+    },
+  );
+
+  server.registerTool(
+    "health_delete_meal",
+    {
+      title: "Delete a logged meal",
+      description: "Delete a meal from Kenoo's health log after the user explicitly identifies it. This does not modify Apple Health.",
+      annotations: { readOnlyHint: false, destructiveHint: true },
+      _meta: { securitySchemes: OAUTH_SECURITY_SCHEMES },
+      inputSchema: { mealId: z.string().uuid() },
+      outputSchema: { source: z.literal("Kenoo meal log"), deleted: z.boolean(), mealId: z.string().uuid() },
+    },
+    async ({ mealId }) => {
+      if (!identity) return authenticationRequired(authChallenge);
+      const { error } = await identity.supabase
+        .from("health_meals")
+        .delete()
+        .eq("id", mealId)
+        .eq("user_id", identity.user.id);
+      if (error) throw error;
+      return text({ source: "Kenoo meal log", deleted: true, mealId });
     },
   );
 
@@ -1181,6 +1458,54 @@ export function createKenooMcpServer(identity: KenooIdentity | null, authChallen
         annotations: { readOnlyHint: true },
         securitySchemes: OAUTH_SECURITY_SCHEMES,
         _meta: { securitySchemes: OAUTH_SECURITY_SCHEMES },
+      },
+      {
+        name: "health_get_daily_summaries",
+        title: "Get synced health summaries",
+        description: "Read daily health metrics already synced from the user's Apple Health device into Kenoo. This does not read Apple Health live.",
+        inputSchema: { type: "object", properties: { startDate: { type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}$" }, endDate: { type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}$" }, limit: { type: "integer", minimum: 1, maximum: 365, default: 30 } } },
+        outputSchema: { type: "object", properties: { source: { type: "string", const: "Kenoo Apple Health sync" }, summaries: { type: "array", items: { type: "object", additionalProperties: true } } }, required: ["source", "summaries"] },
+        annotations: { readOnlyHint: true }, securitySchemes: OAUTH_SECURITY_SCHEMES, _meta: { securitySchemes: OAUTH_SECURITY_SCHEMES },
+      },
+      {
+        name: "health_list_activities",
+        title: "List synced health activities",
+        description: "Read workouts and activities already synced from the user's Apple Health device into Kenoo. This does not read Apple Health live.",
+        inputSchema: { type: "object", properties: { startDate: { type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}$" }, endDate: { type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}$" }, limit: { type: "integer", minimum: 1, maximum: 100, default: 25 } } },
+        outputSchema: { type: "object", properties: { source: { type: "string", const: "Kenoo Apple Health sync" }, activities: { type: "array", items: { type: "object", additionalProperties: true } } }, required: ["source", "activities"] },
+        annotations: { readOnlyHint: true }, securitySchemes: OAUTH_SECURITY_SCHEMES, _meta: { securitySchemes: OAUTH_SECURITY_SCHEMES },
+      },
+      {
+        name: "health_get_profile",
+        title: "Get health profile",
+        description: "Read the authenticated person's Kenoo health profile. Health data is person-scoped and does not depend on the selected business account.",
+        inputSchema: { type: "object", properties: {} },
+        outputSchema: { type: "object", properties: { source: { type: "string", const: "Kenoo Health profile" }, profile: { type: ["object", "null"], additionalProperties: true } }, required: ["source", "profile"] },
+        annotations: { readOnlyHint: true }, securitySchemes: OAUTH_SECURITY_SCHEMES, _meta: { securitySchemes: OAUTH_SECURITY_SCHEMES },
+      },
+      {
+        name: "health_list_meals",
+        title: "List logged meals",
+        description: "List meals logged in Kenoo for a date. These are Kenoo meal-log records, not direct Apple Health samples.",
+        inputSchema: { type: "object", properties: { mealDate: { type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}$" } } },
+        outputSchema: { type: "object", properties: { source: { type: "string", const: "Kenoo meal log" }, meals: { type: "array", items: { type: "object", additionalProperties: true } } }, required: ["source", "meals"] },
+        annotations: { readOnlyHint: true }, securitySchemes: OAUTH_SECURITY_SCHEMES, _meta: { securitySchemes: OAUTH_SECURITY_SCHEMES },
+      },
+      {
+        name: "health_log_meal",
+        title: "Log a meal",
+        description: "Create a meal in Kenoo's health log for the authenticated person. Use only when the user explicitly asks to record food; this does not write to Apple Health.",
+        inputSchema: { type: "object", properties: { mealType: { type: "string", enum: ["breakfast", "lunch", "dinner", "snack", "other"] }, mealDate: { type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}$" }, name: { type: "string", maxLength: 200 }, notes: { type: "string", maxLength: 2000 }, items: { type: "array", minItems: 1, maxItems: 50, items: { type: "object", properties: { name: { type: "string", minLength: 1, maxLength: 200 }, quantity: { type: "number", exclusiveMinimum: 0, default: 1 }, servingUnit: { type: "string", maxLength: 50, default: "serving" }, calories: { type: "number", minimum: 0 }, proteinG: { type: "number", minimum: 0, default: 0 }, carbsG: { type: "number", minimum: 0, default: 0 }, fatG: { type: "number", minimum: 0, default: 0 }, fiberG: { type: "number", minimum: 0, default: 0 }, sugarG: { type: "number", minimum: 0, default: 0 }, sodiumMg: { type: "number", minimum: 0, default: 0 } }, required: ["name", "calories"] } } }, required: ["mealType", "items"] },
+        outputSchema: { type: "object", properties: { source: { type: "string", const: "Kenoo meal log" }, meal: { type: "object", additionalProperties: true } }, required: ["source", "meal"] },
+        annotations: { readOnlyHint: false, destructiveHint: false }, securitySchemes: OAUTH_SECURITY_SCHEMES, _meta: { securitySchemes: OAUTH_SECURITY_SCHEMES },
+      },
+      {
+        name: "health_delete_meal",
+        title: "Delete a logged meal",
+        description: "Delete a meal from Kenoo's health log after the user explicitly identifies it. This does not modify Apple Health.",
+        inputSchema: { type: "object", properties: { mealId: { type: "string", format: "uuid" } }, required: ["mealId"] },
+        outputSchema: { type: "object", properties: { source: { type: "string", const: "Kenoo meal log" }, deleted: { type: "boolean" }, mealId: { type: "string", format: "uuid" } }, required: ["source", "deleted", "mealId"] },
+        annotations: { readOnlyHint: false, destructiveHint: true }, securitySchemes: OAUTH_SECURITY_SCHEMES, _meta: { securitySchemes: OAUTH_SECURITY_SCHEMES },
       },
       {
         name: "adpilot_list_entities",

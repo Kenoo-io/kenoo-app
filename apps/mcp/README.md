@@ -7,7 +7,16 @@ remains the authorization boundary.
 
 ## Current tools
 
-The server exposes account-scoped Kenoo and AdPilot tools:
+The server exposes account-scoped Kenoo and AdPilot tools, plus person-scoped
+Health tools:
+
+- `health_get_daily_summaries` and `health_list_activities` read the subset of
+  Apple Health data that the Wallie mobile app has already synced into Kenoo.
+  They do not read Apple Health live from the MCP client.
+- `health_get_profile`, `health_list_meals`, `health_log_meal`, and
+  `health_delete_meal` read or modify the authenticated person's Kenoo health
+  records. These tools intentionally do not depend on the selected business
+  account for the MCP connection.
 
 - `kenoo_get_current_user`, `kenoo_list_my_accounts`, and `kenoo_list_projects`
 - `kenoo_list_tasks`, `kenoo_get_project`, `kenoo_create_project`,
