@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ChevronRight, FileText, Mail, MessageCircleMore, Plus, Search, Smartphone, X } from "lucide-react";
+import { ChevronRight, FileText, Mail, MessageCircleMore, Plus, Search, Smartphone, Trash2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { cn } from "@walls/utils";
@@ -34,6 +34,8 @@ export function TemplatesPage() {
   const [search, setSearch] = React.useState("");
   const [isCreateOpen, setIsCreateOpen] = React.useState(false);
   const [createStep, setCreateStep] = React.useState<"channel" | "email-format">("channel");
+  const [deletingTemplateId, setDeletingTemplateId] = React.useState<string | null>(null);
+  const [error, setError] = React.useState<string | null>(null);
   const router = useRouter();
 
   React.useEffect(() => {
@@ -50,6 +52,22 @@ export function TemplatesPage() {
       });
     return () => { cancelled = true; };
   }, []);
+
+  const deleteTemplate = async (template: Template) => {
+    if (!window.confirm(`Delete “${template.name}”? This cannot be undone.`)) return;
+    setDeletingTemplateId(template.id);
+    setError(null);
+    try {
+      const response = await fetch(`/api/templates/${template.id}`, { method: "DELETE" });
+      const payload = await response.json().catch(() => ({})) as { error?: string };
+      if (!response.ok) throw new Error(payload.error ?? "Unable to delete template");
+      setTemplates((current) => current.filter((item) => item.id !== template.id));
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Unable to delete template");
+    } finally {
+      setDeletingTemplateId(null);
+    }
+  };
 
   const filteredTemplates = templates.filter((template) => {
     const matchesChannel = activeChannel === "All" || template.channel === activeChannel;
@@ -74,6 +92,7 @@ export function TemplatesPage() {
               <div>
                 <h2 className="text-[15px] font-semibold tracking-[-0.02em]">Your templates</h2>
                 <p className="mt-1 text-[12px] text-[#909090]">Message building blocks for email, SMS, and push notifications</p>
+                {error ? <p role="alert" className="mt-2 text-[12px] text-red-500">{error}</p> : null}
               </div>
               <label className="relative block w-full sm:w-[260px]">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9a9a9a]" strokeWidth={1.7} />
@@ -109,7 +128,7 @@ export function TemplatesPage() {
                   {filteredTemplates.map((template) => {
                     const Icon = channelIcons[template.channel];
                     const openTemplate = () => router.push(`/templates/${template.id}`);
-                    return <tr key={template.id} role="link" tabIndex={0} onClick={openTemplate} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openTemplate(); } }} className="group cursor-pointer border-b border-[#f3f3f3] transition-colors last:border-0 hover:bg-white/70 focus:bg-white/70 focus:outline-none"><td className="px-6 py-4"><div className="flex min-w-0 items-center gap-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#f5f5f5] text-[#555] transition group-hover:bg-[#eeeeee]"><Icon className="h-4 w-4" strokeWidth={1.7} /></span><p className="truncate text-[13px] font-medium text-[#222]">{template.name}</p></div></td><td className="px-4 py-4"><span className="inline-flex rounded-full bg-[#f4f4f4] px-2.5 py-1 text-[10px] font-medium text-[#666]">{template.channel}</span></td><td className="max-w-[250px] px-4 py-4"><p className="truncate text-[12px] text-[#777]">{template.description}</p></td><td className="max-w-[280px] px-4 py-4"><p className="truncate text-[11px] text-[#999]">{template.body || "No content yet"}</p></td><td className="px-4 py-4 text-right"><ChevronRight className="ml-auto h-4 w-4 text-[#b4b4b4] transition group-hover:translate-x-0.5 group-hover:text-[#555]" /></td></tr>;
+                    return <tr key={template.id} role="link" tabIndex={0} onClick={openTemplate} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openTemplate(); } }} className="group cursor-pointer border-b border-[#f3f3f3] transition-colors last:border-0 hover:bg-white/70 focus:bg-white/70 focus:outline-none"><td className="px-6 py-4"><div className="flex min-w-0 items-center gap-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#f5f5f5] text-[#555] transition group-hover:bg-[#eeeeee]"><Icon className="h-4 w-4" strokeWidth={1.7} /></span><p className="truncate text-[13px] font-medium text-[#222]">{template.name}</p></div></td><td className="px-4 py-4"><span className="inline-flex rounded-full bg-[#f4f4f4] px-2.5 py-1 text-[10px] font-medium text-[#666]">{template.channel}</span></td><td className="max-w-[250px] px-4 py-4"><p className="truncate text-[12px] text-[#777]">{template.description}</p></td><td className="max-w-[280px] px-4 py-4"><p className="truncate text-[11px] text-[#999]">{template.body || "No content yet"}</p></td><td className="px-4 py-4"><div className="flex items-center justify-end gap-1"><button type="button" disabled={deletingTemplateId === template.id} onClick={(event) => { event.stopPropagation(); void deleteTemplate(template); }} onKeyDown={(event) => event.stopPropagation()} aria-label={`Delete ${template.name}`} className="rounded-md p-1.5 text-[#b4b4b4] opacity-0 transition hover:bg-[#fff1f1] hover:text-[#c15b5b] group-hover:opacity-100 focus:opacity-100 disabled:cursor-wait disabled:opacity-50"><Trash2 className="h-4 w-4" /></button><ChevronRight className="h-4 w-4 text-[#b4b4b4] transition group-hover:translate-x-0.5 group-hover:text-[#555]" /></div></td></tr>;
                   })}
                 </tbody>
               </table>

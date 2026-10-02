@@ -65,3 +65,24 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ te
   if (!data) return NextResponse.json({ error: "Template not found" }, { status: 404 });
   return NextResponse.json({ template: data });
 }
+
+export async function DELETE(_request: Request, { params }: { params: Promise<{ templateId: string }> }) {
+  const { supabase, userId, accountId } = await getAccountContext();
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!accountId) return NextResponse.json({ error: "No active account" }, { status: 401 });
+  const { templateId } = await params;
+
+  const { data, error } = await supabase
+    .from("workflows_templates")
+    .delete()
+    .eq("id", templateId)
+    .eq("account_id", accountId)
+    .select("id")
+    .maybeSingle();
+  if (error) {
+    console.error("[workflows] template deletion failed", { accountId, templateId, error });
+    return NextResponse.json({ error: "Unable to delete template" }, { status: 500 });
+  }
+  if (!data) return NextResponse.json({ error: "Template not found" }, { status: 404 });
+  return NextResponse.json({ success: true });
+}
