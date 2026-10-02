@@ -241,7 +241,6 @@ export function CreateTemplatePage({ channel, initialFormat }: { channel: string
     if (emailFormat !== "html") return;
     const buttonText = document.querySelector<HTMLElement>('main section [data-editor-key="hero-button"]');
     if (!buttonText) return;
-    const button = buttonText.closest("button");
     const buttonFontSizePixels = textFontSizes.find((option) => option.command === buttonFontSize)?.pixels ?? 14;
     buttonText.contentEditable = "false";
     buttonText.style.fontFamily = buttonFontFamily;
@@ -265,6 +264,7 @@ export function CreateTemplatePage({ channel, initialFormat }: { channel: string
     if (!(canvas instanceof HTMLElement)) return;
     canvas.style.display = "flex";
     canvas.style.flexDirection = "column";
+    canvas.style.overflow = isPreviewMode ? "" : "visible";
     const blocks = Array.from(canvas.children).filter((child): child is HTMLElement => child instanceof HTMLElement).slice(0, 4);
     const blockKeys: EmailSectionKey[] = ["hero", "text", "image", "divider"];
     const zoomScale = zoom / 100;
@@ -355,11 +355,16 @@ export function CreateTemplatePage({ channel, initialFormat }: { channel: string
       const handle = makeHandle("button");
       handle.classList.add("email-template-button-drag-handle");
       hero.appendChild(handle);
+      const verticalGuide = document.createElement("div");
+      verticalGuide.className = "email-template-center-guide email-template-center-guide-vertical";
+      verticalGuide.setAttribute("aria-hidden", "true");
+      const horizontalGuide = document.createElement("div");
+      horizontalGuide.className = "email-template-center-guide email-template-center-guide-horizontal";
+      horizontalGuide.setAttribute("aria-hidden", "true");
+      hero.append(verticalGuide, horizontalGuide);
       const placeHandle = () => {
-        const buttonBounds = heroButton.getBoundingClientRect();
-        const heroBounds = hero.getBoundingClientRect();
-        handle.style.left = `${(buttonBounds.left + buttonBounds.width / 2 - heroBounds.left) / zoomScale}px`;
-        handle.style.top = `${Math.max(4, (buttonBounds.top - heroBounds.top) / zoomScale - 30)}px`;
+        handle.style.left = `${heroButton.offsetLeft + heroButton.offsetWidth / 2 + buttonPositionRef.current.x}px`;
+        handle.style.top = `${Math.max(4, heroButton.offsetTop + buttonPositionRef.current.y - 30)}px`;
       };
       placeHandle();
       let startX = 0;
@@ -372,14 +377,24 @@ export function CreateTemplatePage({ channel, initialFormat }: { channel: string
         startX = event.clientX;
         startY = event.clientY;
         origin = { ...buttonPositionRef.current };
+        heroButton.style.transitionProperty = "none";
         handle.setPointerCapture(event.pointerId);
         handle.classList.add("email-template-drag-handle-active");
       };
       const onPointerMove = (event: PointerEvent) => {
         if (!handle.hasPointerCapture(event.pointerId)) return;
         event.preventDefault();
-        const x = Math.max(16 - heroButton.offsetLeft, Math.min(hero.clientWidth - heroButton.offsetLeft - heroButton.offsetWidth - 16, origin.x + (event.clientX - startX) / zoomScale));
-        const y = Math.max(32 - heroButton.offsetTop, Math.min(hero.clientHeight - heroButton.offsetTop - heroButton.offsetHeight - 16, origin.y + (event.clientY - startY) / zoomScale));
+        const rawX = Math.max(16 - heroButton.offsetLeft, Math.min(hero.clientWidth - heroButton.offsetLeft - heroButton.offsetWidth - 16, origin.x + (event.clientX - startX) / zoomScale));
+        const rawY = Math.max(32 - heroButton.offsetTop, Math.min(hero.clientHeight - heroButton.offsetTop - heroButton.offsetHeight - 16, origin.y + (event.clientY - startY) / zoomScale));
+        const centerX = hero.clientWidth / 2 - heroButton.offsetLeft - heroButton.offsetWidth / 2;
+        const centerY = hero.clientHeight / 2 - heroButton.offsetTop - heroButton.offsetHeight / 2;
+        const snapDistance = 10 / zoomScale;
+        const snapX = Math.abs(rawX - centerX) <= snapDistance;
+        const snapY = Math.abs(rawY - centerY) <= snapDistance;
+        const x = snapX ? centerX : rawX;
+        const y = snapY ? centerY : rawY;
+        verticalGuide.classList.toggle("email-template-center-guide-visible", snapX);
+        horizontalGuide.classList.toggle("email-template-center-guide-visible", snapY);
         buttonPositionRef.current = { x, y };
         heroButton.style.transform = `translate(${x}px, ${y}px)`;
         placeHandle();
@@ -388,6 +403,9 @@ export function CreateTemplatePage({ channel, initialFormat }: { channel: string
         if (!handle.hasPointerCapture(event.pointerId)) return;
         handle.releasePointerCapture(event.pointerId);
         handle.classList.remove("email-template-drag-handle-active");
+        verticalGuide.classList.remove("email-template-center-guide-visible");
+        horizontalGuide.classList.remove("email-template-center-guide-visible");
+        heroButton.style.removeProperty("transition-property");
         if (event.type === "pointercancel") {
           buttonPositionRef.current = origin;
           heroButton.style.transform = `translate(${origin.x}px, ${origin.y}px)`;
@@ -404,6 +422,8 @@ export function CreateTemplatePage({ channel, initialFormat }: { channel: string
         handle.removeEventListener("pointerup", finishDrag);
         handle.removeEventListener("pointercancel", finishDrag);
         handle.remove();
+        verticalGuide.remove();
+        horizontalGuide.remove();
       };
     }
     return () => {
@@ -416,6 +436,7 @@ export function CreateTemplatePage({ channel, initialFormat }: { channel: string
       });
       canvas.style.display = "";
       canvas.style.flexDirection = "";
+      canvas.style.overflow = "";
     };
   }, [canvasSelectionActive, emailFormat, hiddenSections, isPreviewMode, sectionOrder, selectedBlock, zoom]);
 
