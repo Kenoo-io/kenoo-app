@@ -41,7 +41,6 @@
 .email-template-preview-mode main { background: transparent !important; }
 .email-template-preview-mode main > div { padding: 0 !important; }
 .email-template-preview-mode main section {
-  border: 0 !important;
   box-shadow: none !important;
 }
 
