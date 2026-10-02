@@ -39,7 +39,10 @@
 .email-template-preview-mode [contenteditable="true"] { pointer-events: none; }
 
 /* The selected block gets a real, pointer-draggable control above its content. */
-.email-template-sortable-block { position: relative; }
+.email-template-sortable-block {
+  position: relative;
+  isolation: isolate;
+}
 .email-template-sortable-block > :not(img):not([class*="email-template-"]) {
   position: relative;
   z-index: 1;
