@@ -98,6 +98,10 @@ const defaultSectionNames: Record<EmailSectionKey, string> = {
   footer: "Footer",
 };
 
+const defaultSectionColors: Record<EmailSectionKey, string> = { hero: "#f7f4eb", text: "#ffffff", image: "#f4fbfc", divider: "#ffffff", footer: "#f7f9f9" };
+const defaultSectionHeights: Record<EmailSectionKey, string> = { hero: "360", text: "190", image: "220", divider: "64", footer: "200" };
+const emailSectionKeys: EmailSectionKey[] = ["hero", "text", "image", "divider", "footer"];
+
 const textFontSizes = [
   { command: "1", label: "10", pixels: 10 },
   { command: "2", label: "12", pixels: 12 },
@@ -131,14 +135,15 @@ function setCanvasTopWorkspace(overflow: number) {
   scroller.scrollTop += nextPadding - currentPadding;
 }
 
-function FigmaColorRow({ label, color, onChange }: { label: string; color: string; onChange: (color: string) => void }) {
+function FigmaColorRow({ label, color, onChange }: { label: string; color?: string; onChange: (color: string) => void }) {
+  const safeColor = /^#[0-9a-f]{6}$/i.test(color ?? "") ? color! : "#ffffff";
   return <div className="flex h-10 items-center rounded-xl bg-[#f4f5f6] px-2">
     <label className="relative flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md border border-[#dfe1e3] bg-white shadow-sm">
-      <span className="h-5 w-5 rounded-[3px]" style={{ backgroundColor: color }} />
-      <input type="color" aria-label={label} value={color} onChange={(event) => onChange(event.target.value)} className="absolute inset-0 cursor-pointer opacity-0" />
+      <span className="h-5 w-5 rounded-[3px]" style={{ backgroundColor: safeColor }} />
+      <input type="color" aria-label={label} value={safeColor} onChange={(event) => onChange(event.target.value)} className="absolute inset-0 cursor-pointer opacity-0" />
     </label>
     <span className="mx-2 h-6 w-px bg-white" />
-    <input key={color} aria-label={`${label} hex code`} defaultValue={color.replace("#", "").toUpperCase()} maxLength={6} onChange={(event) => { const nextValue = event.target.value.replace(/^#/, "").replace(/[^0-9a-f]/gi, "").slice(0, 6).toUpperCase(); event.currentTarget.value = nextValue; if (/^[0-9A-F]{6}$/.test(nextValue)) onChange(`#${nextValue.toLowerCase()}`); }} onBlur={(event) => { if (!/^[0-9A-F]{6}$/i.test(event.currentTarget.value)) event.currentTarget.value = color.replace("#", "").toUpperCase(); }} className="min-w-0 flex-1 bg-transparent font-mono text-[12px] uppercase text-[#333] outline-none" />
+    <input key={safeColor} aria-label={`${label} hex code`} defaultValue={safeColor.replace("#", "").toUpperCase()} maxLength={6} onChange={(event) => { const nextValue = event.target.value.replace(/^#/, "").replace(/[^0-9a-f]/gi, "").slice(0, 6).toUpperCase(); event.currentTarget.value = nextValue; if (/^[0-9A-F]{6}$/.test(nextValue)) onChange(`#${nextValue.toLowerCase()}`); }} onBlur={(event) => { if (!/^[0-9A-F]{6}$/i.test(event.currentTarget.value)) event.currentTarget.value = safeColor.replace("#", "").toUpperCase(); }} className="min-w-0 flex-1 bg-transparent font-mono text-[12px] uppercase text-[#333] outline-none" />
   </div>;
 }
 
@@ -221,8 +226,8 @@ export function CreateTemplatePage({ channel, initialFormat, templateId: initial
   const [footerUnsubscribeText, setFooterUnsubscribeText] = React.useState("Unsubscribe");
   const [footerUnsubscribeUrl, setFooterUnsubscribeUrl] = React.useState("");
   const [footerSocialLinks, setFooterSocialLinks] = React.useState({ instagram: "", facebook: "", linkedin: "" });
-  const [sectionColors, setSectionColors] = React.useState<Record<EmailSectionKey, string>>({ hero: "#f7f4eb", text: "#ffffff", image: "#f4fbfc", divider: "#ffffff", footer: "#f7f9f9" });
-  const [sectionHeights, setSectionHeights] = React.useState<Record<EmailSectionKey, string>>({ hero: "360", text: "190", image: "220", divider: "64", footer: "200" });
+  const [sectionColors, setSectionColors] = React.useState<Record<EmailSectionKey, string>>(defaultSectionColors);
+  const [sectionHeights, setSectionHeights] = React.useState<Record<EmailSectionKey, string>>(defaultSectionHeights);
   // Images are placed into the section the user selected. The standalone image
   // placeholder is retained only for templates that already use it.
   const [hiddenSections, setHiddenSections] = React.useState<EmailSectionKey[]>(["image"]);
@@ -498,8 +503,8 @@ export function CreateTemplatePage({ channel, initialFormat, templateId: initial
     setFooterUnsubscribeText(snapshot.footerUnsubscribeText ?? "Unsubscribe");
     setFooterUnsubscribeUrl(snapshot.footerUnsubscribeUrl ?? "");
     setFooterSocialLinks(snapshot.footerSocialLinks ?? { instagram: "", facebook: "", linkedin: "" });
-    setSectionColors((current) => ({ ...current, ...snapshot.sectionColors }));
-    setSectionHeights((current) => ({ ...current, ...snapshot.sectionHeights }));
+    setSectionColors(Object.fromEntries(emailSectionKeys.map((section) => [section, snapshot.sectionColors?.[section] || defaultSectionColors[section]])) as Record<EmailSectionKey, string>);
+    setSectionHeights(Object.fromEntries(emailSectionKeys.map((section) => [section, snapshot.sectionHeights?.[section] || defaultSectionHeights[section]])) as Record<EmailSectionKey, string>);
     // Older templates always exposed the dedicated image placeholder. Keep
     // existing uploaded images visible, but retire the empty placeholder.
     const savedUploads = snapshot.canvasUploads ?? [];
