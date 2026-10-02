@@ -29,23 +29,47 @@ function safeOriginalName(name: string): string {
   return name.trim().replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/-+/g, "-").slice(0, 160) || "image";
 }
 
-export async function GET() {
+const DEFAULT_PAGE_SIZE = 20;
+const MAX_PAGE_SIZE = 50;
+
+export async function GET(request: Request) {
   const auth = await requireWorkflowsAccount();
   if ("error" in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
+  const searchParams = new URL(request.url).searchParams;
+  const limit = Math.min(Math.max(Number(searchParams.get("limit")) || DEFAULT_PAGE_SIZE, 1), MAX_PAGE_SIZE);
+  const offset = Math.max(Number(searchParams.get("offset")) || 0, 0);
+  const folderId = searchParams.get("folderId")?.trim() || null;
+  const query = searchParams.get("query")?.trim() || "";
   const supabase = await createClient();
-  const { data, error } = await supabase
+  let folderUploadIds: string[] | null = null;
+  if (folderId) {
+    const { data: folderMemberships, error: folderMembershipError } = await supabase
+      .from("workflows_template_upload_folder_memberships")
+      .select("upload_id")
+      .eq("account_id", auth.accountId)
+      .eq("folder_id", folderId);
+    if (folderMembershipError) return NextResponse.json({ error: "Unable to load folder images" }, { status: 500 });
+    folderUploadIds = (folderMemberships ?? []).map((membership) => membership.upload_id);
+    if (!folderUploadIds.length) return NextResponse.json({ uploads: [], hasMore: false });
+  }
+  let uploadsQuery = supabase
     .from("workflows_template_uploads")
     .select("id, original_name, storage_key, public_url, mime_type, size_bytes, folder_id, created_at, updated_at")
-    .eq("account_id", auth.accountId)
-    .order("created_at", { ascending: false });
+    .eq("account_id", auth.accountId);
+  if (folderUploadIds) uploadsQuery = uploadsQuery.in("id", folderUploadIds);
+  if (query) uploadsQuery = uploadsQuery.ilike("original_name", `%${query}%`);
+  const { data, error } = await uploadsQuery
+    .order("created_at", { ascending: false })
+    .range(offset, offset + limit);
 
   if (error) {
     console.error("[workflows] template uploads load failed", { accountId: auth.accountId, error });
     return NextResponse.json({ error: "Unable to load uploads" }, { status: 500 });
   }
 
-  const uploadIds = (data ?? []).map((upload) => upload.id);
+  const page = (data ?? []).slice(0, limit);
+  const uploadIds = page.map((upload) => upload.id);
   const { data: memberships, error: membershipError } = uploadIds.length ? await supabase
     .from("workflows_template_upload_folder_memberships")
     .select("upload_id, folder_id")
@@ -54,7 +78,10 @@ export async function GET() {
   if (membershipError) return NextResponse.json({ error: "Unable to load upload folders" }, { status: 500 });
   const membershipsByUpload = new Map<string, string[]>();
   for (const membership of memberships ?? []) membershipsByUpload.set(membership.upload_id, [...(membershipsByUpload.get(membership.upload_id) ?? []), membership.folder_id]);
-  return NextResponse.json({ uploads: (data ?? []).map((upload) => ({ ...upload, folder_ids: membershipsByUpload.get(upload.id) ?? (upload.folder_id ? [upload.folder_id] : []) })) });
+  return NextResponse.json({
+    uploads: page.map((upload) => ({ ...upload, folder_ids: membershipsByUpload.get(upload.id) ?? (upload.folder_id ? [upload.folder_id] : []) })),
+    hasMore: (data ?? []).length > limit,
+  });
 }
 
 export async function POST(request: Request) {

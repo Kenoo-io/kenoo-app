@@ -4,23 +4,33 @@ import { createClient } from "@walls/supabase/server";
 
 import { requireWorkflowsAccount } from "@/lib/api-key-auth";
 
-export async function GET() {
+const DEFAULT_PAGE_SIZE = 20;
+const MAX_PAGE_SIZE = 50;
+
+export async function GET(request: Request) {
   const auth = await requireWorkflowsAccount();
   if ("error" in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
+  const searchParams = new URL(request.url).searchParams;
+  const limit = Math.min(Math.max(Number(searchParams.get("limit")) || DEFAULT_PAGE_SIZE, 1), MAX_PAGE_SIZE);
+  const offset = Math.max(Number(searchParams.get("offset")) || 0, 0);
+  const query = searchParams.get("query")?.trim() || "";
   const supabase = await createClient();
-  const { data, error } = await supabase
+  let foldersQuery = supabase
     .from("workflows_upload_folders")
     .select("id, parent_id, name, created_at, updated_at")
-    .eq("account_id", auth.accountId)
-    .order("name", { ascending: true });
+    .eq("account_id", auth.accountId);
+  if (query) foldersQuery = foldersQuery.ilike("name", `%${query}%`);
+  const { data, error } = await foldersQuery
+    .order("name", { ascending: true })
+    .range(offset, offset + limit);
 
   if (error) {
     console.error("[workflows] upload folders load failed", { accountId: auth.accountId, error });
     return NextResponse.json({ error: "Unable to load folders" }, { status: 500 });
   }
 
-  return NextResponse.json({ folders: data ?? [] });
+  return NextResponse.json({ folders: (data ?? []).slice(0, limit), hasMore: (data ?? []).length > limit });
 }
 
 export async function POST(request: Request) {

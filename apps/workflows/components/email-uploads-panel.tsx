@@ -2,7 +2,9 @@
 
 import * as React from "react";
 import { Check, Download, Folder, FolderPlus, Image as ImageIcon, Info, LoaderCircle, MoreVertical, Search, Trash2, UploadCloud, X } from "lucide-react";
+import Link from "next/link";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@walls/ui/dropdown-menu";
+import { optimizeImageUrl } from "@/lib/cf-image";
 
 type Upload = {
   id: string;
@@ -15,12 +17,20 @@ type Upload = {
   folder_ids?: string[];
 };
 
+export type EmailUploadAsset = Pick<Upload, "id" | "original_name" | "public_url">;
+export const EMAIL_UPLOAD_DRAG_MIME = "application/x-kenoo-email-upload";
+
 type UploadFolder = {
   id: string;
   parent_id: string | null;
   name: string;
   created_at: string;
   updated_at: string;
+};
+
+type Branding = {
+  dark_logo_url: string | null;
+  light_logo_url: string | null;
 };
 
 function formatBytes(bytes: number) {
@@ -37,17 +47,33 @@ function ImageUploadSkeleton() {
   return <div className="animate-pulse overflow-hidden rounded-2xl border border-[#edf0f1] bg-[#f6f8f8]"><div className="relative aspect-[4/3] w-full overflow-hidden bg-[#e3eaec]"><div className="absolute -inset-8 rotate-12 bg-gradient-to-r from-transparent via-white/30 to-transparent" /><div className="absolute inset-3 rounded-xl border border-white/30 bg-[#dce5e7]/45" /></div></div>;
 }
 
-export function EmailUploadsPanel({ initialView = "images" }: { initialView?: "images" | "folders" }) {
+function UploadThumbnail({ upload, draggable = false }: { upload: Upload; draggable?: boolean }) {
+  const [useOriginal, setUseOriginal] = React.useState(false);
+  const thumbnailUrl = useOriginal ? upload.public_url : optimizeImageUrl(upload.public_url, 320) ?? upload.public_url;
+  return <img src={thumbnailUrl} alt="" loading="lazy" decoding="async" draggable={draggable} onError={() => setUseOriginal(true)} className="aspect-[4/3] w-full object-cover" />;
+}
+
+export function EmailUploadsPanel({ initialView = "images", onInsert = () => undefined }: { initialView?: "images" | "folders" | "logos"; onInsert?: (upload: EmailUploadAsset) => void }) {
+  const PAGE_SIZE = 20;
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const imageSentinelRef = React.useRef<HTMLDivElement>(null);
+  const folderSentinelRef = React.useRef<HTMLDivElement>(null);
+  const loadingImagesRef = React.useRef(false);
+  const loadingFoldersRef = React.useRef(false);
+  const requestVersionRef = React.useRef(0);
   const [uploads, setUploads] = React.useState<Upload[]>([]);
   const [folders, setFolders] = React.useState<UploadFolder[]>([]);
-  const [assetView, setAssetView] = React.useState<"images" | "folders">(initialView);
+  const [assetView, setAssetView] = React.useState<"images" | "folders" | "logos">(initialView);
   const [activeFolderId, setActiveFolderId] = React.useState<string | null>(null);
   const [newFolderName, setNewFolderName] = React.useState("");
   const [creatingFolder, setCreatingFolder] = React.useState(false);
   const [query, setQuery] = React.useState("");
   const [loading, setLoading] = React.useState(true);
   const [foldersLoading, setFoldersLoading] = React.useState(true);
+  const [loadingMoreImages, setLoadingMoreImages] = React.useState(false);
+  const [loadingMoreFolders, setLoadingMoreFolders] = React.useState(false);
+  const [imagesHasMore, setImagesHasMore] = React.useState(false);
+  const [foldersHasMore, setFoldersHasMore] = React.useState(false);
   const [uploading, setUploading] = React.useState(false);
   const [deletingId, setDeletingId] = React.useState<string | null>(null);
   const [selectedUploadIds, setSelectedUploadIds] = React.useState<Set<string>>(new Set());
@@ -58,42 +84,94 @@ export function EmailUploadsPanel({ initialView = "images" }: { initialView?: "i
   const [folderPickerUploadIds, setFolderPickerUploadIds] = React.useState<Set<string>>(new Set());
   const [selectedFolderIds, setSelectedFolderIds] = React.useState<Set<string>>(new Set());
   const [error, setError] = React.useState<string | null>(null);
+  const [branding, setBranding] = React.useState<Branding | null>(null);
+  const [brandingLoading, setBrandingLoading] = React.useState(false);
+  const brandingRequestRef = React.useRef(false);
 
   React.useEffect(() => {
-    let cancelled = false;
-    fetch("/api/template-uploads")
-      .then(async (response) => {
-        const payload = await response.json().catch(() => ({})) as { uploads?: Upload[]; error?: string };
-        if (!response.ok) throw new Error(payload.error ?? "Unable to load uploads");
-        if (!cancelled) setUploads(payload.uploads ?? []);
-      })
-      .catch((loadError) => {
-        if (!cancelled) setError(loadError instanceof Error ? loadError.message : "Unable to load uploads");
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
+    const handleImageError = (event: Event) => {
+      const image = event.target;
+      if (!(image instanceof HTMLImageElement)) return;
+      const marker = "/cdn-cgi/image/";
+      const markerIndex = image.src.indexOf(marker);
+      if (markerIndex < 0) return;
+      const pathStart = image.src.indexOf("/", markerIndex + marker.length);
+      if (pathStart < 0) return;
+      image.src = `${image.src.slice(0, markerIndex)}${image.src.slice(pathStart)}`;
     };
+    document.addEventListener("error", handleImageError, true);
+    return () => document.removeEventListener("error", handleImageError, true);
   }, []);
 
+  const loadUploads = React.useCallback(async (reset: boolean) => {
+    if (loadingImagesRef.current) return;
+    loadingImagesRef.current = true;
+    const requestVersion = ++requestVersionRef.current;
+    if (reset) setLoading(true); else setLoadingMoreImages(true);
+    const params = new URLSearchParams({ limit: String(PAGE_SIZE), offset: reset ? "0" : String(uploads.length) });
+    if (activeFolderId) params.set("folderId", activeFolderId);
+    if (query.trim()) params.set("query", query.trim());
+    try {
+      const response = await fetch(`/api/template-uploads?${params}`);
+      const payload = await response.json().catch(() => ({})) as { uploads?: Upload[]; hasMore?: boolean; error?: string };
+      if (!response.ok) throw new Error(payload.error ?? "Unable to load uploads");
+      if (requestVersion !== requestVersionRef.current) return;
+      const pageUploads = payload.uploads ?? [];
+      setUploads((current) => reset ? pageUploads : [...current, ...pageUploads.filter((item) => !current.some((existing) => existing.id === item.id))]);
+      setImagesHasMore(Boolean(payload.hasMore));
+    } catch (loadError) {
+      if (requestVersion === requestVersionRef.current) setError(loadError instanceof Error ? loadError.message : "Unable to load uploads");
+    } finally {
+      loadingImagesRef.current = false;
+      if (requestVersion === requestVersionRef.current) { setLoading(false); setLoadingMoreImages(false); }
+    }
+  }, [activeFolderId, query, uploads.length]);
+
+  const loadFolders = React.useCallback(async (reset: boolean) => {
+    if (loadingFoldersRef.current) return;
+    loadingFoldersRef.current = true;
+    if (reset) setFoldersLoading(true); else setLoadingMoreFolders(true);
+    const params = new URLSearchParams({ limit: String(PAGE_SIZE), offset: reset ? "0" : String(folders.length) });
+    if (query.trim()) params.set("query", query.trim());
+    try {
+      const response = await fetch(`/api/template-upload-folders?${params}`);
+      const payload = await response.json().catch(() => ({})) as { folders?: UploadFolder[]; hasMore?: boolean; error?: string };
+      if (!response.ok) throw new Error(payload.error ?? "Unable to load folders");
+      setFolders((current) => reset ? (payload.folders ?? []) : [...current, ...(payload.folders ?? []).filter((item) => !current.some((existing) => existing.id === item.id))]);
+      setFoldersHasMore(Boolean(payload.hasMore));
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : "Unable to load folders");
+    } finally {
+      loadingFoldersRef.current = false;
+      setFoldersLoading(false); setLoadingMoreFolders(false);
+    }
+  }, [folders.length, query]);
+
   React.useEffect(() => {
-    let cancelled = false;
-    fetch("/api/template-upload-folders")
-      .then(async (response) => {
-        const payload = await response.json().catch(() => ({})) as { folders?: UploadFolder[]; error?: string };
-        if (!response.ok) throw new Error(payload.error ?? "Unable to load folders");
-        if (!cancelled) setFolders(payload.folders ?? []);
-      })
-      .catch((loadError) => {
-        if (!cancelled) setError(loadError instanceof Error ? loadError.message : "Unable to load folders");
-      })
-      .finally(() => {
-        if (!cancelled) setFoldersLoading(false);
-      });
-    return () => { cancelled = true; };
-  }, []);
+    const timer = window.setTimeout(() => { setUploads([]); void loadUploads(true); }, query.trim() ? 250 : 0);
+    return () => window.clearTimeout(timer);
+  }, [activeFolderId, query]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  React.useEffect(() => {
+    const timer = window.setTimeout(() => { setFolders([]); void loadFolders(true); }, query.trim() ? 250 : 0);
+    return () => window.clearTimeout(timer);
+  }, [query]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  React.useEffect(() => {
+    const sentinel = imageSentinelRef.current;
+    if (!sentinel || !imagesHasMore) return;
+    const observer = new IntersectionObserver(([entry]) => { if (entry.isIntersecting) void loadUploads(false); }, { rootMargin: "500px" });
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [imagesHasMore, loadUploads]);
+
+  React.useEffect(() => {
+    const sentinel = folderSentinelRef.current;
+    if (!sentinel || !foldersHasMore) return;
+    const observer = new IntersectionObserver(([entry]) => { if (entry.isIntersecting) void loadFolders(false); }, { rootMargin: "500px" });
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [foldersHasMore, loadFolders]);
 
   async function createFolder(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -236,8 +314,21 @@ export function EmailUploadsPanel({ initialView = "images" }: { initialView?: "i
     }
   }
 
-  const filteredUploads = uploads.filter((upload) => (!activeFolderId || upload.folder_ids?.includes(activeFolderId) || upload.folder_id === activeFolderId) && upload.original_name.toLowerCase().includes(query.trim().toLowerCase()));
-  const filteredFolders = folders.filter((folder) => folder.name.toLowerCase().includes(query.trim().toLowerCase()));
+  const filteredUploads = uploads;
+  const filteredFolders = folders;
+
+  React.useEffect(() => {
+    if (assetView !== "logos" || branding || brandingRequestRef.current) return;
+    brandingRequestRef.current = true;
+    void fetch("/api/branding")
+      .then(async (response) => {
+        const payload = await response.json().catch(() => ({})) as { branding?: Branding; error?: string };
+        if (!response.ok) throw new Error(payload.error ?? "Unable to load branding logos");
+        setBranding({ dark_logo_url: payload.branding?.dark_logo_url ?? null, light_logo_url: payload.branding?.light_logo_url ?? null });
+      })
+      .catch((loadError) => setError(loadError instanceof Error ? loadError.message : "Unable to load branding logos"))
+      .finally(() => { brandingRequestRef.current = false; setBrandingLoading(false); });
+  }, [assetView, branding]);
 
   function toggleUploadSelection(uploadId: string) {
     setSelectedUploadIds((current) => {
@@ -255,6 +346,11 @@ export function EmailUploadsPanel({ initialView = "images" }: { initialView?: "i
       sizeBytes: upload.size_bytes,
     });
     window.location.assign(`/api/template-uploads/${upload.id}/download`);
+  }
+
+  function startImageDrag(event: React.DragEvent, upload: Upload) {
+    event.dataTransfer.setData(EMAIL_UPLOAD_DRAG_MIME, JSON.stringify({ id: upload.id, original_name: upload.original_name, public_url: upload.public_url } satisfies EmailUploadAsset));
+    event.dataTransfer.effectAllowed = "copy";
   }
 
   return <div className="flex h-full min-h-0 flex-col">
@@ -278,17 +374,17 @@ export function EmailUploadsPanel({ initialView = "images" }: { initialView?: "i
       </button>
     </>}
     <div className="mt-6 flex min-h-0 flex-1 flex-col">
-      {initialView === "images" ? <div role="tablist" aria-label="Upload library" className="flex items-center gap-5">
-        {(["images", "folders"] as const).map((view) => <button key={view} type="button" role="tab" aria-selected={assetView === view} onClick={() => { setAssetView(view); setQuery(""); }} className={`relative px-1 pb-2.5 pt-1 text-[12px] capitalize transition ${assetView === view ? "font-semibold text-[#222] after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:rounded-full after:bg-[#6eadc0]" : "font-medium text-[#999] hover:text-[#555]"}`}>{view}</button>)}
-      </div> : null}
+      <div role="tablist" aria-label="Upload library" className="flex items-center gap-5">
+        {(["images", "folders", "logos"] as const).map((view) => <button key={view} type="button" role="tab" aria-selected={assetView === view} onClick={() => { setAssetView(view); setQuery(""); setActiveFolderId(null); }} className={`relative px-1 pb-2.5 pt-1 text-[12px] capitalize transition ${assetView === view ? "font-semibold text-[#222] after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:rounded-full after:bg-[#6eadc0]" : "font-medium text-[#999] hover:text-[#555]"}`}>{view}</button>)}
+      </div>
       {error ? <p className="mt-2 rounded-lg bg-[#fff3f3] px-2.5 py-2 text-[11px] leading-4 text-[#bb4b4b]">{error}</p> : null}
       <div className="min-h-0 flex-1 overflow-y-auto pr-1">
-      {assetView === "images" ? <>
+      {assetView === "images" ? <div>
       {activeFolderId ? <div className="flex items-center justify-between pt-4"><p className="text-[13px] font-semibold text-[#222]">{folders.find((folder) => folder.id === activeFolderId)?.name ?? "Folder"}</p><button type="button" onClick={() => setActiveFolderId(null)} className="text-[11px] font-medium text-[#4d9eae] hover:underline">All images</button></div> : null}
       {loading ? <div className="mt-3 grid grid-cols-2 gap-2" aria-label="Loading images" role="status">{[0, 1, 2, 3].map((item) => <ImageUploadSkeleton key={item} />)}</div> : filteredUploads.length ? <div className="mt-3 grid grid-cols-2 gap-2">{filteredUploads.map((upload) => {
         const selected = selectedUploadIds.has(upload.id);
         return <div key={upload.id} className={`group relative overflow-hidden rounded-2xl border bg-[#f6f8f8] ${selected ? "border-[#222]" : "border-[#edf0f1]"}`}>
-          <img src={upload.public_url} alt={upload.original_name} className="aspect-[4/3] w-full object-cover" />
+          <button type="button" draggable onDragStart={(event) => startImageDrag(event, upload)} onClick={() => onInsert(upload)} aria-label={`Add ${upload.original_name} to email`} title="Click to add to email, or drag onto the canvas" className="block w-full cursor-grab active:cursor-grabbing"><UploadThumbnail upload={upload} /></button>
           <button type="button" onClick={() => toggleUploadSelection(upload.id)} aria-label={`${selected ? "Deselect" : "Select"} ${upload.original_name}`} aria-pressed={selected} className={`absolute left-2 top-2 flex h-6 w-6 items-center justify-center rounded-md border shadow-sm transition ${selected ? "border-[#222] bg-[#222] text-white" : "border-[#aeb4b7] bg-white/95 text-transparent opacity-0 group-hover:opacity-100"}`}>
             <Check className="h-4 w-4" strokeWidth={3} />
           </button>
@@ -330,9 +426,14 @@ export function EmailUploadsPanel({ initialView = "images" }: { initialView?: "i
           </DropdownMenu>
         </div>;
       })}</div> : <div className="mt-3 flex aspect-[4/3] flex-col items-center justify-center rounded-2xl border border-dashed border-[#d9e5e8] bg-[#fbfdfd] px-4 text-center text-[11px] leading-5 text-[#99a1a4]"><ImageIcon className="mb-2 h-6 w-6 text-[#aabfc4]" /><span>{uploads.length ? "No images match your search" : "Uploaded images will appear here"}</span></div>}
-      </> : <div className={initialView === "folders" ? "pt-1" : "pt-2"}>
+      <div ref={imageSentinelRef} className="h-px" aria-hidden="true" />
+      </div> : assetView === "folders" ? <div className={initialView === "folders" ? "pt-1" : "pt-2"}>
         {activeFolderId ? <div className="mb-3 flex items-center justify-between"><p className="text-[13px] font-semibold text-[#222]">{folders.find((folder) => folder.id === activeFolderId)?.name ?? "Folder"}</p><button type="button" onClick={() => { setActiveFolderId(null); setQuery(""); }} className="text-[11px] font-medium text-[#4d9eae] hover:underline">All folders</button></div> : null}
-        {foldersLoading ? <div className="space-y-2" aria-label="Loading folders" role="status">{[0, 1, 2].map((item) => <div key={item} className="flex min-h-[74px] w-full animate-pulse items-center gap-3 rounded-2xl border border-[#edf0f1] bg-[#fbfbfc] p-3"><span className="h-12 w-12 shrink-0 rounded-xl bg-[#e8ecee]" /><span className="min-w-0 flex-1"><span className="block h-3 w-2/3 rounded bg-[#e8ecee]" /><span className="mt-2 block h-2.5 w-1/3 rounded bg-[#edf0f1]" /></span><span className="h-4 w-3 rounded bg-[#edf0f1]" /></div>)}</div> : !activeFolderId && filteredFolders.length ? <div className={initialView === "folders" ? "mt-1 space-y-2" : "mt-2 space-y-2"}>{filteredFolders.map((folder) => <button key={folder.id} type="button" onClick={() => { setActiveFolderId(folder.id); setQuery(""); }} className="group flex min-h-[74px] w-full items-center gap-3 rounded-2xl border border-[#e8eaee] bg-[#fbfbfc] p-3 text-left transition hover:border-[#a8d7df] hover:bg-[#f1fbfc]"><span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#eee8ff] text-[#8a6bc2] shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]"><Folder className="h-6 w-6" /></span><span className="min-w-0 flex-1"><span className="block truncate text-[13px] font-semibold text-[#222]">{folder.name}</span><span className="mt-1 block text-[11px] text-[#888]">{uploads.filter((upload) => upload.folder_ids?.includes(folder.id) || upload.folder_id === folder.id).length} {uploads.filter((upload) => upload.folder_ids?.includes(folder.id) || upload.folder_id === folder.id).length === 1 ? "image" : "images"}</span></span><span className="text-[#b0b5b8] transition group-hover:translate-x-0.5 group-hover:text-[#6eadc0]">›</span></button>)}</div> : activeFolderId ? <div className="mt-2">{filteredUploads.length ? <div className="grid grid-cols-2 gap-2">{filteredUploads.map((upload) => { const selected = selectedUploadIds.has(upload.id); return <div key={upload.id} className={`group relative overflow-hidden rounded-2xl border bg-[#f6f8f8] ${selected ? "border-[#222]" : "border-[#edf0f1]"}`}><img src={upload.public_url} alt={upload.original_name} className="aspect-[4/3] w-full object-cover" /><button type="button" onClick={() => toggleUploadSelection(upload.id)} aria-label={`${selected ? "Deselect" : "Select"} ${upload.original_name}`} aria-pressed={selected} className={`absolute left-2 top-2 flex h-6 w-6 items-center justify-center rounded-md border shadow-sm transition ${selected ? "border-[#222] bg-[#222] text-white" : "border-[#aeb4b7] bg-white/95 text-transparent opacity-0 group-hover:opacity-100"}`}><Check className="h-4 w-4" strokeWidth={3} /></button><DropdownMenu><DropdownMenuTrigger asChild><button type="button" aria-label={`More options for ${upload.original_name}`} className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-md bg-white/95 text-[#222] opacity-0 shadow-sm transition group-hover:opacity-100 hover:bg-white"><MoreVertical className="h-4 w-4" /></button></DropdownMenuTrigger><DropdownMenuContent side="right" align="start" sideOffset={8} className="z-[240] min-w-[240px] overflow-hidden rounded-2xl border border-neutral-200 bg-white p-0 shadow-xl"><DropdownMenuLabel className="px-4 py-3"><p className="truncate text-sm font-semibold text-[#222]">{upload.original_name}</p><p className="mt-1 text-[11px] font-normal text-[#888]">Uploaded image</p></DropdownMenuLabel><DropdownMenuSeparator /><DropdownMenuItem onSelect={() => setDetailsUpload(upload)} className="cursor-pointer rounded-none px-4 py-3 text-sm text-[#222] focus:bg-[#f5f6f7]"><Info className="mr-3 h-5 w-5" />Details</DropdownMenuItem><DropdownMenuItem onSelect={() => downloadUpload(upload)} className="cursor-pointer rounded-none px-4 py-3 text-sm text-[#222] focus:bg-[#f5f6f7]"><Download className="mr-3 h-5 w-5" />Download</DropdownMenuItem><DropdownMenuSeparator /><DropdownMenuItem onSelect={() => openFolderPicker(upload)} className="cursor-pointer rounded-none px-4 py-3 text-sm text-[#222] focus:bg-[#edf8fa]">Move</DropdownMenuItem><DropdownMenuItem disabled className="rounded-none px-4 py-3 text-sm text-[#222]"><X className="mr-3 h-5 w-5" />Remove from folder</DropdownMenuItem><DropdownMenuSeparator /><DropdownMenuItem onSelect={() => void deleteUpload(upload)} disabled={deletingId === upload.id} className="cursor-pointer rounded-none px-4 py-3 text-sm text-[#c34b4b] focus:bg-red-50 focus:text-[#c34b4b]"><Trash2 className="mr-3 h-5 w-5" />Move to Trash</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div>; })}</div> : <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[#d9e5e8] bg-[#fbfdfd] px-4 py-12 text-center text-[11px] leading-5 text-[#99a1a4]"><Folder className="mb-2 h-6 w-6 text-[#aabfc4]" /><span>This folder is empty.</span></div>}</div> : <div className="mt-3 flex flex-col items-center justify-center rounded-2xl border border-dashed border-[#d9e5e8] bg-[#fbfdfd] px-4 py-12 text-center text-[11px] leading-5 text-[#99a1a4]"><Folder className="mb-2 h-6 w-6 text-[#aabfc4]" /><span>{query ? "No folders match your search." : "Create a folder to organize your images."}</span></div>}
+        {foldersLoading ? <div className="space-y-2" aria-label="Loading folders" role="status">{[0, 1, 2].map((item) => <div key={item} className="flex min-h-[74px] w-full animate-pulse items-center gap-3 rounded-2xl border border-[#edf0f1] bg-[#fbfbfc] p-3"><span className="h-12 w-12 shrink-0 rounded-xl bg-[#e8ecee]" /><span className="min-w-0 flex-1"><span className="block h-3 w-2/3 rounded bg-[#e8ecee]" /><span className="mt-2 block h-2.5 w-1/3 rounded bg-[#edf0f1]" /></span><span className="h-4 w-3 rounded bg-[#edf0f1]" /></div>)}</div> : !activeFolderId && filteredFolders.length ? <div className={initialView === "folders" ? "mt-1 space-y-2" : "mt-2 space-y-2"}>{filteredFolders.map((folder) => <button key={folder.id} type="button" onClick={() => { setActiveFolderId(folder.id); setQuery(""); }} className="group flex min-h-[74px] w-full items-center gap-3 rounded-2xl border border-[#e8eaee] bg-[#fbfbfc] p-3 text-left transition hover:border-[#a8d7df] hover:bg-[#f1fbfc]"><span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#eee8ff] text-[#8a6bc2] shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]"><Folder className="h-6 w-6" /></span><span className="min-w-0 flex-1"><span className="block truncate text-[13px] font-semibold text-[#222]">{folder.name}</span><span className="mt-1 block text-[11px] text-[#888]">{uploads.filter((upload) => upload.folder_ids?.includes(folder.id) || upload.folder_id === folder.id).length} {uploads.filter((upload) => upload.folder_ids?.includes(folder.id) || upload.folder_id === folder.id).length === 1 ? "image" : "images"}</span></span><span className="text-[#b0b5b8] transition group-hover:translate-x-0.5 group-hover:text-[#6eadc0]">›</span></button>)}</div> : activeFolderId ? <div className="mt-2">{filteredUploads.length ? <div className="grid grid-cols-2 gap-2">{filteredUploads.map((upload) => { const selected = selectedUploadIds.has(upload.id); return <div key={upload.id} className={`group relative overflow-hidden rounded-2xl border bg-[#f6f8f8] ${selected ? "border-[#222]" : "border-[#edf0f1]"}`}><button type="button" draggable onDragStart={(event) => startImageDrag(event, upload)} onClick={() => onInsert(upload)} aria-label={`Add ${upload.original_name} to email`} title="Click to add to email, or drag onto the canvas" className="block w-full cursor-grab active:cursor-grabbing"><img src={optimizeImageUrl(upload.public_url, 320) ?? upload.public_url} alt="" draggable={false} className="aspect-[4/3] w-full object-cover" /></button><button type="button" onClick={() => toggleUploadSelection(upload.id)} aria-label={`${selected ? "Deselect" : "Select"} ${upload.original_name}`} aria-pressed={selected} className={`absolute left-2 top-2 flex h-6 w-6 items-center justify-center rounded-md border shadow-sm transition ${selected ? "border-[#222] bg-[#222] text-white" : "border-[#aeb4b7] bg-white/95 text-transparent opacity-0 group-hover:opacity-100"}`}><Check className="h-4 w-4" strokeWidth={3} /></button><DropdownMenu><DropdownMenuTrigger asChild><button type="button" aria-label={`More options for ${upload.original_name}`} className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-md bg-white/95 text-[#222] opacity-0 shadow-sm transition group-hover:opacity-100 hover:bg-white"><MoreVertical className="h-4 w-4" /></button></DropdownMenuTrigger><DropdownMenuContent side="right" align="start" sideOffset={8} className="z-[240] min-w-[240px] overflow-hidden rounded-2xl border border-neutral-200 bg-white p-0 shadow-xl"><DropdownMenuLabel className="px-4 py-3"><p className="truncate text-sm font-semibold text-[#222]">{upload.original_name}</p><p className="mt-1 text-[11px] font-normal text-[#888]">Uploaded image</p></DropdownMenuLabel><DropdownMenuSeparator /><DropdownMenuItem onSelect={() => setDetailsUpload(upload)} className="cursor-pointer rounded-none px-4 py-3 text-sm text-[#222] focus:bg-[#f5f6f7]"><Info className="mr-3 h-5 w-5" />Details</DropdownMenuItem><DropdownMenuItem onSelect={() => downloadUpload(upload)} className="cursor-pointer rounded-none px-4 py-3 text-sm text-[#222] focus:bg-[#f5f6f7]"><Download className="mr-3 h-5 w-5" />Download</DropdownMenuItem><DropdownMenuSeparator /><DropdownMenuItem onSelect={() => openFolderPicker(upload)} className="cursor-pointer rounded-none px-4 py-3 text-sm text-[#222] focus:bg-[#edf8fa]">Move</DropdownMenuItem><DropdownMenuItem disabled className="rounded-none px-4 py-3 text-sm text-[#222]"><X className="mr-3 h-5 w-5" />Remove from folder</DropdownMenuItem><DropdownMenuSeparator /><DropdownMenuItem onSelect={() => void deleteUpload(upload)} disabled={deletingId === upload.id} className="cursor-pointer rounded-none px-4 py-3 text-sm text-[#c34b4b] focus:bg-red-50 focus:text-[#c34b4b]"><Trash2 className="mr-3 h-5 w-5" />Move to Trash</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div>; })}</div> : <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[#d9e5e8] bg-[#fbfdfd] px-4 py-12 text-center text-[11px] leading-5 text-[#99a1a4]"><Folder className="mb-2 h-6 w-6 text-[#aabfc4]" /><span>This folder is empty.</span></div>}</div> : <div className="mt-3 flex flex-col items-center justify-center rounded-2xl border border-dashed border-[#d9e5e8] bg-[#fbfdfd] px-4 py-12 text-center text-[11px] leading-5 text-[#99a1a4]"><Folder className="mb-2 h-6 w-6 text-[#aabfc4]" /><span>{query ? "No folders match your search." : "Create a folder to organize your images."}</span></div>}
+      <div ref={folderSentinelRef} className="h-px" aria-hidden="true" />
+      </div>
+      : <div className="pt-3">
+        {brandingLoading ? <div className="grid grid-cols-2 gap-2" role="status" aria-label="Loading logos"><div className="aspect-square animate-pulse rounded-2xl bg-[#e8ecee]" /><div className="aspect-square animate-pulse rounded-2xl bg-[#e8ecee]" /></div> : branding && (branding.dark_logo_url || branding.light_logo_url) ? <><div className="grid grid-cols-2 gap-2">{([["Dark logo", branding.dark_logo_url, "bg-[#f3f4f4]"], ["Light logo", branding.light_logo_url, "bg-[#222]"]] as const).map(([label, url, background]) => <div key={label} className={`overflow-hidden rounded-2xl border border-[#edf0f1] ${background}`}><div className="flex aspect-square items-center justify-center p-5">{url ? <img src={url} alt={label} className="max-h-full max-w-full object-contain" /> : <span className="px-2 text-center text-[11px] leading-4 text-[#99a1a4]">Not uploaded</span>}</div><p className={`border-t px-2 py-2 text-center text-[11px] font-medium ${url ? "border-black/5 text-[#555]" : "border-white/10 text-white/60"}`}>{label}</p></div>)}</div>{(!branding.dark_logo_url || !branding.light_logo_url) ? <Link href="/settings/branding" className="mt-3 block rounded-xl bg-[#f5fafb] px-3 py-2.5 text-center text-[11px] font-medium text-[#4d9eae] transition hover:bg-[#edf8fa]">Add the missing logo in Branding settings</Link> : null}</> : <div className="flex flex-col items-center rounded-2xl border border-dashed border-[#d9e5e8] bg-[#fbfdfd] px-4 py-10 text-center"><ImageIcon className="mb-2 h-6 w-6 text-[#aabfc4]" /><p className="text-[12px] font-medium text-[#555]">No branding logos yet</p><p className="mt-1 text-[11px] leading-5 text-[#99a1a4]">Upload light and dark logos to use them in your templates.</p><Link href="/settings/branding" className="mt-4 rounded-xl bg-[#222] px-3.5 py-2.5 text-[11px] font-semibold text-white transition hover:bg-[#3a3a3a]">Go to Branding settings</Link></div>}
       </div>}
       </div>
       {selectedUploadIds.size ? <div className="shrink-0 pt-3">
