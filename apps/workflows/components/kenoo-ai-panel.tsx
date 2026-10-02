@@ -7,6 +7,7 @@ import { cn } from "@walls/utils";
 
 type Thread = {
   id: string;
+  template_id: string | null;
   title: string | null;
   status: "active" | "archived";
   context: Record<string, unknown>;
@@ -35,7 +36,7 @@ async function readJson<T>(response: Response): Promise<T> {
   return body as T;
 }
 
-export function KenooAIPanel() {
+export function KenooAIPanel({ templateId, onThreadIdChange }: { templateId?: string | null; onThreadIdChange?: (threadId: string) => void }) {
   const [thread, setThread] = React.useState<Thread | null>(null);
   const [messages, setMessages] = React.useState<Message[]>([]);
   const [draft, setDraft] = React.useState("");
@@ -64,7 +65,7 @@ export function KenooAIPanel() {
       try {
         const payload = await readJson<{ threads: Thread[] }>(await fetch("/api/ai/threads"));
         if (cancelled) return;
-        const latest = payload.threads?.find((item) => item.status === "active") ?? null;
+        const latest = payload.threads?.find((item) => item.status === "active" && (templateId ? item.template_id === templateId : false)) ?? null;
         setThread(latest);
         await loadThread(latest);
       } catch (caught) {
@@ -74,7 +75,7 @@ export function KenooAIPanel() {
       }
     })();
     return () => { cancelled = true; };
-  }, [loadThread]);
+  }, [loadThread, templateId]);
 
   React.useEffect(() => {
     if (messages.length) scrollToBottom();
@@ -84,9 +85,10 @@ export function KenooAIPanel() {
     const payload = await readJson<{ thread: Thread }>(await fetch("/api/ai/threads", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: "New Kenoo AI chat", context: { surface: "email_template_builder" } }),
+      body: JSON.stringify({ title: "New Kenoo AI chat", templateId: templateId ?? null, context: { surface: "email_template_builder", template_id: templateId ?? null } }),
     }));
     setThread(payload.thread);
+    onThreadIdChange?.(payload.thread.id);
     setMessages([]);
     return payload.thread;
   }

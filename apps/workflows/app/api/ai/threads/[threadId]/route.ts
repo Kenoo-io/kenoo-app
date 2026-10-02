@@ -38,6 +38,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ th
     title?: unknown;
     status?: unknown;
     context?: unknown;
+    templateId?: unknown;
   };
   const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
 
@@ -52,6 +53,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ th
   if (body.context !== undefined) {
     if (!isObject(body.context)) return NextResponse.json({ error: "context must be an object" }, { status: 400 });
     update.context = body.context;
+  }
+  if (body.templateId !== undefined) {
+    if (body.templateId !== null && typeof body.templateId !== "string") return NextResponse.json({ error: "templateId must be a string or null" }, { status: 400 });
+    update.template_id = typeof body.templateId === "string" ? body.templateId.trim() || null : null;
   }
 
   const { data, error } = await auth.supabase
