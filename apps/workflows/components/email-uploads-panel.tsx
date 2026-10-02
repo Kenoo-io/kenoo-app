@@ -85,7 +85,7 @@ export function EmailUploadsPanel({ initialView = "images", onInsert = () => und
   const [selectedFolderIds, setSelectedFolderIds] = React.useState<Set<string>>(new Set());
   const [error, setError] = React.useState<string | null>(null);
   const [branding, setBranding] = React.useState<Branding | null>(null);
-  const [brandingLoading, setBrandingLoading] = React.useState(false);
+  const [brandingLoading, setBrandingLoading] = React.useState(initialView === "logos");
   const brandingRequestRef = React.useRef(false);
 
   React.useEffect(() => {
@@ -320,6 +320,7 @@ export function EmailUploadsPanel({ initialView = "images", onInsert = () => und
   React.useEffect(() => {
     if (assetView !== "logos" || branding || brandingRequestRef.current) return;
     brandingRequestRef.current = true;
+    window.setTimeout(() => setBrandingLoading(true), 0);
     void fetch("/api/branding")
       .then(async (response) => {
         const payload = await response.json().catch(() => ({})) as { branding?: Branding; error?: string };
