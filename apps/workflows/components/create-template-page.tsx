@@ -136,7 +136,7 @@ function setCanvasTopWorkspace(overflow: number) {
 }
 
 function FigmaColorRow({ label, color, onChange }: { label: string; color?: string; onChange: (color: string) => void }) {
-  const safeColor = /^#[0-9a-f]{6}$/i.test(color ?? "") ? color! : "#ffffff";
+  const safeColor = color && /^#[0-9a-f]{6}$/i.test(color) ? color : "#ffffff";
   return <div className="flex h-10 items-center rounded-xl bg-[#f4f5f6] px-2">
     <label className="relative flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md border border-[#dfe1e3] bg-white shadow-sm">
       <span className="h-5 w-5 rounded-[3px]" style={{ backgroundColor: safeColor }} />
