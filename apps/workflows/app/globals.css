@@ -40,6 +40,15 @@
 
 /* The selected block gets a real, pointer-draggable control above its content. */
 .email-template-sortable-block { position: relative; }
+.email-template-sortable-block [data-editor-key]:not(:focus) { cursor: default; }
+.email-template-sortable-block [data-selected-text="true"]:focus { box-shadow: none; }
+.email-template-text-selection-outline {
+  position: absolute;
+  z-index: 16;
+  border: 2px solid var(--kenoo-sky);
+  border-radius: 6px;
+  pointer-events: none;
+}
 .email-template-drag-handle {
   position: absolute;
   top: -14px;
