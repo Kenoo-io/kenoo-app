@@ -108,6 +108,90 @@ const HEALTH_MEAL_OUTPUT_SCHEMA = {
   meal: z.record(z.unknown()),
 };
 
+function normalizeNumericString(value: unknown) {
+  if (typeof value !== "string" || value.trim() === "") return value;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : value;
+}
+
+function numericInput(schema: z.ZodNumber) {
+  return z.preprocess(normalizeNumericString, schema);
+}
+
+function recordValue(record: Record<string, unknown>, camelCase: string, snakeCase: string) {
+  return record[camelCase] ?? record[snakeCase];
+}
+
+const HEALTH_MEAL_ITEM_INPUT_SCHEMA = z.preprocess((value) => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return value;
+  const item = value as Record<string, unknown>;
+  return {
+    ...item,
+    servingUnit: recordValue(item, "servingUnit", "serving_unit"),
+    proteinG: recordValue(item, "proteinG", "protein_g"),
+    carbsG: recordValue(item, "carbsG", "carbs_g"),
+    fatG: recordValue(item, "fatG", "fat_g"),
+    fiberG: recordValue(item, "fiberG", "fiber_g"),
+    sugarG: recordValue(item, "sugarG", "sugar_g"),
+    sodiumMg: recordValue(item, "sodiumMg", "sodium_mg"),
+  };
+}, z.object({
+  name: z.string().trim().min(1).max(200),
+  quantity: numericInput(z.number().positive().max(10_000)).default(1),
+  servingUnit: z.string().trim().min(1).max(50).default("serving"),
+  // Nutrition values are totals for the whole line, even when quantity is
+  // greater than one. This matches the Health app and avoids multiplying a
+  // user-supplied total a second time.
+  calories: numericInput(z.number().int().min(0).max(100_000)),
+  proteinG: numericInput(z.number().min(0).max(100_000)).default(0),
+  carbsG: numericInput(z.number().min(0).max(100_000)).default(0),
+  fatG: numericInput(z.number().min(0).max(100_000)).default(0),
+  fiberG: numericInput(z.number().min(0).max(100_000)).default(0),
+  sugarG: numericInput(z.number().min(0).max(100_000)).default(0),
+  sodiumMg: numericInput(z.number().int().min(0).max(2_000_000_000)).default(0),
+}));
+
+/**
+ * Canonical meal writes use camelCase and an items array. The normalizer also
+ * accepts common action-generated variants (snake_case, a singular item, or a
+ * flat one-item meal) so harmless JSON representation differences do not fail
+ * before the authenticated handler runs.
+ */
+export const HEALTH_LOG_MEAL_INPUT_SCHEMA = z.preprocess((value) => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return value;
+  const input = value as Record<string, unknown>;
+  const flatItem = input.calories === undefined
+    ? undefined
+    : {
+        name: input.itemName ?? input.item_name ?? input.name,
+        quantity: input.quantity,
+        servingUnit: input.servingUnit ?? input.serving_unit,
+        calories: input.calories,
+        proteinG: input.proteinG ?? input.protein_g,
+        carbsG: input.carbsG ?? input.carbs_g,
+        fatG: input.fatG ?? input.fat_g,
+        fiberG: input.fiberG ?? input.fiber_g,
+        sugarG: input.sugarG ?? input.sugar_g,
+        sodiumMg: input.sodiumMg ?? input.sodium_mg,
+      };
+  const suppliedItems = input.items ?? input.item ?? flatItem;
+  return {
+    ...input,
+    mealType: input.mealType ?? input.meal_type,
+    mealDate: input.mealDate ?? input.meal_date,
+    items: suppliedItems && !Array.isArray(suppliedItems) ? [suppliedItems] : suppliedItems,
+  };
+}, z.object({
+  mealType: z.preprocess(
+    (value) => typeof value === "string" ? value.trim().toLowerCase() : value,
+    z.enum(["breakfast", "lunch", "dinner", "snack", "other"]),
+  ),
+  mealDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  name: z.string().trim().max(200).optional(),
+  notes: z.string().trim().max(2000).optional(),
+  items: z.array(HEALTH_MEAL_ITEM_INPUT_SCHEMA).min(1).max(50),
+}));
+
 const OAUTH_SECURITY_SCHEMES = [{ type: "oauth2", scopes: ["openid", "profile", "email"] }];
 
 function authenticationRequired(challenge: string) {
@@ -803,24 +887,7 @@ export function createKenooMcpServer(identity: KenooIdentity | null, authChallen
       description: "Create a meal in Kenoo's health log for the authenticated person. Use only when the user explicitly asks to record food; this does not write to Apple Health.",
       annotations: { readOnlyHint: false, destructiveHint: false },
       _meta: { securitySchemes: OAUTH_SECURITY_SCHEMES },
-      inputSchema: {
-        mealType: z.enum(["breakfast", "lunch", "dinner", "snack", "other"]),
-        mealDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-        name: z.string().max(200).optional(),
-        notes: z.string().max(2000).optional(),
-        items: z.array(z.object({
-          name: z.string().min(1).max(200),
-          quantity: z.number().positive().default(1),
-          servingUnit: z.string().max(50).default("serving"),
-          calories: z.number().min(0),
-          proteinG: z.number().min(0).default(0),
-          carbsG: z.number().min(0).default(0),
-          fatG: z.number().min(0).default(0),
-          fiberG: z.number().min(0).default(0),
-          sugarG: z.number().min(0).default(0),
-          sodiumMg: z.number().min(0).default(0),
-        })).min(1).max(50),
-      },
+      inputSchema: HEALTH_LOG_MEAL_INPUT_SCHEMA,
       outputSchema: HEALTH_MEAL_OUTPUT_SCHEMA,
     },
     async ({ mealType, mealDate, name, notes, items }) => {
@@ -855,13 +922,43 @@ export function createKenooMcpServer(identity: KenooIdentity | null, authChallen
         })
         .select("id")
         .single();
-      if (mealError) throw mealError;
+      if (mealError) {
+        console.error("[kenoo-mcp] health_log_meal meal insert failed", {
+          code: mealError.code,
+          message: mealError.message,
+        });
+        return toolError("Kenoo could not create the meal record.");
+      }
       const mealId = (meal as { id: string }).id;
       const { error: itemsError } = await identity.supabase
         .from("health_meal_items")
         .insert(normalizedItems.map(({ source_metadata, ...item }) => ({ ...item, meal_id: mealId, source_metadata })));
-      if (itemsError) throw itemsError;
-      const meals = await listHealthMeals(identity, mealDate ?? todayUtcDate());
+      if (itemsError) {
+        const { error: rollbackError } = await identity.supabase
+          .from("health_meals")
+          .delete()
+          .eq("id", mealId)
+          .eq("user_id", identity.user.id);
+        console.error("[kenoo-mcp] health_log_meal item insert failed", {
+          code: itemsError.code,
+          message: itemsError.message,
+          rollbackFailed: Boolean(rollbackError),
+        });
+        return toolError(
+          rollbackError
+            ? "Kenoo could not finish the meal write; review the Health log before retrying."
+            : "Kenoo could not finish the meal write. No meal was recorded.",
+        );
+      }
+      let meals: Record<string, unknown>[];
+      try {
+        meals = await listHealthMeals(identity, mealDate ?? todayUtcDate());
+      } catch (error) {
+        console.error("[kenoo-mcp] health_log_meal verification read failed", {
+          message: error instanceof Error ? error.message : String(error),
+        });
+        return toolError("The meal was recorded, but Kenoo could not reload it for confirmation.");
+      }
       const created = meals.find((candidate) => candidate.id === mealId) ?? { id: mealId };
       return text({ source: "Kenoo meal log", meal: created });
     },

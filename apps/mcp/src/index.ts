@@ -6,7 +6,7 @@ import express, { type Request, type Response } from "express";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 
 import { authenticateKenooUser, extractBearerToken, getSupabaseConfiguration } from "./auth.js";
-import { createKenooMcpServer } from "./server.js";
+import { createKenooMcpServer, HEALTH_LOG_MEAL_INPUT_SCHEMA } from "./server.js";
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = path.resolve(currentDirectory, "../../..");
@@ -142,6 +142,36 @@ async function handleMcpRequest(request: Request, response: Response) {
   }
   normalizeMcpAcceptHeader(request);
   normalizeMcpContentType(request);
+  if (
+    request.body &&
+    typeof request.body === "object" &&
+    !Buffer.isBuffer(request.body) &&
+    (request.body as { method?: unknown }).method === "tools/call"
+  ) {
+    const params = (request.body as { params?: unknown }).params;
+    if (params && typeof params === "object" && !Array.isArray(params)) {
+      const toolCall = params as { name?: unknown; arguments?: unknown };
+      const argumentKeys = toolCall.arguments && typeof toolCall.arguments === "object" && !Array.isArray(toolCall.arguments)
+        ? Object.keys(toolCall.arguments as Record<string, unknown>).sort()
+        : [];
+      console.info("[kenoo-mcp] tool call", {
+        name: typeof toolCall.name === "string" ? toolCall.name : "unknown",
+        argumentKeys,
+      });
+      if (toolCall.name === "health_log_meal") {
+        const validation = await HEALTH_LOG_MEAL_INPUT_SCHEMA.safeParseAsync(toolCall.arguments);
+        if (!validation.success) {
+          console.warn("[kenoo-mcp] health_log_meal validation failed", {
+            issues: validation.error.issues.map((issue) => ({
+              code: issue.code,
+              path: issue.path.join("."),
+              message: issue.message,
+            })),
+          });
+        }
+      }
+    }
+  }
   const accessToken = extractBearerToken(request.header("authorization"));
   const challenge = authenticationChallenge(request);
   let identity = null;
