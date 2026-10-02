@@ -54,6 +54,9 @@ type BuilderSnapshot = {
   imageUrl: string;
   buttonPosition: { x: number; y: number };
   textPositions: Record<string, { x: number; y: number }>;
+  imagePositions?: Record<string, { x: number; y: number }>;
+  imageSizes?: Record<string, { width: number; height: number }>;
+  imageRotations?: Record<string, number>;
 };
 
 const textFontSizes = [
@@ -65,6 +68,18 @@ const textFontSizes = [
   { command: "6", label: "32", pixels: 32 },
   { command: "7", label: "40", pixels: 40 },
 ] as const;
+
+function visibleImageSize(image: HTMLImageElement) {
+  const width = image.getBoundingClientRect().width;
+  const height = image.getBoundingClientRect().height;
+  const fit = window.getComputedStyle(image).objectFit;
+  if ((fit !== "contain" && fit !== "scale-down") || !image.naturalWidth || !image.naturalHeight) {
+    return { width, height };
+  }
+  const ratio = image.naturalWidth / image.naturalHeight;
+  const visibleWidth = Math.min(width, height * ratio);
+  return { width: visibleWidth, height: visibleWidth / ratio };
+}
 
 function FigmaColorRow({ label, color, onChange }: { label: string; color: string; onChange: (color: string) => void }) {
   return <div className="flex h-10 items-center rounded-xl bg-[#f4f5f6] px-2">
@@ -175,7 +190,13 @@ export function CreateTemplatePage({ channel, initialFormat, templateId: initial
   const [buttonPosition, setButtonPosition] = React.useState({ x: 0, y: 0 });
   const [textPositions, setTextPositions] = React.useState<Record<string, { x: number; y: number }>>({});
   const [selectedTextKey, setSelectedTextKey] = React.useState<string | null>(null);
+  const [selectedImageKey, setSelectedImageKey] = React.useState<string | null>(null);
+  const [imageSelectionVersion, setImageSelectionVersion] = React.useState(0);
   const [editingTextKey, setEditingTextKey] = React.useState<string | null>(null);
+  const imagePositionsRef = React.useRef<Record<string, { x: number; y: number }>>({});
+  const [imagePositions, setImagePositions] = React.useState<Record<string, { x: number; y: number }>>({});
+  const [imageSizes, setImageSizes] = React.useState<Record<string, { width: number; height: number }>>({});
+  const [imageRotations, setImageRotations] = React.useState<Record<string, number>>({});
   const [zoom, setZoom] = React.useState(100);
   const canvasRef = React.useRef<HTMLElement>(null);
   const zoomInputRef = React.useRef<HTMLInputElement>(null);
@@ -197,6 +218,7 @@ export function CreateTemplatePage({ channel, initialFormat, templateId: initial
   const [textLetterSpacing, setTextLetterSpacing] = React.useState("0%");
   const [textColor, setTextColor] = React.useState("#333333");
   const [openTextDropdown, setOpenTextDropdown] = React.useState<string | null>(null);
+  const heroEyebrowMarkup = React.useMemo(() => ({ __html: heroEyebrow }), [heroEyebrow]);
   const isPreviewMode = editorMode === "viewing";
   const historyRef = React.useRef<{ past: BuilderSnapshot[]; future: BuilderSnapshot[]; last: BuilderSnapshot | null; restoring: boolean }>({ past: [], future: [], last: null, restoring: false });
   const templateIdRef = React.useRef<string | null>(initialTemplateId ?? null);
@@ -234,16 +256,54 @@ export function CreateTemplatePage({ channel, initialFormat, templateId: initial
   }, []);
 
   React.useEffect(() => {
-    const editor = document.querySelector<HTMLElement>('[data-editor-key="hero-eyebrow"]');
-    if (!editor) return;
-    const replaceOnClick = (event: MouseEvent) => {
+    if (emailFormat !== "html") return;
+    const editorImage = (target: EventTarget | null) => target instanceof HTMLImageElement && target.closest("main section") ? target : null;
+    const onMouseDown = (event: MouseEvent) => {
+      if (isPreviewMode || !editorImage(event.target)) return;
+      event.preventDefault();
+      event.stopPropagation();
+    };
+    const onClick = (event: MouseEvent) => {
+      if (isPreviewMode) return;
+      const image = editorImage(event.target);
+      if (!image) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const images = Array.from(document.querySelectorAll<HTMLImageElement>("main section img"));
+      const imageKey = image.dataset.imageKey ?? (image.closest('[data-editor-key="hero-eyebrow"]') ? "hero-logo" : `image-${images.indexOf(image)}`);
+      const measured = visibleImageSize(image);
+      const canvasZoom = zoom / 100;
+      const width = measured.width / canvasZoom;
+      const height = measured.height / canvasZoom;
+      if (width && height) setImageSizes((current) => current[imageKey] ? current : ({ ...current, [imageKey]: { width, height } }));
+      setSelectedImageKey(imageKey);
+      setImageSelectionVersion((current) => current + 1);
+      setSelectedTextKey(null);
+      setEditingTextKey(null);
+      setTextToolbarOpen(false);
+      activeTextEditorRef.current = null;
+      savedTextSelectionRef.current = null;
+      const section = image.closest<HTMLElement>("[data-section-key]")?.dataset.sectionKey;
+      setSelectedBlock(section === "text" || section === "image" || section === "divider" ? section : "hero");
+      setCanvasSelectionActive(true);
+      setActiveSidebarTool("design");
+    };
+    const onDoubleClick = (event: MouseEvent) => {
+      const image = editorImage(event.target);
+      if (!image?.closest('[data-editor-key="hero-eyebrow"]') || isPreviewMode) return;
       event.preventDefault();
       event.stopPropagation();
       logoInputRef.current?.click();
     };
-    editor.addEventListener("click", replaceOnClick, true);
-    return () => editor.removeEventListener("click", replaceOnClick, true);
-  }, [heroEyebrow]);
+    document.addEventListener("mousedown", onMouseDown, true);
+    document.addEventListener("click", onClick, true);
+    document.addEventListener("dblclick", onDoubleClick, true);
+    return () => {
+      document.removeEventListener("mousedown", onMouseDown, true);
+      document.removeEventListener("click", onClick, true);
+      document.removeEventListener("dblclick", onDoubleClick, true);
+    };
+  }, [emailFormat, isPreviewMode, zoom]);
 
   React.useEffect(() => {
     if (!initialTemplateId) return;
@@ -304,7 +364,10 @@ export function CreateTemplatePage({ channel, initialFormat, templateId: initial
     imageUrl,
     buttonPosition,
     textPositions,
-  }), [name, description, subject, heroEyebrow, heroLogoUrl, heroHeadline, heroDescription, heroButtonLabel, buttonColor, buttonTextColor, buttonWidth, buttonHeight, buttonRadius, buttonFontFamily, buttonFontSize, buttonFontWeight, bodyHeading, bodyDescription, imagePlaceholder, sectionColors, sectionHeights, hiddenSections, sectionOrder, actionUrl, imageUrl, buttonPosition, textPositions]);
+    imagePositions,
+    imageSizes,
+    imageRotations,
+  }), [name, description, subject, heroEyebrow, heroLogoUrl, heroHeadline, heroDescription, heroButtonLabel, buttonColor, buttonTextColor, buttonWidth, buttonHeight, buttonRadius, buttonFontFamily, buttonFontSize, buttonFontWeight, bodyHeading, bodyDescription, imagePlaceholder, sectionColors, sectionHeights, hiddenSections, sectionOrder, actionUrl, imageUrl, buttonPosition, textPositions, imagePositions, imageSizes, imageRotations]);
 
   function updateHistoryControls() {
     setHistoryState({ canUndo: historyRef.current.past.length > 0, canRedo: historyRef.current.future.length > 0 });
@@ -361,6 +424,10 @@ export function CreateTemplatePage({ channel, initialFormat, templateId: initial
     setButtonPosition(snapshot.buttonPosition);
     textPositionsRef.current = snapshot.textPositions;
     setTextPositions(snapshot.textPositions);
+    imagePositionsRef.current = snapshot.imagePositions ?? {};
+    setImagePositions(snapshot.imagePositions ?? {});
+    setImageSizes(snapshot.imageSizes ?? {});
+    setImageRotations(snapshot.imageRotations ?? {});
   }
 
   async function replaceHeroLogo(file: File) {
@@ -427,6 +494,7 @@ export function CreateTemplatePage({ channel, initialFormat, templateId: initial
             await fetch(`/api/ai/threads/${aiThreadId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ templateId: result.template.id }) });
           }
           setSaveStatus("saved");
+          router.replace(`/templates/${result.template.id}`);
         })
         .catch((caught) => { if (!cancelled) { setError(caught instanceof Error ? caught.message : "Unable to create template"); setSaveStatus("error"); } })
         .finally(() => { creatingTemplateRef.current = false; });
@@ -539,7 +607,9 @@ export function CreateTemplatePage({ channel, initialFormat, templateId: initial
       event.stopPropagation();
       setSelectedBlock("button");
       setSelectedTextKey(null);
+      setSelectedImageKey(null);
       setEditingTextKey(null);
+      setTextToolbarOpen(false);
       setActiveSidebarTool("design");
       setCanvasSelectionActive(true);
     };
@@ -557,6 +627,19 @@ export function CreateTemplatePage({ channel, initialFormat, templateId: initial
     const blocks = Array.from(canvas.children).filter((child): child is HTMLElement => child instanceof HTMLElement).slice(0, 4);
     const blockKeys: EmailSectionKey[] = ["hero", "text", "image", "divider"];
     const zoomScale = zoom / 100;
+    const canvasImages = Array.from(canvas.querySelectorAll<HTMLImageElement>("img"));
+    canvasImages.forEach((image, index) => {
+      const imageKey = image.dataset.imageKey ?? (image.closest('[data-editor-key="hero-eyebrow"]') ? "hero-logo" : `image-${index}`);
+      const size = imageSizes[imageKey];
+      const position = imagePositionsRef.current[imageKey];
+      if (size) {
+        image.style.width = `${size.width}px`;
+        image.style.height = `${size.height}px`;
+        image.style.maxWidth = "none";
+        image.style.maxHeight = "none";
+      }
+      image.style.transform = `translate(${position?.x ?? 0}px, ${position?.y ?? 0}px) rotate(${imageRotations[imageKey] ?? 0}deg)`;
+    });
     const hero = blocks[0];
     const heroButton = hero?.querySelector<HTMLElement>("button");
     if (heroButton) heroButton.style.transform = `translate(${buttonPositionRef.current.x}px, ${buttonPositionRef.current.y}px)`;
@@ -581,7 +664,7 @@ export function CreateTemplatePage({ channel, initialFormat, templateId: initial
       block.classList.add("email-template-sortable-block");
       block.setAttribute("data-section-key", sectionKey);
       block.style.order = String(sectionOrder.indexOf(sectionKey));
-      if (isPreviewMode || !canvasSelectionActive || selectedBlock !== sectionKey || selectedTextKey) return () => {};
+      if (isPreviewMode || !canvasSelectionActive || selectedBlock !== sectionKey || selectedTextKey || selectedImageKey) return () => {};
 
       const handle = makeHandle(`${sectionKey} section`);
       block.appendChild(handle);
@@ -862,6 +945,192 @@ export function CreateTemplatePage({ channel, initialFormat, templateId: initial
         horizontalGuide.remove();
       };
     }
+    let imageCleanup = () => {};
+    const selectedImage = selectedImageKey ? canvasImages.find((image, index) => (image.dataset.imageKey ?? (image.closest('[data-editor-key="hero-eyebrow"]') ? "hero-logo" : `image-${index}`)) === selectedImageKey) : null;
+    const imageBlock = selectedImage?.closest<HTMLElement>("[data-section-key]");
+    if (!isPreviewMode && canvasSelectionActive && selectedImageKey && selectedImage && imageBlock) {
+      const outline = document.createElement("div");
+      outline.className = "email-template-image-selection-outline";
+      outline.setAttribute("aria-hidden", "true");
+      const handle = makeHandle("image");
+      handle.title = "Hold Command (Ctrl on Windows) while dragging to disable snapping";
+      handle.classList.add("email-template-image-drag-handle");
+      const verticalGuide = document.createElement("div");
+      verticalGuide.className = "email-template-center-guide email-template-center-guide-vertical";
+      verticalGuide.setAttribute("aria-hidden", "true");
+      const horizontalGuide = document.createElement("div");
+      horizontalGuide.className = "email-template-center-guide email-template-center-guide-horizontal";
+      horizontalGuide.setAttribute("aria-hidden", "true");
+      const corners = (["top-left", "top-right", "bottom-right", "bottom-left"] as const).map((corner) => {
+        const grip = document.createElement("div");
+        grip.className = `email-template-image-resize-handle email-template-image-resize-${corner}`;
+        grip.setAttribute("role", "button");
+        grip.setAttribute("tabindex", "0");
+        grip.setAttribute("aria-label", `Resize image from ${corner.replace("-", " ")}`);
+        grip.title = "Drag to resize image";
+        return { corner, grip };
+      });
+      imageBlock.append(verticalGuide, horizontalGuide, outline, handle, ...corners.map(({ grip }) => grip));
+      const getBounds = () => imageBlock.getBoundingClientRect();
+      const rotation = imageRotations[selectedImageKey] ?? 0;
+      const angle = rotation * Math.PI / 180;
+      const rotatedCorner = (width: number, height: number, signX: number, signY: number, centerX: number, centerY: number) => ({
+        x: centerX + (signX * width / 2 * Math.cos(angle) - signY * height / 2 * Math.sin(angle)) * zoomScale,
+        y: centerY + (signX * width / 2 * Math.sin(angle) + signY * height / 2 * Math.cos(angle)) * zoomScale,
+      });
+      const placeControls = () => {
+        const bounds = selectedImage.getBoundingClientRect();
+        const parentBounds = getBounds();
+        const centerX = bounds.left + bounds.width / 2;
+        const centerY = bounds.top + bounds.height / 2;
+        const styles = window.getComputedStyle(selectedImage);
+        const width = Number.parseFloat(styles.width) || selectedImage.offsetWidth;
+        const height = Number.parseFloat(styles.height) || selectedImage.offsetHeight;
+        outline.style.left = `${(centerX - parentBounds.left) / zoomScale - width / 2}px`;
+        outline.style.top = `${(centerY - parentBounds.top) / zoomScale - height / 2}px`;
+        outline.style.width = `${width}px`;
+        outline.style.height = `${height}px`;
+        outline.style.transform = `rotate(${rotation}deg)`;
+        const top = rotatedCorner(width, height, 0, -1, centerX, centerY);
+        handle.style.left = `${(top.x - parentBounds.left) / zoomScale}px`;
+        handle.style.top = `${Math.max(4, (top.y - parentBounds.top) / zoomScale - 30)}px`;
+        corners.forEach(({ corner, grip }) => {
+          const point = rotatedCorner(width, height, corner.endsWith("left") ? -1 : 1, corner.startsWith("top") ? -1 : 1, centerX, centerY);
+          grip.style.left = `${(point.x - parentBounds.left) / zoomScale}px`;
+          grip.style.top = `${(point.y - parentBounds.top) / zoomScale}px`;
+        });
+      };
+      placeControls();
+      const size = imageSizes[selectedImageKey] ?? { width: selectedImage.offsetWidth, height: selectedImage.offsetHeight };
+      selectedImage.style.maxWidth = "none";
+      selectedImage.style.maxHeight = "none";
+      const position = imagePositionsRef.current[selectedImageKey] ?? { x: 0, y: 0 };
+      const resizeObserver = new ResizeObserver(placeControls);
+      resizeObserver.observe(selectedImage);
+      let startX = 0;
+      let startY = 0;
+      let originPosition = position;
+      let originSize = size;
+      let originBounds = selectedImage.getBoundingClientRect();
+      let fixedCorner = { x: 0, y: 0 };
+      const beginPointer = (event: PointerEvent, target: HTMLElement, corner?: string) => {
+        if (event.button !== 0) return;
+        event.preventDefault();
+        event.stopPropagation();
+        startX = event.clientX;
+        startY = event.clientY;
+        originPosition = imagePositionsRef.current[selectedImageKey] ?? { x: 0, y: 0 };
+        originSize = imageSizes[selectedImageKey] ?? { width: selectedImage.offsetWidth, height: selectedImage.offsetHeight };
+        originBounds = selectedImage.getBoundingClientRect();
+        if (corner) {
+          const bounds = selectedImage.getBoundingClientRect();
+          fixedCorner = rotatedCorner(originSize.width, originSize.height, corner.endsWith("left") ? 1 : -1, corner.startsWith("top") ? 1 : -1, bounds.left + bounds.width / 2, bounds.top + bounds.height / 2);
+        }
+        target.setPointerCapture(event.pointerId);
+        target.classList.add("email-template-drag-handle-active");
+      };
+      const moveImage = (event: PointerEvent) => {
+        if (!handle.hasPointerCapture(event.pointerId)) return;
+        event.preventDefault();
+        const parentBounds = getBounds();
+        const minX = -selectedImage.offsetLeft;
+        const maxX = imageBlock.clientWidth - selectedImage.offsetLeft - selectedImage.offsetWidth;
+        const minY = -selectedImage.offsetTop;
+        const maxY = imageBlock.clientHeight - selectedImage.offsetTop - selectedImage.offsetHeight;
+        const rawX = Math.max(minX, Math.min(maxX, originPosition.x + (event.clientX - startX) / zoomScale));
+        const rawY = Math.max(minY, Math.min(maxY, originPosition.y + (event.clientY - startY) / zoomScale));
+        const centerX = originPosition.x + (parentBounds.left + parentBounds.width / 2 - originBounds.left - originBounds.width / 2) / zoomScale;
+        const centerY = originPosition.y + (parentBounds.top + parentBounds.height / 2 - originBounds.top - originBounds.height / 2) / zoomScale;
+        const disableSnap = event.metaKey || event.ctrlKey;
+        const snapX = !disableSnap && centerX >= minX && centerX <= maxX && Math.abs(rawX - centerX) <= 10 / zoomScale;
+        const snapY = !disableSnap && centerY >= minY && centerY <= maxY && Math.abs(rawY - centerY) <= 10 / zoomScale;
+        const nextX = snapX ? centerX : rawX;
+        const nextY = snapY ? centerY : rawY;
+        verticalGuide.classList.toggle("email-template-center-guide-visible", snapX);
+        horizontalGuide.classList.toggle("email-template-center-guide-visible", snapY);
+        imagePositionsRef.current[selectedImageKey] = { x: nextX, y: nextY };
+        selectedImage.style.transform = `translate(${nextX}px, ${nextY}px) rotate(${rotation}deg)`;
+        placeControls();
+      };
+      const resizeImage = (event: PointerEvent, corner: string, grip: HTMLElement) => {
+        if (!grip.hasPointerCapture(event.pointerId)) return;
+        event.preventDefault();
+        const ratio = originSize.height / Math.max(1, originSize.width);
+        const dx = (event.clientX - startX) / zoomScale;
+        const dy = (event.clientY - startY) / zoomScale;
+        const localX = dx * Math.cos(angle) + dy * Math.sin(angle);
+        const localY = -dx * Math.sin(angle) + dy * Math.cos(angle);
+        const signX = corner.endsWith("left") ? -1 : 1;
+        const signY = corner.startsWith("top") ? -1 : 1;
+        const deltaWidth = (localX * signX + localY * signY / ratio) / 2;
+        const nextWidth = Math.max(32, Math.min(1200, originSize.width + deltaWidth));
+        const nextSize = { width: nextWidth, height: nextWidth * ratio };
+        selectedImage.style.width = `${nextSize.width}px`;
+        selectedImage.style.height = `${nextSize.height}px`;
+        selectedImage.style.maxWidth = "none";
+        selectedImage.style.maxHeight = "none";
+        selectedImage.style.transform = `translate(${originPosition.x}px, ${originPosition.y}px) rotate(${rotation}deg)`;
+        const bounds = selectedImage.getBoundingClientRect();
+        const opposite = rotatedCorner(nextSize.width, nextSize.height, -signX, -signY, bounds.left + bounds.width / 2, bounds.top + bounds.height / 2);
+        const nextPosition = { x: originPosition.x + (fixedCorner.x - opposite.x) / zoomScale, y: originPosition.y + (fixedCorner.y - opposite.y) / zoomScale };
+        imagePositionsRef.current[selectedImageKey] = nextPosition;
+        selectedImage.style.transform = `translate(${nextPosition.x}px, ${nextPosition.y}px) rotate(${rotation}deg)`;
+        placeControls();
+      };
+      const finishImagePointer = (event: PointerEvent) => {
+        const target = event.currentTarget as HTMLElement;
+        if (!target.hasPointerCapture(event.pointerId)) return;
+        target.releasePointerCapture(event.pointerId);
+        target.classList.remove("email-template-drag-handle-active");
+        verticalGuide.classList.remove("email-template-center-guide-visible");
+        horizontalGuide.classList.remove("email-template-center-guide-visible");
+        if (event.type === "pointercancel") {
+          imagePositionsRef.current[selectedImageKey] = originPosition;
+          selectedImage.style.width = `${originSize.width}px`;
+          selectedImage.style.height = `${originSize.height}px`;
+          selectedImage.style.transform = `translate(${originPosition.x}px, ${originPosition.y}px) rotate(${rotation}deg)`;
+          setImagePositions({ ...imagePositionsRef.current });
+          setImageSizes((current) => ({ ...current, [selectedImageKey]: originSize }));
+        } else {
+          setImagePositions({ ...imagePositionsRef.current });
+          const styles = window.getComputedStyle(selectedImage);
+          setImageSizes((current) => ({ ...current, [selectedImageKey]: { width: Number.parseFloat(styles.width), height: Number.parseFloat(styles.height) } }));
+        }
+        placeControls();
+      };
+      const beginMove = (event: PointerEvent) => beginPointer(event, handle);
+      handle.addEventListener("pointerdown", beginMove);
+      handle.addEventListener("pointermove", moveImage);
+      handle.addEventListener("pointerup", finishImagePointer);
+      handle.addEventListener("pointercancel", finishImagePointer);
+      const resizeListeners = corners.map(({ corner, grip }) => {
+        const onDown = (event: PointerEvent) => beginPointer(event, grip, corner);
+        const onMove = (event: PointerEvent) => resizeImage(event, corner, grip);
+        grip.addEventListener("pointerdown", onDown);
+        grip.addEventListener("pointermove", onMove);
+        grip.addEventListener("pointerup", finishImagePointer);
+        grip.addEventListener("pointercancel", finishImagePointer);
+        return () => {
+          grip.removeEventListener("pointerdown", onDown);
+          grip.removeEventListener("pointermove", onMove);
+          grip.removeEventListener("pointerup", finishImagePointer);
+          grip.removeEventListener("pointercancel", finishImagePointer);
+          grip.remove();
+        };
+      });
+      imageCleanup = () => {
+        resizeObserver.disconnect();
+        handle.removeEventListener("pointerdown", beginMove);
+        handle.removeEventListener("pointermove", moveImage);
+        handle.removeEventListener("pointerup", finishImagePointer);
+        handle.removeEventListener("pointercancel", finishImagePointer);
+        resizeListeners.forEach((cleanup) => cleanup());
+        outline.remove();
+        handle.remove();
+        verticalGuide.remove();
+        horizontalGuide.remove();
+      };
+    }
     const onArrowKey = (event: KeyboardEvent) => {
       if (!nudgeSelected || (selectedTextKey !== null && editingTextKey === selectedTextKey) || event.altKey || event.metaKey || event.ctrlKey || event.shiftKey) return;
       const delta = event.key === "ArrowLeft" ? [-1, 0] : event.key === "ArrowRight" ? [1, 0] : event.key === "ArrowUp" ? [0, -1] : event.key === "ArrowDown" ? [0, 1] : null;
@@ -878,6 +1147,7 @@ export function CreateTemplatePage({ channel, initialFormat, templateId: initial
     return () => {
       document.removeEventListener("keydown", onArrowKey);
       textCleanup();
+      imageCleanup();
       buttonCleanup();
       cleanups.forEach((cleanup) => cleanup());
       blocks.forEach((block) => {
@@ -889,7 +1159,7 @@ export function CreateTemplatePage({ channel, initialFormat, templateId: initial
       canvas.style.flexDirection = "";
       canvas.style.overflow = "";
     };
-  }, [canvasSelectionActive, editingTextKey, emailFormat, isPreviewMode, sectionOrder, selectedBlock, selectedTextKey, zoom]);
+  }, [canvasSelectionActive, editingTextKey, emailFormat, heroEyebrow, imagePositions, imageRotations, imageSelectionVersion, imageSizes, isPreviewMode, sectionOrder, selectedBlock, selectedImageKey, selectedTextKey, zoom]);
 
   function toggleSidebarTool(tool: NonNullable<typeof activeSidebarTool>) {
     setActiveSidebarTool((current) => current === tool ? null : tool);
@@ -934,6 +1204,7 @@ export function CreateTemplatePage({ channel, initialFormat, templateId: initial
     range.selectNodeContents(editor);
     savedTextSelectionRef.current = range;
     setEditingTextKey(null);
+    setSelectedImageKey(null);
     setSelectedTextKey(editorKey);
     setSelectedBlock(block);
     setCanvasSelectionActive(true);
@@ -950,6 +1221,7 @@ export function CreateTemplatePage({ channel, initialFormat, templateId: initial
     const { clientX, clientY } = event;
     activeTextEditorRef.current = editor;
     setSelectedTextKey(editorKey);
+    setSelectedImageKey(null);
     setSelectedBlock(block);
     setCanvasSelectionActive(true);
     setActiveSidebarTool("design");
@@ -1101,9 +1373,10 @@ export function CreateTemplatePage({ channel, initialFormat, templateId: initial
   React.useEffect(() => {
     function clearTextSelectionOnCanvasClick(event: MouseEvent) {
       const target = event.target;
-      if (target instanceof Element && target.closest("main") && !target.closest("[data-editor-key], .email-template-drag-handle")) {
+      if (target instanceof Element && target.closest("main") && !target.closest("[data-editor-key], .email-template-drag-handle, .email-template-image-resize-handle")) {
         setSelectedTextKey(null);
         setEditingTextKey(null);
+        if (!target.closest("img")) setSelectedImageKey(null);
       }
     }
     document.addEventListener("mousedown", clearTextSelectionOnCanvasClick);
@@ -1140,11 +1413,28 @@ export function CreateTemplatePage({ channel, initialFormat, templateId: initial
     </div>
     <div className="px-5 py-5"><label className="block"><span className="mb-1.5 block text-[11px] text-[#8b8f94]">Button URL</span><div className="flex h-9 items-center rounded-lg bg-[#f5f5f5] px-3 focus-within:bg-[#eeeeef]"><input type="url" value={actionUrl} onChange={(event) => setActionUrl(event.target.value)} placeholder="https://example.com" className="min-w-0 flex-1 bg-transparent text-[12px] text-[#222] outline-none placeholder:text-[#9b9da0]" /></div></label></div>
   </>;
-  const selectedSectionControls = <div className="mt-0 min-h-full bg-white text-[#222]"><div className="flex items-center justify-between border-b border-[#e9eaec] px-5 py-4"><div><p className="text-[14px] font-semibold tracking-[-0.01em] text-[#222]">{textToolbarOpen ? "Text formatting" : selectedSectionLabel}</p></div>{!textToolbarOpen && selectedBlock !== "button" ? <span className="h-2.5 w-2.5 rounded-full ring-2 ring-[#f1f2f3]" style={{ backgroundColor: sectionColors[selectedSection] }} /> : null}</div>
-{textToolbarOpen ? textFormattingToolbar : null}
-{!textToolbarOpen && selectedBlock === "button" ? buttonControls : null}
-{!textToolbarOpen && selectedBlock !== "button" ? <div className="border-b border-[#e9eaec] px-5 py-5"><p className="mb-4 text-[14px] font-semibold tracking-[-0.01em]">Layout</p><ScrubField label="Height" value={sectionHeights[selectedSection]} onChange={(value) => setSectionHeights((current) => ({ ...current, [selectedSection]: value }))} min={48} max={1200} prefix="H" suffix="px" /></div> : null}
-<div className={cn("border-b border-[#e9eaec] px-5 py-5", selectedBlock === "button" || textToolbarOpen ? "hidden" : "")}><p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#8b9095]">Section fill</p><FigmaColorRow label="Section fill" color={sectionColors[selectedSection]} onChange={(color) => setSectionColors((current) => ({ ...current, [selectedSection]: color }))} /></div><div className={cn("px-5 py-4", selectedBlock === "button" || textToolbarOpen ? "hidden" : "")}><button type="button" onClick={() => { setHiddenSections((current) => current.includes(selectedSection) ? current : [...current, selectedSection]); setActiveSidebarTool(null); }} className="flex h-9 w-full items-center justify-center rounded-lg border border-red-200 bg-white text-[11px] font-medium text-red-600 transition hover:bg-red-50">Delete section</button></div></div>;
+  const selectedImageSize = selectedImageKey ? imageSizes[selectedImageKey] : null;
+  const imageControls = selectedImageKey ? <>
+    <div className="border-b border-[#e5e6e8] px-5 py-5">
+      <p className="mb-4 text-[14px] font-semibold tracking-[-0.01em]">Dimensions</p>
+      <div className="grid grid-cols-2 gap-3">
+        <ScrubField label="Width" value={String(Math.round(selectedImageSize?.width ?? 0))} onChange={(value) => { const width = Number(value); if (Number.isFinite(width) && width >= 1) setImageSizes((current) => ({ ...current, [selectedImageKey]: { width: Math.min(1200, width), height: current[selectedImageKey]?.height ?? 1 } })); }} min={1} max={1200} prefix="W" suffix="px" />
+        <ScrubField label="Height" value={String(Math.round(selectedImageSize?.height ?? 0))} onChange={(value) => { const height = Number(value); if (Number.isFinite(height) && height >= 1) setImageSizes((current) => ({ ...current, [selectedImageKey]: { width: current[selectedImageKey]?.width ?? 1, height: Math.min(1200, height) } })); }} min={1} max={1200} prefix="H" suffix="px" />
+      </div>
+      <p className="mt-3 text-[11px] leading-5 text-[#8b8f94]">Drag any corner to resize proportionally. The fields adjust width and height separately.</p>
+    </div>
+    <div className="border-b border-[#e5e6e8] px-5 py-5">
+      <p className="mb-4 text-[14px] font-semibold tracking-[-0.01em]">Rotation</p>
+      <div className="flex items-center gap-3"><input type="range" min="-180" max="180" step="1" aria-label="Image rotation" value={imageRotations[selectedImageKey] ?? 0} onChange={(event) => setImageRotations((current) => ({ ...current, [selectedImageKey]: Number(event.target.value) }))} className="min-w-0 flex-1 accent-[#6eadc0]" /><input type="number" min="-180" max="180" aria-label="Image rotation degrees" value={imageRotations[selectedImageKey] ?? 0} onChange={(event) => setImageRotations((current) => ({ ...current, [selectedImageKey]: Math.max(-180, Math.min(180, Number(event.target.value) || 0)) }))} className="h-9 w-16 rounded-lg bg-[#f5f5f5] px-2 text-right text-[12px] outline-none" /><span className="text-[12px] text-[#85898d]">°</span></div>
+    </div>
+    {selectedImageKey === "hero-logo" ? <div className="px-5 py-5"><button type="button" onClick={() => logoInputRef.current?.click()} className="h-9 w-full rounded-lg border border-[#dfe4e6] text-[11px] font-medium text-[#555] transition hover:bg-[#f5fafb]">Replace image</button></div> : null}
+  </> : null;
+  const selectedSectionControls = <div className="mt-0 min-h-full bg-white text-[#222]"><div className="flex items-center justify-between border-b border-[#e9eaec] px-5 py-4"><div><p className="text-[14px] font-semibold tracking-[-0.01em] text-[#222]">{selectedImageKey ? "Image" : textToolbarOpen ? "Text formatting" : selectedSectionLabel}</p></div>{!textToolbarOpen && !selectedImageKey && selectedBlock !== "button" ? <span className="h-2.5 w-2.5 rounded-full ring-2 ring-[#f1f2f3]" style={{ backgroundColor: sectionColors[selectedSection] }} /> : null}</div>
+{selectedImageKey ? imageControls : null}
+{!selectedImageKey && textToolbarOpen ? textFormattingToolbar : null}
+{!textToolbarOpen && !selectedImageKey && selectedBlock === "button" ? buttonControls : null}
+{!textToolbarOpen && !selectedImageKey && selectedBlock !== "button" ? <div className="border-b border-[#e9eaec] px-5 py-5"><p className="mb-4 text-[14px] font-semibold tracking-[-0.01em]">Layout</p><ScrubField label="Height" value={sectionHeights[selectedSection]} onChange={(value) => setSectionHeights((current) => ({ ...current, [selectedSection]: value }))} min={48} max={1200} prefix="H" suffix="px" /></div> : null}
+<div className={cn("border-b border-[#e9eaec] px-5 py-5", selectedImageKey || selectedBlock === "button" || textToolbarOpen ? "hidden" : "")}><p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#8b9095]">Section fill</p><FigmaColorRow label="Section fill" color={sectionColors[selectedSection]} onChange={(color) => setSectionColors((current) => ({ ...current, [selectedSection]: color }))} /></div><div className={cn("px-5 py-4", selectedImageKey || selectedBlock === "button" || textToolbarOpen ? "hidden" : "")}><button type="button" onClick={() => { setHiddenSections((current) => current.includes(selectedSection) ? current : [...current, selectedSection]); setActiveSidebarTool(null); }} className="flex h-9 w-full items-center justify-center rounded-lg border border-red-200 bg-white text-[11px] font-medium text-red-600 transition hover:bg-red-50">Delete section</button></div></div>;
 
   async function saveTemplate(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -1164,11 +1454,115 @@ export function CreateTemplatePage({ channel, initialFormat, templateId: initial
     router.push("/templates");
   }
 
+  function getExportEmailHtml() {
+    const source = document.querySelector<HTMLElement>("main section");
+    if (!source) return "";
+
+    const clone = source.cloneNode(true) as HTMLElement;
+    const sourceElements = [source, ...Array.from(source.querySelectorAll<HTMLElement>("*"))];
+    const cloneElements = [clone, ...Array.from(clone.querySelectorAll<HTMLElement>("*"))];
+    const inlineProperties = ["backgroundColor", "color", "fontFamily", "fontSize", "fontWeight", "lineHeight", "letterSpacing", "textAlign", "width", "minHeight", "height", "padding", "margin", "border", "borderRadius", "boxShadow", "boxSizing", "display", "justifyContent", "alignItems", "objectFit", "maxWidth"] as const;
+
+    cloneElements.forEach((element, index) => {
+      const original = sourceElements[index];
+      if (!original) return;
+      const computed = window.getComputedStyle(original);
+      element.removeAttribute("class");
+      element.removeAttribute("contenteditable");
+      element.removeAttribute("data-editor-key");
+      element.removeAttribute("role");
+      element.removeAttribute("tabindex");
+      inlineProperties.forEach((property) => {
+        const value = computed[property];
+        if (value) element.style.setProperty(property.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`), value);
+      });
+    });
+
+    clone.querySelectorAll("button").forEach((button) => {
+      button.removeAttribute("type");
+      button.removeAttribute("onclick");
+    });
+
+    return `<div style="background:#ffffff;margin:0 auto;max-width:640px;overflow:hidden">${clone.innerHTML}</div>`;
+  }
+
+  async function copyEmailHtml() {
+    const html = getExportEmailHtml();
+    if (!html) return;
+    try {
+      if (typeof ClipboardItem !== "undefined" && navigator.clipboard?.write) {
+        await navigator.clipboard.write([new ClipboardItem({ "text/html": new Blob([html], { type: "text/html" }), "text/plain": new Blob([cloneTextFromHtml(html)], { type: "text/plain" }) })]);
+      } else {
+        await navigator.clipboard?.writeText(html);
+      }
+    } catch {
+      await navigator.clipboard?.writeText(html).catch(() => undefined);
+    }
+  }
+
+  function cloneTextFromHtml(html: string) {
+    const container = document.createElement("div");
+    container.innerHTML = html;
+    return container.textContent ?? "";
+  }
+
+  function printEmailAsPdf() {
+    const html = getExportEmailHtml();
+    if (!html) return;
+    const printWindow = window.open("", "_blank", "width=900,height=1000");
+    if (!printWindow) {
+      return;
+    }
+    const safeTitle = (name || "Email").replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character] ?? character);
+    printWindow.document.write(`<!doctype html><html><head><title>${safeTitle}</title><style>@page{margin:0.5in}html,body{margin:0;padding:0;background:#fff}body{font-family:Arial,sans-serif;color:#222}@media print{*{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body>${html}</body></html>`);
+    printWindow.document.close();
+    printWindow.focus();
+    window.setTimeout(() => printWindow.print(), 250);
+  }
+
+  React.useEffect(() => {
+    if (emailFormat !== "html") return;
+    const shareButton = Array.from(document.querySelectorAll<HTMLButtonElement>("header button")).find((button) => button.textContent?.trim() === "Share");
+    const parent = shareButton?.parentElement;
+    if (!shareButton || !parent) return;
+    parent.classList.add("relative");
+
+    let menu: HTMLDivElement | null = null;
+    const closeMenu = () => { menu?.remove(); menu = null; };
+    const handleShareClick = (event: MouseEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (menu) { closeMenu(); return; }
+      menu = document.createElement("div");
+      menu.setAttribute("role", "menu");
+      menu.setAttribute("aria-label", "Share email");
+      menu.className = "absolute right-0 top-[calc(100%+10px)] z-40 w-[230px] rounded-2xl border border-[#e4e7e9] bg-white p-1.5 shadow-[0_14px_36px_rgba(15,23,42,0.14)]";
+      const actions = [
+        { label: "Save as PDF", description: "Open print and save options", action: printEmailAsPdf },
+        { label: "Copy HTML", description: "Copy the email markup", action: () => void copyEmailHtml() },
+      ];
+      actions.forEach(({ label, description, action }) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.setAttribute("role", "menuitem");
+        button.className = "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[12px] text-[#444] transition hover:bg-[#f4f5f7]";
+        button.innerHTML = `<span><span class="block font-medium">${label}</span><span class="mt-0.5 block text-[11px] text-[#999]">${description}</span></span>`;
+        button.addEventListener("click", (actionEvent) => { actionEvent.stopPropagation(); action(); closeMenu(); });
+        menu?.append(button);
+      });
+      parent.append(menu);
+    };
+    const handleDocumentClick = () => closeMenu();
+    shareButton.addEventListener("click", handleShareClick, true);
+    document.addEventListener("click", handleDocumentClick);
+    return () => { shareButton.removeEventListener("click", handleShareClick, true); document.removeEventListener("click", handleDocumentClick); closeMenu(); };
+  }, [emailFormat, name]);
+
   if (initialTemplateId && !templateLoaded) return <div className="flex min-h-full items-center justify-center bg-kenoo-white text-[13px] text-[#999]">Loading template…</div>;
   if (key === "email" && emailFormat === null) return null;
 
   if (key === "email" && emailFormat === "html") return <div className="flex h-screen min-h-0 flex-col overflow-hidden bg-[#f4f5f7] text-[#222]"><header className="relative flex h-[68px] shrink-0 items-center justify-between border-b border-[#e5e7eb] bg-white px-4 text-[#222] shadow-[0_4px_18px_rgba(15,23,42,0.06)] sm:px-6"><span ref={templateNameMeasureRef} aria-hidden="true" className="pointer-events-none absolute -z-10 whitespace-pre text-[15px] font-semibold tracking-[-0.02em]">{name || "Template 1"}</span><div className="flex min-w-0 items-center gap-5"><button type="button" onClick={() => setEmailFormat(null)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#f4f5f7] text-[#666] transition hover:bg-[#edf8fa] hover:text-[#4d9eae]" aria-label="Change email format"><ArrowLeft className="h-4 w-4" /></button><div className="hidden items-center gap-5 sm:flex"><input value={name} onChange={(event) => setName(event.target.value)} aria-label="Template name" placeholder="Template 1" style={{ width: templateNameWidth }} className="h-9 rounded-xl border border-transparent bg-transparent px-2 text-[15px] font-semibold tracking-[-0.02em] text-[#222] outline-none transition hover:border-[#c9cdd1] hover:bg-white focus:border-[#969ba1] focus:bg-white" /><span className="h-7 w-px bg-[#e5e7eb]" /><div ref={editorModeRef} className="relative"><button type="button" aria-haspopup="menu" aria-expanded={editorModeOpen} onClick={() => setEditorModeOpen((open) => !open)} className="flex items-center gap-2 rounded-lg bg-[#f4f5f7] px-3 py-2 text-[12px] font-medium text-[#555] transition hover:bg-[#edf8fa] hover:text-[#4d9eae]"><Pencil className="h-4 w-4" />{emailEditorModes.find((mode) => mode.value === editorMode)?.label}<ChevronDown className={cn("h-3.5 w-3.5 transition-transform", editorModeOpen ? "rotate-180" : "")} /></button>{editorModeOpen ? <div role="menu" aria-label="Editor mode" className="absolute left-0 top-[calc(100%+10px)] z-40 w-[236px] rounded-2xl border border-[#e4e7e9] bg-white p-1.5 shadow-[0_14px_36px_rgba(15,23,42,0.14)]">{emailEditorModes.map((mode) => { const ModeIcon = mode.icon; const selected = editorMode === mode.value; return <button key={mode.value} type="button" role="menuitemradio" aria-checked={selected} onClick={() => { setEditorMode(mode.value); setEditorModeOpen(false); }} className={cn("flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition", selected ? "bg-[#edf8fa] text-[#4d9eae]" : "text-[#444] hover:bg-[#f4f5f7]")}><span className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-lg", selected ? "bg-white text-[#4d9eae]" : "bg-[#f4f5f7] text-[#777]")}><ModeIcon className="h-4 w-4" /></span><span className="min-w-0 flex-1"><span className="block text-[12px] font-medium">{mode.label}</span><span className="mt-0.5 block text-[11px] text-[#999]">{mode.description}</span></span>{selected ? <Check className="h-4 w-4 shrink-0" /> : null}</button>; })}</div> : null}</div><span className="h-7 w-px bg-[#e5e7eb]" /><button type="button" onClick={undoBuilderChange} disabled={!historyState.canUndo} aria-label="Undo" className="disabled:opacity-30"><Undo2 className="h-4 w-4 text-[#9aa0a6]" /></button><button type="button" onClick={redoBuilderChange} disabled={!historyState.canRedo} aria-label="Redo" className="disabled:opacity-30"><Redo2 className="h-4 w-4 text-[#9aa0a6]" /></button><span className="h-7 w-px bg-[#e5e7eb]" /></div><input value={name} onChange={(event) => setName(event.target.value)} aria-label="Template name" placeholder="Template 1" style={{ width: templateNameWidth }} className="h-9 min-w-0 max-w-[calc(100vw-160px)] rounded-xl border border-transparent bg-transparent px-2 text-[14px] font-semibold text-[#222] outline-none transition hover:border-[#c9cdd1] hover:bg-white focus:border-[#969ba1] focus:bg-white sm:hidden" /></div><div className="flex shrink-0 items-center gap-2"><div className="relative"><button type="button" onClick={() => setSendTestOpen((open) => !open)} className="flex items-center gap-2 rounded-xl bg-[#edf8fa] px-3.5 py-2.5 text-[12px] font-semibold text-[#4d9eae] transition hover:bg-[#dff3f6]"><Send className="h-3.5 w-3.5" /> Send test</button>{sendTestOpen ? <div className="absolute right-0 top-[calc(100%+10px)] z-30 w-[280px] rounded-2xl border border-[#e4e7e9] bg-white p-3 shadow-[0_14px_36px_rgba(15,23,42,0.14)]"><label className="block text-left"><span className="mb-1.5 block text-[11px] font-medium text-[#777]">Send a test email to</span><input type="email" value={testEmail} onChange={(event) => setTestEmail(event.target.value)} placeholder="you@example.com" className="h-9 w-full rounded-lg border border-[#dfe4e6] bg-white px-2.5 text-[12px] text-[#333] outline-none placeholder:text-[#aaa] focus:border-[#8fcbd5] focus:ring-2 focus:ring-[#dff3f6]" /></label><button type="button" disabled={!testEmail.trim()} className="mt-2.5 flex h-9 w-full items-center justify-center gap-2 rounded-lg bg-[#222] text-[12px] font-medium text-white transition hover:bg-[#3a3a3a] disabled:cursor-not-allowed disabled:opacity-40"><Send className="h-3.5 w-3.5" /> Send test email</button></div> : null}</div><button type="button" onClick={() => { const shareUrl = window.location.href; void navigator.clipboard?.writeText(shareUrl); }} className="rounded-xl bg-[#222] px-4 py-2.5 text-[12px] font-semibold text-white shadow-sm transition hover:bg-[#3a3a3a]">Share</button></div></header><div className="relative flex min-h-0 flex-1"><aside className="hidden w-[76px] shrink-0 flex-col items-center gap-2 border-r border-[#e2e4e9] bg-white py-4 sm:flex"><button type="button" onClick={() => toggleSidebarTool("add")} className={cn("flex w-[60px] flex-col items-center gap-1.5 rounded-2xl py-3 text-[10px] font-medium transition", activeSidebarTool === "add" ? "bg-[#edf8fa] text-[#4d9eae]" : "text-[#999] hover:bg-[#f5f6f8] hover:text-[#555]")}><Plus className="h-5 w-5" /><span>Add</span></button><button type="button" onClick={() => toggleSidebarTool("layouts")} className={cn("flex w-[60px] flex-col items-center gap-1.5 rounded-2xl py-3 text-[10px] transition", activeSidebarTool === "layouts" ? "bg-[#edf8fa] font-medium text-[#4d9eae]" : "text-[#999] hover:bg-[#f5f6f8] hover:text-[#555]")}><LayoutTemplate className="h-5 w-5" /><span>Layouts</span></button><button type="button" onClick={() => toggleSidebarTool("uploads")} className={cn("flex w-[60px] flex-col items-center gap-1.5 rounded-2xl py-3 text-[10px] transition", activeSidebarTool === "uploads" ? "bg-[#edf8fa] font-medium text-[#4d9eae]" : "text-[#999] hover:bg-[#f5f6f8] hover:text-[#555]")}><Upload className="h-5 w-5" /><span>Uploads</span></button><button type="button" onClick={() => toggleSidebarTool("folders")} className={cn("flex w-[60px] flex-col items-center gap-1.5 rounded-2xl py-3 text-[10px] transition", activeSidebarTool === "folders" ? "bg-[#edf8fa] font-medium text-[#4d9eae]" : "text-[#999] hover:bg-[#f5f6f8] hover:text-[#555]")}><Folder className="h-5 w-5" /><span>Folders</span></button><button type="button" onClick={() => toggleSidebarTool("ai")} className={cn("flex w-[60px] flex-col items-center gap-1.5 rounded-2xl py-3 text-[10px] transition", activeSidebarTool === "ai" ? "bg-[#edf8fa] font-medium text-[#4d9eae]" : "text-[#999] hover:bg-[#f5f6f8] hover:text-[#555]")}><Sparkles className="h-5 w-5" /><span>Kenoo AI</span></button><button type="button" onClick={() => toggleSidebarTool("design")} className={cn("flex w-[60px] flex-col items-center gap-1.5 rounded-2xl py-3 text-[10px] transition", activeSidebarTool === "design" ? "bg-[#edf8fa] font-medium text-[#4d9eae]" : "text-[#999] hover:bg-[#f5f6f8] hover:text-[#555]")}><Settings2 className="h-5 w-5" /><span>Design</span></button></aside><AnimatePresence initial={false}>{activeSidebarTool ? <motion.aside key="email-sidebar-panel" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }} className={cn("absolute inset-y-0 left-[76px] z-30 hidden w-[360px] overflow-y-auto border-r border-[#e2e4e9] bg-white shadow-[8px_0_24px_rgba(15,23,42,0.08)] lg:block", activeSidebarTool === "design" ? "" : "p-4")}><>
-{activeSidebarTool === "add" ? <><div className="mt-5 grid grid-cols-2 gap-2.5"><button type="button" onClick={() => { setSelectedBlock("text"); setActiveSidebarTool("design"); }} className="flex h-[84px] flex-col items-center justify-center gap-2 rounded-2xl border border-[#e8eaee] bg-[#fbfbfc] text-[11px] text-[#666] transition hover:-translate-y-0.5 hover:border-[#a8d7df] hover:bg-[#f1fbfc]"><Type className="h-5 w-5 text-[#60aebc]" />Text</button><button type="button" onClick={() => { setSelectedBlock("image"); setActiveSidebarTool("design"); }} className="flex h-[84px] flex-col items-center justify-center gap-2 rounded-2xl border border-[#e8eaee] bg-[#fbfbfc] text-[11px] text-[#666] transition hover:-translate-y-0.5 hover:border-[#a8d7df] hover:bg-[#f1fbfc]"><Image className="h-5 w-5 text-[#60aebc]" />Image</button><button type="button" onClick={() => setSelectedBlock("button")} className="flex h-[84px] flex-col items-center justify-center gap-2 rounded-2xl border border-[#e8eaee] bg-[#fbfbfc] text-[11px] text-[#666] transition hover:-translate-y-0.5 hover:border-[#a8d7df] hover:bg-[#f1fbfc]"><MousePointerClick className="h-5 w-5 text-[#60aebc]" />Button</button><button type="button" onClick={() => { setSelectedBlock("divider"); setActiveSidebarTool("design"); }} className="flex h-[84px] flex-col items-center justify-center gap-2 rounded-2xl border border-[#e8eaee] bg-[#fbfbfc] text-[11px] text-[#666] transition hover:-translate-y-0.5 hover:border-[#a8d7df] hover:bg-[#f1fbfc]"><Minus className="h-5 w-5 text-[#60aebc]" />Divider</button></div><div className="mt-6 rounded-2xl bg-[#f5fafb] p-3.5"><p className="text-[11px] font-medium text-[#4d9eae]">Tip</p><p className="mt-1 text-[11px] leading-5 text-[#7d9298]">Select a block on the canvas to edit its content and styling.</p></div><div className="mt-5 border-t border-[#eef0f1] pt-5"><p className="text-[13px] font-semibold text-[#222]">Email settings</p><label className="mt-4 block"><span className="mb-1.5 block text-[11px] font-medium text-[#777]">Description</span><input value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Optional" className="form-input" /></label><div className="mt-4"><p className="mb-2 text-[11px] font-medium text-[#777]">Selected block</p><div className="flex items-center justify-between rounded-xl bg-[#f5fafb] px-3 py-2.5 text-[12px] text-[#4d9eae]"><span className="capitalize">{selectedBlock}</span><span className="h-2 w-2 rounded-full bg-[#6eadc0]" /></div></div><div className="mt-4"><p className="mb-2 text-[11px] font-medium text-[#777]">Canvas background</p><div className="flex gap-2"><button type="button" className="h-8 w-8 rounded-lg bg-[#f7f4eb] ring-2 ring-[#6eadc0] ring-offset-2" /><button type="button" className="h-8 w-8 rounded-lg bg-white ring-1 ring-[#e5e7e9]" /><button type="button" className="h-8 w-8 rounded-lg bg-[#edf8fa]" /></div></div></div></> : activeSidebarTool === "uploads" || activeSidebarTool === "folders" ? <EmailUploadsPanel key={activeSidebarTool} initialView={activeSidebarTool === "folders" ? "folders" : "images"} /> : activeSidebarTool === "design" ? selectedSectionControls : activeSidebarTool === "ai" ? <KenooAIPanel templateId={templateId} onThreadIdChange={setAiThreadId} /> : <div className="mt-5 rounded-2xl border border-dashed border-[#dce8ea] bg-[#fbfdfd] p-4"><p className="text-[12px] font-medium text-[#444]">{activeSidebarTool === "layouts" ? "Choose a starting point" : "Describe what you want to create"}</p><p className="mt-2 text-[11px] leading-5 text-[#8a9294]">{activeSidebarTool === "layouts" ? "Pick a template layout to give your email a strong first structure." : "Use Kenoo AI to help draft content and suggest layouts."}</p><div className="mt-4 rounded-xl bg-[#f5fafb] px-3 py-2.5 text-[11px] font-medium text-[#6b969e]">More options coming soon</div></div>}</></motion.aside> : null}</AnimatePresence>{activeSidebarTool ? <button type="button" onClick={() => setActiveSidebarTool(null)} aria-label="Close sidebar panel" className="absolute left-[436px] top-1/2 z-40 flex h-9 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-[#e1e5eb] bg-white text-[#333] shadow-[0_4px_14px_rgba(15,23,42,0.12)] transition hover:bg-[#f8fafb]"><ChevronLeft className="h-5 w-5" /></button> : null}<motion.main animate={{ x: activeSidebarTool ? 180 : 0 }} transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }} onClick={() => { setActiveSidebarTool(null); setCanvasSelectionActive(false); setSelectedBlock("hero"); }} className="relative min-w-0 flex-1 overflow-auto bg-[#f4f5f7] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"><div className="flex min-h-full justify-center px-5 py-10 sm:px-10"><div className="relative w-full max-w-[640px]" style={{ transform: `scale(${zoom / 100})`, transformOrigin: "top center" }}><section onClick={(event) => event.stopPropagation()} className="overflow-hidden border border-[#e4e6ea] bg-white shadow-[0_18px_50px_rgba(15,23,42,0.12)]"><div role="button" tabIndex={0} onClick={() => { setSelectedBlock("hero"); setActiveSidebarTool("design"); setCanvasSelectionActive(true); }} style={{ backgroundColor: sectionColors.hero, height: `${sectionHeights.hero}px`, display: hiddenSections.includes("hero") ? "none" : undefined }} className={cn("group relative block w-full px-10 pb-10 pt-12 text-center transition", canvasSelectionActive && selectedBlock === "hero" && !selectedTextKey ? "ring-2 ring-inset ring-[var(--kenoo-sky)]" : "hover:brightness-[0.99]")}><p contentEditable suppressContentEditableWarning spellCheck="false" data-editor-key="hero-eyebrow" onInput={(event) => setHeroEyebrow(event.currentTarget.innerHTML)} onMouseDown={prepareTextSelection} onMouseUp={(event) => rememberTextSelection(event.currentTarget)} onKeyUp={(event) => rememberTextSelection(event.currentTarget)} className="cursor-text rounded-md outline-none focus:bg-white/60 focus:ring-2 focus:ring-[var(--kenoo-sky)]/40" onClick={(event) => selectTextContainer(event, "hero")} onDoubleClick={(event) => beginTextEditing(event, "hero")} dangerouslySetInnerHTML={{ __html: heroEyebrow }} /><h1 contentEditable suppressContentEditableWarning spellCheck="false" data-editor-key="hero-headline" onInput={(event) => setHeroHeadline(event.currentTarget.innerHTML)} onMouseDown={prepareTextSelection} onMouseUp={(event) => rememberTextSelection(event.currentTarget)} onKeyUp={(event) => rememberTextSelection(event.currentTarget)} className="mt-4 cursor-text rounded-md text-[35px] font-semibold leading-[1.08] tracking-[-0.06em] text-[#171717] outline-none focus:bg-white/60 focus:ring-2 focus:ring-[var(--kenoo-sky)]/40" onClick={(event) => selectTextContainer(event, "hero")} onDoubleClick={(event) => beginTextEditing(event, "hero")} dangerouslySetInnerHTML={{ __html: heroHeadline }} /><p contentEditable suppressContentEditableWarning spellCheck="false" data-editor-key="hero-description" onInput={(event) => setHeroDescription(event.currentTarget.innerHTML)} onMouseDown={prepareTextSelection} onMouseUp={(event) => rememberTextSelection(event.currentTarget)} onKeyUp={(event) => rememberTextSelection(event.currentTarget)} className="mx-auto mt-5 max-w-[400px] cursor-text rounded-md text-[13px] leading-6 text-[#727878] outline-none focus:bg-white/60 focus:ring-2 focus:ring-[var(--kenoo-sky)]/40" onClick={(event) => selectTextContainer(event, "hero")} onDoubleClick={(event) => beginTextEditing(event, "hero")} dangerouslySetInnerHTML={{ __html: heroDescription }} /><button type="button" onClick={(event) => { event.stopPropagation(); setSelectedBlock("button"); setActiveSidebarTool("design"); setCanvasSelectionActive(true); }} style={{ backgroundColor: buttonColor, color: buttonTextColor, width: buttonWidth === "auto" ? undefined : /^\d+$/.test(buttonWidth) ? buttonWidth + "px" : buttonWidth, minHeight: `${buttonHeight}px`, borderRadius: `${buttonRadius}px` }} className={cn("mt-7 rounded-xl px-6 py-3 text-[12px] font-semibold shadow-[0_8px_16px_rgba(110,173,192,0.28)] transition hover:brightness-95", canvasSelectionActive && selectedBlock === "button" ? "ring-2 ring-offset-2 ring-[var(--kenoo-sky)]" : "")}><span contentEditable suppressContentEditableWarning spellCheck="false" data-editor-key="hero-button" onInput={(event) => setHeroButtonLabel(event.currentTarget.innerHTML)} onMouseUp={(event) => rememberTextSelection(event.currentTarget)} onKeyUp={(event) => rememberTextSelection(event.currentTarget)} className="cursor-default rounded outline-none focus:ring-2 focus:ring-white/70"  dangerouslySetInnerHTML={{ __html: heroButtonLabel }} /></button></div><button type="button" onClick={() => { setSelectedBlock("text"); setActiveSidebarTool("design"); setCanvasSelectionActive(true); }} style={{ backgroundColor: sectionColors.text, height: `${sectionHeights.text}px`, display: hiddenSections.includes("text") ? "none" : undefined }} className={cn("block w-full border-t border-[#f0f0ed] px-10 py-9 text-left transition", canvasSelectionActive && selectedBlock === "text" && !selectedTextKey ? "ring-2 ring-inset ring-[var(--kenoo-sky)]" : "hover:brightness-[0.99]")}><p contentEditable suppressContentEditableWarning spellCheck="false" data-editor-key="body-heading" onInput={(event) => setBodyHeading(event.currentTarget.innerHTML)} onMouseDown={prepareTextSelection} onMouseUp={(event) => rememberTextSelection(event.currentTarget)} onKeyUp={(event) => rememberTextSelection(event.currentTarget)} className="cursor-text rounded-md text-[15px] font-semibold text-[#252828] outline-none focus:bg-white focus:ring-2 focus:ring-[var(--kenoo-sky)]/40" onClick={(event) => selectTextContainer(event, "text")} onDoubleClick={(event) => beginTextEditing(event, "text")} dangerouslySetInnerHTML={{ __html: bodyHeading }} /><p contentEditable suppressContentEditableWarning spellCheck="false" data-editor-key="body-description" onInput={(event) => setBodyDescription(event.currentTarget.innerHTML)} onMouseDown={prepareTextSelection} onMouseUp={(event) => rememberTextSelection(event.currentTarget)} onKeyUp={(event) => rememberTextSelection(event.currentTarget)} className="mt-3 cursor-text rounded-md text-[12px] leading-6 text-[#747b7d] outline-none focus:bg-white focus:ring-2 focus:ring-[var(--kenoo-sky)]/40" onClick={(event) => selectTextContainer(event, "text")} onDoubleClick={(event) => beginTextEditing(event, "text")} dangerouslySetInnerHTML={{ __html: bodyDescription }} /></button><button type="button" onClick={() => { setSelectedBlock("image"); setActiveSidebarTool("design"); setCanvasSelectionActive(true); }} style={{ backgroundColor: sectionColors.image, height: `${sectionHeights.image}px`, display: hiddenSections.includes("image") ? "none" : undefined }} className={cn("block w-full border-t border-[#f0f0ed] p-6 transition", canvasSelectionActive && selectedBlock === "image" && !selectedTextKey ? "ring-2 ring-inset ring-[var(--kenoo-sky)]" : "hover:brightness-[0.99]")}><div style={{ backgroundColor: sectionColors.image }} className="flex h-[170px] items-center justify-center rounded-xl border border-dashed border-[#c8dfe3] text-center text-[#65aab7]"><Image className="h-7 w-7" /><span contentEditable suppressContentEditableWarning spellCheck="false" data-editor-key="image-placeholder" onInput={(event) => setImagePlaceholder(event.currentTarget.innerHTML)} onMouseDown={prepareTextSelection} onMouseUp={(event) => rememberTextSelection(event.currentTarget)} onKeyUp={(event) => rememberTextSelection(event.currentTarget)} className="ml-3 cursor-text rounded outline-none focus:bg-white focus:ring-2 focus:ring-[var(--kenoo-sky)]/40" onClick={(event) => selectTextContainer(event, "image")} onDoubleClick={(event) => beginTextEditing(event, "image")} dangerouslySetInnerHTML={{ __html: imagePlaceholder }} /></div></button><button type="button" onClick={() => { setSelectedBlock("divider"); setActiveSidebarTool("design"); setCanvasSelectionActive(true); }} style={{ backgroundColor: sectionColors.divider, height: `${sectionHeights.divider}px`, display: hiddenSections.includes("divider") ? "none" : undefined }} className={cn("block w-full border-t border-[#f0f0ed] px-10 py-7 transition", canvasSelectionActive && selectedBlock === "divider" ? "ring-2 ring-inset ring-[var(--kenoo-sky)]" : "hover:brightness-[0.99]")}><div className="h-px bg-[#d8e5e7]" /></button></section></div></div></motion.main></div><footer className="flex h-11 shrink-0 items-center justify-between border-t border-[#e2e4e9] bg-white px-4 text-[11px] text-[#92969d] sm:px-6"><div className="flex items-center gap-5"><span className="inline-flex items-center gap-1.5"><LayoutTemplate className="h-3.5 w-3.5" /> Email layout</span><span className="hidden sm:inline">{saveStatus === "creating" ? "Creating…" : saveStatus === "saving" ? "Autosaving…" : saveStatus === "error" ? "Autosave failed" : "Autosaved"}</span></div><div className="flex items-center gap-4"><div className="flex items-center gap-1 rounded-xl bg-[#f4f5f7] p-1"><button type="button" onClick={() => setZoom((value) => Math.max(50, value - 10))} className="rounded-lg p-1.5 text-[#777] transition hover:bg-white hover:text-[#4d9eae]" aria-label="Zoom out"><ZoomOut className="h-3.5 w-3.5" /></button><input type="range" min="50" max="150" step="10" value={zoom} onChange={(event) => setZoom(Number(event.target.value))} className="h-1 w-32 accent-[#6eadc0]" aria-label="Zoom level" /><button type="button" onClick={() => setZoom((value) => Math.min(150, value + 10))} className="rounded-lg p-1.5 text-[#777] transition hover:bg-white hover:text-[#4d9eae]" aria-label="Zoom in"><ZoomIn className="h-3.5 w-3.5" /></button><span className="min-w-[38px] px-1 text-center text-[11px] font-medium text-[#666]">{zoom}%</span></div><span>Draft</span><span className="font-medium text-[#666]">1 / 1</span></div></footer></div>;
+{activeSidebarTool === "add" ? <><div className="mt-5 grid grid-cols-2 gap-2.5"><button type="button" onClick={() => { setSelectedBlock("text"); setActiveSidebarTool("design"); }} className="flex h-[84px] flex-col items-center justify-center gap-2 rounded-2xl border border-[#e8eaee] bg-[#fbfbfc] text-[11px] text-[#666] transition hover:-translate-y-0.5 hover:border-[#a8d7df] hover:bg-[#f1fbfc]"><Type className="h-5 w-5 text-[#60aebc]" />Text</button><button type="button" onClick={() => { setSelectedBlock("image"); setActiveSidebarTool("design"); }} className="flex h-[84px] flex-col items-center justify-center gap-2 rounded-2xl border border-[#e8eaee] bg-[#fbfbfc] text-[11px] text-[#666] transition hover:-translate-y-0.5 hover:border-[#a8d7df] hover:bg-[#f1fbfc]"><Image className="h-5 w-5 text-[#60aebc]" />Image</button><button type="button" onClick={() => setSelectedBlock("button")} className="flex h-[84px] flex-col items-center justify-center gap-2 rounded-2xl border border-[#e8eaee] bg-[#fbfbfc] text-[11px] text-[#666] transition hover:-translate-y-0.5 hover:border-[#a8d7df] hover:bg-[#f1fbfc]"><MousePointerClick className="h-5 w-5 text-[#60aebc]" />Button</button><button type="button" onClick={() => { setSelectedBlock("divider"); setActiveSidebarTool("design"); }} className="flex h-[84px] flex-col items-center justify-center gap-2 rounded-2xl border border-[#e8eaee] bg-[#fbfbfc] text-[11px] text-[#666] transition hover:-translate-y-0.5 hover:border-[#a8d7df] hover:bg-[#f1fbfc]"><Minus className="h-5 w-5 text-[#60aebc]" />Divider</button></div><div className="mt-6 rounded-2xl bg-[#f5fafb] p-3.5"><p className="text-[11px] font-medium text-[#4d9eae]">Tip</p><p className="mt-1 text-[11px] leading-5 text-[#7d9298]">Select a block on the canvas to edit its content and styling.</p></div><div className="mt-5 border-t border-[#eef0f1] pt-5"><p className="text-[13px] font-semibold text-[#222]">Email settings</p><label className="mt-4 block"><span className="mb-1.5 block text-[11px] font-medium text-[#777]">Description</span><input value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Optional" className="form-input" /></label><div className="mt-4"><p className="mb-2 text-[11px] font-medium text-[#777]">Selected block</p><div className="flex items-center justify-between rounded-xl bg-[#f5fafb] px-3 py-2.5 text-[12px] text-[#4d9eae]"><span className="capitalize">{selectedBlock}</span><span className="h-2 w-2 rounded-full bg-[#6eadc0]" /></div></div><div className="mt-4"><p className="mb-2 text-[11px] font-medium text-[#777]">Canvas background</p><div className="flex gap-2"><button type="button" className="h-8 w-8 rounded-lg bg-[#f7f4eb] ring-2 ring-[#6eadc0] ring-offset-2" /><button type="button" className="h-8 w-8 rounded-lg bg-white ring-1 ring-[#e5e7e9]" /><button type="button" className="h-8 w-8 rounded-lg bg-[#edf8fa]" /></div></div></div></> : activeSidebarTool === "uploads" || activeSidebarTool === "folders" ? <EmailUploadsPanel key={activeSidebarTool} initialView={activeSidebarTool === "folders" ? "folders" : "images"} /> : activeSidebarTool === "design" ? selectedSectionControls : activeSidebarTool === "ai" ? <KenooAIPanel templateId={templateId} onThreadIdChange={setAiThreadId} /> : <div className="mt-5 rounded-2xl border border-dashed border-[#dce8ea] bg-[#fbfdfd] p-4"><p className="text-[12px] font-medium text-[#444]">{activeSidebarTool === "layouts" ? "Choose a starting point" : "Describe what you want to create"}</p><p className="mt-2 text-[11px] leading-5 text-[#8a9294]">{activeSidebarTool === "layouts" ? "Pick a template layout to give your email a strong first structure." : "Use Kenoo AI to help draft content and suggest layouts."}</p><div className="mt-4 rounded-xl bg-[#f5fafb] px-3 py-2.5 text-[11px] font-medium text-[#6b969e]">More options coming soon</div></div>}</></motion.aside> : null}</AnimatePresence>{activeSidebarTool ? <button type="button" onClick={() => setActiveSidebarTool(null)} aria-label="Close sidebar panel" className="absolute left-[436px] top-1/2 z-40 flex h-9 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-[#e1e5eb] bg-white text-[#333] shadow-[0_4px_14px_rgba(15,23,42,0.12)] transition hover:bg-[#f8fafb]"><ChevronLeft className="h-5 w-5" /></button> : null}<motion.main animate={{ x: activeSidebarTool ? 180 : 0 }} transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }} onClick={() => { setActiveSidebarTool(null); setCanvasSelectionActive(false); setSelectedBlock("hero"); }} className="relative min-w-0 flex-1 overflow-auto bg-[#f4f5f7] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"><div className="flex min-h-full justify-center px-5 py-10 sm:px-10"><div className="relative w-full max-w-[640px]" style={{ transform: `scale(${zoom / 100})`, transformOrigin: "top center" }}><section onClick={(event) => event.stopPropagation()} className="overflow-hidden border border-[#e4e6ea] bg-white shadow-[0_18px_50px_rgba(15,23,42,0.12)]"><div role="button" tabIndex={0} onClick={() => { setSelectedBlock("hero"); setActiveSidebarTool("design"); setCanvasSelectionActive(true); }} style={{ backgroundColor: sectionColors.hero, height: `${sectionHeights.hero}px`, display: hiddenSections.includes("hero") ? "none" : undefined }} className={cn("group relative block w-full px-10 pb-10 pt-12 text-center transition", canvasSelectionActive && selectedBlock === "hero" && !selectedTextKey && !selectedImageKey ? "ring-2 ring-inset ring-[var(--kenoo-sky)]" : "hover:brightness-[0.99]")}><p contentEditable suppressContentEditableWarning spellCheck="false" data-editor-key="hero-eyebrow" onInput={(event) => setHeroEyebrow(event.currentTarget.innerHTML)} onMouseDown={prepareTextSelection} onMouseUp={(event) => rememberTextSelection(event.currentTarget)} onKeyUp={(event) => rememberTextSelection(event.currentTarget)} className="cursor-text rounded-md outline-none focus:bg-white/60 focus:ring-2 focus:ring-[var(--kenoo-sky)]/40" onClick={(event) => selectTextContainer(event, "hero")} onDoubleClick={(event) => beginTextEditing(event, "hero")} dangerouslySetInnerHTML={heroEyebrowMarkup} /><h1 contentEditable suppressContentEditableWarning spellCheck="false" data-editor-key="hero-headline" onInput={(event) => setHeroHeadline(event.currentTarget.innerHTML)} onMouseDown={prepareTextSelection} onMouseUp={(event) => rememberTextSelection(event.currentTarget)} onKeyUp={(event) => rememberTextSelection(event.currentTarget)} className="mt-4 cursor-text rounded-md text-[35px] font-semibold leading-[1.08] tracking-[-0.06em] text-[#171717] outline-none focus:bg-white/60 focus:ring-2 focus:ring-[var(--kenoo-sky)]/40" onClick={(event) => selectTextContainer(event, "hero")} onDoubleClick={(event) => beginTextEditing(event, "hero")} dangerouslySetInnerHTML={{ __html: heroHeadline }} /><p contentEditable suppressContentEditableWarning spellCheck="false" data-editor-key="hero-description" onInput={(event) => setHeroDescription(event.currentTarget.innerHTML)} onMouseDown={prepareTextSelection} onMouseUp={(event) => rememberTextSelection(event.currentTarget)} onKeyUp={(event) => rememberTextSelection(event.currentTarget)} className="mx-auto mt-5 max-w-[400px] cursor-text rounded-md text-[13px] leading-6 text-[#727878] outline-none focus:bg-white/60 focus:ring-2 focus:ring-[var(--kenoo-sky)]/40" onClick={(event) => selectTextContainer(event, "hero")} onDoubleClick={(event) => beginTextEditing(event, "hero")} dangerouslySetInnerHTML={{ __html: heroDescription }} /><button type="button" onClick={(event) => { event.stopPropagation(); setSelectedBlock("button"); setActiveSidebarTool("design"); setCanvasSelectionActive(true); }} style={{ backgroundColor: buttonColor, color: buttonTextColor, width: buttonWidth === "auto" ? undefined : /^\d+$/.test(buttonWidth) ? buttonWidth + "px" : buttonWidth, minHeight: `${buttonHeight}px`, borderRadius: `${buttonRadius}px` }} className={cn("mt-7 rounded-xl px-6 py-3 text-[12px] font-semibold shadow-[0_8px_16px_rgba(110,173,192,0.28)] transition hover:brightness-95", canvasSelectionActive && selectedBlock === "button" ? "ring-2 ring-offset-2 ring-[var(--kenoo-sky)]" : "")}><span contentEditable suppressContentEditableWarning spellCheck="false" data-editor-key="hero-button" onInput={(event) => setHeroButtonLabel(event.currentTarget.innerHTML)} onMouseUp={(event) => rememberTextSelection(event.currentTarget)} onKeyUp={(event) => rememberTextSelection(event.currentTarget)} className="cursor-default rounded outline-none focus:ring-2 focus:ring-white/70"  dangerouslySetInnerHTML={{ __html: heroButtonLabel }} /></button></div><button type="button" onClick={() => { setSelectedBlock("text"); setActiveSidebarTool("design"); setCanvasSelectionActive(true); }} style={{ backgroundColor: sectionColors.text, height: `${sectionHeights.text}px`, display: hiddenSections.includes("text") ? "none" : undefined }} className={cn("block w-full border-t border-[#f0f0ed] px-10 py-9 text-left transition", canvasSelectionActive && selectedBlock === "text" && !selectedTextKey && !selectedImageKey ? "ring-2 ring-inset ring-[var(--kenoo-sky)]" : "hover:brightness-[0.99]")}><p contentEditable suppressContentEditableWarning spellCheck="false" data-editor-key="body-heading" onInput={(event) => setBodyHeading(event.currentTarget.innerHTML)} onMouseDown={prepareTextSelection} onMouseUp={(event) => rememberTextSelection(event.currentTarget)} onKeyUp={(event) => rememberTextSelection(event.currentTarget)} className="cursor-text rounded-md text-[15px] font-semibold text-[#252828] outline-none focus:bg-white focus:ring-2 focus:ring-[var(--kenoo-sky)]/40" onClick={(event) => selectTextContainer(event, "text")} onDoubleClick={(event) => beginTextEditing(event, "text")} dangerouslySetInnerHTML={{ __html: bodyHeading }} /><p contentEditable suppressContentEditableWarning spellCheck="false" data-editor-key="body-description" onInput={(event) => setBodyDescription(event.currentTarget.innerHTML)} onMouseDown={prepareTextSelection} onMouseUp={(event) => rememberTextSelection(event.currentTarget)} onKeyUp={(event) => rememberTextSelection(event.currentTarget)} className="mt-3 cursor-text rounded-md text-[12px] leading-6 text-[#747b7d] outline-none focus:bg-white focus:ring-2 focus:ring-[var(--kenoo-sky)]/40" onClick={(event) => selectTextContainer(event, "text")} onDoubleClick={(event) => beginTextEditing(event, "text")} dangerouslySetInnerHTML={{ __html: bodyDescription }} /></button><button type="button" onClick={() => { setSelectedBlock("image"); setActiveSidebarTool("design"); setCanvasSelectionActive(true); }} style={{ backgroundColor: sectionColors.image, height: `${sectionHeights.image}px`, display: hiddenSections.includes("image") ? "none" : undefined }} className={cn("block w-full border-t border-[#f0f0ed] p-6 transition", canvasSelectionActive && selectedBlock === "image" && !selectedTextKey && !selectedImageKey ? "ring-2 ring-inset ring-[var(--kenoo-sky)]" : "hover:brightness-[0.99]")}><div style={{ backgroundColor: sectionColors.image }} className="flex h-[170px] items-center justify-center rounded-xl border border-dashed border-[#c8dfe3] text-center text-[#65aab7]"><Image className="h-7 w-7" /><span contentEditable suppressContentEditableWarning spellCheck="false" data-editor-key="image-placeholder" onInput={(event) => setImagePlaceholder(event.currentTarget.innerHTML)} onMouseDown={prepareTextSelection} onMouseUp={(event) => rememberTextSelection(event.currentTarget)} onKeyUp={(event) => rememberTextSelection(event.currentTarget)} className="ml-3 cursor-text rounded outline-none focus:bg-white focus:ring-2 focus:ring-[var(--kenoo-sky)]/40" onClick={(event) => selectTextContainer(event, "image")} onDoubleClick={(event) => beginTextEditing(event, "image")} dangerouslySetInnerHTML={{ __html: imagePlaceholder }} /></div></button><button type="button" onClick={() => { setSelectedBlock("divider"); setActiveSidebarTool("design"); setCanvasSelectionActive(true); }} style={{ backgroundColor: sectionColors.divider, height: `${sectionHeights.divider}px`, display: hiddenSections.includes("divider") ? "none" : undefined }} className={cn("block w-full border-t border-[#f0f0ed] px-10 py-7 transition", canvasSelectionActive && selectedBlock === "divider" ? "ring-2 ring-inset ring-[var(--kenoo-sky)]" : "hover:brightness-[0.99]")}><div className="h-px bg-[#d8e5e7]" /></button></section></div></div></motion.main></div><footer className="flex h-11 shrink-0 items-center justify-between border-t border-[#e2e4e9] bg-white px-4 text-[11px] text-[#92969d] sm:px-6"><div className="flex items-center gap-5"><span className="inline-flex items-center gap-1.5"><LayoutTemplate className="h-3.5 w-3.5" /> Email layout</span><span aria-hidden="true" className="hidden h-4 w-px bg-[#e5e7eb] sm:inline" /><span className="hidden sm:inline">{saveStatus === "creating" ? "Creating…" : saveStatus === "saving" ? "Autosaving…" : saveStatus === "error" ? "Autosave failed" : "Autosaved"}</span></div><div className="flex items-center gap-4"><div className="flex items-center gap-1 rounded-xl bg-[#f4f5f7] p-1"><button type="button" onClick={() => setZoom((value) => Math.max(50, value - 10))} className="rounded-lg p-1.5 text-[#777] transition hover:bg-white hover:text-[#4d9eae]" aria-label="Zoom out"><ZoomOut className="h-3.5 w-3.5" /></button><input type="range" min="50" max="150" step="10" value={zoom} onChange={(event) => setZoom(Number(event.target.value))} className="h-1 w-32 accent-[#6eadc0]" aria-label="Zoom level" /><button type="button" onClick={() => setZoom((value) => Math.min(150, value + 10))} className="rounded-lg p-1.5 text-[#777] transition hover:bg-white hover:text-[#4d9eae]" aria-label="Zoom in"><ZoomIn className="h-3.5 w-3.5" /></button><span className="min-w-[38px] px-1 text-center text-[11px] font-medium text-[#666]">{zoom}%</span></div><span>Draft</span><span className="font-medium text-[#666]">1 / 1</span></div></footer></div>;
 
   return <div className="min-h-full bg-kenoo-white"><div className="mx-auto max-w-[1000px] px-6 py-8 sm:px-10 lg:px-12"><Link href="/templates" className="inline-flex items-center gap-2 text-[12px] text-[#888] transition hover:text-[#333]"><ArrowLeft className="h-3.5 w-3.5" /> Back to templates</Link><header className="mt-8"><div className={cn("flex h-11 w-11 items-center justify-center rounded-2xl", details.color)}><Icon className="h-5 w-5" strokeWidth={1.6} /></div><p className="mb-2 mt-5 text-[12px] font-medium uppercase tracking-[0.1em] text-[#9b9b9b]">New {details.label.toLowerCase()} template</p><h1 className="text-[30px] font-semibold tracking-[-0.04em] text-[#111]">Create a {details.label} template</h1><p className="mt-2 max-w-xl text-[13px] font-light leading-6 text-[#858585]">{details.description}</p></header><form onSubmit={saveTemplate} className="mt-8 rounded-[28px] bg-white/80 p-6 shadow-[0_8px_28px_rgba(15,23,42,0.07),inset_0_1px_0_rgba(255,255,255,0.95)] sm:p-8"><label className="block"><span className="mb-1.5 block text-[12px] font-medium text-[#555]">Template name</span><input value={name} onChange={(event) => setName(event.target.value)} placeholder={isPush ? "e.g. Order ready" : "e.g. Appointment reminder"} className="form-input" /></label><label className="mt-5 block"><span className="mb-1.5 block text-[12px] font-medium text-[#555]">Description <span className="font-normal text-[#aaa]">(optional)</span></span><input value={description} onChange={(event) => setDescription(event.target.value)} placeholder="What is this template for?" className="form-input" /></label>{isPush ? <><label className="mt-5 block"><span className="mb-1.5 block text-[12px] font-medium text-[#555]">Notification title</span><input required value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Your order is ready" className="form-input" /></label><label className="mt-5 block"><span className="mb-1.5 block text-[12px] font-medium text-[#555]">Message</span><textarea required value={message} onChange={(event) => setMessage(event.target.value)} placeholder="Order #1234 is ready for pickup." className="min-h-28 w-full resize-y rounded-lg border border-[#dedede] bg-white px-3 py-2.5 text-[12px] leading-5 text-[#333] outline-none placeholder:text-[#aaa] focus:border-[#999] focus:ring-2 focus:ring-black/[0.04]" /></label><div className="mt-5 grid gap-5 sm:grid-cols-2"><label className="block"><span className="mb-1.5 block text-[12px] font-medium text-[#555]">Action link <span className="font-normal text-[#aaa]">(optional)</span></span><input type="url" value={actionUrl} onChange={(event) => setActionUrl(event.target.value)} placeholder="https://app.example.com/orders/1234" className="form-input" /></label><label className="block"><span className="mb-1.5 block text-[12px] font-medium text-[#555]">Image URL <span className="font-normal text-[#aaa]">(optional)</span></span><input type="url" value={imageUrl} onChange={(event) => setImageUrl(event.target.value)} placeholder="https://..." className="form-input" /></label></div></> : <><label className="mt-5 block"><span className="mb-1.5 block text-[12px] font-medium text-[#555]">Subject</span><input required={key === "email"} value={subject} onChange={(event) => setSubject(event.target.value)} placeholder="A quick note from us" className="form-input" /></label><label className="mt-5 block"><span className="mb-1.5 block text-[12px] font-medium text-[#555]">Message</span><textarea required maxLength={1600} value={message} onChange={(event) => setMessage(event.target.value)} placeholder={key === "email" ? "Write your plain-text email..." : "Hi {{first_name}}, just a quick reminder..."} className="min-h-36 w-full resize-y rounded-lg border border-[#dedede] bg-white px-3 py-2.5 text-[12px] leading-5 text-[#333] outline-none placeholder:text-[#aaa] focus:border-[#999] focus:ring-2 focus:ring-black/[0.04]" /><span className="mt-1.5 block text-right text-[11px] text-[#aaa]">{message.length}/1600</span></label></>}{error ? <p className="mt-4 text-[12px] text-red-500">{error}</p> : null}<div className="mt-6 flex justify-end gap-2"><Link href="/templates" className="rounded-lg px-3.5 py-2.5 text-[12px] font-medium text-[#666] transition hover:bg-[#f5f5f5]">Cancel</Link><button type="submit" disabled={saving} className="inline-flex items-center gap-2 rounded-lg bg-[#111] px-3.5 py-2.5 text-[12px] font-medium text-white transition hover:bg-[#2a2a2a] disabled:cursor-wait disabled:opacity-60"><Save className="h-3.5 w-3.5" />{saving ? "Saving…" : "Save template"}</button></div></form></div></div>;
 }

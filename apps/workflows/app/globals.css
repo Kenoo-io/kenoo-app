@@ -49,6 +49,30 @@
   border-radius: 6px;
   pointer-events: none;
 }
+.email-template-image-selection-outline {
+  position: absolute;
+  z-index: 16;
+  box-sizing: border-box;
+  border: 2px solid var(--kenoo-sky);
+  border-radius: 4px;
+  pointer-events: none;
+}
+.email-template-image-resize-handle {
+  position: absolute;
+  z-index: 21;
+  width: 14px;
+  height: 14px;
+  transform: translate(-50%, -50%);
+  border: 2px solid white;
+  border-radius: 3px;
+  background: var(--kenoo-sky);
+  cursor: nwse-resize;
+  touch-action: none;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.22);
+}
+.email-template-image-resize-top-right,
+.email-template-image-resize-bottom-left { cursor: nesw-resize; }
+.email-template-image-drag-handle { z-index: 22; }
 .email-template-drag-handle {
   position: absolute;
   top: -14px;
